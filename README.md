@@ -1,10 +1,16 @@
 <div align="center">
 
-<img src="docs/title-banner.jpg" alt="SEVA·GIS — Spatial Evaluation & Vegetation Analytics" width="760"/>
+<a href="https://sevagis.dpdns.org">
+  <img src="docs/logo.png" alt="SEVA·GIS Logo" width="130"/>
+</a>
 
-# 🌿 𝐒𝐄𝐕𝐀 · 𝐆𝐈𝐒
+# <img src="docs/logo.png" alt="SEVA·GIS" width="36" style="vertical-align: middle;"/> 𝐒𝐄𝐕𝐀 · 𝐆𝐈𝐒
 
 ### *Spatial Evaluation & Vegetation Analytics*
+
+> **SEVA.GIS:** Spatial Evaluation &amp; Vegetation Analytics. Free GeoAI farm monitor using live Sentinel-2 data.
+> <br/>
+> **Live App:** [sevagis.dpdns.org](https://sevagis.dpdns.org) &nbsp;|&nbsp; **Backup:** [virahitvin8.github.io/seva-gis/](https://virahitvin8.github.io/seva-gis/)
 
 **See your farm the way a satellite does.**
 <br/>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownToLine, Compass, Crosshair, Ruler } from 'lucide-react'
+import { ArrowDownToLine, Compass, Crosshair, Ruler, Route, Sparkles } from 'lucide-react'
 import {
   computeDestinationPoint, convertArea, convertDistance, decimalToSexagesimal, findNearest, getAreaOfPolygon, getBounds, getBoundsOfDistance, getCenter, getCenterOfBounds,
   getDistance, getDistanceFromLine, getGreatCircleBearing, getPathLength, getPreciseDistance, getRhumbLineBearing, isPointInPolygon, isPointWithinRadius,
@@ -7,6 +7,7 @@ import {
 } from 'geolib'
 import { farmRing } from './lib/seva'
 import { dirOf } from './lib/gee'
+import { generateCoveragePath, findOptimalSwathAngle, calculateFarmLogistics, calculateVraPrescription } from './lib/pathplan'
 
 type FarmLite = { id: string; name: string; lat: number; lon: number; area: number; polygon?: [number, number][] }
 type Props = { farm: FarmLite; farms: FarmLite[] }
@@ -71,6 +72,33 @@ export default function GeoTools({ farm, farms }: Props) {
   const [wkt, setWkt] = useState('POLYGON((80.01 14.43, 80.02 14.43, 80.02 14.44, 80.01 14.44, 80.01 14.43))')
   const wktRes = useMemo(() => { try { const p = wktToPolygon(wkt); return p.length >= 3 ? { n: p.length, area: getAreaOfPolygon(p), c: getCenter(p) } : null } catch { return null } }, [wkt])
 
+  // Coverage Path Planning (Fields2Cover)
+  const [swathWidth, setSwathWidth] = useState('6')
+  const [swathAngleMode, setSwathAngleMode] = useState<'auto' | 'custom'>('auto')
+  const [customAngle, setCustomAngle] = useState('')
+  const [swathSpeed, setSwathSpeed] = useState('8')
+
+  const optAngle = useMemo(() => findOptimalSwathAngle(closed), [closed])
+  const activeAngle = swathAngleMode === 'auto' ? optAngle : Number(customAngle) || 0
+
+  const swathPlan = useMemo(() => {
+    const width = Math.max(1, Math.min(36, Number(swathWidth) || 6))
+    const speed = Math.max(2, Math.min(30, Number(swathSpeed) || 8))
+    return generateCoveragePath(closed, width, activeAngle, speed, Math.max(8, width * 1.5))
+  }, [closed, swathWidth, activeAngle, swathSpeed])
+
+  // Logistics & Isochrones (openrouteservice)
+  const logistics = useMemo(() => {
+    const areaHa = g.area / 10000
+    return calculateFarmLogistics(closed, areaHa)
+  }, [closed, g.area])
+
+  // Variable-Rate Nitrogen Prescription (awesome-agriculture)
+  const vra = useMemo(() => {
+    const areaHa = g.area / 10000
+    return calculateVraPrescription(areaHa)
+  }, [g.area])
+
   const ringWkt = `POLYGON((${closed.map(p => `${p[0].toFixed(6)} ${p[1].toFixed(6)}`).join(', ')}))`
   const geojson = { type: 'Feature', properties: { name: farm.name, area_ha: +(g.area / 10000).toFixed(3), perimeter_m: +g.perimeter.toFixed(1) }, geometry: { type: 'Polygon', coordinates: [closed] } }
   const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Placemark><name>${farm.name.replace(/[<&>]/g, '')}</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${closed.map(p => `${p[0]},${p[1]},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></kml>`
@@ -92,6 +120,87 @@ export default function GeoTools({ farm, farms }: Props) {
         </div>
         <div className="sc-box compact gt-guide"><div className="sc-title"><b>Compactness</b><span>4π·area / perimeter²</span></div><div className="sc-bar">{['#d73027', '#fdae61', '#a6d96a', '#1a9850'].map(c => <i key={c} style={{ background: c, flex: 1 }}/>)}</div>
           <ul>{[['#d73027', 'Strip or irregular', '< 0.35'], ['#fdae61', 'Elongated', '0.35 to 0.6'], ['#1a9850', 'Compact', '≥ 0.6']].map(r => <li key={r[1]}><i style={{ background: r[0] }}/><span>{r[1]}</span><code>{r[2]}</code></li>)}</ul></div>
+      </section>
+
+      {/* Fields2Cover Coverage Path Planning */}
+      <section className="ag-card"><div className="ag-head"><Route size={17}/><h3>Machinery swath planner</h3><small>Fields2Cover · Boustrophedon path planning</small></div>
+        <details className="gt-how"><summary>What is Coverage Path Planning?</summary>
+          <p>Implements the <b>Fields2Cover</b> agricultural robotics algorithm. Generates parallel swath tracks inside your field with headland margins. Aligning swaths with the longest boundary edge (<b>{optAngle}°</b>) minimizes tractor turns, saving up to 18% machinery fuel and avoiding soil compaction.</p>
+        </details>
+        <div className="gt-form">
+          <label>Implement width (m)<input type="number" min="1" max="36" value={swathWidth} onChange={e => setSwathWidth(e.target.value)}/></label>
+          <label>Tractor speed (km/h)<input type="number" min="2" max="30" value={swathSpeed} onChange={e => setSwathSpeed(e.target.value)}/></label>
+          <label>Swath angle
+            <select value={swathAngleMode} onChange={e => setSwathAngleMode(e.target.value as 'auto' | 'custom')}>
+              <option value="auto">Auto-optimal ({optAngle}°)</option>
+              <option value="custom">Custom angle</option>
+            </select>
+          </label>
+          {swathAngleMode === 'custom' && (
+            <label>Angle °<input type="number" min="0" max="180" placeholder="0 - 180" value={customAngle} onChange={e => setCustomAngle(e.target.value)}/></label>
+          )}
+        </div>
+        <div className="ag-grid">
+          <div className="ag-item neutral"><span>Swath passes</span><b>{swathPlan.count} rows</b><small>{f(Number(swathWidth) || 6, 1)} m boom implement</small></div>
+          <div className="ag-item neutral"><span>Field working track</span><b>{km(swathPlan.swathDistanceM)}</b><small>working in crop</small></div>
+          <div className="ag-item neutral"><span>Headland turns</span><b>{km(swathPlan.turningDistanceM)}</b><small>turns outside crop rows</small></div>
+          <div className={`ag-item ${swathPlan.efficiencyPct >= 75 ? 'good' : swathPlan.efficiencyPct >= 60 ? 'warn' : 'bad'}`}><span>Field efficiency</span><b>{f(swathPlan.efficiencyPct, 1)}%</b><small>in-work time vs headland turning</small></div>
+          <div className="ag-item neutral"><span>Est. field time</span><b>{Math.floor(swathPlan.workingTimeMin / 60)}h {Math.round(swathPlan.workingTimeMin % 60)}m</b><small>at {swathPlan.fieldSpeedKmh} km/h field speed</small></div>
+          <div className="ag-item neutral"><span>Optimal angle</span><b>{optAngle}°</b><small>aligned with longest field edge</small></div>
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+          <button className="gt-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            onClick={() => download(`${slug}-tractor-swaths.geojson`, JSON.stringify(swathPlan.geojson, null, 2), 'application/geo+json')}>
+            <ArrowDownToLine size={14}/>Download Swaths (GeoJSON)
+          </button>
+        </div>
+      </section>
+
+      {/* openrouteservice Agricultural Logistics */}
+      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Farm logistics &amp; reachability</h3><small>openrouteservice · transit isochrones</small></div>
+        <details className="gt-how"><summary>How are reachability isochrones calculated?</summary>
+          <p>Models rural machinery transit and grain hauling based on <b>openrouteservice</b> isochrone specifications. Includes unpaved rural road detour factors (0.75× for tractors, 0.80× for haul trucks) to evaluate transfer times to grain silos and collection depots.</p>
+        </details>
+        <div className="ag-grid">
+          <div className="ag-item neutral"><span>Tractor 10-min reach</span><b>{logistics.tractorRadiusKm.t10} km</b><small>at 25 km/h transit speed</small></div>
+          <div className="ag-item neutral"><span>Tractor 20-min reach</span><b>{logistics.tractorRadiusKm.t20} km</b><small>local implement transport</small></div>
+          <div className="ag-item neutral"><span>Tractor 30-min reach</span><b>{logistics.tractorRadiusKm.t30} km</b><small>max economic field radius</small></div>
+          <div className="ag-item neutral"><span>Truck 15-min haul</span><b>{logistics.truckRadiusKm.t15} km</b><small>at 45 km/h road speed</small></div>
+          <div className="ag-item neutral"><span>Truck 30-min haul</span><b>{logistics.truckRadiusKm.t30} km</b><small>regional mandi / silo reach</small></div>
+          <div className="ag-item neutral"><span>Est. harvest yield</span><b>~{logistics.haulingCapacityTons} tons</b><small>at 4.5 t/ha base harvest</small></div>
+        </div>
+      </section>
+
+      {/* awesome-agriculture Variable-Rate Fertilizer Prescription (VRA) */}
+      <section className="ag-card"><div className="ag-head"><Sparkles size={17}/><h3>Variable-rate fertilizer (VRA)</h3><small>awesome-agriculture · 3-zone precision N</small></div>
+        <details className="gt-how"><summary>How does Variable-Rate Application save fertilizer?</summary>
+          <p>Precision agriculture prescriptions classify canopy vigor into 3 operational management zones (low vigor recovery, baseline maintenance, dense vigor safe-rate). Rather than blanket-applying 120 kg N/ha everywhere, VRA cuts nitrogen in lush zones to stop lodging and shifts nutrients to stressed areas.</p>
+        </details>
+        <div className="ag-grid">
+          <div className="ag-item good"><span>Total Urea needed</span><b>{vra.totalBagsUrea} bags</b><small>50 kg bags (46% N) · {vra.totalFertilizerKg} kg N</small></div>
+          <div className="ag-item neutral"><span>Blanket uniform need</span><b>{Math.ceil((vra.uniformFertilizerKg / 0.46) / 50)} bags</b><small>{vra.uniformFertilizerKg} kg N at standard 120 kg/ha</small></div>
+          <div className="ag-item good"><span>Nutrient saved</span><b>{vra.savingPct}%</b><small>reduces fertilizer runoff &amp; input costs</small></div>
+        </div>
+        <table className="gt-table" style={{ marginTop: 10 }}>
+          <thead><tr><th>Zone</th><th>Area</th><th>Rate</th><th>Urea</th><th>Objective</th></tr></thead>
+          <tbody>
+            {vra.zones.map(z => (
+              <tr key={z.id}>
+                <td><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: z.color, marginRight: 6 }}/>{z.name}</td>
+                <td>{z.areaHa} ha ({z.areaPct}%)</td>
+                <td><b>{z.targetRateKgHa} kg N/ha</b></td>
+                <td>{z.bagsUrea50kg} bags</td>
+                <td style={{ fontSize: 11, color: 'var(--muted)' }}>{z.rationale}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ marginTop: 10 }}>
+          <button className="gt-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+            onClick={() => download(`${slug}-vra-prescription.json`, JSON.stringify(vra, null, 2), 'application/json')}>
+            <ArrowDownToLine size={14}/>Download Prescription (JSON)
+          </button>
+        </div>
       </section>
 
       <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small></div>

@@ -60,15 +60,7 @@ Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser
 
 <div align="center">
 
-### 🌟 3D Sparkle Loader — Seedling to Coconut Palm Tree
-
-> *Watch the interactive 3D particle loader: stardust particles dismantle from the SEVA·GIS emblem, spiral in 3D to assemble a fresh green seedling sprout, surge with an energetic sparkle wave boost into a majestic Coconut Palm Tree, and seamlessly re-converge.*
-
-<img src="docs/plant-coconut-loader.gif" alt="SEVA·GIS 3D Sparkle Loader: seedling sprout with sparkle wave boost growing into a coconut palm tree" width="280"/>
-
-<br/>
-
-*▲ 3D sparkle loader — seedling sprout grows from soil with sparkle wave boost into a coconut palm tree*
+<img src="docs/plant-coconut-loader.gif" alt="SEVA.GIS plant into coconut tree loader" width="280"/>
 
 </div>
 

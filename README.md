@@ -90,7 +90,7 @@ Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser
 
 ## 📖 Contents
 
-[Why SEVA.GIS](#-why-sevagis) · [Features](#-features) · [Real-World Market Capabilities](#-real-world-market-capabilities--precision-gis-engine) · [Data sources](#-data-sources) · [Methodology & Architecture](#-methodology--architecture) · [Ground-Truth Accuracy](#-ground-truth-accuracy--real-world-validation) · [Limitations](#-limitations) · [Author](#-author) · [Credits](#-credits)
+[Why SEVA.GIS](#-why-sevagis) · [Features](#-features) · [Real-World Market Capabilities](#-real-world-market-capabilities--precision-gis-engine) · [Agentic Superpowers & Skills](#-agentic-superpowers--skills-ecosystem) · [Data sources](#-data-sources) · [Methodology & Architecture](#-methodology--architecture) · [Ground-Truth Accuracy](#-ground-truth-accuracy--real-world-validation) · [Limitations](#-limitations) · [Author](#-author) · [Credits](#-credits)
 
 ---
 
@@ -157,6 +157,44 @@ Modern agricultural operations require more than passive satellite visualization
 ### 5. [openwisp/django-rest-framework-gis](https://github.com/openwisp/django-rest-framework-gis) — OpenGIS Standardized GeoJSON Serialization
 - **Standard Spatial Schema:** Enforces RFC 7946 `FeatureCollection` compliance across boundary shapes, swath lines, and prescription polygons.
 - **Universal Interoperability:** Guarantees lossless bi-directional data exchange between SEVA.GIS, QGIS, PostGIS, Google Earth, and precision agricultural cloud platforms.
+
+---
+
+## 🧠 Agentic Superpowers & Skills Ecosystem
+
+SEVA·GIS is engineered as an **Agentic-Ready Geospatial Platform**. Drawing from premier AI agent frameworks—including [Egonex-AI/Understand-Anything](https://github.com/Egonex-AI/Understand-Anything), [sickn33/agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills), [rmyndharis/antigravity-skills](https://github.com/rmyndharis/antigravity-skills), [obra/superpowers](https://github.com/obra/superpowers), and [mattpocock/skills](https://github.com/mattpocock/skills)—the repository embeds native developer and operational skills inside `.agents/skills/`:
+
+```text
+ .agents/skills/
+ ├── understand-anything-geospatial/   # Semantic domain knowledge graph & AST mapping (Egonex-AI)
+ │   └── SKILL.md
+ ├── precision-ag-superpowers/         # Invariant testing, TDD & verification loops (obra/superpowers)
+ │   └── SKILL.md
+ ├── antigravity-spatial-pipeline/     # Zero-backend client-side GIS processing (rmyndharis)
+ │   └── SKILL.md
+ └── codebase-developer-skills/        # Type-safe React 19 & PRD engineering standards (mattpocock)
+     └── SKILL.md
+```
+
+### 1. [Understand-Anything](https://github.com/Egonex-AI/Understand-Anything) — Semantic Codebase Knowledge Graph
+- **Instant Architectural Mental Model:** Maps every business domain (STAC Ingestion, WGS84 Geodesics, Radiometric Math, Robotics Swaths, VRA Zonation, WebGL Cartography) to exact component files and data contracts.
+- **Automated Domain Comprehension:** Run `node scripts/understand_codebase.mjs` to extract and inspect the 18-file domain dependency graph in milliseconds:
+  ```bash
+  node scripts/understand_codebase.mjs
+  ```
+- **Persona-Adaptive Guided Explanations:** Powers Mitra's in-app tour and contextual help, translating complex formulas (e.g., $(NIR - Red) / (NIR + Red)$ or Boustrophedon swaths) into plain-language actionable advice.
+
+### 2. [obra/superpowers](https://github.com/obra/superpowers) — Systematic Verification Loops
+- **Algorithmic Invariants:** Enforces strict boundary preconditions (WGS84 `[lon, lat]` coordinate order, closed linear rings, epsilon division-by-zero guards, and positive Cartesian boom widths).
+- **Zero-Hallucination Execution:** AI coding agents follow disciplined verify-before-modify workflows, preventing accidental regressions in sensitive geodesic calculations.
+
+### 3. [rmyndharis/antigravity-skills](https://github.com/rmyndharis/antigravity-skills) — Native Antigravity Agent Playbooks
+- **Zero-Backend Execution:** Specialized recipes for running satellite band math, WebGL shaders, and IndexedDB persistence entirely within the user's browser.
+- **Progressive Skill Disclosure:** Skills are discovered dynamically by Google Antigravity agents without polluting the primary context window.
+
+### 4. [mattpocock/skills](https://github.com/mattpocock/skills) & [sickn33/agentic-awesome-skills](https://github.com/sickn33/agentic-awesome-skills) — Composable Type Safety
+- **Strict Domain Types:** Guarantees immutable geometric primitives (`LonLat`, `LinearRing`, `SwathPlan`, `VraPrescription`).
+- **PRD-to-Implementation Alignment:** Modular playbooks for creating focused, reusable components adhering to React 19 and Tailwind CSS v4 styling rules.
 
 ---
 

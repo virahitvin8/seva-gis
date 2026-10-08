@@ -58,8 +58,8 @@ const STEPS: Step[] = [
   },
   {
     sel: '.gt-wrap',
-    title: 'Geospatial tools',
-    body: 'Field calculation suite: WKT polygon reader, geodesic buffer rings, GPS coordinate converter, and geodesic area/distance calculators.',
+    title: 'Geo tools & robotics',
+    body: 'Field calculation suite: machinery swath planner (Fields2Cover CPP), rural reachability isochrones (openrouteservice), variable-rate fertilizer (VRA), and geodesic calculators.',
     action: () => {
       document.querySelector('.gt-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }

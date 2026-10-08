@@ -1,0 +1,10 @@
+{
+  "description": "Automated GeoAI platform delivering precise crop health, soil, and water insights with actionable alerts for farmers and landowners worldwide, free and easy to use.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

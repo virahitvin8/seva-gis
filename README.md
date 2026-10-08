@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="docs/logo.png" alt="SEVA.GIS — Spatial Evaluation & Vegetation Analytics" width="180"/>
+<img src="docs/title-banner.jpg" alt="SEVA·GIS — Spatial Evaluation & Vegetation Analytics" width="760"/>
 
+# 🌿 𝐒𝐄𝐕𝐀 · 𝐆𝐈𝐒
+
+### *Spatial Evaluation & Vegetation Analytics*
+
+**See your farm the way a satellite does.**
 <br/>
-
-# SEVA·GIS
-
-### *See your farm the way a satellite does.*
-
-**Free &nbsp;·&nbsp; Open-source &nbsp;·&nbsp; No API keys &nbsp;·&nbsp; Real Sentinel-2 data**
+Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser GeoAI
 
 <br/>
 
@@ -58,13 +58,31 @@
 
 ---
 
+<div align="center">
+
+### 🌟 3D Sparkle Loader — Seedling to Coconut Palm Tree
+
+> *Watch the interactive 3D particle loader: stardust particles dismantle from the SEVA·GIS emblem, spiral in 3D to assemble a fresh green seedling sprout, surge with an energetic sparkle wave boost into a majestic Coconut Palm Tree, and seamlessly re-converge.*
+
+<img src="docs/plant-coconut-loader.gif" alt="SEVA·GIS 3D Sparkle Loader: seedling sprout with sparkle wave boost growing into a coconut palm tree" width="280"/>
+
+<br/>
+
+*▲ 3D sparkle loader — seedling sprout grows from soil with sparkle wave boost into a coconut palm tree*
+
+</div>
+
+---
+
 ## 🗺️ Where is what — guided quick tour
 
 > First time? **Mitra** gives you a 60-second guided tour the moment you sign in. It highlights each part of the screen and explains it. You can skip, go back, or reopen it any time.
 
+**Mitra's click-by-click tour:** menu → add farm → live map → NDVI indices → analysis lab → GeoAI studio → geo tools → report → sign out
+
 <div align="center">
 
-![Mitra's click-by-click tour: menu → add farm → live map → NDVI indices → analysis lab → GeoAI studio → geo tools → report → sign out](docs/quick-tour.gif)
+[![Mitra's click-by-click tour](docs/quick-tour.gif)](https://sevagis.dpdns.org)
 
 *▲ Covers: menu · add farm · live map · indices with scales · analysis lab · GeoAI · geo tools · reports · sign out*
 
@@ -74,7 +92,7 @@
 
 ## 📖 Contents
 
-[Why SEVA.GIS](#-why-sevagis) · [Features](#-features) · [Data sources](#-data-sources) · [Method](#-method) · [Limitations](#-limitations) · [Getting started](#-getting-started) · [Project layout](#-project-layout) · [Author](#-author) · [Credits](#-credits)
+[Why SEVA.GIS](#-why-sevagis) · [Features](#-features) · [Data sources](#-data-sources) · [Method](#-method) · [Limitations](#-limitations) · [Author](#-author) · [Credits](#-credits)
 
 ---
 
@@ -84,7 +102,7 @@ Most satellite tools are locked behind subscriptions or require GIS expertise. S
 
 - **Keyless.** No API keys, no subscription. Uses open Copernicus data.
 - **Personal.** A new account starts empty — you add your own farm, your data stays in your browser.
-- **Plain language.** Every number has a scale and a "Why?" line, written for readers aged 16 and over.
+- **Plain language.** Every number has a scale and a "Why?" line.
 - **Cross-platform.** Desktop · Android · installable as a PWA.
 - **Real data only.** No demo farms pre-loaded — every result is from actual Sentinel-2 imagery.
 
@@ -152,75 +170,13 @@ Most satellite tools are locked behind subscriptions or require GIS expertise. S
 
 ---
 
-## 🚀 Getting started
-
-```bash
-# Clone
-git clone https://github.com/virahitvin8/seva-gis.git
-cd seva-gis
-
-# Install
-pnpm install
-
-# Develop (hot reload)
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Preview the build
-pnpm preview
-```
-
----
-
-## 📁 Project layout
-
-```
-seva-gis/
-├── src/
-│   ├── lib/          # Geospatial, raster & GeoAI logic
-│   ├── assets/       # Brand assets (logo, Mitra avatar)
-│   └── *.tsx         # React components
-├── public/           # Web manifest, CNAME, static assets
-├── docs/             # Tour GIF/webm, domain notes, credits
-├── .github/
-│   └── workflows/    # CI: build check + GitHub Pages deploy
-├── index.html
-├── vite.config.ts
-└── package.json
-```
-
-See [DESIGN.md](DESIGN.md) for design notes and [CONTRIBUTING.md](CONTRIBUTING.md) to contribute.
-
----
-
-## 🚢 Deploy & domain
-
-Every push to `main` automatically builds and deploys to GitHub Pages via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
-
-**One-time setup:** Repo → Settings → Pages → Source → **GitHub Actions**.
-
-Custom domain instructions: [docs/DOMAIN.md](docs/DOMAIN.md).
-
----
-
-## 🎨 Design & fonts
-
-- **Icons:** [Font Awesome Free](https://github.com/FortAwesome/Font-Awesome) (dashboard, sign-in, empty state)
-- **Fonts:** Syne (animated headings) · Manrope + DM Sans (text) · JetBrains Mono (labels) · Mr Dafoe (wordmark) — all open-licence [Google Fonts](https://fonts.google.com/), chosen with [awesome-fonts](https://github.com/brabadu/awesome-fonts) as a guide
-- **Sign-in graphics:** pointer-reactive particle network (inspired by [Pts](https://github.com/williamngan/pts)) and node-flow strip (inspired by [Graphite](https://github.com/GraphiteEditor/Graphite)); molecule-style linked nodes follow [Mol*](https://github.com/molstar/molstar)
-- **Reports:** SEVA.GIS logo, watermark, location, satellite date and data-source list on the first page
-
----
-
 ## 👨‍💻 Author
 
 <div align="center">
 
 **N. Akshit Vinay**
 
-*Idea, design and code — for everyone who loves the land and wants to see it grow.*
+*Idea, design and Vibe coded 💖 — for everyone who loves the land and wants to see it grow.*
 
 <br/>
 
@@ -242,7 +198,7 @@ Data providers, libraries, methods and hosting are fully listed in [docs/CREDITS
 
 <div align="center">
 
-*Made with ❤️ for Indian farmers &nbsp;·&nbsp; Powered by open data from ESA Copernicus*
+*Powered by open data from ESA Copernicus*
 
 **[⭐ Star this repo](https://github.com/virahitvin8/seva-gis/stargazers) if SEVA.GIS helped you or someone you know**
 

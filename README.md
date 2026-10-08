@@ -1,89 +1,129 @@
 <div align="center">
 
-<img src="docs/logo.png" alt="SEVA.GIS logo" width="160"/>
+<img src="docs/logo.png" alt="SEVA.GIS — Spatial Evaluation & Vegetation Analytics" width="180"/>
 
-# SEVA.GIS
+<br/>
 
-**S**patial **E**valuation & **V**egetation **A**nalytics
+# SEVA·GIS
 
-Free, open-source GeoAI farm monitor. Live Sentinel-2 satellite data, explained in plain language.
+### *See your farm the way a satellite does.*
 
-[**Open the app**](https://sevagis.dpdns.org) · [Backup link](https://virahitvin8.github.io/seva-gis/) · [Report a bug](https://github.com/virahitvin8/seva-gis/issues) · [Credits](docs/CREDITS.md)
+**Free &nbsp;·&nbsp; Open-source &nbsp;·&nbsp; No API keys &nbsp;·&nbsp; Real Sentinel-2 data**
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![React 19](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
-![Vite 8](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
-![Tailwind 4](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)
-![Sentinel-2](https://img.shields.io/badge/Sentinel--2-live-2f8f4e)
-![No API keys](https://img.shields.io/badge/API%20keys-none-success)
-![Font Awesome](https://img.shields.io/badge/icons-Font%20Awesome%206-528dd7?logo=fontawesome&logoColor=white)
-![Syne](https://img.shields.io/badge/headings-Syne-111?logo=googlefonts&logoColor=white)
-![Manrope](https://img.shields.io/badge/text-Manrope%20%2B%20DM%20Sans-111?logo=googlefonts&logoColor=white)
+<br/>
 
-![SEVA.GIS guided tour with Mitra](docs/tour.gif)
+[![🌾 Open the App](https://img.shields.io/badge/🌾%20Open%20the%20App-sevagis.dpdns.org-2f8f4e?style=for-the-badge&labelColor=1a1a2e)](https://sevagis.dpdns.org)
+[![🔁 Backup Link](https://img.shields.io/badge/🔁%20Backup%20Link-GitHub%20Pages-6e40c9?style=for-the-badge&labelColor=1a1a2e)](https://virahitvin8.github.io/seva-gis/)
+[![Report a Bug](https://img.shields.io/badge/🐛%20Bug%20Report-Issues-e34c26?style=for-the-badge&labelColor=1a1a2e)](https://github.com/virahitvin8/seva-gis/issues)
 
-### Quick tour with Mitra: where is what
+<br/>
 
-![Click-by-click quick tour: where everything is in SEVA.GIS](docs/quick-tour.gif)
-
-### Mitra's walkthrough with real satellite data
-
-A real farm (Ludhiana, Punjab) analysed live with Sentinel-2: map, analysis lab, time-lapse and report. [Watch the video (WebM)](docs/seva-gis-tour.webm)
-
-![Mitra walkthrough with real data](docs/seva-gis-tour.gif)
-
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=white)
+![Vite 8](https://img.shields.io/badge/Vite-8-646cff?style=flat-square&logo=vite&logoColor=white)
+![Tailwind 4](https://img.shields.io/badge/Tailwind-4-38bdf8?style=flat-square&logo=tailwindcss&logoColor=white)
+![Sentinel-2](https://img.shields.io/badge/Sentinel--2-live%20imagery-2f8f4e?style=flat-square)
+![No API keys](https://img.shields.io/badge/API%20keys-none%20needed-brightgreen?style=flat-square)
+![PWA](https://img.shields.io/badge/PWA-installable-5a0fc8?style=flat-square&logo=pwa)
 
 </div>
 
-## Contents
+---
 
-[Why SEVA.GIS](#why-sevagis) · [Quick tour](#quick-tour) · [Features](#features) · [Data sources](#data-sources) · [Method](#method) · [Limitations](#limitations) · [Getting started](#getting-started) · [Project layout](#project-layout) · [Author](#author) · [Credits](#credits)
+<div align="center">
 
-## Why SEVA.GIS
+## ✨ Try it — no login needed to explore
 
-SEVA.GIS reads the newest Sentinel-2 picture of your farm boundary and turns it into plain answers: how healthy the crop is, whether it needs water, and what the ground is like.
+> *Draw your farm boundary, watch real Sentinel-2 satellite data load instantly, and get plain-language advice about crop health, irrigation need and soil — all in your browser.*
 
-- Real, keyless data only. A new account starts empty: you add your own farm.
-- Works on desktop and Android, and installs as an app (Add to Home screen).
-- Written for readers aged 16 and over. Each result has a scale and a "Why?" line.
+### **→ [Open SEVA.GIS now at sevagis.dpdns.org](https://sevagis.dpdns.org) ←**
 
-## Quick tour
+*Works on desktop · Android · Installs as a PWA (Add to Home screen)*
 
-After sign-in, **Mitra**, the in-app guide, offers a short tour. Each step highlights part of the screen and explains it. You can go back, skip a step, or skip the whole tour, and reopen it any time from the **Quick tour with Mitra** button at the top right, next to your profile.
+</div>
 
-The animation above walks through every step: menu, adding a farm, the live map, numbers with scales, advice, the analysis lab and GeoAI studio, geo tools, reports, the contact chat and signing out.
+---
 
-## Features
+## 🎬 Full walkthrough with real satellite data
+
+> Mitra, the in-app guide, walks a real farm near **Ludhiana, Punjab** — live Sentinel-2 imagery, NDVI crop health, month-by-month time-lapse from June → October 2026, and a full downloadable report.
+
+<div align="center">
+
+[![Watch the full walkthrough — click to open the live app](docs/seva-gis-tour.gif)](https://sevagis.dpdns.org)
+
+*▲ Click the animation to open the live app &nbsp;|&nbsp; [▶ Watch as video (WebM · 147 KB)](https://github.com/virahitvin8/seva-gis/blob/main/docs/seva-gis-tour.webm)*
+
+</div>
+
+---
+
+## 🗺️ Where is what — guided quick tour
+
+> First time? **Mitra** gives you a 60-second guided tour the moment you sign in. It highlights each part of the screen and explains it. You can skip, go back, or reopen it any time.
+
+<div align="center">
+
+![Mitra's click-by-click tour: menu → add farm → live map → NDVI indices → analysis lab → GeoAI studio → geo tools → report → sign out](docs/quick-tour.gif)
+
+*▲ Covers: menu · add farm · live map · indices with scales · analysis lab · GeoAI · geo tools · reports · sign out*
+
+</div>
+
+---
+
+## 📖 Contents
+
+[Why SEVA.GIS](#-why-sevagis) · [Features](#-features) · [Data sources](#-data-sources) · [Method](#-method) · [Limitations](#-limitations) · [Getting started](#-getting-started) · [Project layout](#-project-layout) · [Author](#-author) · [Credits](#-credits)
+
+---
+
+## 🌱 Why SEVA.GIS
+
+Most satellite tools are locked behind subscriptions or require GIS expertise. SEVA.GIS does the opposite:
+
+- **Keyless.** No API keys, no subscription. Uses open Copernicus data.
+- **Personal.** A new account starts empty — you add your own farm, your data stays in your browser.
+- **Plain language.** Every number has a scale and a "Why?" line, written for readers aged 16 and over.
+- **Cross-platform.** Desktop · Android · installable as a PWA.
+- **Real data only.** No demo farms pre-loaded — every result is from actual Sentinel-2 imagery.
+
+---
+
+## 🛰️ Features
 
 | Area | Capability |
 |---|---|
-| Farm boundary | Draw, walk with GPS, type corners, or upload GeoJSON, KML, GPX, WKT, CSV and zipped Shapefiles |
-| Imagery | Newest cloud-filtered Sentinel-2 L2A scene, cloud-masked and clipped to the boundary. A Copernicus-style true-colour view and Esri high-resolution imagery to zoom level 18 |
-| Indices | NDVI, NDMI, NDWI, NDRE, EVI, BSI and more, each with a verdict |
-| Terrain | Copernicus 30 m DEM: slope, aspect, hillshade, contours, TWI |
-| Base maps | Esri Imagery, Streets, Light, Dark and Topo, with a farm-only clipped view locked to the boundary |
-| GeoAI studio | Sharpened true-colour view plus automatic classification: k-means++ (unsupervised), minimum-distance and maximum-likelihood (supervised, self-trained from rule-based land cover). Methods follow scikit-learn, GDAL, Orfeo Toolbox, SNAP and QGIS SCP. GeoJSON export |
-| Nearby water and power | Overpass (OpenStreetMap) finds borewells, tube wells, hand pumps, lakes, ponds, streams, canals, pipelines, poles, transformers and power lines within 1 km. Distance buffer rings, inside/outside marking and per-layer on/off toggles. Your own borewells and pipelines get buffer rings too |
-| Languages | English, Hindi and Telugu toggle beside the notification bell (Google Translate widget) |
-| Analysis lab | True-colour, land cover, zones, change and weak-spot maps, each explained and marked with vulnerability points |
-| Geo tools | WKT reader, offset and buffer, each with in-app how-to guides |
-| Reports | PDF download (print to PDF) and one-file HTML report with selectable maps. Each map sheet has a coordinate frame, title, north arrow, scale bar and legend, and elements can be moved by double-clicking in the preview |
-| Weather and soil | Open-Meteo forecast and pest risk, SoilGrids soil properties |
-| Contact | In-app message widget that delivers to the maintainer's inbox |
-| Guide | Mitra greets you by time of day and in several languages, and offers a skippable guided tour |
-| Accounts | Local, in-browser accounts. Data stays on your device |
+| **Farm boundary** | Draw on map, walk with GPS, type corners, or upload GeoJSON · KML · GPX · WKT · CSV · zipped Shapefiles |
+| **Imagery** | Newest cloud-filtered Sentinel-2 L2A scene (≤30% cloud, last 60 → 180 days), cloud-masked & clipped to boundary. Copernicus true-colour + Esri HR imagery to zoom 18 |
+| **Spectral indices** | NDVI · NDMI · NDWI · NDRE · EVI · BSI — each with a verdict and plain-language advice |
+| **Terrain** | Copernicus 30 m DEM: slope, aspect, hillshade, contours, TWI |
+| **Time-lapse** | Month-by-month Sentinel-2 frames with Mitra captions — watch your crop change season to season |
+| **GeoAI studio** | Sharpened true-colour + auto classification: k-means++ (unsupervised), minimum-distance & maximum-likelihood (supervised). GeoJSON export |
+| **Nearby features** | OpenStreetMap Overpass: borewells, tube wells, hand pumps, lakes, ponds, streams, canals, power lines — distance rings, inside/outside marking, per-layer toggles |
+| **Analysis lab** | True-colour · land cover · zones · change · weak-spot maps, each explained with vulnerability points |
+| **Weather & soil** | Open-Meteo forecast + pest risk, SoilGrids soil properties |
+| **Reports** | PDF (print to PDF) + one-file HTML with coordinate frame, north arrow, scale bar, legend — moveable in preview |
+| **Languages** | English · Hindi · Telugu (Google Translate toggle beside the notification bell) |
+| **Geo tools** | WKT reader, offset & buffer, each with in-app how-to guides |
+| **Accounts** | Local, in-browser — data stays on your device |
 
-## Data sources
+---
+
+## 📡 Data sources
 
 | Data | Provider |
 |---|---|
-| Sentinel-2 L2A, Copernicus DEM | Microsoft Planetary Computer |
-| Weather and climate | Open-Meteo |
-| Soil | SoilGrids (ISRIC) |
-| Imagery and base maps | Esri |
-| 3D terrain | AWS Terrain Tiles |
+| Sentinel-2 L2A · Copernicus DEM | [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com/) |
+| Weather & climate | [Open-Meteo](https://open-meteo.com/) |
+| Soil | [SoilGrids — ISRIC](https://soilgrids.org/) |
+| Imagery & base maps | [Esri](https://www.esri.com/en-us/arcgis/products/arcgis-online/overview) |
+| 3D terrain | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) |
+| Nearby features | [OpenStreetMap / Overpass API](https://overpass-api.de/) |
 
-## Method
+---
+
+## 🔬 Method
 
 1. Find the newest Sentinel-2 scene over the farm (last 60 days, then 180) with under 30% cloud.
 2. Mask cloud, shadow and bad pixels using the scene classification layer.
@@ -95,58 +135,115 @@ The animation above walks through every step: menu, adding a farm, the live map,
 | Signal | Rule |
 |---|---|
 | NDVI below 0.3 | Pixel counted as stressed |
-| Over 20% stressed pixels, or mean NDVI below 0.4 | Farm flagged for attention |
-| NDMI below 0.1 | Leaves look dry, used in irrigation advice |
+| >20% stressed pixels, or mean NDVI < 0.4 | Farm flagged for attention |
+| NDMI below 0.1 | Leaves look dry → used in irrigation advice |
 | 15 mm or more rain in 7 days | Advice becomes "hold, rain due" |
 | Slope above 15% | Challenging for construction |
 
-## Limitations
+---
 
-- A satellite shows where a crop is weaker, not why.
+## ⚠️ Limitations
+
+- A satellite shows *where* a crop is weaker, not *why*.
 - Pest and moisture scores are rules of thumb, not forecasts.
-- Sentinel-2 resolution is 10 m, so very small farms have few pixels.
-- Accounts are local to one browser. There is no sync or password reset.
+- Sentinel-2 resolution is 10 m — very small farms have few pixels.
+- Accounts are local to one browser. No sync or password reset.
 - Construction notes are not an engineering survey.
 
-## Getting started
+---
+
+## 🚀 Getting started
 
 ```bash
+# Clone
+git clone https://github.com/virahitvin8/seva-gis.git
+cd seva-gis
+
+# Install
 pnpm install
-pnpm dev        # development server
-pnpm build      # production build
-pnpm preview    # serve the build
+
+# Develop (hot reload)
+pnpm dev
+
+# Build for production
+pnpm build
+
+# Preview the build
+pnpm preview
 ```
 
-## Project layout
+---
+
+## 📁 Project layout
 
 ```
-src/        React + Vite + Tailwind application
-src/lib/    geospatial, raster and GeoAI logic
-public/     web manifest and static assets
-docs/       additional notes
+seva-gis/
+├── src/
+│   ├── lib/          # Geospatial, raster & GeoAI logic
+│   ├── assets/       # Brand assets (logo, Mitra avatar)
+│   └── *.tsx         # React components
+├── public/           # Web manifest, CNAME, static assets
+├── docs/             # Tour GIF/webm, domain notes, credits
+├── .github/
+│   └── workflows/    # CI: build check + GitHub Pages deploy
+├── index.html
+├── vite.config.ts
+└── package.json
 ```
 
 See [DESIGN.md](DESIGN.md) for design notes and [CONTRIBUTING.md](CONTRIBUTING.md) to contribute.
 
-## Author
+---
 
-Idea, design and code by **N. Akshit Vinay**, for everyone who loves the land and wants to see it grow.
+## 🚢 Deploy & domain
 
-[Email](mailto:akshitvinay4636@gmail.com) · [LinkedIn](https://www.linkedin.com/in/neelam-akshit-vinay-b18554322) · [GitHub](https://github.com/virahitvin8)
+Every push to `main` automatically builds and deploys to GitHub Pages via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+**One-time setup:** Repo → Settings → Pages → Source → **GitHub Actions**.
+
+Custom domain instructions: [docs/DOMAIN.md](docs/DOMAIN.md).
+
+---
+
+## 🎨 Design & fonts
+
+- **Icons:** [Font Awesome Free](https://github.com/FortAwesome/Font-Awesome) (dashboard, sign-in, empty state)
+- **Fonts:** Syne (animated headings) · Manrope + DM Sans (text) · JetBrains Mono (labels) · Mr Dafoe (wordmark) — all open-licence [Google Fonts](https://fonts.google.com/), chosen with [awesome-fonts](https://github.com/brabadu/awesome-fonts) as a guide
+- **Sign-in graphics:** pointer-reactive particle network (inspired by [Pts](https://github.com/williamngan/pts)) and node-flow strip (inspired by [Graphite](https://github.com/GraphiteEditor/Graphite)); molecule-style linked nodes follow [Mol*](https://github.com/molstar/molstar)
+- **Reports:** SEVA.GIS logo, watermark, location, satellite date and data-source list on the first page
+
+---
+
+## 👨‍💻 Author
+
+<div align="center">
+
+**N. Akshit Vinay**
+
+*Idea, design and code — for everyone who loves the land and wants to see it grow.*
+
+<br/>
+
+[![Email](https://img.shields.io/badge/Email-akshitvinay4636%40gmail.com-D14836?style=flat-square&logo=gmail&logoColor=white)](mailto:akshitvinay4636@gmail.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Neelam%20Akshit%20Vinay-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/neelam-akshit-vinay-b18554322)
+[![GitHub](https://img.shields.io/badge/GitHub-virahitvin8-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/virahitvin8)
 
 Released under the [MIT License](LICENSE).
 
-## Publish and domain
+</div>
 
-Every push to `main` builds and deploys to GitHub Pages through `.github/workflows/pages.yml`. In the repo go to Settings, Pages, Source, GitHub Actions (one time). A free custom name is optional; see [docs/DOMAIN.md](docs/DOMAIN.md).
+---
 
-## Design and fonts
+## 🙏 Credits
 
-- Icons: [Font Awesome Free](https://github.com/FortAwesome/Font-Awesome) (sign-in page, dashboard header, empty state).
-- Fonts: Syne (animated headings), Manrope and DM Sans (text), JetBrains Mono (labels), Mr Dafoe (wordmark), all open-licence Google Fonts, chosen with the [awesome-fonts](https://github.com/brabadu/awesome-fonts) list as a guide.
-- Sign-in graphics: a pointer-reactive particle network (idea from [Pts](https://github.com/williamngan/pts)) and a node-flow strip (idea from the node editor in [Graphite](https://github.com/GraphiteEditor/Graphite)); molecule-style linked nodes follow [Mol*](https://github.com/molstar/molstar).
-- Reports carry the SEVA.GIS logo, a watermark, location, satellite date and a data-source list on the first page.
+Data providers, libraries, methods and hosting are fully listed in [docs/CREDITS.md](docs/CREDITS.md).
 
-## Credits
+---
 
-Data providers, libraries, methods and hosting are listed in [docs/CREDITS.md](docs/CREDITS.md).
+<div align="center">
+
+*Made with ❤️ for Indian farmers &nbsp;·&nbsp; Powered by open data from ESA Copernicus*
+
+**[⭐ Star this repo](https://github.com/virahitvin8/seva-gis/stargazers) if SEVA.GIS helped you or someone you know**
+
+</div>

@@ -191,6 +191,16 @@ function PestTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
 export default function Intelligence({ farm }: Props) {
   const [tab, setTab] = useState<Tab>('map')
   const scene = farm.analysis?.scene
+
+  useEffect(() => {
+    const onTab = (e: Event) => {
+      const custom = e as CustomEvent<Tab>
+      if (custom.detail) setTab(custom.detail)
+    }
+    window.addEventListener('seva-set-lab-tab', onTab)
+    return () => window.removeEventListener('seva-set-lab-tab', onTab)
+  }, [])
+
   return <section className="ag-wrap ge-wrap">
     <div className="intelligence-heading"><h2>Analysis lab <span>Earth Engine-style workflows · Sentinel-2 · Open-Meteo · SoilGrids</span></h2></div>
     <div className="ge-tabs" role="tablist">{TABS.map(([id, label, Icon]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon size={15}/>{label}</button>)}</div>

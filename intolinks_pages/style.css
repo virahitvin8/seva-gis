@@ -5,7 +5,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-ap
 header,main,footer{max-width:46rem;margin:0 auto;padding:1rem 1.25rem}
 header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;border-bottom:1px solid var(--line)}
 header a.brand{display:inline-flex;align-items:center;gap:.6rem;font:700 1.25rem Georgia,serif;color:var(--green);text-decoration:none}
-header a.brand img{width:1.85rem;height:1.85rem;object-fit:contain;border-radius:.35rem;display:inline-block;vertical-align:middle}
+header a.brand img{width:1.85rem;height:1.85rem;object-fit:contain;border-radius:.35rem;display:inline-block;vertical-align:middle;flex-shrink:0}
 nav a{margin-left:1rem;color:var(--muted);text-decoration:none}
 nav a:hover,nav a:focus{color:var(--green);text-decoration:underline}
 h1,h2{font-family:Georgia,"Times New Roman",serif;line-height:1.25}
@@ -18,4 +18,7 @@ th{background:var(--card)}
 .cta{display:inline-block;background:var(--green);color:var(--bg);padding:.7rem 1.2rem;border-radius:.4rem;text-decoration:none;font-weight:600}
 .cta:focus-visible,a:focus-visible{outline:3px solid var(--soil);outline-offset:2px}
 .note{border-left:4px solid var(--soil);padding:.2rem 1rem;background:var(--card)}
+.bottom-nav{margin-top:2rem;font-size:.92rem;color:var(--muted)}
+.bottom-nav a{color:var(--green);text-decoration:none;font-weight:600}
+.bottom-nav a:hover{text-decoration:underline}
 footer{color:var(--muted);font-size:.9rem;border-top:1px solid var(--line);margin-top:2rem}

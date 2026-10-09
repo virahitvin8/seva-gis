@@ -1,8 +1,8 @@
 import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
-import { Download, RefreshCw, Sprout } from 'lucide-react'
+import { Download, RefreshCw, Sprout, Layers, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { LANDCOVER } from './lib/gee'
-import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize, predictYield } from './lib/geoai'
+import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { MapFrame } from './LabMap'
 
@@ -18,6 +18,11 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const [method, setMethod] = useState<Method>('kmeans')
   const [yieldKey, setYieldKey] = useState(0)
   const [yieldSpinning, setYieldSpinning] = useState(false)
+  const [selectedCombo, setSelectedCombo] = useState<string>('natural')
+  const [customBands, setCustomBands] = useState<[string, string, string]>(['B04', 'B03', 'B02'])
+  const [symbologySpinning, setSymbologySpinning] = useState(false)
+  const [showCustom, setShowCustom] = useState(false)
+
   useEffect(() => {
     if (!scene) return
     let dead = false
@@ -25,9 +30,43 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     loadScene(scene, farm).then(r => { if (!dead) setG(r) }).catch(e => { if (!dead) setErr(e instanceof Error ? e.message : 'Could not load the scene.') })
     return () => { dead = true }
   }, [scene?.id, farm.id])
+
+  // Reset to default True Colour symbology for every satellite image / farm
+  useEffect(() => {
+    setSelectedCombo('natural')
+    setCustomBands(['B04', 'B03', 'B02'])
+    setShowCustom(false)
+  }, [scene?.id, farm.id])
+
   const ring = farmRing(farm)
   useEffect(() => { let dead = false; setSharp(''); sharpTrueColour(farmRing(farm)).then(u => { if (!dead) setSharp(u) }).catch(() => {}); return () => { dead = true } }, [farm.id, farm.lat, farm.lon, farm.area, farm.polygon?.length])
-  const photo = useMemo(() => (g ? trueColour(g, ring) : ''), [g])
+
+  const activeCombo = useMemo(() => {
+    return BAND_COMBINATIONS.find(c => c.id === selectedCombo) || null
+  }, [selectedCombo])
+
+  const activeBands = useMemo<[string, string, string]>(() => {
+    if (selectedCombo === 'custom') return customBands
+    return activeCombo ? activeCombo.bands : ['B04', 'B03', 'B02']
+  }, [selectedCombo, activeCombo, customBands])
+
+  // Live satellite image composite calculated directly from selected multispectral bands
+  const photo = useMemo(() => {
+    if (!g) return ''
+    return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2])
+  }, [g, ring, activeBands])
+
+  const resetToDefaultSymbology = () => {
+    setSymbologySpinning(true)
+    setSelectedCombo('natural')
+    setCustomBands(['B04', 'B03', 'B02'])
+    setShowCustom(false)
+    setUseS2(true)
+    setTimeout(() => {
+      setSymbologySpinning(false)
+    }, 600)
+  }
+
   const auto = useMemo(() => (g && method === 'kmeans' ? autoClassify(g, ring, k) : null), [g, k, method])
   const sup = useMemo(() => (g && method !== 'kmeans' ? superviseAuto(g, ring, method) : null), [g, method])
 
@@ -53,15 +92,291 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
           farm={farm}
           scene={scene}
           overlay={useS2 ? photo : (sharp || undefined)}
-          title="True colour"
-          note={!useS2 ? 'What a camera above your farm sees, in crystal-clear 4K ultra-high resolution (sub-metre satellite imagery). Sharp crop canopy, field boundaries, and ground features without pixel blur.' : 'What a camera in space sees. Sentinel-2 bands 4, 3, 2, 10 m per pixel.'}
-          caption={!useS2 ? 'True colour · 4K Ultra-Res AOI (Sub-metre Satellite Imagery)' : 'True colour · Sentinel-2 10 m multispectral'}
-          highlightAoi={!useS2}
+          title={!useS2 ? 'True colour (4K UHD)' : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
+          note={!useS2 ? 'What a camera above your farm sees, in crystal-clear 4K ultra-high resolution (sub-metre satellite imagery). Clipped directly to your farm boundary.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
+          caption={!useS2 ? 'True colour · 4K Ultra-Res AOI (Sub-metre Satellite Imagery)' : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 10 m multispectral (${activeBands.join('·')})`}
+          highlightAoi={false}
         />
-        <div className="st-classes" style={{ marginTop: 8 }}>
-          <span>Picture mode</span>
-          <button className={!useS2 ? 'on' : ''} onClick={() => setUseS2(false)}>✨ 4K Ultra-Res (Sub-metre)</button>
-          <button className={useS2 ? 'on' : ''} onClick={() => setUseS2(true)}>Sentinel-2 (10 m)</button>
+        <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Picture mode</span>
+            <button
+              className={!useS2 ? 'on' : ''}
+              onClick={() => { setUseS2(false) }}
+              title="Crystal-clear sub-metre 4K resolution imagery clipped directly to your farm polygon"
+            >
+              <Sparkles size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+              ✨ 4K Ultra-Res (Sub-metre)
+            </button>
+            <button
+              className={useS2 ? 'on' : ''}
+              onClick={() => { setUseS2(true) }}
+              title="Sentinel-2 10 m multispectral satellite imagery with live customizable spectral band symbology"
+            >
+              <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+              Sentinel-2 (10 m Multispectral)
+            </button>
+          </div>
+
+          {useS2 && (
+            <button
+              className={`box-refresh-btn ${symbologySpinning ? 'spinning' : ''}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 9px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                background: '#ecfdf5',
+                color: '#065f46',
+                border: '1px solid #a7f3d0',
+                cursor: 'pointer'
+              }}
+              title="Refresh and reset to Default Symbology (Natural True Colour B04·B03·B02)"
+              onClick={resetToDefaultSymbology}
+            >
+              <RefreshCw size={13} className={symbologySpinning ? 'spinning' : ''} />
+              <span>Refresh to default</span>
+            </button>
+          )}
+        </div>
+
+        {/* Live Multispectral Band Symbology Control Panel */}
+        <div
+          style={{
+            marginTop: 10,
+            padding: '12px 14px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <SlidersHorizontal size={14} style={{ color: '#047857' }} />
+              <b style={{ fontSize: 12.5, color: '#0f172a' }}>Band Combination Symbology</b>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  padding: '2px 7px',
+                  borderRadius: 5,
+                  background: selectedCombo === 'natural' ? '#dcfce7' : '#e0f2fe',
+                  color: selectedCombo === 'natural' ? '#166534' : '#0369a1',
+                  fontWeight: 700
+                }}
+              >
+                {selectedCombo === 'custom' ? `Custom: ${activeBands.join('·')}` : activeCombo?.badge ?? 'B4·B3·B2'}
+                {selectedCombo === 'natural' ? ' · Default' : ''}
+              </span>
+            </div>
+
+            <button
+              className={`box-refresh-btn ${symbologySpinning ? 'spinning' : ''}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 8px',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 600,
+                background: '#ffffff',
+                color: '#15803d',
+                border: '1px solid #bbf7d0',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                cursor: 'pointer'
+              }}
+              title="Reset to Default Symbology (Natural True Colour B04-B03-B02)"
+              onClick={resetToDefaultSymbology}
+            >
+              <RefreshCw size={12} className={symbologySpinning ? 'spinning' : ''} />
+              <span>Default symbology</span>
+            </button>
+          </div>
+
+          <p style={{ margin: '0 0 8px', fontSize: 11, color: '#64748b', lineHeight: 1.45 }}>
+            Switch live multispectral band combinations to reveal hidden crop vigor, chlorophyll, moisture stress, and soil boundaries. Natural True Colour (B4-B3-B2) is the default for every satellite image.
+          </p>
+
+          {/* Symbology Presets */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {BAND_COMBINATIONS.map(c => {
+              const isOn = useS2 && selectedCombo === c.id
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setSelectedCombo(c.id)
+                    setUseS2(true)
+                    setShowCustom(false)
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 9px',
+                    borderRadius: 7,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    background: isOn ? '#15803d' : '#ffffff',
+                    color: isOn ? '#ffffff' : '#334155',
+                    border: isOn ? '1px solid #15803d' : '1px solid #cbd5e1',
+                    boxShadow: isOn ? '0 1px 3px rgba(21,128,61,0.3)' : '0 1px 2px rgba(0,0,0,0.03)'
+                  }}
+                  title={c.desc}
+                >
+                  <span>{c.name.split(' (')[0]}</span>
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      padding: '1px 4px',
+                      borderRadius: 4,
+                      background: isOn ? 'rgba(255,255,255,0.22)' : '#f1f5f9',
+                      color: isOn ? '#ffffff' : '#64748b',
+                      fontWeight: 700
+                    }}
+                  >
+                    {c.badge}
+                  </span>
+                  {c.id === 'natural' && !isOn && (
+                    <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 700 }}>*</span>
+                  )}
+                </button>
+              )
+            })}
+
+            {/* Custom RGB button */}
+            <button
+              onClick={() => {
+                setSelectedCombo('custom')
+                setUseS2(true)
+                setShowCustom(true)
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '5px 9px',
+                borderRadius: 7,
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                background: useS2 && selectedCombo === 'custom' ? '#0369a1' : '#ffffff',
+                color: useS2 && selectedCombo === 'custom' ? '#ffffff' : '#334155',
+                border: useS2 && selectedCombo === 'custom' ? '1px solid #0369a1' : '1px solid #cbd5e1',
+                boxShadow: useS2 && selectedCombo === 'custom' ? '0 1px 3px rgba(3,105,161,0.3)' : '0 1px 2px rgba(0,0,0,0.03)'
+              }}
+              title="Choose any individual Sentinel-2 band for Red, Green, and Blue channels"
+            >
+              <span>Custom RGB</span>
+              <span
+                style={{
+                  fontSize: 9.5,
+                  padding: '1px 4px',
+                  borderRadius: 4,
+                  background: useS2 && selectedCombo === 'custom' ? 'rgba(255,255,255,0.22)' : '#f1f5f9',
+                  color: useS2 && selectedCombo === 'custom' ? '#ffffff' : '#64748b',
+                  fontWeight: 700
+                }}
+              >
+                R·G·B
+              </span>
+            </button>
+          </div>
+
+          {/* Custom Band Selector Matrix */}
+          {(showCustom || selectedCombo === 'custom') && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 10,
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: 8,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <b style={{ fontSize: 11.5, color: '#0f172a' }}>Custom Channel Assignment</b>
+                <span style={{ fontSize: 10, color: '#64748b' }}>Live reflectance stretching applied</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10.5, fontWeight: 700, color: '#dc2626', marginBottom: 3 }}>
+                    Red (R) Channel
+                  </label>
+                  <select
+                    value={customBands[0]}
+                    onChange={e => setCustomBands([e.target.value, customBands[1], customBands[2]])}
+                    style={{ width: '100%', padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid #f87171', background: '#fef2f2' }}
+                  >
+                    {SENTINEL_BANDS.map(b => (
+                      <option key={b.id} value={b.id}>{b.id} - {b.name.split(' · ')[1]} ({b.nm})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10.5, fontWeight: 700, color: '#16a34a', marginBottom: 3 }}>
+                    Green (G) Channel
+                  </label>
+                  <select
+                    value={customBands[1]}
+                    onChange={e => setCustomBands([customBands[0], e.target.value, customBands[2]])}
+                    style={{ width: '100%', padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid #86efac', background: '#f0fdf4' }}
+                  >
+                    {SENTINEL_BANDS.map(b => (
+                      <option key={b.id} value={b.id}>{b.id} - {b.name.split(' · ')[1]} ({b.nm})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10.5, fontWeight: 700, color: '#2563eb', marginBottom: 3 }}>
+                    Blue (B) Channel
+                  </label>
+                  <select
+                    value={customBands[2]}
+                    onChange={e => setCustomBands([customBands[0], customBands[1], e.target.value])}
+                    style={{ width: '100%', padding: '4px 6px', fontSize: 11, borderRadius: 6, border: '1px solid #93c5fd', background: '#eff6ff' }}
+                  >
+                    {SENTINEL_BANDS.map(b => (
+                      <option key={b.id} value={b.id}>{b.id} - {b.name.split(' · ')[1]} ({b.nm})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active Symbology Meaning Card */}
+          <div
+            style={{
+              marginTop: 9,
+              padding: '8px 10px',
+              background: '#f1f5f9',
+              borderRadius: 7,
+              fontSize: 11,
+              color: '#334155',
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 6
+            }}
+          >
+            <b style={{ color: '#0f172a', whiteSpace: 'nowrap' }}>
+              {selectedCombo === 'custom' ? 'Custom Composite:' : `${activeCombo?.name}:`}
+            </b>
+            <span>
+              {selectedCombo === 'custom'
+                ? `Mapped channels: Red=${customBands[0]}, Green=${customBands[1]}, Blue=${customBands[2]}. Sigmoid dynamic reflectance stretching.`
+                : activeCombo?.desc}
+            </span>
+          </div>
         </div>
       </div>
       {sup ? <MapFrame farm={farm} scene={scene} overlay={sup.url} title={METHODS.find(m => m.id === method)!.name} note="Each colour is one land-cover class." legend={sup.classes.filter(c => c.pct > 0).map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}/> : method !== 'kmeans' ? <div className="ge-wait">Not enough clear pixels to classify</div> : auto ? <MapFrame farm={farm} scene={scene} overlay={auto.url} title="Automatic classes" note="Each colour is one group found by the computer." legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}/> : <div className="ge-wait">Not enough clear pixels to classify</div>}

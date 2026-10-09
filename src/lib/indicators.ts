@@ -43,9 +43,13 @@ export const INDICATORS: Ind[] = [
   { id: 'dem', name: 'Elevation (DEM)', group: 'Terrain', source: 'DEM', desc: 'Copernicus GLO-30 digital surface model, 30 m.', ramp: ['#2b8a5e', '#7fbf6b', '#e8dc8a', '#c9a066', '#8a6a4a', '#f2f2f2'], unit: 'm', auto: true, valid: [-500, 9000] },
   { id: 'slope', name: 'Slope', group: 'Terrain', source: 'DEM', desc: 'Terrain slope from the DEM (Horn method).', ramp: ['#f7fcb9', '#addd8e', '#fdae61', '#f46d43', '#a50026'], range: [0, 15], unit: '°', valid: [0, 90] },
   { id: 'hillshade', name: 'Hillshade', group: 'Terrain', source: 'DEM', desc: 'Relief shading, sun azimuth 315°, altitude 45°.', valid: [0, 255] },
-  { id: 'rgb', name: 'True colour', group: 'Imagery', source: 'S2', desc: 'Sentinel-2 red / green / blue, 10 m.', rgb: composite('B04', 'B03', 'B02') },
+  { id: 'rgb', name: 'True colour', group: 'Imagery', source: 'S2', desc: 'Sentinel-2 red / green / blue, 10 m (Default).', rgb: composite('B04', 'B03', 'B02') },
   { id: 'cir', name: 'Colour infrared', group: 'Imagery', source: 'S2', desc: 'NIR / red / green. Healthy crops appear bright red.', rgb: composite('B08', 'B04', 'B03', 0.5) },
   { id: 'agri', name: 'Agriculture', group: 'Imagery', source: 'S2', desc: 'SWIR1 / NIR / blue. Crops bright green, bare soil magenta.', rgb: composite('B11', 'B08', 'B02', 0.5) },
+  { id: 'moist_rgb', name: 'Moisture stress composite', group: 'Imagery', source: 'S2', desc: 'SWIR2 / NIR / red. Water stress and canopy hydration deficit.', rgb: composite('B12', 'B08', 'B04', 0.5) },
+  { id: 'swir_rgb', name: 'Atmospheric penetration', group: 'Imagery', source: 'S2', desc: 'SWIR2 / SWIR1 / NIR. Pierces haze and highlights canopy structure.', rgb: composite('B12', 'B11', 'B08', 0.5) },
+  { id: 're_rgb', name: 'Chlorophyll red-edge', group: 'Imagery', source: 'S2', desc: 'NIR / Red Edge 1 / red. Early chlorophyll breakdown and nitrogen deficit.', rgb: composite('B08', 'B05', 'B04', 0.5) },
+  { id: 'geology_rgb', name: 'Land / Water contrast', group: 'Imagery', source: 'S2', desc: 'SWIR2 / NIR / green. High contrast between water, soil, and vegetation.', rgb: composite('B12', 'B08', 'B03', 0.5) },
 ]
 
 const calc: Record<string, (b: Bands, i: number) => number> = {

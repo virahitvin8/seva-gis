@@ -6,10 +6,73 @@ export type ClassDef = { id: string; name: string; color: string }
 const hex = (c: string): [number, number, number] => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
 const usable = (g: Grid, i: number) => !!g.inside[i] && !!g.ok[i]
 
+export type BandCombo = {
+  id: string
+  name: string
+  desc: string
+  bands: [string, string, string] // [R, G, B]
+  badge: string
+}
+
+export const BAND_COMBINATIONS: BandCombo[] = [
+  { id: 'natural', name: 'True colour (Natural)', desc: 'Standard human eye vision (Red, Green, Blue)', bands: ['B04', 'B03', 'B02'], badge: 'B4·B3·B2' },
+  { id: 'cir', name: 'Colour infrared (CIR)', desc: 'Vegetation vigour & chlorophyll in deep red', bands: ['B08', 'B04', 'B03'], badge: 'B8·B4·B3' },
+  { id: 'agri', name: 'Agriculture (SWIR-NIR)', desc: 'Lush crop canopy in bright green, soil in brown', bands: ['B11', 'B08', 'B02'], badge: 'B11·B8·B2' },
+  { id: 'moisture', name: 'Moisture & water stress', desc: 'Canopy water stress and soil moisture deficits', bands: ['B12', 'B08', 'B04'], badge: 'B12·B8·B4' },
+  { id: 'swir', name: 'Atmospheric penetration', desc: 'Pierces haze/smoke and highlights canopy structure', bands: ['B12', 'B11', 'B08'], badge: 'B12·B11·B8' },
+  { id: 'chlorophyll', name: 'Vegetation & chlorophyll', desc: 'Red-edge chlorophyll & early nitrogen stress', bands: ['B08', 'B05', 'B04'], badge: 'B8·B5·B4' },
+  { id: 'geology', name: 'Land / Water contrast', desc: 'Sharp contrast between water, soil and vegetation', bands: ['B12', 'B08', 'B03'], badge: 'B12·B8·B3' },
+]
+
+export const SENTINEL_BANDS: { id: string; name: string; nm: string; role: string }[] = [
+  { id: 'B02', name: 'Band 2 · Blue', nm: '490 nm', role: 'Atmosphere, water' },
+  { id: 'B03', name: 'Band 3 · Green', nm: '560 nm', role: 'Green vegetation peak' },
+  { id: 'B04', name: 'Band 4 · Red', nm: '665 nm', role: 'Chlorophyll absorption' },
+  { id: 'B05', name: 'Band 5 · Red Edge 1', nm: '705 nm', role: 'Chlorophyll edge' },
+  { id: 'B06', name: 'Band 6 · Red Edge 2', nm: '740 nm', role: 'Canopy leaf structure' },
+  { id: 'B07', name: 'Band 7 · Red Edge 3', nm: '783 nm', role: 'Biomass & nitrogen' },
+  { id: 'B08', name: 'Band 8 · NIR', nm: '842 nm', role: 'Healthy leaf cell reflectance' },
+  { id: 'B11', name: 'Band 11 · SWIR-1', nm: '1610 nm', role: 'Canopy water, soil moisture' },
+  { id: 'B12', name: 'Band 12 · SWIR-2', nm: '2190 nm', role: 'Moisture stress, geology' },
+]
+
+export function renderBandComposite(
+  g: Grid,
+  ring: Ring,
+  redBand: string = 'B04',
+  greenBand: string = 'B03',
+  blueBand: string = 'B02'
+): string {
+  const b = g.b as Record<string, Float64Array | Float32Array>
+  const rArr = b[redBand] || b['B04'] || b['B02']
+  const gArr = b[greenBand] || b['B03'] || b['B02']
+  const bArr = b[blueBand] || b['B02'] || b['B03']
+
+  const stretch = (val: number, isInfra: boolean) => {
+    if (!Number.isFinite(val)) return 0
+    const maxV = isInfra ? 0.45 : 0.30
+    const norm = Math.min(1, Math.max(0, val / maxV))
+    const curved = 1 / (1 + Math.exp(-6 * (Math.pow(norm, 0.7) - 0.45)))
+    return Math.min(255, Math.max(0, Math.round(255 * ((curved - 0.063) / 0.874))))
+  }
+
+  const isRInfra = redBand === 'B08' || redBand === 'B11' || redBand === 'B12'
+  const isGInfra = greenBand === 'B08' || greenBand === 'B11' || greenBand === 'B12'
+  const isBInfra = blueBand === 'B08' || blueBand === 'B11' || blueBand === 'B12'
+
+  return paintClipped(
+    g.w,
+    g.h,
+    g.bbox,
+    ring,
+    i => (usable(g, i) ? [stretch(rArr[i], isRInfra), stretch(gArr[i], isGInfra), stretch(bArr[i], isBInfra)] : null),
+    true,
+    1.4
+  )
+}
+
 export function trueColour(g: Grid, ring: Ring) {
-  const { B02, B03, B04 } = g.b
-  const s = (v: number) => { const t = Math.min(1, Math.max(0, v / 0.3)); return Math.min(255, Math.round(255 * (1 / (1 + Math.exp(-6 * (Math.pow(t, 0.7) - 0.45))) - 0.063) / 0.874)) }
-  return paintClipped(g.w, g.h, g.bbox, ring, i => (usable(g, i) ? [s(B04[i]), s(B03[i]), s(B02[i])] : null), true, 1.4)
+  return renderBandComposite(g, ring, 'B04', 'B03', 'B02')
 }
 
 // Six spectral features per pixel: green, red, NIR, SWIR1 reflectance plus NDVI and MNDWI.
@@ -401,6 +464,7 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
   // Clip to farm polygon with 4K clarity
   const outCanvas = document.createElement('canvas'); outCanvas.width = W; outCanvas.height = H
   const outCtx = outCanvas.getContext('2d')!
+  outCtx.clearRect(0, 0, W, H)
   outCtx.beginPath()
   ring.forEach(([lo, la], i) => {
     const x = ((lo - w) / (e - w)) * W, y = ((n - la) / (n - s0)) * H
@@ -409,5 +473,5 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
   outCtx.closePath()
   outCtx.clip()
   outCtx.drawImage(c, 0, 0, W, H)
-  return outCanvas.toDataURL('image/jpeg', 0.92)
+  return outCanvas.toDataURL('image/png')
 }

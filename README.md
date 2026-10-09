@@ -135,15 +135,27 @@ To deliver both **instant mobile responsiveness** and **high-fidelity 3D terrain
 
 SEVA·GIS takes you from an empty map to a complete precision farming plan through streamlined steps:
 
-### Step 1: Set Your Farm Perimeter
+### Step 1: Set Your Farm Perimeter & Measure Dimensions
 - **Draw or Walk:** Outline your field boundaries directly on high-resolution satellite basemaps, walk the perimeter with your phone's GPS, or enter coordinates manually.
 - **Universal Boundary Ingestion:** Import existing field boundaries using **GeoJSON (RFC 7946)**, **CSV (Lat/Lon coordinates)**, **KML**, **GPX**, **WKT**, or zipped **Shapefiles**.
 - **Geodesic Accuracy:** Uses Karney and Vincenty geodesic formulas on the WGS84 ellipsoid to calculate precise surface areas (in hectares and acres) and boundary perimeters.
+- **Google Earth Pro-Style Measuring Tape & Geodesic Ruler:** Dedicated interactive metered tape tool (`RulerTape.tsx`) directly on the map. Measure farm width (East–West), length/height (North–South), diagonals, and boundary segments in real time with dual metric and imperial readouts (**meters**, **kilometers**, **feet**, and **yards**) complete with visual tape graduation ticks.
 
 ### Step 2: Stream Live Satellite & Radar Data
 - **Fresh Sentinel-2 Optical Passes:** Queries ESA Copernicus Sentinel-2 L2A via Microsoft Planetary Computer STAC for Bottom-of-Atmosphere (BOA) surface reflectance (10m resolution).
+- **Clean 4K Resolution Polygon AOI Clipping:** Dynamically clips optical and false-color satellite imagery strictly to the farm's cadastral polygon boundary, completely eliminating rectangular black bounding-box borders.
 - **All-Weather Sentinel-1 SAR Radar:** Queries Sentinel-1 C-band synthetic aperture radar (`sentinel-1-grd`). Radar waves penetrate heavy monsoon clouds and smoke, detecting standing water and soil saturation through specular backscatter reflection ($< -16\text{ dB}$).
 - **Automatic Cloud Masking:** The Sen2Cor Scene Classification Layer (SCL) filters out clouds, shadows, and cirrus haze, isolating clean crop pixels.
+
+### Step 3: Multi-Spectral Band Symbology Studio & Real-Time Combinator
+- **Interactive Band Composites:** Switch instantly between key Sentinel-2 multi-spectral combinations:
+  - **True Color (B04-Red, B03-Green, B02-Blue):** Natural human-eye field representation.
+  - **False Color NIR (B08-NIR, B04-Red, B03-Green):** Highlights active chlorophyll canopy density in intense crimson red.
+  - **Agriculture (B11-SWIR1, B08-NIR, B02-Blue):** High-contrast differentiation between healthy crops, dry stalks, and soil moisture.
+  - **Canopy Moisture (B8A-Narrow NIR, B11-SWIR1, B04-Red):** Pinpoints hydration stress, canal seepage, and waterlogged furrows.
+  - **Geology & Soil (B12-SWIR2, B8A-Narrow NIR, B04-Red):** Unveils bare soil mineralogy, organic matter variations, and texture.
+- **Live Hardware Adjustments:** Real-time client-side sliders for **Gamma Correction**, **Contrast**, and **Brightness** adjustments on live satellite rasters.
+- **1-Click Reset to Default Symbology:** Instantly re-aligns all color curves and radiometric stretches back to standard calibrated reflectance.
 
 ---
 
@@ -177,14 +189,21 @@ SEVA·GIS computes a full scientific suite of optical, red-edge, thermal, and ra
 ### 1. Daily Irrigation Decision Engine ("Irrigate today? How much?")
 - Answers the single most critical farmer question: **"Should I run my pump today, and how much water does my crop need?"**
 - Ingests **NDMI canopy water content**, **Open-Meteo FAO-56 reference evapotranspiration ($\text{ET}_0$)**, and **3-day precipitation forecast**.
-- Calculates net water deficit ($D = K_c \times \text{ET}_0 - P_{\text{rain}}$) and outputs actionable metrics:
+- **Human-Grade Agronomic Decision Tree & Intelligent Branching:**
+  - **Cultivated Crop Fields:** Calculates actual crop evapotranspiration ($ET_c = K_c \times \text{ET}_0$), remaining available soil moisture, and effective rainfall credits to determine precise net root-zone replenishment.
+  - **Uncultivated / Bare Land / Fallow Plots:** Intelligently switches logic! Instead of presenting irrelevant canopy maturity or vegetative stages, the engine evaluates bare soil surface evaporation, soil moisture holding capacity, and pre-sowing seedbed hydration requirements.
+  - **Interlinked Irrigation System Mechanics & Efficiency Calculations:**
+    - **Drip Irrigation ($\approx 90\text{--}95\%$ Application Efficiency):** Highly localized root-zone emission. Drastically reduces evaporative waste and weed strip wetting; provides precise liters per plant and root-zone water balance.
+    - **Sprinkler Irrigation ($\approx 75\text{--}80\%$ Application Efficiency):** Overhead precipitation simulation. Factors in canopy droplet interception and flags high wind drift risk ($> 15\text{ km/h}$) causing uneven water distribution.
+    - **Furrow / Flood Irrigation ($\approx 50\text{--}60\%$ Application Efficiency):** Gravity-fed open ditch or basin flow. Incorporates deep percolation losses below the active root zone and conveyance losses, delivering realistic gross volumetric pumped water requirements.
+- **Actionable Operational Outputs:**
   - **Decision Status:** *Irrigate Heavily*, *Light Top-up*, *Hold Irrigation (Rain Ahead)*, or *Soil Saturated / Risk of Waterlogging*.
   - **Required Water:** Exact depth in **mm**, total volume in **liters per acre**, and bulk **cubic meters ($m^3$)**.
-  - **Pump Runtime:** Estimated motor hours for standard 5 HP and 7.5 HP agricultural borewells.
+  - **Pump Runtime:** Estimated motor hours for standard 5 HP and 7.5 HP agricultural borewells based on discharge rate.
 
 ### 2. Phenology & Crop Stage Selector
 - Different crops have vastly different healthy NDVI profiles across growth phases (e.g., ripe golden wheat naturally has a lower NDVI than vegetative paddy).
-- Supports **10 major crops**: *Paddy (Rice)*, *Wheat*, *Cotton*, *Maize*, *Sugarcane*, *Soybean*, *Mustard*, *Tomato*, *Potato*, and *Pulses*.
+- Supports **10 major crops**: *Paddy (Rice)*, *Wheat*, *Cotton*, *Maize*, *Sugarcane*, *Soybean*, *Mustard*, *Tomato*, *Potato*, and *Pulses* — alongside dedicated **Uncultivated / Bare Land** mode.
 - Select from **5 growth stages**: *Sowing / Emergence*, *Vegetative / Tillering*, *Flowering / Heading*, *Grain Fill / Pod Formation*, and *Maturity / Senescence*.
 - Dynamically scales NDVI verdicts, healthy baseline curves, and $K_c$ crop coefficient multipliers ($0.35$ to $1.20$).
 
@@ -192,36 +211,55 @@ SEVA·GIS computes a full scientific suite of optical, red-edge, thermal, and ra
 - Aggregates multispectral vigor into a single intuitive **0–100 Field Health Score** badge (*Excellent*, *Good*, *Fair*, *Stressed*, *Critical*).
 - Interactive SVG seasonal trend chart benchmarks current farm performance against regional peak agronomic targets.
 
-### 4. "Scout Here" Hotspot Zones
-- Automatically clusters stress pixels into prioritized, numbered GPS walking inspection pins.
-- Calculates walking distance from field gate and exact compass bearing.
+### 4. Interactive On-Map Scout Hotspots & 1-Click Field Navigation
+- Automatically clusters vegetative stress pixels into prioritized, numbered GPS walking inspection pins (①, ②, ③...) rendered directly on the satellite map.
+- Calculates walking distance from the field gate and exact compass bearing.
 - Provides actionable ground inspection checklists (e.g., check for stem borer larvae, verify drip emitter clogging, test soil salinity).
-- Includes **1-click Google Maps walking navigation links** and GeoJSON/CSV pin exports.
+- **1-Click Google Maps Walking & Driving Navigation:** Clicking **"Take me to Map" / "Navigate on Google Maps"** immediately opens external Google Maps GPS directions directly to that precise hotspot coordinate.
 
-### 5. Land Revenue & Survey Card
+### 5. "My Farms" Portfolio & Direct Map Navigation
+- Unified farm management drawer displaying all saved field boundaries with area, crop type, and health status.
+- **1-Click Google Maps Transit Button:** An integrated map pin icon beside each listed farm profile launches external Google Maps directions straight to the field's centroid, allowing agronomists, tractor operators, and extension workers to easily drive or walk to any plot.
+
+### 6. Modular Per-Card Telemetry Refresh
+- Every individual analytical card across the dashboard (Tractor Swaths, Farm Geometry, Agronomy Lab, Soil Properties, 3D Terrain, Crop Health, Rainfall History, Moisture Budget) features its own standalone refresh button.
+- Re-runs individual calculations and fetches updated live telemetry with smooth spinning micro-loaders without forcing a full page reload or re-querying all APIs.
+
+### 7. Git Dot-Matrix Agronomy Calendar (Demystified for All Ages 16yr+)
+- Clean, intuitive seasonal development matrix designed to be effortlessly understood by anyone from age 16 up.
+- Replaces dense meteorological jargon with an intuitive, color-coded visual calendar tracking optimal windows for land preparation, sowing, vegetative development, flowering, grain filling, and harvest across **Kharif**, **Rabi**, and **Zaid** cropping seasons.
+
+### 8. Automatic Land Revenue & Cadastral Ownership Extraction
 - Automatically reverse-geocodes coordinates into **Village**, **Tehsil / Sub-district**, and **District / State**.
-- Stores official **Khasra / Survey Number** and **Khata / Account Number**.
-- Generates formatted land dossiers ready to copy directly into government portals for **PM-KISAN**, bank agricultural loans, and crop insurance paperwork.
+- **Automated Cadastral Owner Lookup:** Automatically queries and extracts official **Land Owner Details**, **Khasra / Survey Number**, and **Khata / Account Number** directly from cadastral revenue registries, regardless of who is currently operating the dashboard.
+- Generates official, verified land dossiers ready to submit to government portals for **PM-KISAN**, **Rythu Bandhu**, bank agricultural loans, and crop insurance paperwork.
 
-### 6. Offline Crop Calendar & Pest/Disease Diagnostic Library
-- Complete seasonal crop calendars for **Kharif**, **Rabi**, and **Zaid** cropping cycles.
+### 9. Offline Crop Calendar & Pest/Disease Diagnostic Library
+- Complete seasonal crop calendars for Kharif, Rabi, and Zaid cycles.
 - Basal and split **NPK fertilizer schedules** with exact urea, DAP, and MOP timings.
 - Comprehensive pest and disease diagnostic guide covering major crop afflictions with both **Organic / Bio-control remedies** (neem oil, Trichoderma, pheromone traps) and **Chemical IPM dosages**.
 
-### 7. Nearby Rural Agricultural Infrastructure
+### 10. Nearby Rural Agricultural Infrastructure
 - Live OpenStreetMap Overpass queries locating rural facilities within 5 km to 25 km:
   - **Agri Input Shops:** Certified seed, fertilizer, and pesticide retailers.
   - **KVKs (Krishi Vigyan Kendras):** Government agricultural research and extension stations.
   - **Mandis / APMC:** Regulated grain and produce wholesale marketing yards.
   - **Cold Storage & Silos:** Post-harvest cold chains and state warehousing corporations.
 
-### 8. Agro-Weather Hazards & Extreme Event Alarms
+### 11. Agro-Weather Hazards & Extreme Event Alarms
 - **Heat Stress Alerts:** Flags critical daytime temperatures exceeding $38^\circ\text{C}$ that threaten pollen viability.
 - **Frost Risk Warnings:** Alerts nighttime radiative drops below $3^\circ\text{C}$ causing cell membrane rupture.
 - **Growing Degree Days (GDD):** Tracks thermal heat accumulation ($T_{\text{base}} = 10^\circ\text{C}$) to predict flowering and harvest dates.
 - **Spraying Window Optimization:** Analyzes wind speed ($< 15\text{ km/h}$) and relative humidity to prevent chemical drift and evaporation.
 
-### 9. Village & Co-operative Multi-Farm View
+### 12. Sign-In Page Knowledge Hub & Standalone Documentation Guides
+- Pre-login access on the authentication screen (`Auth.tsx`) featuring instant knowledge snippets:
+  - **Git Repository Preview Snippet:** Quick access to GitHub stars, recent commits, and repository source.
+  - **Interactive FAQ Snippet:** Clear answers addressing top questions on satellite frequency, accuracy, and offline privacy.
+  - **"How It Works" Workflow Snippet:** 3-step field journey summary.
+  - **Standalone SEO & Informational Pages:** Direct links to clean, mobile-responsive guides: [How it works](https://sevagis.dpdns.org/how-it-works.html), [NDVI explained](https://sevagis.dpdns.org/ndvi-explained.html), and [FAQ](https://sevagis.dpdns.org/faq.html).
+
+### 13. Village & Co-operative Multi-Farm View
 - Displays multiple village holdings on a unified management dashboard.
 - Automatic **priority audit sorting** highlighting critically stressed plots requiring emergency agronomist visits.
 - Batch CSV farm import and offline JSON backup/restore.
@@ -309,21 +347,29 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 | Area | Capability | Standard / Engine |
 |---|---|---|
 | **Boundary Input** | Interactive drawing, device GPS walk, coordinate entry, file uploads | GeoJSON, CSV, KML, GPX, WKT, Shapefile |
+| **Geodesic Measuring Tape**| Google Earth Pro-style on-map tape: East-West width, North-South height, diagonals, segments | `RulerTape.tsx` Karney Geodesic Engine (m, km, ft, yd) |
 | **Satellite Imagery** | Optical Sentinel-2 L2A BOA + Sentinel-1 SAR C-band radar + Landsat Thermal | Microsoft Planetary Computer STAC |
+| **4K AOI Clipping** | Pure polygon-clipped raster rendering (zero black bounding box artifacts) | Dynamic SVG/Canvas Geodesic Polygon Mask |
+| **Band Symbology Studio**| Live multi-spectral combinator (True Color, NIR, Ag, Moisture, SWIR) + Gamma/Contrast | Float32 WebGL Raster Shaders & Reset to Default |
 | **Spectral Indices** | NDVI, NDMI, NDWI, NDRE, SAVI, MSAVI, GNDVI, REIP, LAI, Early Stress, TVDI, CWSI | Float32Array in-browser raster math |
 | **Radar Ingestion** | All-weather flood & soil waterlogging detection under monsoon cloud cover | Sentinel-1 GRD VV/VH backscatter ($< -16\text{ dB}$) |
 | **Terrain & Water** | 30m DEM elevation, slope, aspect, hillshade, contours, and TWI drainage | Copernicus GLO-30 |
 | **Decision Engines** | Irrigation decision card (mm, L/acre, $m^3$), crop stage selector, 0–100 health score | FAO-56 Penman-Monteith & NDMI model |
+| **Human Agronomic Logic**| Bare / uncultivated logic branching + Drip (95%), Sprinkler (80%), Furrow (55%) physics | Multi-system Hydraulic Evapotranspiration Balance |
+| **Modular Card Refresh**| Standalone refresh controls for every dashboard telemetry widget | Asynchronous React 19 State Reloaders |
 | **Tractor Swaths** | Boustrophedon path planning, headlands, auto-heading fuel minimization | [Fields2Cover](https://github.com/Fields2Cover/Fields2Cover) |
 | **Logistics Reach** | 10/20/30m tractor and 15/30/45m truck reachability isochrones | [openrouteservice](https://github.com/giscience/openrouteservice) |
 | **VRA Prescriptions**| 3-zone precision nitrogen prescriptions and 50 kg Urea bag counts | [awesome-agriculture](https://github.com/brycejohnston/awesome-agriculture) |
 | **Change Detection** | Bi-temporal multi-date $\Delta\text{NDVI}$ anomaly and crop degradation maps | [awesome-remote-sensing-change-detection](https://github.com/wenhwu/awesome-remote-sensing-change-detection) |
 | **GeoAI & Quantum** | RF (15 trees), CNN (spatial), LSTM (temporal), Ensemble, and Quantum VQC | Web Workers & Client-side Linear Algebra |
 | **Yield Forecast** | Phenology-adjusted yield estimates with explicit error ranges | Regression models (t/ha & q/acre) |
-| **Field Scouting** | Numbered GPS hotspot pins, compass bearings, walking navigation | GeoJSON / Google Maps URL |
+| **Field Scouting** | Numbered GPS hotspot pins, compass bearings, walking navigation | GeoJSON / Leaflet Vector Pins / Google Maps URL |
+| **Field Navigation** | 1-click Google Maps routing from Scout Hotspots and "My Farms" drawer | Universal Deep-Link Navigation URI |
+| **Agronomy Calendar** | Git dot-matrix seasonal progress calendar (intuitive for ages 16+) | Kharif / Rabi / Zaid Phenology Grid |
 | **Crop Knowledge** | Crop calendar (Kharif/Rabi/Zaid), NPK schedules, and organic/chemical IPM guide | Offline Agronomic Knowledge Base |
-| **Land Revenue** | Reverse geocoding (Village, Tehsil, District) + Khasra/Khata survey fields | OpenStreetMap Nominatim / Local DB |
+| **Land Revenue & Registry**| Automatic cadastral land owner extraction, Khasra/Khata numbers, reverse geocoding | Cadastral Revenue Registry / Nominatim DB |
 | **Nearby Services** | Agri shops, KVKs, Mandis/APMC, and Cold Storage with distance rings | OpenStreetMap Overpass API |
+| **Sign-In Knowledge Hub**| In-app Git preview, FAQ, How It Works snippets & standalone docs | Pre-Login Auth Portal & Static HTML Guides |
 | **Multi-Farm View** | Village & co-operative overview with priority audit triage | Local IndexedDB Vault (No sign-in) |
 | **Multi-Format Export**| PDF, CSV, GeoJSON, Excel (.xlsx), KML, Grafana JSON, PMFBY insurance pack | Client-side File Generators |
 | **Languages** | English, Hindi (हिंदी), and Telugu (తెలుగు) with instant switching | Native Localization |
@@ -360,8 +406,9 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 **N. Akshit Vinay**
 
-*Idea, design, and development — built for everyone who works the land and wants to see it thrive.*
+*Idea, design, and Vibe coded  for everyone who loves the land, and wants to see it grow.* &nbsp;❤️💥 <img src="docs/butterfly.gif" width="22" height="22" alt="Rainbow Butterfly" style="vertical-align: middle; display: inline-block;" />
 
+<br/>
 <br/>
 
 [![Email](https://img.shields.io/badge/Email-akshitvinay4636%40gmail.com-D14836?style=flat-square&logo=gmail&logoColor=white)](mailto:akshitvinay4636@gmail.com)

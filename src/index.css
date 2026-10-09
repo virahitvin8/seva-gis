@@ -930,3 +930,11 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 .reel-badge{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:750;background:#eab308;color:#000;padding:1px 5px;border-radius:3px;border:1px solid #78350f;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,0.35);font-family:'JetBrains Mono',monospace}
 @media(max-width:700px){.ge-ruler-panel{top:112px!important;right:auto;left:14px;width:calc(100% - 28px)}}
 
+/* Google Maps Navigation in My Farms */
+.farm-badges-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.farm-maps-btn{display:inline-flex;align-items:center;gap:4px;font-size:8.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer;transition:all .15s ease;white-space:nowrap}
+.farm-maps-btn:hover{background:#dbeafe;color:#1e40af;border-color:#93c5fd;transform:translateY(-1px);box-shadow:0 1px 3px rgba(37,99,235,0.18)}
+.farm-maps-btn svg{color:#2563eb;flex-shrink:0}
+.farm-header-maps-btn{display:inline-flex;align-items:center;gap:5px;background:#eff6ff!important;color:#1d4ed8!important;border-color:#bfdbfe!important;font-weight:600!important}
+.farm-header-maps-btn:hover{background:#dbeafe!important;border-color:#93c5fd!important}
+

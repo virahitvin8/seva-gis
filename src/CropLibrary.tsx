@@ -147,9 +147,6 @@ export default function CropLibrary() {
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--primary)' }}>
                 Agronomy Season Calendar
               </h3>
-              <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
-                Git Dot-Matrix Heatmap
-              </span>
             </div>
             <span style={{ fontSize: 11, color: 'var(--muted)' }}>
               52-week crop phenology, sowing windows &amp; field operation intensity across Kharif, Rabi &amp; Zaid
@@ -194,7 +191,65 @@ export default function CropLibrary() {
         </div>
       </div>
 
-      {/* GitHub Contribution Dot-Matrix Calendar */}
+      {/* 16+ Explainer Guide: Clear, intuitive understanding of the 52-week farm matrix */}
+      <div style={{
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
+        borderRadius: 10,
+        padding: '12px 14px',
+        marginBottom: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
+            <Info size={15} color="#0284c7" />
+            <span>How to Read this 52-Week Matrix (Quick Guide)</span>
+          </div>
+          <span style={{ fontSize: 10, color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
+            Visual Agronomy Timeline · 52 Weeks
+          </span>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 8,
+          fontSize: 11,
+          color: '#334155',
+        }}>
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              📅 52 Columns = 52 Weeks
+            </div>
+            <div>Moving left to right across the year (Jan to Dec). Each column is one calendar week.</div>
+          </div>
+
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              📆 7 Rows = Mon to Sun
+            </div>
+            <div>The 7 stacked dots represent the 7 days of that week, from Monday down to Sunday.</div>
+          </div>
+
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              🟢 Dot Color = Farm Workload
+            </div>
+            <div>Faded dot = Quiet growing phase. Deep green dot = Peak busy farm operations (sowing, spraying, harvest).</div>
+          </div>
+
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+              🌾 3 Seasons &amp; Interactive Dots
+            </div>
+            <div><b>Kharif</b> (Monsoon), <b>Rabi</b> (Winter), <b>Zaid</b> (Summer). <b>Click any dot</b> to inspect that week's actions!</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 52-Week Contribution Dot-Matrix Calendar */}
       <div className="git-matrix-container">
         <div className="git-matrix-wrap">
           {/* Month labels */}

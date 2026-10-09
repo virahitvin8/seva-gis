@@ -11,12 +11,6 @@ type Step = {
 
 const STEPS: Step[] = [
   {
-    sel: '.top-gis-btn',
-    title: '🌴 Desktop GIS Bridge (QGIS & ArcGIS)',
-    body: 'Connect QGIS 3, ArcMap 10.x, and ArcGIS Pro directly to your browser. Click here to open the Coconut Tree download center, retrieve the local bridge server, and sync vectors two-way.',
-    action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
-  },
-  {
     sel: '.sidebar nav, .topbar .breadcrumb',
     title: 'Your menu & workspace',
     body: 'Overview takes you to the top, My farms to your field boundaries, Crop journal to your seasonal logs, Alerts to stressed parcels, and Reports to printable dossiers.',

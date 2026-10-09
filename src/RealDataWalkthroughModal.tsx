@@ -7,7 +7,6 @@ import {
   Bot,
   Ruler,
   Tag,
-  Network,
   FileText,
   ChevronRight,
   ChevronLeft,
@@ -131,8 +130,7 @@ export default function RealDataWalkthroughModal({ isOpen, onClose, onLoadSample
     { id: 'indices', title: '3. 14 Agro Indices Math', icon: Activity },
     { id: 'legends', title: '4. Floating Legends & AI Zones', icon: Tag },
     { id: 'robotics', title: '5. Fields2Cover Swath Robotics', icon: Bot },
-    { id: 'bridge', title: '6. Desktop GIS Bridge (QGIS / ArcGIS)', icon: Network },
-    { id: 'dossier', title: '7. Trilingual Field Reports', icon: FileText }
+    { id: 'dossier', title: '6. Trilingual Field Reports', icon: FileText }
   ]
 
   return (
@@ -358,29 +356,8 @@ export default function RealDataWalkthroughModal({ isOpen, onClose, onLoadSample
           </div>
         )}
 
-        {/* Tab 6: Desktop GIS Bridge */}
+        {/* Tab 6: Trilingual Field Reports */}
         {activeTab === 5 && (
-          <div className="walkthrough-tab-pane">
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '14px', borderRadius: '10px', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '18px' }}>🌴</span>
-                <b style={{ fontSize: '13px', color: '#166534' }}>SEVA.GIS Desktop Link Plugin Center (QGIS &amp; ArcGIS)</b>
-              </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#14532d', lineHeight: 1.5 }}>
-                Direct two-way bridge connecting your browser session to QGIS 3, ArcMap 10.x, and ArcGIS Pro. Push polygons, receive layers, or import parcel shapefiles without copying coordinates manually.
-              </p>
-            </div>
-            <div style={{ fontSize: '12px', color: '#475569', lineHeight: 1.6 }}>
-              • <b>Bridge Server:</b> Runs locally on <code>http://127.0.0.1:8765</code> with SHA-256 handshake token authentication.<br />
-              • <b>QGIS 3 Plugin:</b> Python 3 native plugin with 1-click toolbar button to push active vectors.<br />
-              • <b>ArcGIS Toolbox:</b> Python 2.7 / 3 compatible <code>.pyt</code> Python toolbox for ArcMap &amp; ArcGIS Pro.<br />
-              • <b>Deep Link:</b> Uses browser fragment hashes <code>#seva=...</code> for instant single-click field imports.
-            </div>
-          </div>
-        )}
-
-        {/* Tab 7: Trilingual Field Reports */}
-        {activeTab === 6 && (
           <div className="walkthrough-tab-pane">
             <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '14px' }}>
               <b style={{ fontSize: '13px', color: '#0f172a' }}>Multi-Language Agronomic Dossiers (English, Hindi, Telugu)</b>

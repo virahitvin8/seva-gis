@@ -254,24 +254,24 @@ print("Successfully generated docs/walkthrough_satellite_data.gif")
 # ==========================================
 tour_frames = []
 
-# Frame 1: Desktop GIS Bridge & Topbar
+# Frame 1: Cadastral Boundary Ingestion & Open Data
 img, draw = create_base_canvas()
 draw.rounded_rectangle([(20, 62), (WIDTH - 20, 110)], radius=8, fill=(19, 34, 56), outline=(16, 185, 129))
-draw.text((34, 72), "WHERE IS WHAT · 1. Desktop GIS Bridge (QGIS & ArcGIS)", fill=(52, 211, 153), font=font_bold)
-draw.text((34, 90), "Location: Topbar (Right) → 'QGIS · ArcMap' Button & Coconut Tree Center", fill=(203, 213, 225), font=font_subtitle)
+draw.text((34, 72), "WHERE IS WHAT · 1. Cadastral Boundary Ingestion & Formats", fill=(52, 211, 153), font=font_bold)
+draw.text((34, 90), "Location: Header & Sidebar → 'Add a Farm' & Pro-GIS Exporters", fill=(203, 213, 225), font=font_subtitle)
 
 # Visual card
 draw.rounded_rectangle([(20, 125), (WIDTH - 20, 420)], radius=10, fill=(10, 25, 20), outline=(52, 211, 153))
-draw.text((40, 145), "🌴 Coconut Tree Plugin Download Center & Bridge Daemon", fill=(52, 211, 153), font=font_title)
-draw.text((40, 175), "• QGIS 3 Native Python Plugin (.zip installer)", fill=(255, 255, 255), font=font_body)
-draw.text((40, 205), "• ArcMap 10.x & ArcGIS Pro Python Toolbox (.pyt)", fill=(255, 255, 255), font=font_body)
-draw.text((40, 235), "• Localhost Bridge Server (port 8765) with SHA-256 handshake token", fill=(255, 255, 255), font=font_body)
-draw.text((40, 265), "• Two-way shapefile & GeoJSON transmission with deep-link fragment #seva=...", fill=(255, 255, 255), font=font_body)
+draw.text((40, 145), "🗺️ Ingest & Export High-Precision Vector Geometries", fill=(52, 211, 153), font=font_title)
+draw.text((40, 175), "• Draw vector polygons directly on Sentinel-2 satellite basemap", fill=(255, 255, 255), font=font_body)
+draw.text((40, 205), "• Walk farm perimeter with live mobile GPS receiver", fill=(255, 255, 255), font=font_body)
+draw.text((40, 235), "• Ingest ESRI Shapefiles (.zip), GeoJSON, KML, GPX, and WKT", fill=(255, 255, 255), font=font_body)
+draw.text((40, 265), "• Instant client-side Dexie.js IndexedDB vault storage with zero telemetry", fill=(255, 255, 255), font=font_body)
 
 draw.rounded_rectangle([(40, 310), (320, 370)], radius=8, fill=(16, 185, 129))
-draw.text((60, 332), "Download QGIS Plugin (ZIP)", fill=(0, 0, 0), font=font_bold)
+draw.text((60, 332), "Draw / Walk Field Boundary", fill=(0, 0, 0), font=font_bold)
 draw.rounded_rectangle([(340, 310), (620, 370)], radius=8, fill=(56, 189, 248))
-draw.text((360, 332), "Download ArcGIS Toolbox", fill=(0, 0, 0), font=font_bold)
+draw.text((360, 332), "Upload Shapefile / GeoJSON", fill=(0, 0, 0), font=font_bold)
 tour_frames.append(img)
 
 # Frame 2: Map & Metered Tape Ruler

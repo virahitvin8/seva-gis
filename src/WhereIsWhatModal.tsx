@@ -33,15 +33,6 @@ export default function WhereIsWhatModal({ isOpen, onClose, onStartMitraTour, on
 
   const FEATURES = [
     {
-      id: 'bridge',
-      cat: 'connectivity',
-      title: '🌴 Desktop GIS Bridge (QGIS & ArcGIS)',
-      location: 'Top Bar (Right) → QGIS · ArcMap Button',
-      desc: 'Connects your web browser directly to QGIS 3, ArcMap 10.x, and ArcGIS Pro. Includes the Coconut Tree plugin download center, local bridge server (port 8765), and SHA-256 token pairing.',
-      actionLabel: 'Launch Bridge Dialog',
-      actionTarget: 'gis-bridge'
-    },
-    {
       id: 'add-farm',
       cat: 'mapping',
       title: '🗺️ Cadastral Farm Boundary Ingestion',
@@ -125,8 +116,7 @@ export default function WhereIsWhatModal({ isOpen, onClose, onStartMitraTour, on
   ]
 
   const CATEGORIES = [
-    { id: 'all', label: 'All Features (10)' },
-    { id: 'connectivity', label: '🌴 Desktop GIS' },
+    { id: 'all', label: 'All Features (9)' },
     { id: 'mapping', label: '🗺️ Map & Tools' },
     { id: 'legends', label: '🏷️ Legends' },
     { id: 'analytics', label: '🛰️ Spectral' },

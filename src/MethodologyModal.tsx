@@ -364,13 +364,13 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     <text x="115" y="82" textAnchor="middle" fill="#c084fc" fontSize="9">3-Zone Jenks Natural Breaks Urea VRA</text>
                   </g>
 
-                  {/* Level 7: Zero-Backend Local Storage & Desktop GIS Bridge */}
+                  {/* Level 7: Zero-Backend Local Storage & Pro-GIS Export */}
                   <g transform="translate(570, 350)">
                     <rect width="230" height="95" rx="10" fill="url(#flowGrad1)" stroke="#34d399" strokeWidth="1.5" />
-                    <text x="115" y="26" textAnchor="middle" fill="#a7f3d0" fontSize="12" fontWeight="700">7. In-Browser Vault &amp; GIS Bridge</text>
+                    <text x="115" y="26" textAnchor="middle" fill="#a7f3d0" fontSize="12" fontWeight="700">7. In-Browser Vault &amp; Storage</text>
                     <text x="115" y="48" textAnchor="middle" fill="#ecfdf5" fontSize="10">Dexie.js IndexedDB Local Storage</text>
                     <text x="115" y="66" textAnchor="middle" fill="#6ee7b7" fontSize="9.5">Zero Telemetry · 100% Privacy</text>
-                    <text x="115" y="82" textAnchor="middle" fill="#34d399" fontSize="9">QGIS 3.x &amp; ArcGIS Pro Two-Way Sync</text>
+                    <text x="115" y="82" textAnchor="middle" fill="#34d399" fontSize="9">Pro-GIS GeoJSON/SHP/KML Export</text>
                   </g>
                 </svg>
               </div>

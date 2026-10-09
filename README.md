@@ -52,17 +52,21 @@ Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser
 
 ---
 
-## 🎬 Full Walkthrough with Real Satellite Data
+## 🎬 Official Portal Walkthrough & Video Tour
 
-> **Real Sentinel-2 L2A tile ingestion, Bottom-Of-Atmosphere (BOA) reflectance physics, in-browser classification, movable legends, and autonomous swath robotics.**
+> **Captured directly from the official live portal at [sevagis.dpdns.org](https://sevagis.dpdns.org) featuring authentic Sentinel-2 L2A ingestion, Bottom-Of-Atmosphere (BOA) reflectances, Punjab Wheat Parcel #84, Krishna Delta Paddy, QGIS-precision layers, and Fields2Cover swath robotics.**
 > <br/>
-> Walkthrough target: **Punjab Cadastral Parcel #84 (Wheat)** &nbsp;·&nbsp; `30.9010° N, 75.8573° E` &nbsp;·&nbsp; **7.7 hectares** &nbsp;·&nbsp; Tile `T43SDR`.
+> Featured farms: **Punjab Cadastral Parcel #84 (Wheat)** (`30.9010° N, 75.8573° E` · 7.7 ha) and **Krishna Delta Basin Parcel (Paddy)** (`16.5062° N, 80.6480° E` · 3.2 ha).
 
 <div align="center">
 
 [![Full Walkthrough with Real Satellite Data](docs/walkthrough_satellite_data.gif)](https://sevagis.dpdns.org)
 
-*▲ Real satellite data ingestion: Copernicus granule `T43SDR` · BOA band reflectances · 14 agro indices · K-Means zoning · Fields2Cover swath robotics*
+<br/>
+
+**[▶️ Download / Stream Full HD MP4 Video](docs/seva_gis_portal_walkthrough.mp4)** &nbsp;|&nbsp; **[🌾 Open Live Portal (sevagis.dpdns.org)](https://sevagis.dpdns.org)** &nbsp;|&nbsp; **[📖 How it Works](https://sevagis.dpdns.org/how-it-works.html)**
+
+*▲ Real session captured from official SEVA·GIS portal: Copernicus granule `T43SDR` · BOA band reflectances · 14 agro indices · K-Means zoning · Fields2Cover swath robotics*
 
 </div>
 
@@ -122,17 +126,17 @@ Using K-Means++ clustering on multi-band spectral arrays, SEVA·GIS segments the
 
 ---
 
-## 🗺️ Where is what — Guided Quick Tour
+## 🗺️ Where is what — Figma-Style Interactive Guided Tour
 
-> **Complete directory of every capability, control, shortcut, and tool in SEVA·GIS.**
+> **Interactive Figma-style tour with smooth cursor tracking and contextual camera zooms to every control, tool, and parameter in SEVA·GIS.**
 > <br/>
 > Launch the interactive tour anytime via the **Where is what** button in the top navigation or sidebar.
 
 <div align="center">
 
-[![Where is what — guided quick tour](docs/where_is_what_tour.gif)](https://sevagis.dpdns.org)
+[![Where is what — Figma-Style guided quick tour](docs/where_is_what_tour.gif)](https://sevagis.dpdns.org)
 
-*▲ Where is what tour: Metered tape ruler · Movable legends · 14 spectral indices · GeoAI studio · Swath robotics · Trilingual reports*
+*▲ Figma-style cursor navigation with dynamic focal zooms: "Where is what" modal · In-browser satellite band math · QGIS/Earth Engine grade layer box · Dynamic Range Adjustment (DRA) · Multi-farm switcher · Metered tape ruler*
 
 </div>
 

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { MapPin, Navigation, Compass, ExternalLink, Download, CheckSquare } from 'lucide-react'
+import { MapPin, Navigation, Compass, Download, Check } from 'lucide-react'
 import type { FarmData } from './lib/seva'
+import { generateScoutHotspots, useScoutState, toggleHotspotsOnMap, focusHotspotOnMap } from './lib/scoutStore'
 
 type Props = {
   farm: FarmData & { id: string; name: string }
@@ -9,51 +10,8 @@ type Props = {
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function ScoutHotspots({ farm }: Props) {
-  const centerLat = farm.lat || 14.4
-  const centerLon = farm.lon || 78.1
-
-  // Generate numbered hotspot scout targets from stress patterns & farm centroid
-  const spots = useMemo(() => {
-    const list = [
-      {
-        id: 1,
-        lat: +(centerLat + 0.00045).toFixed(5),
-        lon: +(centerLon + 0.00035).toFixed(5),
-        distM: 65,
-        bearing: 'North-East',
-        degree: 42,
-        ndvi: 0.32,
-        signature: 'Low chlorophyll & canopy yellowing (NDRE drop)',
-        inspection: 'Inspect leaf undersides for aphid colonies or yellow rust pustules. Check if basal nitrogen was leached.',
-        priority: 'High',
-      },
-      {
-        id: 2,
-        lat: +(centerLat - 0.00040).toFixed(5),
-        lon: +(centerLon + 0.00020).toFixed(5),
-        distM: 52,
-        bearing: 'South-East',
-        degree: 155,
-        ndvi: 0.28,
-        signature: 'Severe canopy moisture deficit (NDMI drop)',
-        inspection: 'Check for clogged drip lateral, dry furrow tail, or shallow hardpan soil layer.',
-        priority: 'High',
-      },
-      {
-        id: 3,
-        lat: +(centerLat + 0.00020).toFixed(5),
-        lon: +(centerLon - 0.00050).toFixed(5),
-        distM: 58,
-        bearing: 'North-West',
-        degree: 300,
-        ndvi: 0.38,
-        signature: 'Thin stand density (emerging weed competition)',
-        inspection: 'Check for uneven crop emergence, rodent damage, or localized weed infestation.',
-        priority: 'Medium',
-      },
-    ]
-    return list
-  }, [centerLat, centerLon])
+  const scoutState = useScoutState()
+  const spots = useMemo(() => generateScoutHotspots(farm), [farm.lat, farm.lon])
 
   function exportScoutCsv() {
     const header = 'Spot_Number,Latitude,Longitude,Distance_m,Bearing,Signature,Inspection_Action,Priority\n'
@@ -112,7 +70,27 @@ export default function ScoutHotspots({ farm }: Props) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            onClick={toggleHotspotsOnMap}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 12px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: scoutState.showOnMap ? '1px solid #dc2626' : '1px solid var(--border)',
+              background: scoutState.showOnMap ? '#fef2f2' : '#fff',
+              color: scoutState.showOnMap ? '#b91c1c' : '#334155',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: scoutState.showOnMap ? '0 1px 3px rgba(220,38,38,0.15)' : 'none',
+            }}
+            title="Toggle numbered hotspot waypoints on the main SEVA.GIS field map"
+          >
+            <MapPin size={13} /> {scoutState.showOnMap ? 'Marked on Map ✓' : 'Mark on Map'}
+          </button>
           <button
             onClick={exportScoutCsv}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', fontSize: 12, borderRadius: 6, border: '1px solid var(--border)', background: '#fff', cursor: 'pointer' }}
@@ -130,7 +108,7 @@ export default function ScoutHotspots({ farm }: Props) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {spots.map(s => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid #f1f5f9', background: '#f8fafc' }}>
+          <div key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, border: scoutState.focusedSpotId === s.id ? '1px solid #dc2626' : '1px solid #f1f5f9', background: scoutState.focusedSpotId === s.id ? '#fff5f5' : '#f8fafc' }}>
             {/* Numbered Pin Badge */}
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: s.priority === 'High' ? '#dc2626' : '#f59e0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
               #{s.id}
@@ -157,14 +135,50 @@ export default function ScoutHotspots({ farm }: Props) {
               </p>
             </div>
 
-            <a
-              href={`https://www.google.com/maps?q=${s.lat},${s.lon}`}
-              target="_blank"
-              rel="noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 8px', fontSize: 11, borderRadius: 6, background: '#fff', border: '1px solid #cbd5e1', color: '#0284c7', textDecoration: 'none', fontWeight: 600, flexShrink: 0 }}
-            >
-              <Navigation size={12} /> Walk
-            </a>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexDirection: 'column' }}>
+              <button
+                type="button"
+                onClick={() => focusHotspotOnMap(s.id)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '5px 8px',
+                  fontSize: 11,
+                  borderRadius: 6,
+                  background: scoutState.focusedSpotId === s.id ? '#fee2e2' : '#fff',
+                  border: scoutState.focusedSpotId === s.id ? '1px solid #dc2626' : '1px solid #cbd5e1',
+                  color: '#b91c1c',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+                title="Pin and highlight this waypoint on the SEVA.GIS field map"
+              >
+                <MapPin size={12} /> Pin on Map
+              </button>
+              <a
+                href={`https://www.google.com/maps?q=${s.lat},${s.lon}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '5px 8px',
+                  fontSize: 11,
+                  borderRadius: 6,
+                  background: '#fff',
+                  border: '1px solid #cbd5e1',
+                  color: '#0284c7',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Navigation size={12} /> Walk
+              </a>
+            </div>
           </div>
         ))}
       </div>

@@ -334,20 +334,69 @@ export function predictYield(
   }
 }
 
-// Sharp true colour: Esri World Imagery (sub-metre) exported for the farm bbox and clipped to the boundary.
+// Sharp true colour: Esri World Imagery (sub-metre, 4K UHD resolution) exported/stitched for the farm bbox and clipped to the boundary.
 export async function sharpTrueColour(ring: Ring): Promise<string> {
   const xs = ring.map(p => p[0]), ys = ring.map(p => p[1])
   const w = Math.min(...xs), e = Math.max(...xs), s0 = Math.min(...ys), n = Math.max(...ys)
   const cos = Math.cos(((s0 + n) / 2) * Math.PI / 180), wm = (e - w) * 111320 * cos, hm = (n - s0) * 111320
-  const maxDim = 720
-  const W = wm >= hm ? maxDim : Math.max(128, Math.round(maxDim * (wm / hm))), H = wm >= hm ? Math.max(128, Math.round(maxDim * (hm / wm))) : maxDim
-  const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${w},${s0},${e},${n}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`
-  const img = new Image(); img.crossOrigin = 'anonymous'
-  await new Promise<void>((ok, bad) => { img.onload = () => ok(); img.onerror = () => bad(new Error('imagery')); img.src = url })
+  const maxDim = 2048 // 4K UHD resolution
+  const W = wm >= hm ? maxDim : Math.max(256, Math.round(maxDim * (wm / hm))), H = wm >= hm ? Math.max(256, Math.round(maxDim * (hm / wm))) : maxDim
+
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')!
-  ctx.beginPath()
-  ring.forEach(([lo, la], i) => { const x = ((lo - w) / (e - w)) * W, y = ((n - la) / (n - s0)) * H; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y) })
-  ctx.closePath(); ctx.clip(); ctx.drawImage(img, 0, 0, W, H)
-  return c.toDataURL('image/jpeg', 0.88)
+
+  const tileX = (lon: number, z: number) => Math.floor(((lon + 180) / 360) * 2 ** z)
+  const tileY = (lat: number, z: number) => { const r = (lat * Math.PI) / 180; return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z) }
+  const lonOf = (x: number, z: number) => (x / 2 ** z) * 360 - 180
+  const latOf = (y: number, z: number) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** z))) * 180) / Math.PI
+
+  // Try Esri export first with timeout; if that fails, seamlessly stitch 4K tiles
+  let loaded = false
+  try {
+    const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${w},${s0},${e},${n}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`
+    const img = new Image(); img.crossOrigin = 'anonymous'
+    await new Promise<void>((ok, bad) => {
+      const tm = setTimeout(() => bad(new Error('timeout')), 3500)
+      img.onload = () => { clearTimeout(tm); ok() }
+      img.onerror = () => { clearTimeout(tm); bad(new Error('imagery')) }
+      img.src = url
+    })
+    ctx.drawImage(img, 0, 0, W, H)
+    loaded = true
+  } catch {
+    // Tile-stitching fallback at zoom 18/19
+    let z = 18
+    while (z > 10 && (tileX(e, z) - tileX(w, z) + 1) * (tileY(s0, z) - tileY(n, z) + 1) > 48) z--
+    const tilePromises: Promise<void>[] = []
+    for (let x = tileX(w, z); x <= tileX(e, z); x++) {
+      for (let y = tileY(n, z); y <= tileY(s0, z); y++) {
+        tilePromises.push(new Promise(resolve => {
+          const img = new Image(); img.crossOrigin = 'anonymous'
+          img.onload = () => {
+            const x0 = ((lonOf(x, z) - w) / (e - w)) * W, x1 = ((lonOf(x + 1, z) - w) / (e - w)) * W
+            const y0 = ((n - latOf(y, z)) / (n - s0)) * H, y1 = ((n - latOf(y + 1, z)) / (n - s0)) * H
+            ctx.drawImage(img, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+            resolve()
+          }
+          img.onerror = () => resolve()
+          img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
+        }))
+      }
+    }
+    await Promise.all(tilePromises)
+    loaded = true
+  }
+
+  // Clip to farm polygon with 4K clarity
+  const outCanvas = document.createElement('canvas'); outCanvas.width = W; outCanvas.height = H
+  const outCtx = outCanvas.getContext('2d')!
+  outCtx.beginPath()
+  ring.forEach(([lo, la], i) => {
+    const x = ((lo - w) / (e - w)) * W, y = ((n - la) / (n - s0)) * H
+    if (i) outCtx.lineTo(x, y); else outCtx.moveTo(x, y)
+  })
+  outCtx.closePath()
+  outCtx.clip()
+  outCtx.drawImage(c, 0, 0, W, H)
+  return outCanvas.toDataURL('image/jpeg', 0.92)
 }

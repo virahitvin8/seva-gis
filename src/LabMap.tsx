@@ -24,23 +24,41 @@ function niceScale(widthM: number) {
   return m * p
 }
 
-export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string }) {
+export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption, highlightAoi = false }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean }) {
   const spots = useWeakSpots(farm, scene), weak = marks ?? spots
   const [w, s, e, n] = farmBBox(farm)
   const pad = 0.45, dw = (e - w) * pad, dh = (n - s) * pad
   const bb = [w - dw, s - dh, e + dw, n + dh], cos = Math.cos(((s + n) / 2) * Math.PI / 180)
   const wm = (bb[2] - bb[0]) * 111320 * cos, hm = (bb[3] - bb[1]) * 111320
-  const W = 1400, H = Math.min(2000, Math.round(W * (hm / wm)))
+  const W = 2048, H = Math.min(2560, Math.round(W * (hm / wm)))
   const ctx = `${ESRI_EXPORT}?bbox=${bb.join(',')}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`
   const X = (lon: number) => ((lon - bb[0]) / (bb[2] - bb[0])) * 100, Y = (lat: number) => ((bb[3] - lat) / (bb[3] - bb[1])) * 100
   const ring = farmRing(farm)
   const scaleM = niceScale(wm), scaleW = (scaleM / wm) * 100
+  const maskId = `aoi-mask-${farm.id}-${title.replace(/\W+/g, '')}`
+
   return <figure className="ge-fig lab-map">
     <div className="lab-stage" style={{ aspectRatio: `${W} / ${H}` }}>
       <CtxImage url={ctx} bb={bb} W={W} H={H}/>
       {overlay && <img className="lab-over" src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="lab-svg">
-        <polygon points={ring.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')} fill="none" stroke="#fff" strokeWidth="0.5" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 2 }}/>
+        <defs>
+          <mask id={maskId}>
+            <rect x="0" y="0" width="100" height="100" fill="white" />
+            <polygon points={ring.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')} fill="black" />
+          </mask>
+        </defs>
+        {highlightAoi && (
+          <rect x="0" y="0" width="100" height="100" fill="#06120c" opacity="0.28" mask={`url(#${maskId})`} />
+        )}
+        <polygon
+          points={ring.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')}
+          fill="none"
+          stroke="#ffffff"
+          strokeWidth="2.5"
+          vectorEffect="non-scaling-stroke"
+          style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))' }}
+        />
       </svg>
       {weak.map((p, i) => <span key={i} className="lab-weak" style={{ left: `${X(p.lon)}%`, top: `${Y(p.lat)}%` }} title={`Weak spot ${i + 1}: ${p.ha.toFixed(2)} ha, ${p.signature}`}>{i + 1}</span>)}
       <div className="lab-title">{title}</div>

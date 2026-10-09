@@ -2,11 +2,12 @@ import LogoLoader from './LogoLoader'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { createPortal } from 'react-dom'
-import { Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search, SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers, Lock, LockOpen, Map as MapIcon } from 'lucide-react'
+import { Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search, SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers, Lock, LockOpen, MapPin, Map as MapIcon } from 'lucide-react'
 import { GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict, compass, gradientCss, renderLayer, sampleAt, type Grid, type Layer } from './lib/indicators'
 import { pixelAt } from './lib/raster'
 import { ndviClass } from './lib/agro'
 import { addBorewell, addPipeline, lengthM, useAssets } from './lib/assets'
+import { generateScoutHotspots, useScoutState, toggleHotspotsOnMap } from './lib/scoutStore'
 import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData } from './lib/seva'
@@ -232,6 +233,46 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const date = scene ? new Date(scene.datetime).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''
   const cls = picked?.values.ndvi !== undefined ? ndviClass(picked.values.ndvi) : null
 
+  const scoutState = useScoutState()
+  const scoutSpots = useMemo(() => generateScoutHotspots(farm), [farm.lat, farm.lon])
+
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    if (!scoutState.showOnMap) return
+    const g = L.layerGroup().addTo(m)
+    scoutSpots.forEach((s) => {
+      const isFocused = scoutState.focusedSpotId === s.id
+      const icon = L.divIcon({
+        className: 'scout-map-pin-container',
+        html: `<div class="scout-map-pin ${s.priority.toLowerCase()} ${isFocused ? 'focused' : ''}"><span>#${s.id}</span></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      })
+      const marker = L.marker([s.lat, s.lon], { icon, zIndexOffset: isFocused ? 1000 : 500 }).addTo(g)
+      const popupHtml = `
+        <div class="scout-popup">
+          <div class="scout-popup-header">
+            <span class="scout-popup-badge ${s.priority.toLowerCase()}">Spot #${s.id} · ${s.priority} Priority</span>
+            <span class="scout-popup-ndvi">NDVI ${s.ndvi}</span>
+          </div>
+          <b class="scout-popup-title">${s.signature}</b>
+          <p class="scout-popup-action"><b>Scout Action:</b> ${s.inspection}</p>
+          <div class="scout-popup-meta">
+            <span>🧭 ${s.distM} m ${s.bearing} (${s.degree}°)</span>
+            <a href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noreferrer" class="scout-walk-link">Walk with GPS ↗</a>
+          </div>
+        </div>
+      `
+      marker.bindPopup(popupHtml, { minWidth: 240, maxWidth: 300, className: 'scout-custom-popup' })
+      if (isFocused) {
+        marker.openPopup()
+        m.panTo([s.lat, s.lon], { animate: true, duration: 0.5 })
+      }
+    })
+    return () => { g.remove() }
+  }, [mapObj, scoutState.showOnMap, scoutState.focusedSpotId, scoutSpots])
+
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   useEffect(() => { setSlot(document.getElementById('legend-slot')) }, [])
   return <div className="ix-outer"><div className="ix-wrap">
@@ -240,6 +281,14 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     <div className="ix-top">
       <button className="ix-add" onClick={() => { setPanel(!panel); setTools(false) }}><SlidersHorizontal size={16}/>Parameters<b>{active.length}</b></button>
       <button className="ix-add ix-tools-btn" onClick={() => { setTools(!tools); setPanel(false) }}><Wrench size={16}/>Tools<b>{mine.b.length + mine.p.length}</b></button>
+      <button
+        className={`ix-add ${scoutState.showOnMap ? 'on' : ''}`}
+        style={scoutState.showOnMap ? { background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' } : {}}
+        onClick={toggleHotspotsOnMap}
+        title="Mark and show Scout Hotspot target pins on the map"
+      >
+        <MapPin size={16}/>Hotspots<b>{scoutSpots.length}</b>
+      </button>
       <button className="ix-add" onClick={() => { setNearOpen(!nearOpen); setBaseOpen(false); setPanel(false); setTools(false) }}><Droplets size={16}/>Nearby</button>
       <button className="ix-add" onClick={() => { setBaseOpen(!baseOpen); setPanel(false); setTools(false); setNearOpen(false) }}><MapIcon size={16}/>Base map<b>{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b></button>
       <div className="ix-seg" role="group" aria-label="How much of the map to show">

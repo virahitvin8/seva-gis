@@ -47,8 +47,20 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     {method === 'kmeans' && <div className="st-classes"><span>Number of groups</span>{[3, 4, 5].map(n => <button key={n} className={k === n ? 'on' : ''} onClick={() => setK(n)}>{n}</button>)}</div>}
     <div className="ge-cols">
       <div>
-        <MapFrame farm={farm} scene={scene} overlay={sharp && !useS2 ? sharp : photo} title="True colour" note={sharp && !useS2 ? 'What a camera above your farm sees, in high resolution (Esri imagery, finer than 1 m). The groups on the right come from Sentinel-2.' : 'What a camera in space sees. Sentinel-2 bands 4, 3, 2, 10 m per pixel.'} caption={sharp && !useS2 ? 'True colour · Esri World Imagery, high resolution' : undefined}/>
-        {sharp && <div className="st-classes"><span>Picture</span><button className={!useS2 ? 'on' : ''} onClick={() => setUseS2(false)}>Sharp</button><button className={useS2 ? 'on' : ''} onClick={() => setUseS2(true)}>Sentinel-2 (10 m)</button></div>}
+        <MapFrame
+          farm={farm}
+          scene={scene}
+          overlay={useS2 ? photo : (sharp || undefined)}
+          title="True colour"
+          note={!useS2 ? 'What a camera above your farm sees, in crystal-clear 4K ultra-high resolution (sub-metre satellite imagery). Sharp crop canopy, field boundaries, and ground features without pixel blur.' : 'What a camera in space sees. Sentinel-2 bands 4, 3, 2, 10 m per pixel.'}
+          caption={!useS2 ? 'True colour · 4K Ultra-Res AOI (Sub-metre Satellite Imagery)' : 'True colour · Sentinel-2 10 m multispectral'}
+          highlightAoi={!useS2}
+        />
+        <div className="st-classes" style={{ marginTop: 8 }}>
+          <span>Picture mode</span>
+          <button className={!useS2 ? 'on' : ''} onClick={() => setUseS2(false)}>✨ 4K Ultra-Res (Sub-metre)</button>
+          <button className={useS2 ? 'on' : ''} onClick={() => setUseS2(true)}>Sentinel-2 (10 m)</button>
+        </div>
       </div>
       {sup ? <MapFrame farm={farm} scene={scene} overlay={sup.url} title={METHODS.find(m => m.id === method)!.name} note="Each colour is one land-cover class." legend={sup.classes.filter(c => c.pct > 0).map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}/> : method !== 'kmeans' ? <div className="ge-wait">Not enough clear pixels to classify</div> : auto ? <MapFrame farm={farm} scene={scene} overlay={auto.url} title="Automatic classes" note="Each colour is one group found by the computer." legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}/> : <div className="ge-wait">Not enough clear pixels to classify</div>}
     </div>

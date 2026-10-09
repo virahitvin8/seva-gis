@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { createPortal } from 'react-dom'
-import { Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search, SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers, Lock, LockOpen, MapPin, Map as MapIcon } from 'lucide-react'
+import { Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search, SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers, Lock, LockOpen, MapPin, Map as MapIcon, Ruler } from 'lucide-react'
 import { GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict, compass, gradientCss, renderLayer, sampleAt, type Grid, type Layer } from './lib/indicators'
 import { pixelAt } from './lib/raster'
 import { ndviClass } from './lib/agro'
@@ -10,6 +10,7 @@ import { addBorewell, addPipeline, lengthM, useAssets } from './lib/assets'
 import { generateScoutHotspots, useScoutState, toggleHotspotsOnMap } from './lib/scoutStore'
 import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
+import RulerTape from './RulerTape'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData } from './lib/seva'
 
 type MapFarm = FarmData & { id: string }
@@ -48,6 +49,10 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const [panel, setPanel] = useState(false)
   const [baseOpen, setBaseOpen] = useState(false)
   const [nearOpen, setNearOpen] = useState(false)
+  const [rulerOpen, setRulerOpen] = useState(false)
+  const [rulerActive, setRulerActive] = useState(false)
+  const rulerOpenRef = useRef(false)
+  rulerOpenRef.current = rulerOpen
   const [base, setBase] = useState(() => localStorage.getItem(BASE_STORE) || 'sat')
   const baseLayers = useRef<L.TileLayer[]>([])
   const [tools, setTools] = useState(false)
@@ -94,6 +99,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
       const t = toolRef.current
       if (t.tool === 'borewell') { addBorewell({ farmId: t.farmId, name: `Borewell ${t.n + 1}`, lat, lon: lng, depth: 90, level: 25, yieldM3h: 5, hours: 6 }); toolSet.current('none'); return }
       if (t.tool === 'pipeline') { draftRef.current(d => [...d, [lng, lat]]); return }
+      if (rulerOpenRef.current) return
       const values: Record<string, number> = {}
       let inside = false
       for (const g of [grids.current.s2, grids.current.dem]) {
@@ -279,18 +285,32 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     <div ref={element} className={`field-map${locked ? ' is-locked' : ''}`} />
     <button className={`ix-lock${locked ? ' on' : ''}`} aria-pressed={locked} aria-label={locked ? 'Map locked. Click to unlock' : 'Map unlocked. Click to lock'} title={locked ? 'Map is locked so it cannot move. Click to unlock and adjust.' : 'Map is unlocked. Move and zoom, then click to lock it again.'} onClick={() => setLocked(!locked)}>{locked ? <Lock size={17}/> : <LockOpen size={17}/>}<span>{locked ? 'Locked' : 'Unlocked'}</span></button>
     <div className="ix-top">
-      <button className="ix-add" onClick={() => { setPanel(!panel); setTools(false) }}><SlidersHorizontal size={16}/>Parameters<b>{active.length}</b></button>
-      <button className="ix-add ix-tools-btn" onClick={() => { setTools(!tools); setPanel(false) }}><Wrench size={16}/>Tools<b>{mine.b.length + mine.p.length}</b></button>
+      <button className="ix-add" onClick={() => { setPanel(!panel); setTools(false); setRulerOpen(false) }}><SlidersHorizontal size={16}/>Parameters<b>{active.length}</b></button>
+      <button className="ix-add ix-tools-btn" onClick={() => { setTools(!tools); setPanel(false); setRulerOpen(false) }}><Wrench size={16}/>Tools<b>{mine.b.length + mine.p.length}</b></button>
+      <button
+        className={`ix-add ${rulerOpen ? 'on' : ''}`}
+        style={rulerOpen ? { background: '#fef08a', borderColor: '#eab308', color: '#854d0e', fontWeight: 650 } : {}}
+        onClick={() => {
+          setRulerOpen(!rulerOpen)
+          setPanel(false)
+          setTools(false)
+          setBaseOpen(false)
+          setNearOpen(false)
+        }}
+        title="Google Earth Pro style Ruler & Metered Tape Measure (Measure East side height, width, boundaries)"
+      >
+        <Ruler size={16}/>Ruler / Tape<b>{rulerActive ? 'Measuring' : 'Tape'}</b>
+      </button>
       <button
         className={`ix-add ${scoutState.showOnMap ? 'on' : ''}`}
         style={scoutState.showOnMap ? { background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' } : {}}
-        onClick={toggleHotspotsOnMap}
+        onClick={() => { toggleHotspotsOnMap(); setRulerOpen(false); }}
         title="Mark and show Scout Hotspot target pins on the map"
       >
         <MapPin size={16}/>Hotspots<b>{scoutSpots.length}</b>
       </button>
-      <button className="ix-add" onClick={() => { setNearOpen(!nearOpen); setBaseOpen(false); setPanel(false); setTools(false) }}><Droplets size={16}/>Nearby</button>
-      <button className="ix-add" onClick={() => { setBaseOpen(!baseOpen); setPanel(false); setTools(false); setNearOpen(false) }}><MapIcon size={16}/>Base map<b>{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b></button>
+      <button className="ix-add" onClick={() => { setNearOpen(!nearOpen); setBaseOpen(false); setPanel(false); setTools(false); setRulerOpen(false) }}><Droplets size={16}/>Nearby</button>
+      <button className="ix-add" onClick={() => { setBaseOpen(!baseOpen); setPanel(false); setTools(false); setNearOpen(false); setRulerOpen(false) }}><MapIcon size={16}/>Base map<b>{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b></button>
       <div className="ix-seg" role="group" aria-label="How much of the map to show">
         <button className={!aoiOnly ? 'on' : ''} onClick={() => setAoiOnly(false)} title="Show the whole map around your farm"><Globe2 size={15}/>Whole map</button>
         <button className={aoiOnly ? 'on' : ''} onClick={() => setAoiOnly(true)} title="Show only the inside of your farm boundary, cut exactly to its shape"><Move size={15}/>Farm only</button>
@@ -298,6 +318,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     </div>
     <NearbyLayer map={mapObj} farm={farm} open={nearOpen} onClose={() => setNearOpen(false)} mine={{ b: mine.b, p: mine.p }}/>
     <MapKit map={mapObj} farm={farm} kit={kit} farmOnly={aoiOnly}/>
+    <RulerTape map={mapObj} farm={farm} open={rulerOpen} onClose={() => setRulerOpen(false)} onActiveChange={setRulerActive}/>
     {tool !== 'none' && <div className="ix-hint">{tool === 'borewell' ? 'Click the map where the borewell is' : `Click along the pipeline route · ${draft.length} point${draft.length === 1 ? '' : 's'}${draft.length > 1 ? ` · ${Math.round(lengthM(draft))} m` : ''}`}
       {tool === 'pipeline' && <button disabled={draft.length < 2} onClick={finishPipe}>Finish</button>}<button onClick={() => { setTool('none'); setDraft([]) }}>Cancel</button></div>}
     <button className="map-location" aria-label="Centre on farm" onClick={() => { const [w, s, e, n] = farmBBox(farm); map.current?.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [70, 70], maxZoom: 17 }) }}><LocateFixed size={19}/></button>
@@ -314,6 +335,12 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
       <div className="ix-list">
         <h4>See it in 3D</h4>
         <button onClick={() => { setView3d(true); setTools(false) }}><span className="ix-ico g3"><Box size={18}/></span><span><b>3D walkthrough</b><small>Walk, fly a drone or look from above</small></span><Plus size={15}/></button>
+        <h4>Google Earth Pro Measuring</h4>
+        <button className={rulerOpen ? 'on' : ''} onClick={() => { setRulerOpen(true); setTools(false); setPanel(false) }}>
+          <span className="ix-ico" style={{ background: '#fef08a', color: '#854d0e' }}><Ruler size={18}/></span>
+          <span><b>Metered Tape / Ruler</b><small>Measure East side height, width, boundaries</small></span>
+          {rulerOpen ? <Check size={15}/> : <Plus size={15}/>}
+        </button>
         <h4>Water on your farm</h4>
         <button className={tool === 'borewell' ? 'on' : ''} onClick={() => { setDraft([]); setAoiOnly(false); setTool(tool === 'borewell' ? 'none' : 'borewell'); setTools(false) }}><span className="ix-ico bw"><CircleDot size={18}/></span><span><b>Mark a borewell</b><small>Tap the map where it is{mine.b.length ? ` · ${mine.b.length} saved` : ''}</small></span>{tool === 'borewell' ? <Check size={15}/> : <Plus size={15}/>}</button>
         <button className={tool === 'pipeline' ? 'on' : ''} onClick={() => { setDraft([]); setAoiOnly(false); setTool(tool === 'pipeline' ? 'none' : 'pipeline'); setTools(false) }}><span className="ix-ico pp"><Route size={18}/></span><span><b>Draw a pipeline</b><small>Tap points along the route{mine.p.length ? ` · ${mine.p.length} saved` : ''}</small></span>{tool === 'pipeline' ? <Check size={15}/> : <Plus size={15}/>}</button>

@@ -51,9 +51,13 @@ export default function GeoTools({ farm, farms }: Props) {
     const area = getAreaOfPolygon(poly), perimeter = getPathLength(closed.map(pt))
     const b = getBounds(poly), c = getCenter(poly) || pt([farm.lon, farm.lat]), cb = getCenterOfBounds(poly)
     const nw = { latitude: b.maxLat, longitude: b.minLng }
+    const ne = { latitude: b.maxLat, longitude: b.maxLng }
+    const se = { latitude: b.minLat, longitude: b.maxLng }
+    const sw = { latitude: b.minLat, longitude: b.minLng }
     return {
       area, perimeter, center: c, centerBounds: cb, b, vertices: ring.length,
-      width: getDistance(nw, { latitude: b.maxLat, longitude: b.maxLng }), height: getDistance(nw, { latitude: b.minLat, longitude: b.minLng }),
+      width: getDistance(nw, ne), height: getDistance(nw, sw),
+      eastHeight: getDistance(ne, se), westHeight: getDistance(nw, sw),
       compactness: (4 * Math.PI * area) / (perimeter * perimeter),
     }
   }, [poly, closed, farm.lat, farm.lon, ring.length, calcKey])
@@ -131,10 +135,27 @@ export default function GeoTools({ farm, farms }: Props) {
         <div className="ag-grid">
           <div className="ag-item neutral"><span>Geodesic area</span><b>{f(g.area / 10000, 2)} ha</b><small>{f(toArea(g.area, 'ac'), 2)} acres · {f(g.area, 0)} m²{Number.isFinite(drift) && Math.abs(drift) > 3 ? ` · differs ${f(drift, 0)}% from the saved ${farm.area} ha` : ''}</small></div>
           <div className="ag-item neutral"><span>Perimeter</span><b>{km(g.perimeter)}</b><small>fence or bund length</small></div>
+          <div className="ag-item neutral" style={{ background: '#fefce8', borderColor: '#fde047' }}><span>East side height</span><b style={{ color: '#854d0e' }}>{km(g.eastHeight)}</b><small>metered tape North–South along East</small></div>
+          <div className="ag-item neutral" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}><span>Farm width</span><b style={{ color: '#1e40af' }}>{km(g.width)}</b><small>metered tape East–West span</small></div>
           <div className="ag-item neutral"><span>Bounding box</span><b>{km(g.width)} × {km(g.height)}</b><small>east-west × north-south</small></div>
           <div className={`ag-item ${g.compactness > 0.6 ? 'good' : g.compactness > 0.35 ? 'warn' : 'bad'}`}><span>Compactness</span><b>{f(g.compactness, 2)}</b><small>1 = circle, 0.78 = square, low = long or irregular</small></div>
           <div className="ag-item neutral"><span>Centroid</span><b>{f(g.center.latitude, 5)}°, {f(g.center.longitude, 5)}°</b><small>{decimalToSexagesimal(g.center.latitude)} · {decimalToSexagesimal(g.center.longitude)}</small></div>
           <div className="ag-item neutral"><span>Centre of bounds</span><b>{f(g.centerBounds.latitude, 5)}°, {f(g.centerBounds.longitude, 5)}°</b><small>differs from centroid on irregular plots</small></div>
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+          <button
+            className="gt-btn"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', border: '1px solid #eab308', borderRadius: 8, background: '#fef9c3', color: '#854d0e', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+              setTimeout(() => {
+                const btn = document.querySelector<HTMLButtonElement>('.ix-add[title*="Metered Tape"]')
+                if (btn && !btn.classList.contains('on')) btn.click()
+              }, 400)
+            }}
+          >
+            <Ruler size={14}/>Open Google Earth Metered Tape on Map ↗
+          </button>
         </div>
         <div className="sc-box compact gt-guide"><div className="sc-title"><b>Compactness</b><span>4π·area / perimeter²</span></div><div className="sc-bar">{['#d73027', '#fdae61', '#a6d96a', '#1a9850'].map(c => <i key={c} style={{ background: c, flex: 1 }}/>)}</div>
           <ul>{[['#d73027', 'Strip or irregular', '< 0.35'], ['#fdae61', 'Elongated', '0.35 to 0.6'], ['#1a9850', 'Compact', '≥ 0.6']].map(r => <li key={r[1]}><i style={{ background: r[0] }}/><span>{r[1]}</span><code>{r[2]}</code></li>)}</ul></div>

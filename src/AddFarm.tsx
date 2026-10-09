@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Eraser, Flag, Footprints, FileUp, MapPinned, Pencil, Plus, Search, ShieldCheck, Undo2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
 import { areaHa, orderRing, parseBoundary, type Ring } from './lib/geo'
+import CropSelector, { type CropSelection } from './CropSelector'
+import { matchCropSpec } from './lib/cropstages'
 
 export type NewFarm = { name: string; crop: string; ring: Ring }
 type Tab = 'draw' | 'walk' | 'corners' | 'file'
@@ -27,6 +29,7 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
   const [corners, setCorners] = useState(emptyCorners)
   const [name, setName] = useState('')
   const [crop, setCrop] = useState('Paddy')
+  const [showCropPicker, setShowCropPicker] = useState(false)
   const [place, setPlace] = useState('')
   const [fileNote, setFileNote] = useState('')
   const box = useRef<HTMLDivElement>(null)
@@ -140,7 +143,124 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
     {tab === 'corners' && <div className="corner-grid">{corners.map((c, i) => <div key={i}><span>Corner {i + 1}</span><input type="number" step="any" min="-90" max="90" placeholder="Latitude" value={c.lat} onChange={event => setCorner(i, 'lat', event.target.value)}/><input type="number" step="any" min="-180" max="180" placeholder="Longitude" value={c.lon} onChange={event => setCorner(i, 'lon', event.target.value)}/></div>)}<small>Any order works; corners are joined automatically. Tip: in Google Maps, right-click a point to copy its coordinates.</small></div>}
     {tab === 'file' && <div className="add-help file"><label className="file-pick"><FileUp size={16}/>Choose shapefile (.zip), GeoJSON, KML, GPX, CSV or WKT<input type="file" accept=".geojson,.json,.kml,.gpx,.csv,.txt,.tsv,.wkt,.zip,.shp" onChange={event => { onFile(event.target.files?.[0]); event.target.value = '' }}/></label><small>{fileNote || 'Works with QGIS, ArcGIS, Google Earth and the Copernicus or USGS download tools. For a shapefile, zip the .shp, .dbf, .shx and .prj together. The first polygon is used.'}</small></div>}
     <div className="add-summary"><b>{ring.length >= 3 ? `${hectares.toFixed(1)} ha` : ring.length === 1 ? 'Point only' : '—'}</b><span>{ring.length} point{ring.length === 1 ? '' : 's'} · analysed from live Sentinel-2</span></div>
-    <label>Crop / land use<select value={crop} onChange={event => setCrop(event.target.value)}><option>Paddy</option><option>Wheat</option><option>Mango</option><option>Other crop</option><option>Uncultivated land</option></select></label>
+    <div className="add-crop-section" style={{ display: 'grid', gap: 8, marginTop: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 11, color: '#5a6e4d', fontWeight: 600 }}>Crop / Land classification</span>
+        <button
+          type="button"
+          onClick={() => setShowCropPicker(prev => !prev)}
+          style={{
+            fontSize: 11,
+            color: '#15803d',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontWeight: 600,
+          }}
+        >
+          <Search size={12} /> {showCropPicker ? 'Close Search' : 'Search & Browse (200+)'}
+        </button>
+      </div>
+
+      {/* Selected Crop status bar */}
+      <div
+        onClick={() => setShowCropPicker(prev => !prev)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 12px',
+          background: '#fff',
+          border: '1px solid #dbe3d2',
+          borderRadius: 8,
+          cursor: 'pointer',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sprout size={16} style={{ color: '#16a34a' }} />
+          <b style={{ fontSize: 13, color: '#0f172a' }}>{crop}</b>
+          <span style={{ fontSize: 10, background: '#f1f5f9', color: '#475569', padding: '2px 7px', borderRadius: 10, fontWeight: 600 }}>
+            {matchCropSpec(crop).name}
+          </span>
+        </div>
+        <span style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {showCropPicker ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </span>
+      </div>
+
+      {/* Quick 1-Click Common Presets Bar */}
+      {!showCropPicker && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {[
+            'Paddy',
+            'Wheat',
+            'Chickpea / Gram',
+            'Pigeon pea (Tur/Arhar)',
+            'Soybean',
+            'Cotton',
+            'Uncultivated land',
+            'Bare land',
+          ].map(name => {
+            const isSel = crop.toLowerCase().startsWith(name.toLowerCase().split(' ')[0]) || crop === name
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setCrop(name)}
+                style={{
+                  fontSize: 11,
+                  padding: '3px 9px',
+                  borderRadius: 14,
+                  border: isSel ? '1px solid #16a34a' : '1px solid #dbe3d2',
+                  background: isSel ? '#dcfce7' : '#fff',
+                  color: isSel ? '#15803d' : '#475569',
+                  fontWeight: isSel ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                {isSel && <Check size={11} style={{ marginRight: 3 }} />}
+                {name}
+              </button>
+            )
+          })}
+          <button
+            type="button"
+            onClick={() => setShowCropPicker(true)}
+            style={{
+              fontSize: 11,
+              padding: '3px 9px',
+              borderRadius: 14,
+              border: '1px dashed #94a3b8',
+              background: '#f8fafc',
+              color: '#334155',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            + Search / Custom
+          </button>
+        </div>
+      )}
+
+      {/* Full Expandable Crop Selector */}
+      {showCropPicker && (
+        <CropSelector
+          selectedCrop={crop}
+          onSelect={(selection) => {
+            const chosen = typeof selection === 'string' ? selection : ('crop' in selection ? selection.crop.name : selection.custom)
+            setCrop(chosen)
+            setShowCropPicker(false)
+          }}
+          onClose={() => setShowCropPicker(false)}
+        />
+      )}
+    </div>
     <div className="privacy-note"><ShieldCheck size={16}/>Saved on this device only. No account or key needed.</div>
     <button className="primary" type="submit"><Plus size={17}/>Add farm & analyse</button>
   </form>

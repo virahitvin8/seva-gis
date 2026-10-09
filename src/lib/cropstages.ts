@@ -197,7 +197,92 @@ export const EXTENDED_CROPS: CropSpec[] = [
       maturity: { days: [105, 120], ndviExpected: 0.38 },
     },
   },
+  {
+    id: 'uncultivated',
+    name: 'Uncultivated / Bare Land',
+    category: 'Commercial',
+    durationDays: 365,
+    stages: {
+      sowing: { days: [0, 60], ndviExpected: 0.15 },
+      vegetative: { days: [60, 180], ndviExpected: 0.18 },
+      flowering: { days: [180, 270], ndviExpected: 0.20 },
+      grain_fill: { days: [270, 330], ndviExpected: 0.18 },
+      maturity: { days: [330, 365], ndviExpected: 0.15 },
+    },
+  },
 ]
+
+export function matchCropSpec(cropName: string = ''): CropSpec {
+  const norm = cropName.toLowerCase().trim()
+  if (norm.includes('bare') || norm.includes('uncultivated') || norm.includes('fallow') || norm.includes('waste')) {
+    return EXTENDED_CROPS.find(c => c.id === 'uncultivated')!
+  }
+  // Pulses matching (Chickpea, Gram, Chana, Lentil, Masoor, Pigeonpea, Tur, Arhar, Moong, Urad, Cowpea, Lobia, Rajma, Peas)
+  if (
+    norm.includes('pulse') || norm.includes('chickpea') || norm.includes('gram') ||
+    norm.includes('chana') || norm.includes('lentil') || norm.includes('masoor') ||
+    norm.includes('pigeon') || norm.includes('tur') || norm.includes('toor') ||
+    norm.includes('arhar') || norm.includes('moong') || norm.includes('urad') ||
+    norm.includes('dal') || norm.includes('cowpea') || norm.includes('lobia') ||
+    norm.includes('pea') || norm.includes('rajma') || norm.includes('bean')
+  ) {
+    return EXTENDED_CROPS.find(c => c.id === 'pulses')!
+  }
+  if (norm.includes('rice') || norm.includes('paddy') || norm.includes('dhan') || norm.includes('chawal')) {
+    return EXTENDED_CROPS.find(c => c.id === 'paddy')!
+  }
+  if (norm.includes('wheat') || norm.includes('gehun')) {
+    return EXTENDED_CROPS.find(c => c.id === 'wheat')!
+  }
+  if (norm.includes('maize') || norm.includes('corn') || norm.includes('makka')) {
+    return EXTENDED_CROPS.find(c => c.id === 'maize')!
+  }
+  if (norm.includes('cotton') || norm.includes('kapas')) {
+    return EXTENDED_CROPS.find(c => c.id === 'cotton')!
+  }
+  if (norm.includes('sugarcane') || norm.includes('ganna')) {
+    return EXTENDED_CROPS.find(c => c.id === 'sugarcane')!
+  }
+  if (norm.includes('soybean') || norm.includes('soya')) {
+    return EXTENDED_CROPS.find(c => c.id === 'soybean')!
+  }
+  if (norm.includes('mustard') || norm.includes('sarson') || norm.includes('rai') || norm.includes('rapeseed')) {
+    return EXTENDED_CROPS.find(c => c.id === 'mustard')!
+  }
+  if (norm.includes('tomato') || norm.includes('tamatar')) {
+    return EXTENDED_CROPS.find(c => c.id === 'tomato')!
+  }
+  if (norm.includes('potato') || norm.includes('aloo')) {
+    return EXTENDED_CROPS.find(c => c.id === 'potato')!
+  }
+  return EXTENDED_CROPS.find(c => norm.includes(c.id)) || EXTENDED_CROPS[0]
+}
+
+export function autoDetectStage(spec: CropSpec, currentNdvi: number, currentNdmi: number = 0.2): GrowthStage {
+  if (spec.id === 'uncultivated') return 'sowing'
+
+  const sowingExp = spec.stages.sowing.ndviExpected
+  const vegExp = spec.stages.vegetative.ndviExpected
+  const flowExp = spec.stages.flowering.ndviExpected
+
+  // 1. Peak reproductive / dense canopy (e.g., NDVI >= 0.65 for pulses)
+  if (currentNdvi >= flowExp - 0.08) {
+    return 'flowering'
+  }
+
+  // 2. Strong vegetative canopy or grain filling
+  if (currentNdvi >= vegExp - 0.06) {
+    return currentNdmi >= 0.16 ? 'vegetative' : 'grain_fill'
+  }
+
+  // 3. Early vegetative growth or late maturity
+  if (currentNdvi >= sowingExp + 0.12) {
+    return currentNdmi < 0.10 ? 'maturity' : 'vegetative'
+  }
+
+  // 4. Low canopy / early emergence
+  return 'sowing'
+}
 
 export function computeStageAdjustedVerdict(
   cropId: string,
@@ -207,6 +292,18 @@ export function computeStageAdjustedVerdict(
 ) {
   const stage = GROWTH_STAGES.find(s => s.id === stageId) || GROWTH_STAGES[2]
   const crop = EXTENDED_CROPS.find(c => c.id === cropId) || EXTENDED_CROPS[0]
+
+  // Handling for bare or uncultivated land
+  if (crop.id === 'uncultivated') {
+    return {
+      healthScore: 85,
+      status: 'Bare Soil / Fallow Baseline',
+      tone: 'good' as const,
+      note: `NDVI ${currentNdvi.toFixed(2)} is a standard baseline for bare, tilled, or uncultivated land. No abnormal vegetative stress.`,
+      isSenescence: false,
+    }
+  }
+
   const expected = crop.stages[stageId]?.ndviExpected ?? 0.7
 
   // If in maturity stage, declining NDVI is expected and healthy, not an anomaly!

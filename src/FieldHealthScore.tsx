@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Sparkles, TrendingUp, AlertCircle, CheckCircle2, ChevronRight, Sprout } from 'lucide-react'
-import { EXTENDED_CROPS, GROWTH_STAGES, computeStageAdjustedVerdict, type GrowthStage } from './lib/cropstages'
+import { EXTENDED_CROPS, GROWTH_STAGES, computeStageAdjustedVerdict, matchCropSpec, autoDetectStage, type GrowthStage } from './lib/cropstages'
 import type { FarmData, WeekRec } from './lib/seva'
 
 type Props = {
@@ -11,21 +11,38 @@ type Props = {
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function FieldHealthScore({ farm }: Props) {
-  const [stage, setStage] = useState<GrowthStage>('flowering')
-  const [cropId, setCropId] = useState(() => {
-    const norm = (farm.crop || 'Paddy').toLowerCase()
-    return EXTENDED_CROPS.find(c => norm.includes(c.id))?.id || 'paddy'
-  })
-
   const currentNdvi = farm.analysis?.ndvi.mean ?? 0.65
   const currentNdmi = farm.analysis?.ndmi.mean ?? 0.22
 
-  const verdict = useMemo(() => {
-    return computeStageAdjustedVerdict(cropId, stage, currentNdvi, currentNdmi)
-  }, [cropId, stage, currentNdvi, currentNdmi])
+  const [cropId, setCropId] = useState(() => {
+    return matchCropSpec(farm.crop || '').id
+  })
 
+  // Synchronize when farm changes
+  useEffect(() => {
+    if (farm.crop) {
+      setCropId(matchCropSpec(farm.crop).id)
+    }
+  }, [farm.crop, farm.id])
+
+  const cropDef = useMemo(() => {
+    return EXTENDED_CROPS.find(c => c.id === cropId) || matchCropSpec(farm.crop || '')
+  }, [cropId, farm.crop])
+
+  // Automatically detect stage as per actual satellite health metrics
+  const detectedStage = useMemo(() => {
+    return autoDetectStage(cropDef, currentNdvi, currentNdmi)
+  }, [cropDef, currentNdvi, currentNdmi])
+
+  const [isAuto, setIsAuto] = useState(true)
+  const [manualStage, setManualStage] = useState<GrowthStage>('flowering')
+
+  const stage = isAuto ? detectedStage : manualStage
   const stageDef = GROWTH_STAGES.find(s => s.id === stage) || GROWTH_STAGES[2]
-  const cropDef = EXTENDED_CROPS.find(c => c.id === cropId) || EXTENDED_CROPS[0]
+
+  const verdict = useMemo(() => {
+    return computeStageAdjustedVerdict(cropDef.id, stage, currentNdvi, currentNdmi)
+  }, [cropDef.id, stage, currentNdvi, currentNdmi])
 
   // Benchmark curve vs actual passes
   const chartPoints = useMemo(() => {
@@ -61,8 +78,15 @@ export default function FieldHealthScore({ farm }: Props) {
             <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)' }}>/ 100</span>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--muted)', textTransform: 'uppercase' }}>
-              FIELD HEALTH INDEX
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                FIELD HEALTH INDEX
+              </span>
+              {isAuto && (
+                <span style={{ fontSize: 10, background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <Sparkles size={10} /> Auto-Stage
+                </span>
+              )}
             </div>
             <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: verdict.tone === 'good' ? '#15803d' : verdict.tone === 'warn' ? '#b45309' : '#b91c1c' }}>
               {verdict.status}
@@ -86,10 +110,18 @@ export default function FieldHealthScore({ farm }: Props) {
           </select>
 
           <select
-            value={stage}
-            onChange={e => setStage(e.target.value as GrowthStage)}
-            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600 }}
+            value={isAuto ? 'auto' : stage}
+            onChange={e => {
+              if (e.target.value === 'auto') {
+                setIsAuto(true)
+              } else {
+                setIsAuto(false)
+                setManualStage(e.target.value as GrowthStage)
+              }
+            }}
+            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: isAuto ? '#f0fdf4' : '#fff', color: isAuto ? '#15803d' : '#0f172a', fontWeight: 600 }}
           >
+            <option value="auto">✨ Auto: {stageDef.name}</option>
             {GROWTH_STAGES.map(s => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}

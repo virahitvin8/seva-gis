@@ -41,7 +41,16 @@ export async function login(email: string, password: string) {
 export const sessionId = () => localStorage.getItem(SESSION)
 export const setSession = (id: string | null) => { if (id) localStorage.setItem(SESSION, id); else localStorage.removeItem(SESSION) }
 
-const isData = (k: string) => k.startsWith('seva-') && k !== SESSION && k !== 'seva-guide'
+const SYSTEM_KEYS = new Set([
+  SESSION,
+  'seva-guide',
+  'seva-lang',
+  'seva-guest-name',
+  'seva-remembered',
+  'seva-bye',
+  'seva-mitra-asked'
+])
+const isData = (k: string) => k.startsWith('seva-') && !SYSTEM_KEYS.has(k)
 const dataKeys = () => Object.keys(localStorage).filter(isData)
 let activeUser: string | null = null
 const rawSet = Storage.prototype.setItem, rawRemove = Storage.prototype.removeItem
@@ -53,7 +62,13 @@ export async function openWorkspace(userId: string) {
     return
   }
   dataKeys().forEach(k => rawRemove.call(localStorage, k))
-  for (const row of await db.kv.where('userId').equals(userId).toArray()) rawSet.call(localStorage, row.key, row.value)
+  for (const row of await db.kv.where('userId').equals(userId).toArray()) {
+    if (isData(row.key)) {
+      rawSet.call(localStorage, row.key, row.value)
+    } else if (SYSTEM_KEYS.has(row.key)) {
+      void db.kv.delete(row.id)
+    }
+  }
   activeUser = userId
 }
 

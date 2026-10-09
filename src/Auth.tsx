@@ -16,6 +16,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import MethodologyModal from './MethodologyModal'
+import Lang from './Lang'
 import { GUEST, closeWorkspace, db, login, openWorkspace, register, sessionId, setSession } from './lib/db'
 
 import Wordmark from './Wordmark'
@@ -45,6 +46,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const pw = useRef<HTMLInputElement>(null)
 
   async function enter(w: Who) { sessionStorage.removeItem('seva-bye'); await openWorkspace(w.id); setSession(w.id); setWho(w) }
+
+  const enterGuest = async (customName?: string) => {
+    const chosen = (customName !== undefined ? customName.trim() : guestName.trim()) || 'Guest'
+    localStorage.setItem('seva-guest-name', chosen)
+    await enter({ id: GUEST, name: chosen, email: '' })
+  }
+
   useEffect(() => {
     (async () => {
       const params = new URLSearchParams(window.location.search)
@@ -53,7 +61,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         return
       }
       const id = sessionId()
-      if (id && id !== GUEST) {
+      if (id === GUEST) {
+        const savedGuestName = localStorage.getItem('seva-guest-name') || 'Guest'
+        await enter({ id: GUEST, name: savedGuestName, email: '' })
+      } else if (id) {
         const u = await db.users.get(id)
         if (u) await enter({ id: u.id, name: u.name, email: u.email })
       }
@@ -71,7 +82,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } catch (err) { setError(err instanceof Error ? err.message : 'Something went wrong.') }
     setBusy(false)
   }
-  const signOut = () => { sessionStorage.setItem('seva-bye', '1'); sessionStorage.removeItem('seva-mitra-asked'); clearGreeting(); closeWorkspace(); setSession(null); setWho(null); setForm({ name: '', email: '', password: '' }) }
+  const signOut = () => { sessionStorage.setItem('seva-bye', '1'); sessionStorage.removeItem('seva-mitra-asked'); localStorage.removeItem('seva-guest-name'); clearGreeting(); closeWorkspace(); setSession(null); setWho(null); setForm({ name: '', email: '', password: '' }) }
 
   if (booting) return (
     <div className="ll-full">
@@ -91,6 +102,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (who) return <Ctx.Provider value={{ who, signOut }}>{children}</Ctx.Provider>
 
   return <div className="au-wrap">
+    <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 100 }}>
+      <Lang />
+    </div>
     {sessionStorage.getItem('seva-bye') && <MitraBye/>}
     <div className="au-main-split">
       <section className="au-hero">
@@ -119,9 +133,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <button className="au-go" disabled={busy}>{busy ? <LogoLoader inline size={18} text="Please wait…" /> : mode === 'in' ? <><LogIn size={16}/>Sign in</> : <><UserPlus size={16}/>Create free account</>}</button>
         <div className="au-or"><span>or</span></div>
         {guestAsk
-          ? <div className="au-guestname"><label>What should we call you? (optional)<input autoFocus value={guestName} maxLength={30} onChange={e => setGuestName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); enter({ id: GUEST, name: guestName.trim() || 'Guest', email: '' }) } }} placeholder="Guest" autoComplete="given-name"/></label>
-            <button type="button" className="au-guest" onClick={() => enter({ id: GUEST, name: guestName.trim() || 'Guest', email: '' })}><UserIcon size={15}/>Continue as guest</button></div>
-          : <button type="button" className="au-guest" onClick={() => setGuestAsk(true)}><UserIcon size={15}/>Try freely as a guest</button>}
+          ? <div className="au-guestname"><label>What should we call you? (optional)<input autoFocus value={guestName} maxLength={30} onChange={e => setGuestName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); enterGuest(guestName) } }} placeholder="Guest" autoComplete="given-name"/></label>
+            <button type="button" className="au-guest" onClick={() => enterGuest(guestName)}><UserIcon size={15}/>Continue as guest</button></div>
+          : <button type="button" className="au-guest" onClick={() => enterGuest()}><UserIcon size={15}/>Try freely as a guest</button>}
         <small>Your account is saved in this browser. Passwords are hashed on your device and never sent anywhere, so there is no reset or sync. Back up from Data manager.</small>
 
         {/* Quick Documentation Links in Sign-in Card */}

@@ -8,6 +8,7 @@ import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
 import { areaHa, centroid } from './lib/geo'
 import GisBridgeModal from './GisBridgeModal'
+import { decodeUrlFragment, getSavedBridgeToken } from './bridge'
 import IndicatorMap from './IndicatorMap'
 import AgroPanel from './AgroPanel'
 import WaterPanel from './WaterPanel'
@@ -173,10 +174,39 @@ export default function App() {
     let active = true
     const pollTimer = setInterval(async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8765/api/poll', { method: 'GET', mode: 'cors' })
+        const token = getSavedBridgeToken()
+        const headers: Record<string, string> = {}
+        if (token) headers['X-Seva-Token'] = token
+        const res = await fetch('http://127.0.0.1:8765/api/poll', { method: 'GET', mode: 'cors', headers })
         if (!res.ok) return
         const body = await res.json()
-        if (active && body.has_import && body.data) {
+        if (!active) return
+
+        // seva-exchange v1: body.items contains FeatureCollections
+        if (Array.isArray(body.items) && body.items.length > 0) {
+          for (const payload of body.items) {
+            if (payload && Array.isArray(payload.features)) {
+              for (const feat of payload.features) {
+                const coords = feat.geometry?.coordinates
+                let ring: [number, number][] = []
+                if (feat.geometry?.type === 'Polygon' && Array.isArray(coords)) {
+                  ring = (coords[0] as unknown) as [number, number][]
+                } else if (feat.geometry?.type === 'MultiPolygon' && Array.isArray(coords)) {
+                  ring = ((coords[0] as any)?.[0] as unknown) as [number, number][]
+                }
+                if (ring && ring.length >= 3) {
+                  addBoundary({
+                    name: feat.properties?.name || 'QGIS / ArcMap Parcel',
+                    crop: feat.properties?.crop || 'Paddy (Rice)',
+                    ring
+                  })
+                  setMessage(`Received '${feat.properties?.name || 'Field'}' from ${payload.source?.app || 'Desktop GIS'}! Initiated live Sentinel-2 satellite analysis.`)
+                }
+              }
+            }
+          }
+        } else if (body.has_import && body.data) {
+          // Legacy bridge payload
           const item = body.data
           if (Array.isArray(item.ring) && item.ring.length >= 3) {
             addBoundary({
@@ -194,31 +224,68 @@ export default function App() {
     return () => { active = false; clearInterval(pollTimer) }
   }, [bridgeOnline])
 
-  // Ingest URL parameter imports (from QGIS / ArcMap deep-links: ?import=...)
+  // Ingest URL parameter and hash fragment imports (from QGIS / ArcMap deep-links: #seva=... and ?import=...)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const importPayload = params.get('import')
-    if (importPayload) {
-      try {
-        let parsed: any
+    async function checkIncomingGis() {
+      // 1. Check URL fragment (#seva=...)
+      if (window.location.hash.includes('#seva=')) {
         try {
-          parsed = JSON.parse(atob(importPayload.replace(/-/g, '+').replace(/_/g, '/')))
-        } catch {
-          parsed = JSON.parse(decodeURIComponent(importPayload))
+          const payload = await decodeUrlFragment(window.location.hash)
+          if (payload && Array.isArray(payload.features) && payload.features.length > 0) {
+            for (const feat of payload.features) {
+              const coords = feat.geometry?.coordinates
+              let ring: [number, number][] = []
+              if (feat.geometry?.type === 'Polygon' && Array.isArray(coords)) {
+                ring = (coords[0] as unknown) as [number, number][]
+              } else if (feat.geometry?.type === 'MultiPolygon' && Array.isArray(coords)) {
+                ring = ((coords[0] as any)?.[0] as unknown) as [number, number][]
+              }
+              if (ring && ring.length >= 3) {
+                addBoundary({
+                  name: feat.properties?.name || 'Imported Parcel',
+                  crop: feat.properties?.crop || 'Paddy (Rice)',
+                  ring
+                })
+                setMessage(`Imported '${feat.properties?.name || 'Field'}' from ${payload.source?.app || 'Desktop GIS'} via deep-link! Live Sentinel-2 analysis started.`)
+              }
+            }
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search)
+            return
+          }
+        } catch (err) {
+          console.warn('Failed parsing #seva= deep-link fragment:', err)
         }
-        if (parsed && Array.isArray(parsed.ring) && parsed.ring.length >= 3) {
-          addBoundary({
-            name: parsed.name || 'Imported Field',
-            crop: parsed.crop || 'Paddy (Rice)',
-            ring: parsed.ring
-          })
-          setMessage(`Imported '${parsed.name || 'Field'}' from ${parsed.source?.toUpperCase() || 'GIS'}! Live Sentinel-2 analysis started.`)
-          window.history.replaceState({}, document.title, window.location.pathname)
+      }
+
+      // 2. Check query parameter (?import=...)
+      const params = new URLSearchParams(window.location.search)
+      const importPayload = params.get('import')
+      if (importPayload) {
+        try {
+          let parsed: any
+          try {
+            parsed = JSON.parse(atob(importPayload.replace(/-/g, '+').replace(/_/g, '/')))
+          } catch {
+            parsed = JSON.parse(decodeURIComponent(importPayload))
+          }
+          if (parsed && Array.isArray(parsed.ring) && parsed.ring.length >= 3) {
+            addBoundary({
+              name: parsed.name || 'Imported Field',
+              crop: parsed.crop || 'Paddy (Rice)',
+              ring: parsed.ring
+            })
+            setMessage(`Imported '${parsed.name || 'Field'}' from ${parsed.source?.toUpperCase() || 'GIS'}! Live Sentinel-2 analysis started.`)
+            window.history.replaceState({}, document.title, window.location.pathname)
+          }
+        } catch (err) {
+          console.warn('Failed parsing deep-link GIS payload:', err)
         }
-      } catch (err) {
-        console.warn('Failed parsing deep-link GIS payload:', err)
       }
     }
+
+    checkIncomingGis()
+    window.addEventListener('hashchange', checkIncomingGis)
+    return () => window.removeEventListener('hashchange', checkIncomingGis)
   }, [])
   function go(text: string) {
     setNav(text); setMenu(false)

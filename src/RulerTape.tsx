@@ -5,6 +5,7 @@ import {
   Copy,
   Check,
   Crosshair,
+  GripVertical,
   Maximize2,
   RefreshCw,
   RotateCcw,
@@ -72,6 +73,42 @@ export default function RulerTape({ map, farm, open, onClose, onActiveChange }: 
   const [drawing, setDrawing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [measureTitle, setMeasureTitle] = useState('Free Metered Tape')
+
+  // Movable & adjustable panel state (draggable anywhere on the screen)
+  const [panelPos, setPanelPos] = useState<{ x: number; y: number } | null>(null)
+  const isDraggingPanel = useRef(false)
+  const panelDragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.ge-ruler-close') || (e.target as HTMLElement).closest('button')) return
+    e.preventDefault()
+    const panelEl = (e.currentTarget as HTMLElement).closest('.ge-ruler-panel') as HTMLElement
+    if (!panelEl) return
+
+    const rect = panelEl.getBoundingClientRect()
+    panelDragOffset.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }
+    isDraggingPanel.current = true
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingPanel.current) return
+      const curW = rect.width || 370
+      const newX = Math.max(10, Math.min(window.innerWidth - curW - 10, ev.clientX - panelDragOffset.current.x))
+      const newY = Math.max(10, Math.min(window.innerHeight - 80, ev.clientY - panelDragOffset.current.y))
+      setPanelPos({ x: newX, y: newY })
+    }
+
+    const handleMouseUp = () => {
+      isDraggingPanel.current = false
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
 
   const layersRef = useRef<L.LayerGroup | null>(null)
   const markersRef = useRef<L.Marker[]>([])
@@ -348,7 +385,7 @@ export default function RulerTape({ map, farm, open, onClose, onActiveChange }: 
         opacity: 0.9,
       }).addTo(layerGroup)
 
-      // 3. Middle Callout Badge (Tape Measure Readout)
+      // 3. Middle Callout Badge (Tape Measure Readout with TradingView Controls)
       const midIdx = Math.floor((allPts.length - 1) / 2)
       const pA = allPts[midIdx]
       const pB = allPts[midIdx + 1] || pA
@@ -358,20 +395,47 @@ export default function RulerTape({ map, farm, open, onClose, onActiveChange }: 
       const distLabel = formatDist(totalLengthM, unit)
       const heading = segmentStats ? Math.round(segmentStats.bearing) : 0
 
+      // Global callback for direct badge delete button click
+      ;(window as any).__seva_ruler_delete = () => {
+        clearMeasurement()
+      }
+
       const tapeLabelIcon = L.divIcon({
         className: 'ge-tape-label-wrap',
         html: `
-          <div class="ge-tape-pill">
+          <div class="ge-tape-pill" title="Drag to move entire ruler across map">
+            <span class="ge-tape-drag-grip" title="TradingView drag: hold and move entire ruler">⠿</span>
             <span class="ge-tape-icon">📏</span>
             <strong>${distLabel}</strong>
             <span class="ge-tape-deg">${heading}°</span>
+            <button type="button" class="ge-tape-del-btn" onclick="window.__seva_ruler_delete && window.__seva_ruler_delete(); if(event){event.stopPropagation();event.preventDefault();}" title="Delete ruler (TradingView style)">✕</button>
           </div>
         `,
-        iconSize: [140, 28],
-        iconAnchor: [70, 14],
+        iconSize: [160, 30],
+        iconAnchor: [80, 15],
       })
 
-      L.marker([midLat, midLon], { icon: tapeLabelIcon, interactive: false }).addTo(layerGroup)
+      // TradingView whole-line translation dragging
+      const centerMarker = L.marker([midLat, midLon], {
+        icon: tapeLabelIcon,
+        draggable: !drawing && points.length >= 2,
+      }).addTo(layerGroup)
+
+      let dragStartCenter: [number, number] | null = null
+      centerMarker.on('dragstart', () => {
+        dragStartCenter = [midLon, midLat]
+      })
+      centerMarker.on('drag', (e: any) => {
+        if (!dragStartCenter) return
+        const { lat, lng } = e.target.getLatLng()
+        const dLon = lng - dragStartCenter[0]
+        const dLat = lat - dragStartCenter[1]
+        dragStartCenter = [lng, lat]
+        setPoints(pts => pts.map(([pLon, pLat]) => [pLon + dLon, pLat + dLat]))
+      })
+      centerMarker.on('dragend', () => {
+        dragStartCenter = null
+      })
     }
 
     // 4. Start Point: Surveyor Tape Hook / Brass Ring
@@ -379,7 +443,7 @@ export default function RulerTape({ map, farm, open, onClose, onActiveChange }: 
     const hookIcon = L.divIcon({
       className: 'ge-tape-hook-wrap',
       html: `
-        <div class="ge-tape-hook" title="Start Point (Hook)">
+        <div class="ge-tape-hook" title="Start Point (Hook) · Drag to adjust">
           <div class="hook-ring"></div>
           <span class="hook-tag">0.0 m</span>
         </div>
@@ -401,13 +465,62 @@ export default function RulerTape({ map, farm, open, onClose, onActiveChange }: 
       })
     })
 
-    // 5. End Point: Surveyor Tape Reel Casing
+    // 5. Intermediate Waypoint Markers (Draggable in Path mode)
+    if (!drawing && allPts.length > 2) {
+      for (let i = 1; i < allPts.length - 1; i++) {
+        const pt = allPts[i]
+        const waypointIcon = L.divIcon({
+          className: 'ge-tape-waypoint-wrap',
+          html: `<div class="ge-tape-waypoint" title="Drag waypoint #${i + 1} to adjust line"></div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        })
+        const wpMarker = L.marker([pt[1], pt[0]], { icon: waypointIcon, draggable: true }).addTo(layerGroup)
+        const idx = i
+        wpMarker.on('drag', (e: any) => {
+          const { lat, lng } = e.target.getLatLng()
+          setPoints(pts => {
+            const next = [...pts]
+            if (next[idx]) next[idx] = [lng, lat]
+            return next
+          })
+        })
+      }
+    }
+
+    // 6. Segment Split Midpoint Handles (TradingView style "+")
+    if (!drawing && tab === 'path' && allPts.length >= 2) {
+      for (let i = 0; i < allPts.length - 1; i++) {
+        const p1 = allPts[i]
+        const p2 = allPts[i + 1]
+        const mLat = (p1[1] + p2[1]) / 2
+        const mLon = (p1[0] + p2[0]) / 2
+        const midAddIcon = L.divIcon({
+          className: 'ge-tape-mid-wrap',
+          html: `<div class="ge-tape-mid-handle" title="Click to insert corner point">+</div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        })
+        const midMarker = L.marker([mLat, mLon], { icon: midAddIcon, interactive: true }).addTo(layerGroup)
+        const insertIndex = i + 1
+        midMarker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e)
+          setPoints(pts => {
+            const next = [...pts]
+            next.splice(insertIndex, 0, [mLon, mLat])
+            return next
+          })
+        })
+      }
+    }
+
+    // 7. End Point: Surveyor Tape Reel Casing
     if (allPts.length >= 2) {
       const endPt = allPts[allPts.length - 1]
       const reelIcon = L.divIcon({
         className: 'ge-tape-reel-wrap',
         html: `
-          <div class="ge-tape-reel" title="End Point (Tape Casing)">
+          <div class="ge-tape-reel" title="End Point (Tape Casing) · Drag to adjust">
             <span class="reel-badge">${formatDist(totalLengthM, unit)}</span>
             <div class="reel-body"></div>
           </div>
@@ -465,16 +578,28 @@ export default function RulerTape({ map, farm, open, onClose, onActiveChange }: 
   if (!open) return null
 
   return (
-    <div className="ge-ruler-panel" role="dialog" aria-label="Google Earth Pro Metered Tape Ruler">
-      {/* Google Earth Pro Classic Header */}
-      <div className="ge-ruler-header">
+    <div
+      className="ge-ruler-panel"
+      role="dialog"
+      aria-label="Google Earth Pro Metered Tape Ruler"
+      style={panelPos ? { left: `${panelPos.x}px`, top: `${panelPos.y}px`, right: 'auto', bottom: 'auto' } : undefined}
+    >
+      {/* Draggable Header (Movable anywhere on the page) */}
+      <div
+        className="ge-ruler-header"
+        onMouseDown={handleHeaderMouseDown}
+        title="Click and drag to move Ruler panel anywhere on page"
+      >
         <div className="ge-ruler-title">
+          <div className="ge-ruler-drag-handle" title="Drag panel handle">
+            <GripVertical size={16} />
+          </div>
           <div className="ge-ruler-logo">
             <Ruler size={16} />
           </div>
           <div>
             <strong>Ruler · Metered Tape</strong>
-            <small>Google Earth Pro Precision Cadastral Tool</small>
+            <small>Draggable anywhere · TradingView Controls</small>
           </div>
         </div>
         <button className="ge-ruler-close" aria-label="Close Ruler" onClick={onClose}>

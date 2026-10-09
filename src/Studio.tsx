@@ -14,7 +14,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const [err, setErr] = useState('')
   const [k, setK] = useState(4)
   const [sharp, setSharp] = useState('')
-  const [useS2, setUseS2] = useState(false)
+  const [picMode, setPicMode] = useState<'4k' | 'clipped' | 'raw'>('clipped')
   const [method, setMethod] = useState<Method>('kmeans')
   const [yieldKey, setYieldKey] = useState(0)
   const [yieldSpinning, setYieldSpinning] = useState(false)
@@ -50,18 +50,18 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     return activeCombo ? activeCombo.bands : ['B04', 'B03', 'B02']
   }, [selectedCombo, activeCombo, customBands])
 
-  // Live satellite image composite calculated directly from selected multispectral bands
+  // Live satellite image composite: clipped to farm or RAW unclipped tile on black background
   const photo = useMemo(() => {
     if (!g) return ''
-    return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2])
-  }, [g, ring, activeBands])
+    const isRaw = picMode === 'raw'
+    return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2], isRaw)
+  }, [g, ring, activeBands, picMode])
 
   const resetToDefaultSymbology = () => {
     setSymbologySpinning(true)
     setSelectedCombo('natural')
     setCustomBands(['B04', 'B03', 'B02'])
     setShowCustom(false)
-    setUseS2(true)
     setTimeout(() => {
       setSymbologySpinning(false)
     }, 600)
@@ -91,34 +91,42 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
         <MapFrame
           farm={farm}
           scene={scene}
-          overlay={useS2 ? photo : (sharp || undefined)}
-          title={!useS2 ? 'True colour (4K UHD)' : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
-          note={!useS2 ? 'What a camera above your farm sees, in crystal-clear 4K ultra-high resolution (sub-metre satellite imagery). Clipped directly to your farm boundary.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
-          caption={!useS2 ? 'True colour · 4K Ultra-Res AOI (Sub-metre Satellite Imagery)' : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 10 m multispectral (${activeBands.join('·')})`}
+          overlay={picMode === '4k' ? (sharp || undefined) : photo}
+          title={picMode === '4k' ? 'True colour (4K UHD)' : picMode === 'raw' ? `RAW (${activeCombo ? activeCombo.name : activeBands.join('·')})` : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
+          note={picMode === '4k' ? 'What a camera above your farm sees, in crystal-clear 4K ultra-high resolution (sub-metre satellite imagery). Clipped directly to your farm boundary.' : picMode === 'raw' ? 'Full unclipped Sentinel-2 scene tile on black background frame matching Google Earth Engine, QGIS, and ArcMap pixel grids without blur.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
+          caption={picMode === '4k' ? 'True colour · 4K Ultra-Res AOI (Sub-metre Satellite Imagery)' : picMode === 'raw' ? `RAW Scene Tile · GEE / QGIS symbology (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 10 m multispectral (${activeBands.join('·')})`}
           highlightAoi={false}
         />
         <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Picture mode</span>
             <button
-              className={!useS2 ? 'on' : ''}
-              onClick={() => { setUseS2(false) }}
+              className={picMode === '4k' ? 'on' : ''}
+              onClick={() => setPicMode('4k')}
               title="Crystal-clear sub-metre 4K resolution imagery clipped directly to your farm polygon"
             >
               <Sparkles size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
               ✨ 4K Ultra-Res (Sub-metre)
             </button>
             <button
-              className={useS2 ? 'on' : ''}
-              onClick={() => { setUseS2(true) }}
-              title="Sentinel-2 10 m multispectral satellite imagery with live customizable spectral band symbology"
+              className={picMode === 'clipped' ? 'on' : ''}
+              onClick={() => setPicMode('clipped')}
+              title="Sentinel-2 10 m multispectral satellite imagery clipped to your farm boundary"
             >
               <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-              Sentinel-2 (10 m Multispectral)
+              🌿 Farm Clipped (10 m)
+            </button>
+            <button
+              className={picMode === 'raw' ? 'on' : ''}
+              onClick={() => setPicMode('raw')}
+              title="RAW Sentinel-2 scene tile on black background frame exactly as shown in Google Earth Engine, QGIS, and ArcMap"
+            >
+              <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+              🛰️ RAW (Black Tile · GEE/QGIS)
             </button>
           </div>
 
-          {useS2 && (
+          {picMode !== '4k' && (
             <button
               className={`box-refresh-btn ${symbologySpinning ? 'spinning' : ''}`}
               style={{
@@ -203,13 +211,13 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
           {/* Symbology Presets */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {BAND_COMBINATIONS.map(c => {
-              const isOn = useS2 && selectedCombo === c.id
+              const isOn = picMode !== '4k' && selectedCombo === c.id
               return (
                 <button
                   key={c.id}
                   onClick={() => {
                     setSelectedCombo(c.id)
-                    setUseS2(true)
+                    if (picMode === '4k') setPicMode('clipped')
                     setShowCustom(false)
                   }}
                   style={{
@@ -253,7 +261,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             <button
               onClick={() => {
                 setSelectedCombo('custom')
-                setUseS2(true)
+                if (picMode === '4k') setPicMode('clipped')
                 setShowCustom(true)
               }}
               style={{
@@ -266,10 +274,10 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                background: useS2 && selectedCombo === 'custom' ? '#0369a1' : '#ffffff',
-                color: useS2 && selectedCombo === 'custom' ? '#ffffff' : '#334155',
-                border: useS2 && selectedCombo === 'custom' ? '1px solid #0369a1' : '1px solid #cbd5e1',
-                boxShadow: useS2 && selectedCombo === 'custom' ? '0 1px 3px rgba(3,105,161,0.3)' : '0 1px 2px rgba(0,0,0,0.03)'
+                background: picMode !== '4k' && selectedCombo === 'custom' ? '#0369a1' : '#ffffff',
+                color: picMode !== '4k' && selectedCombo === 'custom' ? '#ffffff' : '#334155',
+                border: picMode !== '4k' && selectedCombo === 'custom' ? '1px solid #0369a1' : '1px solid #cbd5e1',
+                boxShadow: picMode !== '4k' && selectedCombo === 'custom' ? '0 1px 3px rgba(3,105,161,0.3)' : '0 1px 2px rgba(0,0,0,0.03)'
               }}
               title="Choose any individual Sentinel-2 band for Red, Green, and Blue channels"
             >

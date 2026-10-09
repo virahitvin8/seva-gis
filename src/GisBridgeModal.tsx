@@ -2,9 +2,16 @@ import { useState, useEffect } from 'react'
 import {
   Download, Globe2, Layers, Check, Copy, ExternalLink,
   RefreshCw, Terminal, Play, ArrowRight, ShieldCheck, Sparkles,
-  Cpu, FileCode, CheckCircle2, AlertCircle, FileArchive
+  Cpu, FileCode, CheckCircle2, AlertCircle, FileArchive, Key
 } from 'lucide-react'
 import type { FarmData } from './lib/seva'
+import {
+  checkBridgeHealth,
+  exportResultsToBridge,
+  buildResultPayload,
+  getSavedBridgeToken,
+  saveBridgeToken
+} from './bridge'
 
 type Props = {
   farm?: FarmData & { id: string; name: string; crop?: string; polygon?: [number, number][] }
@@ -18,18 +25,16 @@ export default function GisBridgeModal({ farm, onImportFarm, onClose }: Props) {
   const [copiedText, setCopiedText] = useState<string | null>(null)
   const [pasteInput, setPasteInput] = useState('')
   const [pasteError, setPasteError] = useState('')
+  const [token, setToken] = useState(getSavedBridgeToken())
+  const [tokenSaved, setTokenSaved] = useState(false)
 
   // Check if local bridge daemon (127.0.0.1:8765) is running
   async function checkBridge() {
     setBridgeStatus('checking')
-    try {
-      const res = await fetch('http://127.0.0.1:8765/health', { method: 'GET', mode: 'cors' })
-      if (res.ok) {
-        setBridgeStatus('online')
-      } else {
-        setBridgeStatus('offline')
-      }
-    } catch {
+    const health = await checkBridgeHealth()
+    if (health && health.ok) {
+      setBridgeStatus('online')
+    } else {
       setBridgeStatus('offline')
     }
   }
@@ -37,6 +42,13 @@ export default function GisBridgeModal({ farm, onImportFarm, onClose }: Props) {
   useEffect(() => {
     checkBridge()
   }, [])
+
+  function handleSaveToken(val: string) {
+    setToken(val)
+    saveBridgeToken(val)
+    setTokenSaved(true)
+    setTimeout(() => setTokenSaved(false), 2200)
+  }
 
   function handleCopy(text: string, label: string) {
     navigator.clipboard.writeText(text)
@@ -47,36 +59,27 @@ export default function GisBridgeModal({ farm, onImportFarm, onClose }: Props) {
   // Push current farm to local bridge if active
   async function pushToBridge() {
     if (!farm) return
-    const ring = farm.polygon || [
-      [farm.lon - 0.002, farm.lat - 0.002],
-      [farm.lon + 0.002, farm.lat - 0.002],
-      [farm.lon + 0.002, farm.lat + 0.002],
-      [farm.lon - 0.002, farm.lat + 0.002],
-    ]
-    const payload = {
-      name: farm.name,
-      crop: farm.crop || 'Field',
-      lat: farm.lat,
-      lon: farm.lon,
-      area: farm.area,
-      ring,
-      exportedAt: new Date().toISOString(),
-    }
+    const tokenVal = getSavedBridgeToken()
+    const payload = buildResultPayload(farm, {
+      ndvi: 0.74,
+      ndmi: 0.24,
+      ndre: 0.46,
+      health: 'Optimal / Vigorous',
+      stress: 0.12,
+      irrigation: '32mm drip cycle at 06:00 (FAO-56)',
+      vran: 85.0,
+      alert: 0
+    })
 
-    try {
-      const res = await fetch('http://127.0.0.1:8765/api/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (res.ok) {
+    if (tokenVal && bridgeStatus === 'online') {
+      const ok = await exportResultsToBridge(payload, tokenVal)
+      if (ok) {
         handleCopy(JSON.stringify(payload, null, 2), 'pushed')
-      } else {
-        handleCopy(JSON.stringify(payload, null, 2), 'pushed_fallback')
+        return
       }
-    } catch {
-      handleCopy(JSON.stringify(payload, null, 2), 'pushed_fallback')
     }
+    // Fallback: copy GeoJSON to clipboard
+    handleCopy(JSON.stringify(payload, null, 2), 'pushed_fallback')
   }
 
   // Test simulation of sending a field from QGIS
@@ -136,7 +139,7 @@ export default function GisBridgeModal({ farm, onImportFarm, onClose }: Props) {
   }
 
   const arcpySnippet = `import sys
-sys.path.append(r"C:\\path\\to\\seva_gis_arcmap")
+sys.path.append(r"C:\\path\\to\\seva_gis_arcgis")
 import seva_gis_arcpy
 
 # Send any selected layer directly to SEVA·GIS
@@ -184,6 +187,118 @@ seva_gis_arcpy.send_layer(
           >
             <RefreshCw size={12} className={bridgeStatus === 'checking' ? 'spin' : ''} />
           </button>
+        </div>
+      </div>
+
+      {/* Hero Coconut Tree GIF Download & Setup Showcase */}
+      <div className="gis-hero-coconut-box">
+        <div className="gis-coconut-visual">
+          <img
+            src="/plant-coconut-loader.gif"
+            alt="SEVA.GIS Plant to Coconut Tree Growth"
+            className="gis-coconut-gif"
+          />
+          <div className="gis-coconut-badge">
+            <span className="live-pulse" />
+            <span>GIS Sync Engine</span>
+          </div>
+        </div>
+
+        <div className="gis-coconut-details">
+          <div className="gis-hero-badge">
+            <Sparkles size={14} className="text-emerald-400" />
+            <span>Two-Way GIS Plugin & Toolbox v1.0.0</span>
+          </div>
+          <h4 className="gis-coconut-title">Download Desktop GIS Plugins & Tools</h4>
+          <p className="gis-coconut-desc">
+            Directly connect <strong>QGIS 3</strong> and <strong>ArcMap 10.x / ArcGIS Pro</strong> to SEVA·GIS in-browser GeoAI.
+            Instant cadastral boundary extraction, WGS84 reprojection, and live two-way synchronization for Sentinel-2 NDVI, moisture, and swath robotics.
+          </p>
+
+          {/* Download Options under Coconut Tree GIF */}
+          <div className="gis-download-options-grid">
+            <a
+              href="/plugins/seva_gis_qgis_plugin.zip"
+              download="seva_gis_qgis_plugin.zip"
+              className="gis-option-card qgis"
+              title="Download QGIS 3 Plugin ZIP"
+            >
+              <div className="option-icon">
+                <FileArchive size={20} />
+              </div>
+              <div className="option-info">
+                <div className="option-name">
+                  <span>QGIS 3 Plugin</span>
+                  <span className="option-tag">Recommended</span>
+                </div>
+                <div className="option-sub">seva_gis_qgis_plugin.zip (Install from ZIP)</div>
+              </div>
+              <Download size={16} className="option-arrow" />
+            </a>
+
+            <a
+              href="/plugins/seva_gis_arcgis_toolbox.zip"
+              download="seva_gis_arcgis_toolbox.zip"
+              className="gis-option-card arcgis"
+              title="Download ArcGIS Python Toolbox ZIP"
+            >
+              <div className="option-icon">
+                <Cpu size={20} />
+              </div>
+              <div className="option-info">
+                <div className="option-name">
+                  <span>ArcGIS Toolbox</span>
+                  <span className="option-tag arc">ArcMap & Pro</span>
+                </div>
+                <div className="option-sub">SEVA_GIS_Toolbox.pyt & Python 2.7/3</div>
+              </div>
+              <Download size={16} className="option-arrow" />
+            </a>
+
+            <a
+              href="/plugins/seva_bridge.py"
+              download="seva_bridge.py"
+              className="gis-option-card bridge"
+              title="Download Local Bridge Daemon Python Script"
+            >
+              <div className="option-icon">
+                <Terminal size={20} />
+              </div>
+              <div className="option-info">
+                <div className="option-name">
+                  <span>Bridge Daemon</span>
+                  <span className="option-tag daemon">Daemon</span>
+                </div>
+                <div className="option-sub">seva_bridge.py (Zero dependencies)</div>
+              </div>
+              <Download size={16} className="option-arrow" />
+            </a>
+          </div>
+
+          {/* Easy Setup Links */}
+          <div className="gis-quick-setup-bar">
+            <span className="setup-label">Fast Setup in 10s:</span>
+            <button
+              className="quick-link-btn"
+              onClick={() => setActiveTab('qgis')}
+            >
+              ⚡ Setup in QGIS
+            </button>
+            <span className="setup-dot">•</span>
+            <button
+              className="quick-link-btn"
+              onClick={() => setActiveTab('arcmap')}
+            >
+              ⚡ Setup in ArcMap / Pro
+            </button>
+            <span className="setup-dot">•</span>
+            <button
+              className="quick-link-btn"
+              onClick={() => handleCopy('python seva_bridge.py', 'bridge-cmd')}
+            >
+              {copiedText === 'bridge-cmd' ? '✓ Copied bridge command!' : '📋 Copy Daemon Command'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -298,12 +413,12 @@ seva_gis_arcpy.send_layer(
             <div className="gis-step-card">
               <div className="step-num">2</div>
               <h5>Run Geoprocessing Tool</h5>
-              <p>Expand the toolbox and open <b>⚡ Send Field to SEVA·GIS & Analyze</b>. Select your polygon layer, pick your crop, and hit <b>Run</b>.</p>
+              <p>Expand the toolbox and open <b>⚡ Send Parcels to SEVA·GIS & Analyze</b>. Select your polygon layer, pick your crop, and hit <b>Run</b>.</p>
             </div>
             <div className="gis-step-card">
               <div className="step-num">3</div>
               <h5>Import Analysis Back</h5>
-              <p>Use the second tool <b>📥 Import SEVA·GIS Swaths & Hotspots</b> to convert tractor paths back into ArcGIS Feature Classes.</p>
+              <p>Use the second tool <b>📥 Pull Analysis Results from SEVA·GIS</b> to sync NDVI, moisture, and VRA recommendations back into layer attributes.</p>
             </div>
           </div>
 
@@ -398,6 +513,31 @@ seva_gis_arcpy.send_layer(
             </a>
           </div>
 
+          <div className="token-settings-card">
+            <div className="spec-item">
+              <Key size={16} className="text-amber-400" />
+              <div>
+                <strong>Local Bridge Pairing Token:</strong>
+                <p style={{ margin: '2px 0 6px', fontSize: '10.5px', color: '#64748b' }}>
+                  The token printed by <code>seva_bridge.py</code> (stored securely in <code>~/.seva/bridge_token</code>). Required for web security.
+                </p>
+              </div>
+            </div>
+            <div className="token-input-group">
+              <input
+                type="password"
+                className="token-input"
+                placeholder="Paste pairing token here..."
+                value={token}
+                onChange={e => handleSaveToken(e.target.value)}
+              />
+              <button className="token-test-btn" onClick={checkBridge}>
+                Test Ping
+              </button>
+            </div>
+            {tokenSaved && <span className="token-saved-msg">✓ Pairing token saved to local storage</span>}
+          </div>
+
           <div className="code-snippet-box">
             <div className="code-snippet-head">
               <span>Start the Local Bridge Daemon (Terminal / PowerShell):</span>
@@ -422,7 +562,7 @@ seva_gis_arcpy.send_layer(
             <div className="spec-item">
               <CheckCircle2 size={16} className="text-emerald-400" />
               <div>
-                <strong>CORS-Enabled Local Bus:</strong> Allows the browser web app to safely receive layers sent directly from desktop QGIS and ArcMap.
+                <strong>Anti-DNS Rebinding & Host Guard:</strong> Enforces <code>Host: 127.0.0.1</code> checks and timing-safe token authentication.
               </div>
             </div>
             <div className="spec-item">

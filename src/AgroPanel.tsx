@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useState } from 'react'
 import { CloudSun, Mountain, RefreshCw, Satellite, Shovel, Thermometer } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
-import { fetchSoil, fetchWeather, ndviClass, regionalSoilFallback, soilParams, soilWaterParams, weatherParams, type Param, type Soil, type Tone, type Weather } from './lib/agro'
+import { fetchSoil, fetchWeather, ndviClass, regionalSoilFallback, soilParams, soilWaterParams, weatherParams, kidFriendlyIndicator, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { INDICATORS } from './lib/indicators'
 import { ScaleBox, spectralIds } from './Scale'
 import { loadDem, type FarmData } from './lib/seva'
@@ -38,12 +38,26 @@ export default function AgroPanel({ farm }: Props) {
   const a = farm.analysis
   const spectral: Param[] | undefined = a?.means && INDICATORS.filter(i => i.source === 'S2' && i.ramp && a.means![i.id] !== undefined).map(i => {
     const v = a.means![i.id]
-    const tone: Tone = i.id === 'ndvi' ? ndviClass(v).tone : 'neutral'
-    return { label: i.name, value: v.toFixed(2), note: i.id === 'ndvi' ? `${ndviClass(v).label} · ${a.stressPct.toFixed(0)}% of pixels below 0.30` : i.desc, tone }
+    const kf = kidFriendlyIndicator(i.id, v, a.stressPct)
+    return { label: kf.label, value: v.toFixed(2), note: kf.note, tone: kf.tone }
   })
   const terrain: Param[] | undefined = a && a.slopeDeg !== undefined ? [
-    { label: 'Mean elevation', value: `${a.elevMean?.toFixed(0)} m`, note: 'Copernicus GLO-30 DEM', tone: 'neutral' },
-    { label: 'Mean slope', value: `${a.slopeDeg.toFixed(1)}° (${a.slopePct?.toFixed(1)}%)`, note: a.slopeDeg > 8 ? 'Erosion risk: contour or terrace' : a.slopeDeg < 0.5 ? 'Very flat: check drainage' : 'Gentle, well drained', tone: a.slopeDeg > 8 ? 'warn' : 'good' },
+    {
+      label: 'Elevation above sea level',
+      value: `${a.elevMean?.toFixed(0)} m`,
+      note: `Meaning: Farm sits ${a.elevMean?.toFixed(0)} m above sea level. Reason: Higher fields get cooler air; low hollows can trap chilly frost pockets. (Copernicus DEM)`,
+      tone: 'neutral'
+    },
+    {
+      label: 'Field slope / tilt',
+      value: `${a.slopeDeg.toFixed(1)}° (${a.slopePct?.toFixed(1)}%)`,
+      note: a.slopeDeg > 8
+        ? `Meaning: Steep land (${a.slopeDeg.toFixed(1)}°). Reason: Heavy monsoon rains wash away fertile topsoil fast; build contour bunds or terraces.`
+        : a.slopeDeg < 0.5
+        ? `Meaning: Table-flat field (${a.slopeDeg.toFixed(1)}°). Reason: Rainwater drains slowly; clear drainage furrows to prevent muddy stagnant puddles.`
+        : `Meaning: Gentle natural grade (${a.slopeDeg.toFixed(1)}°). Reason: The sweet spot; water flows smoothly without pooling or washing away soil.`,
+      tone: a.slopeDeg > 8 ? 'warn' : 'good'
+    },
   ] : undefined
 
   const refreshWeather = () => fetchWeather(farm.lat, farm.lon, true).then(data => setWeather({ key, data })).catch(e => setWeather({ key, error: e.message }))

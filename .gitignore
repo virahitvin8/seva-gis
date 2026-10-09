@@ -19,3 +19,7 @@ logs/
 # beside it.
 /.plugins/
 /.opencode-skills/
+__pycache__/
+*.pyc
+*.pyo
+

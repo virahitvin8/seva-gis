@@ -1,6 +1,6 @@
 import type { Grid } from './indicators'
 import { LANDCOVER } from './gee'
-import { paintClipped, type Ring } from './raster'
+import { paintClipped, paintRaw, type Ring } from './raster'
 
 export type ClassDef = { id: string; name: string; color: string }
 const hex = (c: string): [number, number, number] => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
@@ -41,7 +41,8 @@ export function renderBandComposite(
   ring: Ring,
   redBand: string = 'B04',
   greenBand: string = 'B03',
-  blueBand: string = 'B02'
+  blueBand: string = 'B02',
+  raw: boolean = false
 ): string {
   const b = g.b as Record<string, Float64Array | Float32Array>
   const rArr = b[redBand] || b['B04'] || b['B02']
@@ -59,6 +60,16 @@ export function renderBandComposite(
   const isRInfra = redBand === 'B08' || redBand === 'B11' || redBand === 'B12'
   const isGInfra = greenBand === 'B08' || greenBand === 'B11' || greenBand === 'B12'
   const isBInfra = blueBand === 'B08' || blueBand === 'B11' || blueBand === 'B12'
+
+  if (raw) {
+    return paintRaw(
+      g.w,
+      g.h,
+      g.bbox,
+      i => (usable(g, i) ? [stretch(rArr[i], isRInfra), stretch(gArr[i], isGInfra), stretch(bArr[i], isBInfra)] : null),
+      false // Nearest-neighbor raster clarity matching Earth Engine & QGIS
+    )
+  }
 
   return paintClipped(
     g.w,

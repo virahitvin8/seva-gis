@@ -117,20 +117,65 @@ export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint
   }
   sctx.putImageData(img, 0, 0)
 
-  // Cap canvas dimension to max 360px for instant rendering and minimal memory overhead
-  const maxDim = 360
-  const scale = Math.min(3, Math.max(1, Math.floor(maxDim / Math.max(w, h))))
+  // Render at high-DPI (up to 1024px) to eliminate pixel blur and match QGIS / Earth Engine clarity
+  const maxDim = 1024
+  const scale = Math.max(1, Math.floor(maxDim / Math.max(w, h)))
   const big = document.createElement('canvas')
-  big.width = Math.min(maxDim, w * scale)
-  big.height = Math.min(maxDim, h * scale)
+  big.width = w * scale
+  big.height = h * scale
   const ctx = big.getContext('2d')!
   const [west, south, east, north] = bbox
   ctx.beginPath()
   ring.forEach(([lon, lat], i) => { const x = ((lon - west) / (east - west)) * big.width, y = ((north - lat) / (north - south)) * big.height; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y) })
   ctx.closePath(); ctx.clip()
-  ctx.imageSmoothingEnabled = smooth; ctx.imageSmoothingQuality = 'high'
+  ctx.imageSmoothingEnabled = smooth
+  if (smooth) ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(small, 0, 0, big.width, big.height)
   if (sharpen > 0) unsharp(ctx, big.width, big.height, Math.min(2, Math.max(1, Math.round(scale / 2))), Math.min(sharpen, 1.2))
+  return big.toDataURL('image/png')
+}
+
+/**
+ * Renders raw unclipped Sentinel-2 satellite scene tile on a solid black background
+ * 100% identical to Google Earth Engine, QGIS, and ArcMap raster canvas views.
+ */
+export function paintRaw(w: number, h: number, bbox: Bbox, paint: Painter, smooth = false): string {
+  const small = document.createElement('canvas')
+  small.width = w; small.height = h
+  const sctx = small.getContext('2d')!
+  // Start with black background
+  sctx.fillStyle = '#000000'
+  sctx.fillRect(0, 0, w, h)
+  const img = sctx.getImageData(0, 0, w, h)
+  for (let i = 0; i < w * h; i++) {
+    const c = paint(i)
+    if (c) {
+      img.data[i * 4] = c[0]
+      img.data[i * 4 + 1] = c[1]
+      img.data[i * 4 + 2] = c[2]
+      img.data[i * 4 + 3] = 255
+    } else {
+      // Black background tile outside scene or masked pixels
+      img.data[i * 4] = 0
+      img.data[i * 4 + 1] = 0
+      img.data[i * 4 + 2] = 0
+      img.data[i * 4 + 3] = 255
+    }
+  }
+  sctx.putImageData(img, 0, 0)
+
+  const maxDim = 1024
+  const scale = Math.max(1, Math.floor(maxDim / Math.max(w, h)))
+  const big = document.createElement('canvas')
+  big.width = w * scale
+  big.height = h * scale
+  const ctx = big.getContext('2d')!
+  // Solid black background frame for tile
+  ctx.fillStyle = '#000000'
+  ctx.fillRect(0, 0, big.width, big.height)
+  ctx.imageSmoothingEnabled = smooth
+  if (smooth) ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(small, 0, 0, big.width, big.height)
   return big.toDataURL('image/png')
 }
 

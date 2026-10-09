@@ -90,7 +90,7 @@ Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser
 
 ## 📖 Contents
 
-[What is SEVA·GIS?](#-what-is-sevagis) · [Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)](#-dual-engine-hybrid-architecture) · [Step-by-Step Field Journey](#-how-it-works--the-step-by-step-field-journey) · [Spectral & SAR Sensor Suite](#-spectral--sar-radar-indices-suite) · [Farmer Decision Engines](#-farmer-decision-engines--operational-tools) · [GeoAI, Machine Learning & Quantum Studio](#-geoai-machine-learning--quantum-studio) · [Ground-Truth Accuracy](#-ground-truth-accuracy--field-validation) · [Pro-GIS Inputs & Multi-Format Exports](#-pro-gis-inputs--multi-format-exports) · [Complete Feature Matrix](#-complete-feature-matrix) · [Data Sources](#-open-data-sources) · [Limitations](#-limitations) · [Author & Credits](#-author)
+[What is SEVA·GIS?](#-what-is-sevagis) · [Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)](#-dual-engine-hybrid-architecture) · [Step-by-Step Field Journey](#-how-it-works--the-step-by-step-field-journey) · [Spectral & SAR Sensor Suite](#-spectral--sar-radar-indices-suite) · [Farmer Decision Engines](#-farmer-decision-engines--operational-tools) · [GeoAI, Machine Learning & Quantum Studio](#-geoai-machine-learning--quantum-studio) · [Ground-Truth Accuracy](#-ground-truth-accuracy--field-validation) · [Pro-GIS Inputs & Multi-Format Exports](#-pro-gis-inputs--multi-format-exports) · [Desktop GIS Plugins (QGIS & ArcMap)](#-desktop-gis-plugins-qgis--arcmap) · [Complete Feature Matrix](#-complete-feature-matrix) · [Data Sources](#-open-data-sources) · [Limitations](#-limitations) · [Author & Credits](#-author)
 
 ---
 
@@ -339,6 +339,54 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 - **Bank Loan Health Appraisal Report:** Historical vigor verification document for agricultural credit underwriting.
 - **1-Click WhatsApp Sharing:** Encodes key metrics, health score, and decision advice into pre-formatted chat links for farmer groups.
 - **Coordinate Display:** Dual UTM projection (UTM Zone + Easting/Northing) and DMS (Degrees, Minutes, Seconds) coordinate displays.
+
+---
+
+## 🔌 Desktop GIS Plugins (QGIS & ArcMap)
+
+SEVA·GIS now features native, bi-directional integration with standard desktop GIS software (**QGIS 3.x**, **ArcMap 10.x**, and **ArcGIS Pro**). You can select any cadastral parcel, field boundary, or research plot in your desktop GIS project and immediately trigger live satellite analysis in SEVA·GIS with a single click.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│               DESKTOP GIS ⟷ SEVA·GIS BI-DIRECTIONAL BRIDGE             │
+├─────────────────────────────┬──────────────────────────────────────────┤
+│    🍃 QGIS 3.x Plugin       │    🌐 ArcMap 10.x & ArcGIS Pro Toolbox   │
+├─────────────────────────────┼──────────────────────────────────────────┤
+│ • 1-Click ZIP installation  │ • Native Python Toolbox (.pyt)           │
+│ • Toolbar & Menu action     │ • Geoprocessing Tool in ArcToolbox       │
+│ • Auto CRS -> EPSG:4326     │ • Works with active map data frames      │
+│ • Pull swaths back to canvas│ • Python Window 1-liner script           │
+└─────────────────────────────┴──────────────────────────────────────────┘
+                                   │
+                 ┌─────────────────┴─────────────────┐
+                 ▼                                   ▼
+      🌐 Direct Deep-Link Mode             ⚡ Real-Time Local Bridge
+    URL parameter base64 ingestion       http://127.0.0.1:8765 daemon bus
+    Zero configuration required          Zero-click background layer sync
+```
+
+### 1. QGIS 3.x Plugin (`plugins/qgis/`)
+- **1-Click Installation:** In the SEVA·GIS dashboard header, click **QGIS · ArcMap** → **Download QGIS Plugin (.zip)**. In QGIS, navigate to **Plugins** → **Manage and Install Plugins...** → **Install from ZIP** and select `seva_gis_qgis_plugin.zip`.
+- **Automatic Reprojection:** Automatically transforms selected polygon features from any regional/projected CRS to WGS84 (`EPSG:4326`) GeoJSON.
+- **⚡ Send Active Field to SEVA·GIS:** Click the toolbar icon to launch SEVA·GIS with your field boundary loaded. SEVA·GIS immediately queries Copernicus Sentinel-2 L2A STAC assets, computes vegetation health (NDVI, NDMI, NDRE), models soil moisture, calculates irrigation deficits, and generates tractor swaths.
+- **📥 Pull Layers Back to QGIS:** Pulls Fields2Cover boustrophedon swath lines and numbered GPS inspection hotspots directly into QGIS as native vector memory layers.
+
+### 2. ArcMap & ArcGIS Pro Python Toolbox (`plugins/arcmap/`)
+- **Native ArcToolbox Integration:** Add `SEVA_GIS_Toolbox.pyt` to ArcToolbox or the ArcGIS Pro Catalog pane.
+- **⚡ Send Field to SEVA·GIS & Analyze:** Select your polygon feature layer, specify the crop type, and run the tool. Geometries are reprojected using `arcpy.SpatialReference(4326)` and transmitted directly to SEVA·GIS.
+- **Python Window 1-Liner:**
+  ```python
+  import seva_gis_arcpy
+  seva_gis_arcpy.send_layer("Cadastral_Fields", crop="Wheat", name="North_Plot")
+  ```
+
+### 3. Real-Time Local Bridge Daemon (`plugins/bridge/seva_bridge.py`)
+- Zero-dependency local Python HTTP daemon (`http://127.0.0.1:8765`).
+- Enables real-time, zero-click background synchronization between desktop GIS sessions and the active SEVA·GIS browser tab without refreshing the page.
+- Start anytime in PowerShell or Terminal:
+  ```bash
+  python seva_bridge.py
+  ```
 
 ---
 

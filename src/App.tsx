@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
-import { ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Menu, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Menu, Mountain, Navigation, Network, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X } from 'lucide-react'
 
 import CropJournal from './CropJournal'
 import WeeklyRecords from './WeeklyRecords'
 import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
 import { areaHa, centroid } from './lib/geo'
+import GisBridgeModal from './GisBridgeModal'
 import IndicatorMap from './IndicatorMap'
 import AgroPanel from './AgroPanel'
 import WaterPanel from './WaterPanel'
@@ -148,6 +149,77 @@ export default function App() {
     const next: Farm = { id: crypto.randomUUID(), name, location: `${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E`, crop, area: isPolygon ? Math.max(Number(areaHa(ring).toFixed(1)), 0.1) : 4, lat, lon, polygon: isPolygon ? ring : undefined, status: 'Awaiting satellite data', sample: false }
     setFarms(current => [...current, next]); setSelected(next.id); setModal(''); refresh(next)
   }
+
+  // Desktop GIS Bridge status & polling (QGIS 3 & ArcMap / ArcGIS Pro)
+  const [bridgeOnline, setBridgeOnline] = useState(false)
+  useEffect(() => {
+    let active = true
+    async function checkLocalBridge() {
+      try {
+        const res = await fetch('http://127.0.0.1:8765/health', { method: 'GET', mode: 'cors' })
+        if (active) setBridgeOnline(res.ok)
+      } catch {
+        if (active) setBridgeOnline(false)
+      }
+    }
+    checkLocalBridge()
+    const timer = setInterval(checkLocalBridge, 8000)
+    return () => { active = false; clearInterval(timer) }
+  }, [])
+
+  // Poll local bridge for layers transmitted from QGIS or ArcMap
+  useEffect(() => {
+    if (!bridgeOnline) return
+    let active = true
+    const pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:8765/api/poll', { method: 'GET', mode: 'cors' })
+        if (!res.ok) return
+        const body = await res.json()
+        if (active && body.has_import && body.data) {
+          const item = body.data
+          if (Array.isArray(item.ring) && item.ring.length >= 3) {
+            addBoundary({
+              name: item.name || 'QGIS / ArcMap Parcel',
+              crop: item.crop || 'Paddy (Rice)',
+              ring: item.ring
+            })
+            setMessage(`Received '${item.name || 'Field'}' from desktop GIS! Initiated live Sentinel-2 satellite analysis.`)
+          }
+        }
+      } catch {
+        // silent catch on network polling
+      }
+    }, 4000)
+    return () => { active = false; clearInterval(pollTimer) }
+  }, [bridgeOnline])
+
+  // Ingest URL parameter imports (from QGIS / ArcMap deep-links: ?import=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const importPayload = params.get('import')
+    if (importPayload) {
+      try {
+        let parsed: any
+        try {
+          parsed = JSON.parse(atob(importPayload.replace(/-/g, '+').replace(/_/g, '/')))
+        } catch {
+          parsed = JSON.parse(decodeURIComponent(importPayload))
+        }
+        if (parsed && Array.isArray(parsed.ring) && parsed.ring.length >= 3) {
+          addBoundary({
+            name: parsed.name || 'Imported Field',
+            crop: parsed.crop || 'Paddy (Rice)',
+            ring: parsed.ring
+          })
+          setMessage(`Imported '${parsed.name || 'Field'}' from ${parsed.source?.toUpperCase() || 'GIS'}! Live Sentinel-2 analysis started.`)
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }
+      } catch (err) {
+        console.warn('Failed parsing deep-link GIS payload:', err)
+      }
+    }
+  }, [])
   function go(text: string) {
     setNav(text); setMenu(false)
     if (text === 'Alerts') return setModal('alerts')
@@ -187,7 +259,7 @@ export default function App() {
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>Built for the ground.<br/>Open to everyone.</h4><p>Earth intelligence, in the spirit of selfless service.</p><span>OPEN DATA. REAL PURPOSE. <ArrowUpRight size={14}/></span></div><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><button className="top-gis-btn" title="QGIS & ArcMap Desktop GIS Bridge — Connect, Import & Download Plugins" aria-label="Connect QGIS and ArcMap" onClick={() => setModal('gis-bridge')}><Network size={14}/><span className="gis-btn-text">QGIS · ArcMap</span><span className={`gis-dot ${bridgeOnline ? 'online' : ''}`}/></button><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Nothing is here yet. Draw your farm on the map, walk its edge with GPS, or upload a boundary file. SEVA.GIS then reads the newest Sentinel-2 satellite picture for it.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
@@ -216,8 +288,8 @@ export default function App() {
       </main>
     </div>
     {message && <div className="toast" role="status"><ShieldCheck size={19}/>{message}<button aria-label="Dismiss" onClick={() => setMessage('')}><X size={17}/></button></div>}
-    {modal && <div className="modal-backdrop" onClick={() => setModal('')}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={event => event.stopPropagation()}><button className="modal-close" aria-label="Close dialog" onClick={() => setModal('')}><X size={20}/></button><span className="modal-icon"><BrandLogo/></span><div className="eyebrow">SEVA · LAND INTELLIGENCE</div><h2 id="modal-title">{modal === 'add' ? 'Bring your land into view.' : modal === 'zone' ? 'Understand this spot.' : modal === 'sources' ? 'Open data. Transparent limits.' : modal === 'alerts' ? 'Your field advisories.' : modal === 'reports' ? 'Take your insights with you.' : modal === 'data' ? 'Your account and data.' : modal === 'settings' ? 'Your personal workspace.' : 'From coordinates to clarity.'}</h2>
-      {modal === 'data' ? <DataManager/> : modal === 'add' ? <AddFarm onAdd={addBoundary} onError={setMessage}/> : modal === 'zone' ? (() => {
+    {modal && <div className="modal-backdrop" onClick={() => setModal('')}><section className={`modal ${modal === 'gis-bridge' ? 'modal-gis-bridge' : ''}`} style={modal === 'gis-bridge' ? { width: '780px', maxWidth: '96vw', padding: '28px' } : undefined} role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={event => event.stopPropagation()}><button className="modal-close" aria-label="Close dialog" onClick={() => setModal('')}><X size={20}/></button><span className="modal-icon"><BrandLogo/></span><div className="eyebrow">SEVA · LAND INTELLIGENCE</div><h2 id="modal-title">{modal === 'gis-bridge' ? 'Desktop GIS Bridge.' : modal === 'add' ? 'Bring your land into view.' : modal === 'zone' ? 'Understand this spot.' : modal === 'sources' ? 'Open data. Transparent limits.' : modal === 'alerts' ? 'Your field advisories.' : modal === 'reports' ? 'Take your insights with you.' : modal === 'data' ? 'Your account and data.' : modal === 'settings' ? 'Your personal workspace.' : 'From coordinates to clarity.'}</h2>
+      {modal === 'gis-bridge' ? <GisBridgeModal farm={farm} onImportFarm={imported => addBoundary({ name: imported.name, crop: imported.crop, ring: imported.ring })} onClose={() => setModal('')} /> : modal === 'data' ? <DataManager/> : modal === 'add' ? <AddFarm onAdd={addBoundary} onError={setMessage}/> : modal === 'zone' ? (() => {
         const verdict = classify(zone ? zone.ndvi : farm.analysis?.ndvi.mean)
         return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Farm average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>What should I do?</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>Satellite values are not pixel cloud-masked and are not field-validated. Confirm on the ground before acting.</div></>
       })() : modal === 'sources' ? <><p>We show what is measured, modeled, or illustrative. No invented accuracy scores and no guarantee of perfect precision.</p>{[['Satellite imagery','Esri world imagery basemap; capture dates vary.'],['Vegetation indices','Sentinel-2 L2A from Microsoft Planetary Computer (STAC search + TiTiler raster API, no API key). Bands are read at 10 m, offset-corrected to surface reflectance, cloud/shadow-masked with the SCL layer, and clipped to your exact boundary before every index is computed in your browser.'],['Weather & soil moisture','Open-Meteo forecast API. Soil moisture is modeled at coarse resolution, not a farm sensor.'],['Terrain & construction','Copernicus GLO-30 DEM (30 m) for elevation, slope, aspect and hillshade; SoilGrids 250 m for soil properties. Engineering and flood assessments require site surveys.']].map(([title,description]) => <div className="source-item" key={title}><Check size={17}/><div><h3>{title}</h3><p>{description}</p></div></div>)}<a className="external-link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo documentation<ExternalLink size={15}/></a></> : modal === 'alerts' ? <>{farms.filter(farmNeedsAttention).map(item => <button className="alert-row" key={item.id} onClick={() => { setSelected(item.id); setZone(null); setModal('zone') }}><Droplets size={21}/><div><h3>{item.name}</h3><p>{item.status} · {item.analysis!.stressPct.toFixed(0)}% of pixels stressed</p></div><ChevronRight size={18}/></button>)}{!farms.some(farmNeedsAttention) && <p>No farms currently need attention based on their latest satellite scene.</p>}<p>Alerts reflect the last analysis on this device. Background monitoring and email notifications are not connected.</p></> : modal === 'reports' ? <ReportPanel farm={farm as any}/> : modal === 'settings' ? <><p>Farms are stored in this browser only, and are not synced across devices. Clearing browser storage removes them.</p><p>*This prototype has no payment flow. External providers have terms, quotas and availability limits; free access forever cannot be guaranteed.</p><button className="outline" onClick={signOut}><LogOut size={16}/>Log out of {who.name}</button><button className="outline" onClick={() => { setModal(''); setMessage('Google login and cloud sync require your own configured authentication project. No account connection is active.') }}>About Google sign-in<ArrowUpRight size={16}/></button></> : <><p>1. Add a farm with its latitude and longitude.<br/>2. Select your farm to explore the satellite basemap.<br/>3. Refresh to fetch current weather-model estimates.<br/>4. Click an example colored zone to understand its meaning.<br/>5. Export your report, including its limitations.</p><div className="privacy-note"><ShieldCheck size={20}/>This is a working frontend foundation, not a validated GeoAI decision engine. Satellite pipelines, authenticated sync, and public deployment require further setup.</div></>}

@@ -90,7 +90,7 @@ Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser
 
 ## 📖 Contents
 
-[What is SEVA·GIS?](#-what-is-sevagis) · [Step-by-Step Field Journey](#-how-it-works--the-step-by-step-field-journey) · [System Architecture](#-system-architecture--data-flow) · [Ground-Truth Accuracy](#-ground-truth-accuracy--field-validation) · [Feature Matrix](#-complete-feature-matrix) · [Data Sources](#-open-data-sources) · [Privacy & Languages](#-privacy-offline--languages) · [Running Locally](#-running-locally) · [Limitations](#-practical-limitations) · [Author & Credits](#-author)
+[What is SEVA·GIS?](#-what-is-sevagis) · [Step-by-Step Field Journey](#-how-it-works--the-step-by-step-field-journey) · [System Architecture](#-system-architecture--data-flow) · [Ground-Truth Accuracy](#-ground-truth-accuracy--field-validation) · [Feature Matrix](#-complete-feature-matrix) · [Data Sources](#-open-data-sources) · [Limitations](#-limitations) · [Author & Credits](#-author)
 
 ---
 
@@ -273,47 +273,13 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 ---
 
-## 🔒 Privacy, Offline & Languages
+## ⚠️ Limitations
 
-- **Private by Design:** All farm boundaries, notes, and calculation results remain strictly inside your device's browser IndexedDB database. Nothing is sent to third-party tracking servers.
-- **Works Offline:** Once farm data is cached, basic mapping, tools, and journal records remain accessible without an active internet connection.
-- **Multilingual Support:** One-click switching between English, Hindi (हिंदी), and Telugu (తెలుగు) directly from the top navigation bar.
-- **PWA Installation:** Install SEVA·GIS on Android, iPhone, macOS, or Windows by selecting **Add to Home screen** or clicking the browser install icon.
-
----
-
-## 💻 Running Locally
-
-To run or contribute to SEVA·GIS on your local machine:
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/virahitvin8/seva-gis.git
-cd seva-gis
-
-# 2. Install dependencies
-npm install
-
-# 3. Start development server
-npm run dev
-
-# 4. Open in your browser
-# Navigate to http://localhost:5173
-```
-
-To run the automated domain comprehension inspection:
-```bash
-node scripts/understand_codebase.mjs
-```
-
----
-
-## ⚠️ Practical Limitations
-
-- **Cloud Cover:** Optical satellites cannot see through dense cloud layers. SEVA·GIS automatically looks back up to 180 days to find clear acquisitions, but prolonged monsoon conditions may delay new imagery.
-- **10-Meter Pixel Size:** Sentinel-2 pixels cover $10\text{ m} \times 10\text{ m}$ of ground area. Very small plots (under $0.2\text{ ha}$) will have fewer pixels to analyze.
-- **Diagnostic Advice:** Spectral indices highlight *where* crops are stressed, but ground-truthing is required to confirm whether stress is caused by pests, water shortage, or nutrient deficiency.
-- **Device Storage:** Clearing your browser cache or site data will remove locally stored boundaries unless you export them to GeoJSON first.
+- A satellite shows *where* a crop is weaker, not *why*.
+- Pest and moisture scores are rules of thumb, not forecasts.
+- Sentinel-2 resolution is 10 m — very small farms have few pixels.
+- Accounts are local to one browser. No sync or password reset.
+- Construction notes are not an engineering survey.
 
 ---
 

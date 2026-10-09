@@ -5,6 +5,7 @@ import { LANDCOVER } from './lib/gee'
 import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { MapFrame } from './LabMap'
+import FloatingLegend from './FloatingLegend'
 
 type Farm = FarmData & { id: string; name: string }
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
@@ -387,7 +388,47 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
           </div>
         </div>
       </div>
-      {sup ? <MapFrame farm={farm} scene={scene} overlay={sup.url} title={METHODS.find(m => m.id === method)!.name} note="Each colour is one land-cover class." legend={sup.classes.filter(c => c.pct > 0).map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}/> : method !== 'kmeans' ? <div className="ge-wait">Not enough clear pixels to classify</div> : auto ? <MapFrame farm={farm} scene={scene} overlay={auto.url} title="Automatic classes" note="Each colour is one group found by the computer." legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}/> : <div className="ge-wait">Not enough clear pixels to classify</div>}
+      {sup ? (
+        <div style={{ position: 'relative' }}>
+          <MapFrame
+            farm={farm}
+            scene={scene}
+            overlay={sup.url}
+            title={METHODS.find(m => m.id === method)!.name}
+            note="Each colour is one land-cover class."
+            legend={sup.classes.filter(c => c.pct > 0).map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
+          />
+          <FloatingLegend
+            title={`${METHODS.find(m => m.id === method)!.name} Classes`}
+            subtitle="Movable legend shortcut · Drag anywhere"
+            items={sup.classes.filter(c => c.pct > 0).map(c => ({ name: c.name, color: c.color, pct: c.pct, ha: c.ha }))}
+            unit="Supervised classification · share of pixels"
+            defaultPos={{ x: 16, y: 52 }}
+          />
+        </div>
+      ) : method !== 'kmeans' ? (
+        <div className="ge-wait">Not enough clear pixels to classify</div>
+      ) : auto ? (
+        <div style={{ position: 'relative' }}>
+          <MapFrame
+            farm={farm}
+            scene={scene}
+            overlay={auto.url}
+            title="Automatic classes"
+            note="Each colour is one group found by the computer."
+            legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
+          />
+          <FloatingLegend
+            title={`K-Means Spectral Clusters (k=${k})`}
+            subtitle="Movable legend shortcut · Drag anywhere"
+            items={auto.clusters.map(c => ({ name: c.name, color: c.color, pct: c.pct, ha: c.ha, note: `NDVI ${f(c.ndvi, 2)}` }))}
+            unit="Unsupervised k-means++ · greenness & area"
+            defaultPos={{ x: 16, y: 52 }}
+          />
+        </div>
+      ) : (
+        <div className="ge-wait">Not enough clear pixels to classify</div>
+      )}
     </div>
     {method === 'kmeans' && auto && <div className="sc-box compact ge-legend"><div className="sc-title"><b>What the groups mean</b><span>greenness (NDVI, −1 to 1) · share · area</span></div>
       <ul>{auto.clusters.map(c => <li key={c.id}><i style={{ background: c.color }}/><span>{c.name}</span><code>NDVI {f(c.ndvi, 2)} · {f(c.pct, 0)}% · {f(c.ha, 2)} ha</code></li>)}</ul>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Tag } from 'lucide-react'
 import { farmBBox, farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { hotspots, type Patch } from './lib/gee'
+import FloatingLegend from './FloatingLegend'
 
 type Farm = FarmData & { id: string; name: string }
 export type LegendRow = { color: string; label: string }
@@ -25,6 +27,7 @@ function niceScale(widthM: number) {
 }
 
 export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption, highlightAoi = false }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean }) {
+  const [showFloatingLegend, setShowFloatingLegend] = useState(false)
   const spots = useWeakSpots(farm, scene), weak = marks ?? spots
   const [w, s, e, n] = farmBBox(farm)
   const pad = 0.45, dw = (e - w) * pad, dh = (n - s) * pad
@@ -66,7 +69,43 @@ export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 
       <div className="lab-scale" style={{ width: `${scaleW}%` }}><i/><span>{scaleM >= 1000 ? `${scaleM / 1000} km` : `${scaleM} m`}</span></div>
     </div>
     <div className="lab-how"><b>How to read this map.</b> {note}{weak.length > 0 && <> <span className="lab-weak inline">1</span> Numbered red dots mark vulnerable spots: the weakest patches of your farm, to walk and check first.</>}</div>
-    {legend && <ul className="lab-legend">{legend.map(l => <li key={l.label}><i style={{ background: l.color }}/>{l.label}</li>)}</ul>}
+    {legend && (
+      <div className="lab-legend-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', margin: '8px 0' }}>
+        <ul className="lab-legend" style={{ margin: 0 }}>{legend.map(l => <li key={l.label}><i style={{ background: l.color }}/>{l.label}</li>)}</ul>
+        <button
+          type="button"
+          className="legend-shortcut-btn"
+          onClick={() => setShowFloatingLegend(v => !v)}
+          title="Open adjustable floating legend (drag anywhere on screen)"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '4px 9px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 600,
+            background: showFloatingLegend ? '#10b981' : '#f1f5f9',
+            color: showFloatingLegend ? '#ffffff' : '#334155',
+            border: '1px solid ' + (showFloatingLegend ? '#059669' : '#cbd5e1'),
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Tag size={12}/>
+          <span>{showFloatingLegend ? 'Dock legend' : '🏷️ Adjustable legend shortcut'}</span>
+        </button>
+      </div>
+    )}
+    {showFloatingLegend && legend && (
+      <FloatingLegend
+        title={`${title} Legend`}
+        subtitle="Adjustable everywhere · Drag to reposition"
+        items={legend.map(l => ({ name: l.label, color: l.color }))}
+        defaultPos={{ x: 24, y: 70 }}
+        onClose={() => setShowFloatingLegend(false)}
+      />
+    )}
     <figcaption>{caption ?? `${title} · Sentinel-2 ${scene?.datetime.slice(0, 10) ?? ''} · background Esri World Imagery`}</figcaption>
   </figure>
 }

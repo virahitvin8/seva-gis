@@ -11,37 +11,43 @@ type Step = {
 
 const STEPS: Step[] = [
   {
+    sel: '.top-gis-btn',
+    title: '🌴 Desktop GIS Bridge (QGIS & ArcGIS)',
+    body: 'Connect QGIS 3, ArcMap 10.x, and ArcGIS Pro directly to your browser. Click here to open the Coconut Tree download center, retrieve the local bridge server, and sync vectors two-way.',
+    action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  },
+  {
     sel: '.sidebar nav, .topbar .breadcrumb',
     title: 'Your menu & workspace',
-    body: 'Overview takes you to the top, My farms to your farm list, Crop journal to your notes, Alerts to farms that need care, and Reports to your printable dossier.',
+    body: 'Overview takes you to the top, My farms to your field boundaries, Crop journal to your seasonal logs, Alerts to stressed parcels, and Reports to printable dossiers.',
     action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
   },
   {
     sel: '.page-heading .primary, .page-heading button',
-    title: 'Add a farm',
-    body: 'Start here. Draw your farm boundary directly on the map, walk the perimeter with GPS, type coordinates, or upload GeoJSON, KML, GPX, WKT, or Shapefiles.',
+    title: 'Add a farm boundary',
+    body: 'Draw your cadastral parcel on the satellite basemap, walk the perimeter with mobile GPS, enter coordinates, or upload GeoJSON, KML, GPX, WKT, or ESRI Shapefiles.',
     action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
   },
   {
     sel: '.map-card',
-    title: 'The live map',
-    body: 'Use Parameters to toggle between NDVI crop vigour, moisture and terrain, Base map for satellite or topo, and Whole map / Farm only to clip to your exact boundary.',
+    title: 'The live map & metered tape ruler',
+    body: 'Explore high-resolution satellite imagery with dynamic parameters (NDVI, NDMI, DEM). Use the movable Metered Tape Ruler to measure precision distances and elevation slopes anywhere on the field.',
     action: () => {
       document.querySelector('.map-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
     sel: '.intelligence-grid',
-    title: 'NDVI indices with scales',
-    body: 'Every number comes directly from the newest clear Sentinel-2 pass with a color-coded scale under it, so you can evaluate crop vigour and soil moisture at a glance.',
+    title: '14 Agro & hydrological indices',
+    body: 'Calculated directly from Sentinel-2 L2A BOA surface reflectance: NDVI, EVI, SAVI, MSAVI, GNDVI, NDRE, CIre, NBR, NDWI, MNDWI, NDMI, and MSI with calibrated color-coded benchmarks.',
     action: () => {
       document.querySelector('.intelligence-grid')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
     sel: '.ge-wrap',
-    title: 'Analysis lab',
-    body: 'Explore Earth Engine-style analytics: true-colour reflectance, vegetation maps, seasonal NDVI change detection, and pest/disease weather vulnerability models.',
+    title: 'Analysis lab & movable legends',
+    body: 'True-colour reflectance, multi-index land cover, seasonal change detection, and pest vulnerability models. Every classified map features an adjustable Floating Legend shortcut you can drag anywhere.',
     action: () => {
       window.dispatchEvent(new CustomEvent('seva-set-lab-tab', { detail: 'map' }))
       document.querySelector('.ge-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -49,8 +55,8 @@ const STEPS: Step[] = [
   },
   {
     sel: '.ge-wrap',
-    title: 'GeoAI studio',
-    body: 'The in-browser GeoAI studio runs k-means++ spectral clustering and supervised classification directly on your device. It automatically groups your field into crop vigor zones.',
+    title: 'GeoAI studio & band symbology',
+    body: 'Unsupervised K-Means++ spectral clustering, supervised land classification, harvest yield forecasting, and 5 multispectral band combinations (Natural, False Colour NIR, Agriculture, SWIR Moisture).',
     action: () => {
       window.dispatchEvent(new CustomEvent('seva-set-lab-tab', { detail: 'ai' }))
       document.querySelector('.ge-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -58,23 +64,23 @@ const STEPS: Step[] = [
   },
   {
     sel: '.gt-wrap',
-    title: 'Geo tools & robotics',
-    body: 'Field calculation suite: machinery swath planner (Fields2Cover CPP), rural reachability isochrones (openrouteservice), variable-rate fertilizer (VRA), and geodesic calculators.',
+    title: 'Swath robotics & variable-rate (VRA)',
+    body: 'Agricultural robotics suite: Fields2Cover machinery coverage path planning (CPP), turning radius loops, rural reachability isochrones (openrouteservice), and zone-specific fertilizer prescriptions.',
     action: () => {
       document.querySelector('.gt-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
     sel: '.intelligence-heading button',
-    title: 'Branded farm reports',
-    body: 'Generate a print-ready PDF or standalone HTML dossier with North arrow, scale bar, Sentinel-2 metadata, and agronomic index scorecards in one click.',
+    title: 'Trilingual dossiers (EN / HI / TE)',
+    body: 'Generate official field dossiers in English, Hindi (हिन्दी), or Telugu (తెలుగు) with North arrow, scale bar, Sentinel-2 metadata, and VRA recommendations in print-ready PDF and HTML.',
     action: () => {
       document.querySelector('.intelligence-heading button')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
     sel: '.sidebar .logout, .nav-logout, .profile .logout',
-    title: 'Signing out',
+    title: 'Privacy & signing out',
     body: 'Sign out securely whenever you are done. Your farm boundaries and local settings stay safely saved on this device.',
     action: () => {
       const el = document.querySelector('.sidebar .logout, .nav-logout, .profile .logout')

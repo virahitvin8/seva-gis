@@ -184,30 +184,47 @@ function stressShare(g: Grid) {
   return total ? (low / total) * 100 : 0
 }
 
+const statsCache = new Map<string, { ndvi: Stat; ndmi: Stat; stressPct: number }>()
+
 async function sceneStats(scene: Scene, farm: FarmGeo) {
+  const cacheKey = `${scene.id}:${geoKey(farm)}`
+  const cached = statsCache.get(cacheKey)
+  if (cached) return cached
   const g = await loadLight(scene, farm)
   const ndvi = indexStat(g, 'ndvi'), ndmi = indexStat(g, 'ndmi')
   if (!ndvi || !ndmi) throw new Error('No valid pixels inside the farm (cloud or edge of scene).')
-  return { ndvi, ndmi, stressPct: stressShare(g) }
+  const res = { ndvi, ndmi, stressPct: stressShare(g) }
+  statsCache.set(cacheKey, res)
+  return res
 }
 
 export type Candle = { scene: Scene; ndvi: Stat; ndmi: number; stressPct: number }
 
-export async function history(farm: FarmGeo, lookback = 180, max = 14): Promise<Candle[]> {
+export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<Candle[]> {
   const end = new Date(), start = new Date(end.getTime() - lookback * 86400000)
-  const q = new URLSearchParams({ collections: COLLECTION, bbox: farmBBox(farm).join(','), datetime: `${stamp(start)}/${stamp(end)}`, limit: '150', sortby: '-datetime', query: JSON.stringify({ 'eo:cloud_cover': { lt: 30 } }) })
+  const q = new URLSearchParams({ collections: COLLECTION, bbox: farmBBox(farm).join(','), datetime: `${stamp(start)}/${stamp(end)}`, limit: '100', sortby: '-datetime', query: JSON.stringify({ 'eo:cloud_cover': { lt: 30 } }) })
   const data = await getJson(`${STAC}/search?${q}`)
   const days = new Map<string, { id: string; datetime: string; cloud: number }[]>()
   for (const item of data.features ?? []) {
     const day = String(item.properties.datetime).slice(0, 10)
     days.set(day, [...(days.get(day) ?? []), { id: item.id, datetime: item.properties.datetime, cloud: Math.round(item.properties['eo:cloud_cover'] ?? 0) }])
   }
-  const scenes: Scene[] = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, max).map(([, its]) => ({ id: its[0].id, ids: its.slice(1, 6).map(i => i.id), datetime: its[0].datetime, cloud: Math.round(its.reduce((a, b) => a + b.cloud, 0) / its.length) }))
-  const rows = await Promise.allSettled(scenes.map(async scene => {
-    const s = await sceneStats(scene, farm)
-    return { scene, ndvi: s.ndvi, ndmi: s.ndmi.mean, stressPct: s.stressPct } as Candle
-  }))
-  return rows.flatMap(r => (r.status === 'fulfilled' ? [r.value] : [])).sort((a, b) => a.scene.datetime.localeCompare(b.scene.datetime))
+  const scenes: Scene[] = [...days.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, Math.min(max, 10)).map(([, its]) => ({ id: its[0].id, ids: its.slice(1, 6).map(i => i.id), datetime: its[0].datetime, cloud: Math.round(its.reduce((a, b) => a + b.cloud, 0) / its.length) }))
+
+  // Process in small batches of 2 with 60ms breathers to ensure the main thread never freezes
+  const results: Candle[] = []
+  const BATCH_SIZE = 2
+  for (let i = 0; i < scenes.length; i += BATCH_SIZE) {
+    const chunk = scenes.slice(i, i + BATCH_SIZE)
+    const settled = await Promise.allSettled(chunk.map(async scene => {
+      const s = await sceneStats(scene, farm)
+      return { scene, ndvi: s.ndvi, ndmi: s.ndmi.mean, stressPct: s.stressPct } as Candle
+    }))
+    settled.forEach(r => { if (r.status === 'fulfilled') results.push(r.value) })
+    // Yield to the browser event loop between batches so UI stays 100% interactive
+    await new Promise(r => setTimeout(r, 60))
+  }
+  return results.sort((a, b) => a.scene.datetime.localeCompare(b.scene.datetime))
 }
 
 export type WeekRec = { week: string; date: string; ndvi: number; ndmi: number; stressPct: number; cloud: number }
@@ -219,7 +236,7 @@ export const weekKey = (iso: string) => {
 }
 
 export async function weeklyRecords(farm: FarmGeo): Promise<WeekRec[]> {
-  const rows = await history(farm, 365, 80)
+  const rows = await history(farm, 180, 8)
   return rows.map(c => ({ week: c.scene.datetime.slice(0, 10), date: c.scene.datetime, ndvi: c.ndvi.mean, ndmi: c.ndmi, stressPct: c.stressPct, cloud: c.scene.cloud }))
 }
 

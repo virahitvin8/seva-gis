@@ -51,9 +51,23 @@ function inRing(lon: number, lat: number, ring: Ring) {
 export function insideMask(w: number, h: number, bbox: Bbox, ring: Ring) {
   const [west, south, east, north] = bbox
   const out = new Uint8Array(w * h)
+  let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity
+  for (let i = 0; i < ring.length; i++) {
+    const [x, y] = ring[i]
+    if (x < minLon) minLon = x
+    if (x > maxLon) maxLon = x
+    if (y < minLat) minLat = y
+    if (y > maxLat) maxLat = y
+  }
   for (let y = 0; y < h; y++) {
     const lat = north - ((y + 0.5) / h) * (north - south)
-    for (let x = 0; x < w; x++) out[y * w + x] = inRing(west + ((x + 0.5) / w) * (east - west), lat, ring) ? 1 : 0
+    if (lat < minLat || lat > maxLat) continue
+    for (let x = 0; x < w; x++) {
+      const lon = west + ((x + 0.5) / w) * (east - west)
+      if (lon >= minLon && lon <= maxLon && inRing(lon, lat, ring)) {
+        out[y * w + x] = 1
+      }
+    }
   }
   return out
 }
@@ -102,9 +116,13 @@ export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint
     if (c) { img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255 }
   }
   sctx.putImageData(img, 0, 0)
-  const scale = Math.max(1, Math.floor(900 / Math.max(w, h)))
+
+  // Cap canvas dimension to max 360px for instant rendering and minimal memory overhead
+  const maxDim = 360
+  const scale = Math.min(3, Math.max(1, Math.floor(maxDim / Math.max(w, h))))
   const big = document.createElement('canvas')
-  big.width = w * scale; big.height = h * scale
+  big.width = Math.min(maxDim, w * scale)
+  big.height = Math.min(maxDim, h * scale)
   const ctx = big.getContext('2d')!
   const [west, south, east, north] = bbox
   ctx.beginPath()
@@ -112,7 +130,7 @@ export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint
   ctx.closePath(); ctx.clip()
   ctx.imageSmoothingEnabled = smooth; ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(small, 0, 0, big.width, big.height)
-  if (sharpen > 0) unsharp(ctx, big.width, big.height, Math.max(1, Math.round(scale / 2)), sharpen)
+  if (sharpen > 0) unsharp(ctx, big.width, big.height, Math.min(2, Math.max(1, Math.round(scale / 2))), Math.min(sharpen, 1.2))
   return big.toDataURL('image/png')
 }
 

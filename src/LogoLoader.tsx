@@ -31,8 +31,8 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const isError = state === 'error'
 
-    // Choose particle count based on size
-    const count = S < 48 ? 160 : S < 80 ? 300 : PARTICLES.length
+    // Choose balanced particle count based on size for optimal performance
+    const count = S <= 48 ? 64 : S <= 80 ? 110 : 180
     const pts: ParticleDef[] = PARTICLES.slice(0, count)
 
     // Per-particle phase offsets
@@ -44,6 +44,7 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
 
     const K = S * 0.44
     let raf = 0
+    let lastRender = 0
 
     const star = (x: number, y: number, r: number) => {
       ctx.beginPath()
@@ -53,6 +54,13 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
     }
 
     const frame = (now: number) => {
+      try {
+        if (!still) raf = requestAnimationFrame(frame)
+
+        // Throttle rendering to ~32fps to keep main thread completely unblocked
+        if (now - lastRender < 30) return
+        lastRender = now
+
       const t = still ? 0 : now
       const ph = still ? 0.72 : (t % CYCLE) / CYCLE
 
@@ -68,7 +76,7 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
 
       // Transformation phases:
       // 0.00 .. 0.16 : 3D SEVA.GIS Logo
-      // 0.16 .. 0.30 : Dismantle & Sparkle Dispersion (CODM disintegrate shockwave)
+      // 0.16 .. 0.30 : Dismantle & Sparkle Dispersion
       // 0.30 .. 0.44 : 3D Stardust converges into Plant Seedling Sprout
       // 0.44 .. 0.68 : SPARKLE WAVE BOOST -> surges into Coconut Palm Tree!
       // 0.68 .. 0.84 : Swaying Coconut Tree in 3D
@@ -81,42 +89,34 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
         let spread = 0
 
         if (ph < 0.16) {
-          // Phase 1: 3D Logo
           v = p.lg
           rgb = p.rgbL
         } else if (ph < 0.30) {
-          // Phase 2: Dismantle to Scatter
           const m = ease(clamp((ph - 0.16) / 0.14 - dl))
           v = mix(p.lg, p.sc, m)
-          // CODM mythical gun chromatic stardust
           const mythicCol: V = [60, 245, 220]
           rgb = mixCol(p.rgbL, mythicCol, m)
           spread = Math.sin(m * Math.PI)
           boost = spread * 0.45
         } else if (ph < 0.44) {
-          // Phase 3: Scatter to Plant Seedling
           const m = ease(clamp((ph - 0.30) / 0.14 - dl))
           v = mix(p.sc, p.pl, m)
           const mythicCol: V = [60, 245, 220]
           rgb = mixCol(mythicCol, p.rgbP, m)
           spread = 1 - m
         } else if (ph < 0.68) {
-          // Phase 4: Sparkle Wave Boost - Plant to Coconut Tree!
           const uWave = clamp((ph - 0.44) / 0.24)
           const hFactor = clamp((0.85 - p.tr[1]) / 1.35)
           const grown = ease(clamp((uWave * 1.35 - hFactor * 0.85) / 0.5))
           v = mix(p.pl, p.tr, grown)
           rgb = mixCol(p.rgbP, p.rgbT, grown)
-          // Sparkle wave proximity
           const dist = Math.abs(hFactor - uWave)
           boost = Math.exp(-(dist * dist) / 0.032) * 1.6
         } else if (ph < 0.84) {
-          // Phase 5: Swaying Coconut Tree
           const sw = Math.sin(t / 600 + tw) * 0.035
           v = [p.tr[0] + sw, p.tr[1], p.tr[2]]
           rgb = p.rgbT
         } else {
-          // Phase 6: Scatter & Re-converge to 3D Logo
           const m = ease(clamp((ph - 0.84) / 0.16 - dl))
           v = mix(p.tr, p.lg, m)
           rgb = mixCol(p.rgbT, p.rgbL, m)
@@ -147,7 +147,6 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
         const y = Y * f
         const depth = clamp(0.45 + Z / (S * 0.85))
 
-        // Error state shifts palette to fiery ruby / warning amber
         let r = rgb[0]
         let g = rgb[1]
         let b = rgb[2]
@@ -166,7 +165,6 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
         const rad = Math.max(0.65, S * 0.011 * baseR * (1 + boost * 0.9)) * f
         const al = Math.min(1, (0.65 + 0.35 * shimmer) * (0.55 + depth * 0.55))
 
-        // Soft halo on boosted sparkles
         if (boost > 0.45) {
           ctx.beginPath()
           ctx.arc(x, y, rad * 2.2, 0, Math.PI * 2)
@@ -179,7 +177,6 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
         ctx.fillStyle = `rgba(${pr},${pg},${pb},${al.toFixed(2)})`
         ctx.fill()
 
-        // Starburst glints on energetic sparkles
         if (boost > 0.6 || (shimmer > 1.08 && Math.sin(t / 140 + tw * 2) > 0.94)) {
           ctx.globalCompositeOperation = 'lighter'
           ctx.fillStyle = isError ? 'rgba(255,220,160,0.95)' : 'rgba(240,255,250,0.95)'
@@ -189,11 +186,12 @@ export default function LogoLoader({ text = 'Loading…', state = 'wait', size =
       }
 
       ctx.globalCompositeOperation = 'source-over'
-      if (!still) raf = requestAnimationFrame(frame)
+      } catch {
+        // Silently recover on canvas context glitch
+      }
     }
 
-    frame(0)
-    if (!still) raf = requestAnimationFrame(frame)
+    raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
   }, [size, state])
 

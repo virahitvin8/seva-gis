@@ -100,7 +100,10 @@ export default function Walk3D({ farm, onClose }: Props) {
       const dist = c.h / Math.max(Math.cos((pitch * Math.PI) / 180), 0.05)
       const mpp = dist / (1.5 * canvasH)
       const zoom = clamp(Math.log2((40075016.686 * Math.cos((c.lat * Math.PI) / 180)) / (512 * mpp)), 0, 24)
-      instance.jumpTo({ center: [c.lon, c.lat], bearing: ((c.bearing % 360) + 360) % 360, pitch, zoom })
+      const moved = fwd !== 0 || side !== 0 || k.size > 0 || spin.current || Math.abs(c.h - c.tgtH) > 0.05 || Math.abs(c.pitch - c.tgtPitch) > 0.05
+      if (moved) {
+        instance.jumpTo({ center: [c.lon, c.lat], bearing: ((c.bearing % 360) + 360) % 360, pitch, zoom })
+      }
       if (now - hudAt > 250) {
         hudAt = now
         const el = instance.queryTerrainElevation([c.lon, c.lat])

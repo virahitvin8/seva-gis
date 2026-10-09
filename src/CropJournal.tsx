@@ -2,9 +2,9 @@ import LogoLoader from './LogoLoader'
 import SourceNote from './SourceNote'
 import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Leaf, Droplets, CloudRain, Sprout, Satellite } from 'lucide-react'
-import { classify, history, type Candle } from './lib/seva'
+import { classify, history, type Candle, type WeekRec } from './lib/seva'
 
-type JFarm = { id: string; name: string; crop: string; lat: number; lon: number; area: number; rain?: number; moisture?: number; analysis?: { ndvi: { mean: number }; ndmi: { mean: number }; stressPct: number; scene: { cloud: number } } }
+type JFarm = { id: string; name: string; crop: string; lat: number; lon: number; area: number; rain?: number; moisture?: number; passes?: WeekRec[]; analysis?: { ndvi: { mean: number }; ndmi: { mean: number }; stressPct: number; scene: { cloud: number } } }
 
 const frames = [['1 month', 30], ['3 months', 90], ['6 months', 180]] as const
 const ZONES = [{ from: 0.5, to: 1, c: '#d9f0c8', l: 'Healthy' }, { from: 0.3, to: 0.5, c: '#fdf0c4', l: 'Moderate' }, { from: -0.1, to: 0.3, c: '#f9d9d3', l: 'Stressed' }]
@@ -39,6 +39,16 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
   useEffect(() => {
     for (const f of farms) {
       if (cache[f.id]) continue
+      if (f.passes && f.passes.length > 0) {
+        const rows: Candle[] = f.passes.map(p => ({
+          scene: { id: p.week, datetime: p.date, cloud: p.cloud },
+          ndvi: { mean: p.ndvi, min: p.ndvi, max: p.ndvi, p10: p.ndvi, p50: p.ndvi, p90: p.ndvi, n: 1 },
+          ndmi: p.ndmi,
+          stressPct: p.stressPct
+        }))
+        setCache(c => ({ ...c, [f.id]: rows }))
+        continue
+      }
       setCache(c => ({ ...c, [f.id]: 'loading' }))
       history(f).then(rows => setCache(c => ({ ...c, [f.id]: rows }))).catch(() => setCache(c => ({ ...c, [f.id]: 'error' })))
     }

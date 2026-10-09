@@ -117,15 +117,26 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     baseLayers.current.forEach(l => l.remove()); baseLayers.current = []
     const add = (url: string, attribution: string, o: L.TileLayerOptions = {}) => { const l = L.tileLayer(url, { attribution, maxZoom: 20, maxNativeZoom: 16, zIndex: baseLayers.current.length + 1, ...o }).addTo(instance); baseLayers.current.push(l) }
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
-    if (base === 'sat' || base === 'hybrid' || base === 'original') add('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021_3857/default/g/{z}/{y}/{x}.jpg', 'Sentinel-2 cloudless © EOX (Copernicus Sentinel data 2021)', { maxNativeZoom: 13, maxZoom: 20 })
-    if (base === 'streets') add(ESRI('World_Street_Map'), 'Tiles © Esri, HERE, Garmin, OpenStreetMap contributors', { maxNativeZoom: 19 })
-    else if (base === 'terrain') add(ESRI('World_Topo_Map'), 'Tiles © Esri, USGS, NOAA', { maxNativeZoom: 17 })
-    else if (base === 'light') add(ESRI('Canvas/World_Light_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
-    else if (base === 'dark') add(ESRI('Canvas/World_Dark_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
-    else if (base === 'original' && scene) [scene.id, ...(scene.ids ?? [])].forEach(id => add(`https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@2x?collection=sentinel-2-l2a&item=${id}&assets=B04&assets=B03&assets=B02&nodata=0&rescale=1000%2C3800&color_formula=gamma%20RGB%201.9%2C%20saturation%201.2%2C%20sigmoidal%20RGB%204%200.45&format=png`, 'Contains modified Copernicus Sentinel data · Microsoft Planetary Computer', { maxNativeZoom: 15, maxZoom: 20 }))
-    else {
+    if (base === 'sat' || base === 'hybrid') {
       add(ESRI('World_Imagery'), esri, { maxNativeZoom: 17, errorTileUrl: '' })
-      if (base === 'hybrid') { add(ESRI('Reference/World_Transportation'), 'Esri'); add(ESRI('Reference/World_Boundaries_and_Places'), 'Esri') }
+      if (base === 'hybrid') {
+        add(ESRI('Reference/World_Transportation'), 'Esri')
+        add(ESRI('Reference/World_Boundaries_and_Places'), 'Esri')
+      }
+    } else if (base === 'streets') {
+      add(ESRI('World_Street_Map'), 'Tiles © Esri, HERE, Garmin, OpenStreetMap contributors', { maxNativeZoom: 19 })
+    } else if (base === 'terrain') {
+      add(ESRI('World_Topo_Map'), 'Tiles © Esri, USGS, NOAA', { maxNativeZoom: 17 })
+    } else if (base === 'light') {
+      add(ESRI('Canvas/World_Light_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
+    } else if (base === 'dark') {
+      add(ESRI('Canvas/World_Dark_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
+    } else if (base === 'original') {
+      if (scene) {
+        [scene.id, ...(scene.ids ?? [])].forEach(id => add(`https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@2x?collection=sentinel-2-l2a&item=${id}&assets=B04&assets=B03&assets=B02&nodata=0&rescale=1000%2C3800&color_formula=gamma%20RGB%201.9%2C%20saturation%201.2%2C%20sigmoidal%20RGB%204%200.45&format=png`, 'Contains modified Copernicus Sentinel data · Microsoft Planetary Computer', { maxNativeZoom: 15, maxZoom: 20 }))
+      } else {
+        add('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021_3857/default/g/{z}/{y}/{x}.jpg', 'Sentinel-2 cloudless © EOX (Copernicus Sentinel data 2021)', { maxNativeZoom: 13, maxZoom: 20 })
+      }
     }
     return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
   }, [mapObj, base, scene?.id, scene?.ids?.join()])

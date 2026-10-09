@@ -1,7 +1,15 @@
 {
-  "description": "Automated GeoAI platform delivering precise crop health, soil, and water insights with actionable alerts for farmers and landowners worldwide, free and easy to use.",
+  "title": "SEVA.GIS — Satellite Precision Agriculture & Land Intelligence",
+  "description": "SEVA.GIS (Spatial Evaluation & Vegetation Analytics) is a free open-data GeoAI platform providing 10m Sentinel-2 NDVI crop vigour, soil moisture, variable-rate fertilizer planning, and field analytics for farmers and landowners.",
+  "language": "en",
+  "icons": {
+    "icon": "/assets/logo_mark.png"
+  },
+  "openGraph": {
+    "image": "/assets/logo_genz.jpg"
+  },
   "robots": {
-    "index": false
+    "index": true
   },
   "accessibility": {
     "addBypassLinks": false,

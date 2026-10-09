@@ -8,6 +8,7 @@ import { removeBorewell, removePipeline, updateBorewell, updatePipeline, lengthM
 import { bandFor, sampleAt, type Grid } from './lib/indicators'
 import { ScaleBox } from './Scale'
 import { indexStat, loadDem, type FarmData } from './lib/seva'
+import IrrigationDecisionCard from './IrrigationDecisionCard'
 
 type Props = { farm: FarmData & { id: string; name: string } }
 type Remote<T> = { key: string; data?: T; error?: string }
@@ -144,6 +145,17 @@ export default function WaterPanel({ farm }: Props) {
     <div className="intelligence-heading"><h2>Water, irrigation &amp; drainage <span>Open-Meteo · SoilGrids · Copernicus DEM · your borewells and pipelines</span></h2>
       <div className="wt-pick"><label>Crop<select value={cfg.crop} onChange={e => setCfg({ crop: e.target.value })}>{CROPS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label>Irrigation<select value={cfg.method} onChange={e => setCfg({ method: e.target.value })}>{METHODS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label></div></div>
+    
+    <IrrigationDecisionCard
+      farmAreaHa={farm.area}
+      cropName={crop.name}
+      ndmi={farm.analysis?.ndmi.mean ?? 0.24}
+      et0Next7={w?.et0Next7 ?? 35}
+      rainNext7={w?.rainNext7 ?? 10}
+      rain30={w?.rain30 ?? 40}
+      soilMoisturePct={w?.soilM.d0_9 ? Math.round(w.soilM.d0_9 * 100) : 25}
+    />
+
     {verdict && <div className={`wt-verdict ${verdict.tone}`}><Droplets size={18}/>{verdict.text}</div>}
     {(weather.key === key && weather.error) && <div className="ag-empty">Weather unavailable: {weather.error}</div>}
     <div className="ag-cols">

@@ -35,9 +35,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   async function enter(w: Who) { sessionStorage.removeItem('seva-bye'); await openWorkspace(w.id); setSession(w.id); setWho(w) }
   useEffect(() => {
     (async () => {
+      const params = new URLSearchParams(window.location.search)
+      if (params.has('auth') || params.has('login') || params.has('signin')) {
+        setBooting(false)
+        return
+      }
       const id = sessionId()
-      if (id === GUEST) await enter({ id: GUEST, name: 'Guest', email: '' })
-      else if (id) { const u = await db.users.get(id); if (u) await enter({ id: u.id, name: u.name, email: u.email }) }
+      if (id && id !== GUEST) {
+        const u = await db.users.get(id)
+        if (u) await enter({ id: u.id, name: u.name, email: u.email })
+      }
       setBooting(false)
     })().catch(() => setBooting(false))
   }, [])
@@ -54,14 +61,28 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
   const signOut = () => { sessionStorage.setItem('seva-bye', '1'); sessionStorage.removeItem('seva-mitra-asked'); clearGreeting(); closeWorkspace(); setSession(null); setWho(null); setForm({ name: '', email: '', password: '' }) }
 
-  if (booting) return <div className="ll-full"><LogoLoader text="Opening SEVA.GIS…" size={96}/></div>
+  if (booting) return (
+    <div className="ll-full">
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <div style={{ position: 'relative', width: 92, height: 92, display: 'grid', placeItems: 'center' }}>
+          <img
+            src={logo}
+            alt="SEVA·GIS"
+            style={{ width: 80, height: 80, objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(56,242,208,0.65))', zIndex: 1 }}
+            onError={(e) => { e.currentTarget.src = '/logo.png' }}
+          />
+        </div>
+        <LogoLoader inline size={32} text="Opening SEVA.GIS…" />
+      </div>
+    </div>
+  )
   if (who) return <Ctx.Provider value={{ who, signOut }}>{children}</Ctx.Provider>
   return <div className="au-wrap">
     {sessionStorage.getItem('seva-bye') && <MitraBye/>}
     <section className="au-hero">
       <Aurora/>
       <div className="au-hero-copy">
-        <div className="au-logo"><img src={logo} alt=""/><Wordmark/></div>
+        <div className="au-logo"><img src={logo} alt="SEVA·GIS logo" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark/></div>
         <h2 className="au-full notranslate" translate="no" aria-label="Spatial Evaluation & Vegetation Analytics">{['Spatial', 'Evaluation', '&', 'Vegetation', 'Analytics'].map((w, wi) => <span className="au-w" key={w}>{[...w].map((ch, ci) => <b key={ci} className={ci === 0 && w !== '&' ? 'cap' : ''} style={{ animationDelay: `${(wi * 6 + ci) * 45}ms` }}>{ch}</b>)}</span>)}</h2>
         <p className="au-cherish">Every field you walk and every season you wait matters. We are glad you are here. Your land deserves to be seen, and you deserve to see it grow.</p>
         <ul className="au-stats"><li><i className="fa-solid fa-satellite"/><b>10 m</b><span>satellite detail</span></li><li><i className="fa-solid fa-cloud-sun-rain"/><b>Live</b><span>weather and soil</span></li><li><i className="fa-solid fa-hand-holding-heart"/><b>$0</b><span>no keys, no fees</span></li></ul>
@@ -72,19 +93,19 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     </section>
     <form className="au-card" onSubmit={submit}>
       <h1>{mode === 'in' ? 'Welcome back' : 'Start for free'}</h1>
-      <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Make an account to save your farms and records.'}</p>
+      <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
       {mode === 'in' && saved.length > 0 && <div className="au-known"><span>Welcome back, tap your name</span>{saved.map(k => <div className="au-chip" key={k.email}><button type="button" onClick={() => { setForm({ ...form, email: k.email, password: '' }); setTimeout(() => pw.current?.focus(), 30) }}><b>{(k.name || k.email)[0].toUpperCase()}</b><span>{k.name}<small>{k.email}</small></span></button><button type="button" aria-label={`Forget ${k.name}`} onClick={() => { forget(k.email); setSaved(known()) }}>×</button></div>)}</div>}
       <div className="au-tabs"><button type="button" className={mode === 'in' ? 'on' : ''} onClick={() => setMode('in')}>Sign in</button><button type="button" className={mode === 'up' ? 'on' : ''} onClick={() => setMode('up')}>Create account</button></div>
-      {mode === 'up' && <label>Your name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="name"/></label>}
+      {mode === 'up' && <label>Your name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="name" placeholder="Your name"/></label>}
       <label>Email<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder="you@example.com"/></label>
       <label>Password<input ref={pw} required type="password" minLength={mode === 'up' ? 8 : 1} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} placeholder={mode === 'up' ? 'At least 8 characters' : ''}/></label>
       {error && <div className="au-err" role="alert">{error}</div>}
-      <button className="au-go" disabled={busy}>{mode === 'in' ? <LogIn size={16}/> : <UserPlus size={16}/>}{busy ? 'Please wait…' : mode === 'in' ? 'Sign in' : 'Create account'}</button>
+      <button className="au-go" disabled={busy}>{busy ? <LogoLoader inline size={18} text="Please wait…" /> : mode === 'in' ? <><LogIn size={16}/>Sign in</> : <><UserPlus size={16}/>Create free account</>}</button>
       <div className="au-or"><span>or</span></div>
       {guestAsk
-        ? <div className="au-guestname"><label>What should we call you?<input autoFocus value={guestName} maxLength={30} onChange={e => setGuestName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (guestName.trim()) enter({ id: GUEST, name: guestName.trim(), email: '' }) } }} placeholder="Your name" autoComplete="given-name"/></label>
-          <button type="button" className="au-guest" disabled={!guestName.trim()} onClick={() => enter({ id: GUEST, name: guestName.trim(), email: '' })}><UserIcon size={15}/>Continue as guest</button></div>
-        : <button type="button" className="au-guest" onClick={() => setGuestAsk(true)}><UserIcon size={15}/>Try it as a guest</button>}
+        ? <div className="au-guestname"><label>What should we call you? (optional)<input autoFocus value={guestName} maxLength={30} onChange={e => setGuestName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); enter({ id: GUEST, name: guestName.trim() || 'Guest', email: '' }) } }} placeholder="Guest" autoComplete="given-name"/></label>
+          <button type="button" className="au-guest" onClick={() => enter({ id: GUEST, name: guestName.trim() || 'Guest', email: '' })}><UserIcon size={15}/>Continue as guest</button></div>
+        : <button type="button" className="au-guest" onClick={() => setGuestAsk(true)}><UserIcon size={15}/>Try freely as a guest</button>}
       <small>Your account is saved in this browser. Passwords are hashed on your device and never sent anywhere, so there is no reset or sync. Back up from Data manager.</small>
     </form>
   </div>

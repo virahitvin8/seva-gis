@@ -64,18 +64,32 @@ export function managementZones(g: Grid, ring: Ring, k = 5): MapResult & { means
   const empty = { url: '', rows: [], validHa: 0, means: [] }
   if (idx.length < k * 8) return empty
   const sd = F.map(f => { let m = 0, s = 0; idx.forEach(i => (m += f[i])); m /= idx.length; idx.forEach(i => (s += (f[i] - m) ** 2)); return Math.sqrt(s / idx.length) || 1 })
-  const sorted = [...idx].sort((p, q) => F[0][p] - F[0][q])
+
+  // Use a stratified sample of up to 1200 points for centroid training to keep clustering under 5ms
+  const step = Math.max(1, Math.floor(idx.length / 1200))
+  const trainIdx: number[] = []
+  for (let i = 0; i < idx.length; i += step) trainIdx.push(idx[i])
+  const sorted = [...trainIdx].sort((p, q) => F[0][p] - F[0][q])
   let cent = Array.from({ length: k }, (_, c) => { const i = sorted[Math.floor(((c + 0.5) / k) * sorted.length)]; return F.map(f => f[i]) })
-  const label = new Int8Array(n).fill(-1)
-  for (let it = 0; it < 14; it++) {
+
+  for (let it = 0; it < 8; it++) {
     const sum = Array.from({ length: k }, () => [0, 0, 0, 0])
-    for (const i of idx) {
+    for (const i of trainIdx) {
       let best = 0, bd = Infinity
       for (let c = 0; c < k; c++) { let d = 0; for (let j = 0; j < 3; j++) d += ((F[j][i] - cent[c][j]) / sd[j]) ** 2; if (d < bd) { bd = d; best = c } }
-      label[i] = best; const s = sum[best]; s[0] += F[0][i]; s[1] += F[1][i]; s[2] += F[2][i]; s[3]++
+      const s = sum[best]; s[0] += F[0][i]; s[1] += F[1][i]; s[2] += F[2][i]; s[3]++
     }
     cent = cent.map((c, ci) => (sum[ci][3] ? [sum[ci][0] / sum[ci][3], sum[ci][1] / sum[ci][3], sum[ci][2] / sum[ci][3]] : c))
   }
+
+  // Final single assignment pass over all pixels
+  const label = new Int8Array(n).fill(-1)
+  for (const i of idx) {
+    let best = 0, bd = Infinity
+    for (let c = 0; c < k; c++) { let d = 0; for (let j = 0; j < 3; j++) d += ((F[j][i] - cent[c][j]) / sd[j]) ** 2; if (d < bd) { bd = d; best = c } }
+    label[i] = best
+  }
+
   const order = cent.map((c, i) => [c[0], i]).sort((a, b) => a[0] - b[0]).map(x => x[1])
   const rank = new Array(k); order.forEach((c, r) => (rank[c] = r))
   const defs = order.map((_, r) => ({ id: `z${r}`, name: r === 0 ? 'Zone 1 · lowest vigour' : r === k - 1 ? `Zone ${k} · highest vigour` : `Zone ${r + 1}`, color: ZONE_COLORS[Math.round((r / (k - 1)) * 4)] }))
@@ -130,7 +144,7 @@ export function phenology(rows: Candle[]): Phenology | null {
   return { points, mean, sd, slope30: (sxy / sxx) * 30, peak: { date: points[peakIdx].date, ndvi: vals[peakIdx] }, start, end, anomalies: points.filter(p => p.z < -1.5).length }
 }
 
-export const loadHistory = (farm: FarmGeo) => history(farm, 365, 60)
+export const loadHistory = (farm: FarmGeo) => history(farm, 365, 16)
 
 export const HOTSPOT = [
   { id: 'watch', name: 'Watch', color: '#fee08b', note: 'Weaker than field average by 1 to 1.5 standard deviations' },

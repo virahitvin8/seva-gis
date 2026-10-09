@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
 import { LANDCOVER } from './lib/gee'
-import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize } from './lib/geoai'
+import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize, predictYield } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { MapFrame } from './LabMap'
 
@@ -28,6 +28,12 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const photo = useMemo(() => (g ? trueColour(g, ring) : ''), [g])
   const auto = useMemo(() => (g && method === 'kmeans' ? autoClassify(g, ring, k) : null), [g, k, method])
   const sup = useMemo(() => (g && method !== 'kmeans' ? superviseAuto(g, ring, method) : null), [g, method])
+
+  const yieldPred = useMemo(() => {
+    const peakNdvi = farm.analysis?.ndvi.mean ?? 0.68
+    return predictYield(farm.crop || 'Paddy', peakNdvi, 6.8, farm.rain ?? 30)
+  }, [farm.crop, farm.analysis?.ndvi.mean, farm.rain])
+
   if (!scene) return <div className="ag-empty">Run the satellite analysis first (Refresh), then GeoAI opens.</div>
   if (err) return <div className="ag-empty">{err}</div>
   if (!g) return <div className="ag-empty"><LogoLoader text="Loading Sentinel-2 bands…"/></div>
@@ -49,6 +55,30 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     {method === 'kmeans' && auto && <div className="sc-box compact ge-legend"><div className="sc-title"><b>What the groups mean</b><span>greenness (NDVI, −1 to 1) · share · area</span></div>
       <ul>{auto.clusters.map(c => <li key={c.id}><i style={{ background: c.color }}/><span>{c.name}</span><code>NDVI {f(c.ndvi, 2)} · {f(c.pct, 0)}% · {f(c.ha, 2)} ha</code></li>)}</ul>
       <small>Groups with the lowest greenness are the first places to walk and check.</small></div>}
+
+    {/* Yield Forecasting Card with Clear Error Margins */}
+    <div className="sc-box compact" style={{ marginTop: 14 }}>
+      <div className="sc-title"><b>Yield forecast model</b><span>crop-peak NDVI integral &amp; calibrated coefficients</span></div>
+      <div className="ag-grid" style={{ padding: 12 }}>
+        <div className="ag-item good">
+          <span>Estimated harvest</span>
+          <b>{yieldPred.predictedYieldTonHa} ± {yieldPred.errorMarginTonHa} t/ha</b>
+          <small>~{yieldPred.predictedQuintalAcre} quintals/acre ({yieldPred.confidencePct}% confidence band)</small>
+        </div>
+        <div className="ag-item neutral">
+          <span>Crop modelled</span>
+          <b>{yieldPred.crop}</b>
+          <small>NDVI multiplier: {yieldPred.factors.ndviFactor}×</small>
+        </div>
+        <div className="ag-item neutral">
+          <span>Soil &amp; weather modifiers</span>
+          <b>Soil {yieldPred.factors.soilFactor}× · Rain {yieldPred.factors.weatherFactor}×</b>
+          <small>Calibrated against regional yield benchmarks</small>
+        </div>
+      </div>
+      <small style={{ display: 'block', padding: '0 12px 10px', color: 'var(--muted)', fontSize: 11 }}>{yieldPred.explanation}</small>
+    </div>
+
     <div className="st-export"><button onClick={exportRule}><Download size={14}/>Land cover polygons (GeoJSON)</button><button disabled={!auto && !sup} onClick={exportAuto}><Download size={14}/>Automatic classes (GeoJSON)</button></div>
     <p className="ge-note">GeoJSON opens in QGIS, ArcGIS, Google Earth Engine and geojson.io. Built on one cloud-masked Sentinel-2 scene. Methods follow scikit-learn, GDAL, Orfeo Toolbox, SNAP and QGIS Semi-Automatic Classification.</p>
   </>

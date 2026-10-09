@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
 import L from 'leaflet'
 import buffer from '@turf/buffer'
-import { Droplets, X, Zap } from 'lucide-react'
+import { Droplets, Sprout, X, Zap } from 'lucide-react'
 import { BUFFERS, CATS, loadNearby, type CatId, type Feat } from './lib/nearby'
 import { farmRing, type FarmData } from './lib/seva'
 import { lengthM, type Borewell, type Pipeline } from './lib/assets'
@@ -74,8 +74,8 @@ export default function NearbyLayer({ map, farm, open, onClose, mine }: { map: L
       <p className="nb-lead">{!feats && !err ? 'Looking for water sources and power lines within 1 km of your farm…' : err ? '' : total ? `${total} places found within about 1 km. Dashed rings show distance from your farm edge.` : 'Nothing is mapped within 1 km on OpenStreetMap. Rural places are often under-mapped, so this does not mean there is none. Mark your own borewells and pipelines under Tools.'}</p>
       {err && <div className="nb-err"><LogoLoader state="error" inline size={30} text={err}/><button onClick={() => setAttempt(a => a + 1)}>Try again</button></div>}
       <label className="nb-row nb-buf"><input type="checkbox" checked={prefs.buffers} onChange={e => setPrefs(p => ({ ...p, buffers: e.target.checked }))}/><span><b>Buffer zones</b><small>Rings at {BUFFERS.map(b => (b >= 1000 ? `${b / 1000} km` : `${b} m`)).join(', ')} from the farm edge. Your own borewells and pipelines get rings too.</small></span></label>
-      {(['water', 'power'] as const).map(kind => <div key={kind}>
-        <div className="nb-h">{kind === 'water' ? <Droplets size={14}/> : <Zap size={14}/>}{kind === 'water' ? 'Water' : 'Power'}<span><button onClick={() => all(kind, true)}>All</button><button onClick={() => all(kind, false)}>None</button></span></div>
+      {(['water', 'power', 'agri'] as const).map(kind => <div key={kind}>
+        <div className="nb-h">{kind === 'water' ? <Droplets size={14}/> : kind === 'power' ? <Zap size={14}/> : <Sprout size={14}/>}{kind === 'water' ? 'Water' : kind === 'power' ? 'Power' : 'Agricultural services'}<span><button onClick={() => all(kind, true)}>All</button><button onClick={() => all(kind, false)}>None</button></span></div>
         {CATS.filter(c => c.kind === kind).map(c => <label className="nb-row" key={c.id}>
           <input type="checkbox" checked={prefs.on.includes(c.id)} onChange={() => toggle(c.id)}/>
           <i style={{ background: c.color }}/>

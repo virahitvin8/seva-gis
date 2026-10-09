@@ -113,9 +113,13 @@ function useTarget(sel: string | null, stepIdx: number) {
 
     // Smoothly track element through scrolling and animations
     let frameId: number
+    let lastM = 0
     const start = performance.now()
     const track = (now: number) => {
-      measure()
+      if (now - lastM >= 33) {
+        lastM = now
+        measure()
+      }
       if (now - start < 1200) {
         frameId = requestAnimationFrame(track)
       }

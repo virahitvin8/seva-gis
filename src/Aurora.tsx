@@ -20,7 +20,12 @@ export default function Aurora() {
     const move = (e: PointerEvent) => { const r = c.getBoundingClientRect(), d = w / r.width; mx = (e.clientX - r.left) * d; my = (e.clientY - r.top) * d }
     addEventListener('pointermove', move)
     const link = Math.min(w, h) * 0.17
+    let lastTime = 0
     const draw = (t: number) => {
+      if (!still) raf = requestAnimationFrame(draw)
+      if (t - lastTime < 30) return
+      lastTime = t
+
       ctx.clearRect(0, 0, w, h)
       const g = ctx.createRadialGradient(w * 0.3 + Math.sin(t / 4000) * w * 0.1, h * 0.35, 0, w * 0.4, h * 0.4, w * 0.7)
       g.addColorStop(0, '#1e5a3acc'); g.addColorStop(0.5, '#0f2d4a55'); g.addColorStop(1, '#00000000')
@@ -35,9 +40,14 @@ export default function Aurora() {
         const d = Math.hypot(ps[i].x - ps[j].x, ps[i].y - ps[j].y)
         if (d < link) { ctx.globalAlpha = (1 - d / link) * 0.5; ctx.strokeStyle = ps[i].c; ctx.beginPath(); ctx.moveTo(ps[i].x, ps[i].y); ctx.lineTo(ps[j].x, ps[j].y); ctx.stroke() }
       }
-      for (const p of ps) { ctx.globalAlpha = 0.9; ctx.shadowColor = p.c; ctx.shadowBlur = 12; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill() }
-      ctx.shadowBlur = 0; ctx.globalAlpha = 1
-      if (!still) raf = requestAnimationFrame(draw)
+      for (const p of ps) {
+        ctx.fillStyle = p.c
+        ctx.globalAlpha = 0.35
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.2, 0, Math.PI * 2); ctx.fill()
+        ctx.globalAlpha = 0.95
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill()
+      }
+      ctx.globalAlpha = 1
     }
     raf = requestAnimationFrame(draw)
     return () => { cancelAnimationFrame(raf); removeEventListener('resize', size); removeEventListener('pointermove', move) }

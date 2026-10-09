@@ -22,6 +22,12 @@ import { NumbersGuide } from './Scale'
 import Guide from './Guide'
 import DataManager from './DataManager'
 import { farmRing } from './lib/seva'
+import FieldHealthScore from './FieldHealthScore'
+import ScoutHotspots from './ScoutHotspots'
+import LandInfoCard from './LandInfoCard'
+import CropLibrary from './CropLibrary'
+import ProGisExport from './ProGisExport'
+import VillageView from './VillageView'
 
 function AoiShape({ farm }: { farm: Parameters<typeof farmRing>[0]; good?: boolean }) {
   const ring = farmRing(farm), k = Math.cos((ring[0][1] * Math.PI) / 180)
@@ -44,7 +50,7 @@ import Lang from './Lang'
 import { MitraGuide, MitraAvatar } from './Mitra'
 import { pickGreeting, todayLabel } from './lib/greet'
 import { logoMark as brandLogo } from './assets/brand'
-function BrandLogo() { return <img className="brand-logo-image" src={brandLogo} alt="SEVA.GIS official logo" /> }
+function BrandLogo() { return <img className="brand-logo-image" src={brandLogo} alt="SEVA.GIS official logo" onError={(e) => { e.currentTarget.src = '/logo.png' }} /> }
 export default function App() {
   const { who, signOut } = useAccount()
   const [farms, setFarms] = useState<Farm[]>(() => { try { return (JSON.parse(localStorage.getItem('seva-farms') || 'null') || initialFarms).filter((x: Farm) => !x.sample) } catch { return initialFarms } })
@@ -70,7 +76,9 @@ export default function App() {
   }
   const [opts, setOpts] = useState<SceneOpts>({ mode: 'latest', maxCloud: 30 })
   async function refresh(target = farm, o: SceneOpts = opts) {
+    if (!target) return
     attempted.current.add(target.id)
+    weeklyTried.current.delete(target.id)
     setLoading(true)
     setMessage('Searching Sentinel-2 scenes that cover your whole farm…')
     const [weather, satellite] = await Promise.allSettled([loadWeather(target), analyze(target, o)])
@@ -91,18 +99,21 @@ export default function App() {
   useEffect(() => { if (farm && !farm.analysis && !attempted.current.has(farm.id)) refresh(farm) }, [farm?.id])
   const weeklyTried = useRef(new Set<string>())
   useEffect(() => {
-    const todo = farms.filter(item => !weeklyTried.current.has(item.id))
-    if (!todo.length) return
-    todo.forEach(item => weeklyTried.current.add(item.id))
-    ;(async () => {
-      for (const item of todo) {
-        try {
-          const records = await weeklyRecords(item)
-          setFarms(current => current.map(x => x.id === item.id ? { ...x, passes: mergeWeekly(x.passes, records) } : x))
-        } catch { weeklyTried.current.delete(item.id) }
+    if (!farm || farm.passes?.length || weeklyTried.current.has(farm.id)) return
+    const target = farm
+    weeklyTried.current.add(target.id)
+    const timer = setTimeout(async () => {
+      try {
+        const records = await weeklyRecords(target)
+        if (records.length) {
+          setFarms(current => current.map(x => x.id === target.id ? { ...x, passes: mergeWeekly(x.passes, records) } : x))
+        }
+      } catch (e) {
+        console.warn('Could not fetch weekly records for farm:', target.name, e)
       }
-    })()
-  }, [farms.map(item => item.id).join()])
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [farm?.id])
   function removeFarm(target: Farm) {
     if (!window.confirm(`Remove "${target.name}" from this device?`)) return
     const rest = farms.filter(item => item.id !== target.id)
@@ -127,6 +138,25 @@ export default function App() {
     const blob = new Blob([JSON.stringify({ ...farm, irrigation: irrigationAdvice(farm), construction: constructionSuitability(farm), disclosure: 'Satellite indices come from Sentinel-2 L2A via Microsoft Planetary Computer and are cloud/shadow-masked with the SCL layer and clipped to the farm boundary. Weather may be a coarse Open-Meteo model estimate. Not a construction or irrigation certification.', exported: new Date().toISOString() }, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `seva-${farm.name.toLowerCase().replace(/ /g, '-')}.json`; anchor.click(); URL.revokeObjectURL(url)
   }
+  function addBatchFarms(newItems: { name: string; crop: string; lat: number; lon: number; area: number }[]) {
+    const added: Farm[] = newItems.map(item => ({
+      id: crypto.randomUUID(),
+      name: item.name,
+      crop: item.crop,
+      lat: item.lat,
+      lon: item.lon,
+      area: item.area,
+      location: `${item.lat.toFixed(4)}° N, ${item.lon.toFixed(4)}° E`,
+      status: 'Awaiting satellite data',
+      sample: false,
+    }))
+    setFarms(curr => [...curr, ...added])
+    if (added[0]) {
+      setSelected(added[0].id)
+      refresh(added[0])
+    }
+  }
+
   return <div className="app-shell">
     <aside className={`sidebar ${menu ? 'mobile-open' : ''}`}>
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
@@ -136,7 +166,7 @@ export default function App() {
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>Built for the ground.<br/>Open to everyone.</h4><p>Earth intelligence, in the spirit of selfless service.</p><span>OPEN DATA. REAL PURPOSE. <ArrowUpRight size={14}/></span></div><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt=""/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Nothing is here yet. Draw your farm on the map, walk its edge with GPS, or upload a boundary file. SEVA.GIS then reads the newest Sentinel-2 satellite picture for it.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
@@ -144,11 +174,16 @@ export default function App() {
       <div className="farm-workspace" id="my-farms"><section className="farm-list"><div className="section-top"><h2>My farms <span>{farms.length}</span></h2><button aria-label="Add farm" onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder="Find a farm..." value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => setSelected(item.id)}><div className="farm-thumb aoi" title="Satellite view of your farm boundary"><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.area ? `${item.area} ha` : 'Point location'}<b>·</b>{item.crop}</span><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>Add another farm</button><div id="legend-slot"/><div className="list-note"><ShieldCheck size={16}/><span>Your coordinates stay on this device.</span></div></section>
       <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.area ? `${farm.area} hectares` : 'Location only'}</span></div><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><IndicatorMap farm={farm} loading={loading}/></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Live Sentinel-2 L2A analysis' : 'Satellite analysis pending'}<b>·</b>10 m Sentinel-2 · 30 m Copernicus DEM · clipped to your farm boundary</span><button onClick={() => setModal('sources')}>About this data<ArrowUpRight size={13}/></button></div></section></div>
       <CropJournal farms={farms as any} selected={farm.id} onSelect={setSelected} onRefresh={() => refresh()} loading={loading}/>
+      <FieldHealthScore farm={farm}/>
       <div className="intelligence-heading"><h2>Field intelligence <span>{farm.analysis ? 'Live Sentinel-2 metrics' : 'Awaiting satellite analysis'}</span></h2><button onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>Create report</button></div>
       <div className="intelligence-grid">{[{title:'Vegetation health',icon:Leaf,value:farm.analysis?.ndvi.mean.toFixed(2),unit:'NDVI',label:farm.analysis ? classify(farm.analysis.ndvi.mean).label : 'Awaiting analysis',note:farm.analysis ? `Range ${farm.analysis.ndvi.min.toFixed(2)} to ${farm.analysis.ndvi.max.toFixed(2)} · Sentinel-2` : 'Sentinel-2 · pending',color:'green',bars:true,stat:farm.analysis?.ndvi,lo:-0.2,hi:1},{title:'Soil moisture',icon:Droplets,value:farm.moisture,unit:'%',label:'Check root-zone moisture',note:farm.analysis ? `Model estimate · bars show NDMI spread (mean ${farm.analysis.ndmi.mean.toFixed(2)})` : 'Surface estimate · not a sensor',color:'blue',bars:true,stat:farm.analysis?.ndmi,lo:-0.3,hi:0.5},{title:'Rainfall outlook',icon:CloudSun,value:farm.rain?.toFixed(1),unit:'mm',label:'Next 7 days',note:'Open-Meteo · refresh for live data',color:'blue',bars:false},{title:'Terrain & elevation',icon:Mountain,value:farm.elevation,unit:'m',label:'Above sea level',note:'Not a construction assessment',color:'brown',bars:false}].map(({title,icon:Icon,value,unit,label,note,color,bars,stat,lo,hi}: { title: string; icon: typeof Leaf; value?: string | number; unit: string; label: string; note: string; color: string; bars: boolean; stat?: Analysis['ndvi']; lo?: number; hi?: number }) => <div className={`intelligence-card ${color}`} key={title}><div className="intelligence-title"><span>{title}</span><Icon size={18}/></div><div className="intelligence-value">{value ?? '—'}<small>{unit}</small>{title === 'Vegetation health' && farm.analysis && <span className="trend">{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}</div><div className="mini-chart">{bars ? (stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height,index) => <span key={index} className={`bar-height-${height}`}/>) : title === 'Rainfall outlook' ? <div className="weather-strip"><span><CloudSun size={18}/><small>7-day total</small></span></div> : <div className="weather-strip"><span><Mountain size={18}/><small>{farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}% slope` : 'Slope pending'}</small></span></div>}</div><div className="metric-description">{label}<span>{note}</span></div></div>)}</div>
       <NumbersGuide/>
       <div className="advice-grid">{([['Irrigation advisory', Droplets, irrigationAdvice(farm)], ['Construction suitability', Mountain, constructionSuitability(farm)]] as [string, typeof Droplets, Advice][]).map(([title, Icon, advice]) => <section className={`advice-card ${advice.level}`} key={title}><div className="advice-head"><span className="action-icon"><Icon size={22}/></span><div className="action-label">{title.toUpperCase()}</div><span className={`status ${advice.level === 'good' ? 'good' : advice.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{advice.chip}</span></div><h3>{advice.title}</h3><ul>{advice.bullets.map(text => <li key={text}>{text}</li>)}</ul>{advice.why && <p className="why"><b>Why?</b> {advice.why}</p>}</section>)}</div>
       <Reveal><AgroPanel farm={farm}/><WaterPanel farm={farm}/></Reveal>
+      <Reveal><ScoutHotspots farm={farm}/><LandInfoCard farm={farm}/></Reveal>
+      <Reveal><CropLibrary/></Reveal>
+      <Reveal><VillageView farms={farms} selectedId={farm.id} onSelect={setSelected} onAddBatch={addBatchFarms}/></Reveal>
+      <Reveal><ProGisExport farm={farm} farms={farms} onImportBackup={restored => { setFarms(restored); if (restored[0]) { setSelected(restored[0].id); refresh(restored[0]); } }} /></Reveal>
       <Reveal><Intelligence farm={farm}/></Reveal>
       <Reveal><GeoTools farm={farm} farms={farms}/></Reveal>
       <Reveal><WeeklyRecords farms={farms} farm={farm} onSelect={setSelected}/></Reveal>

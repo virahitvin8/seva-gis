@@ -1,7 +1,7 @@
 import type { Ring } from './raster'
 
-export type CatId = 'wells' | 'handpumps' | 'ponds' | 'streams' | 'canals' | 'pipes' | 'poles' | 'transformers' | 'lines' | 'pumps'
-export const CATS: { id: CatId; name: string; color: string; kind: 'water' | 'power'; note: string }[] = [
+export type CatId = 'wells' | 'handpumps' | 'ponds' | 'streams' | 'canals' | 'pipes' | 'poles' | 'transformers' | 'lines' | 'pumps' | 'agrishops' | 'mandis' | 'kvks' | 'coldstorage'
+export const CATS: { id: CatId; name: string; color: string; kind: 'water' | 'power' | 'agri'; note: string }[] = [
   { id: 'wells', name: 'Borewells and tube wells', color: '#0284c7', kind: 'water', note: 'Wells and boreholes tagged on OpenStreetMap' },
   { id: 'handpumps', name: 'Hand pumps and taps', color: '#06b6d4', kind: 'water', note: 'Hand pumps, drinking-water points and taps' },
   { id: 'ponds', name: 'Lakes and ponds', color: '#2563eb', kind: 'water', note: 'Still water: lakes, ponds, tanks, reservoirs' },
@@ -12,6 +12,10 @@ export const CATS: { id: CatId; name: string; color: string; kind: 'water' | 'po
   { id: 'transformers', name: 'Transformers and substations', color: '#dc2626', kind: 'power', note: 'Needed for a pump motor connection' },
   { id: 'lines', name: 'Farm and power lines', color: '#f97316', kind: 'power', note: 'Overhead lines and minor lines' },
   { id: 'pumps', name: 'Pumps and motors', color: '#9333ea', kind: 'power', note: 'Pumping stations' },
+  { id: 'agrishops', name: 'Agri shops (seeds & fertilizer)', color: '#16a34a', kind: 'agri', note: 'Input dealers, agrochemical and seed stores' },
+  { id: 'mandis', name: 'Mandis and APMC markets', color: '#eab308', kind: 'agri', note: 'Grain collection markets and procurement yards' },
+  { id: 'kvks', name: 'KVKs and agri centers', color: '#8b5cf6', kind: 'agri', note: 'Krishi Vigyan Kendras and extension officers' },
+  { id: 'coldstorage', name: 'Cold storage & warehouses', color: '#06b6d4', kind: 'agri', note: 'Grain storage and cold chain preservation' },
 ]
 export type Feat = { id: string; cat: CatId; label: string; pts: [number, number][]; closed: boolean; dist: number }
 export const BUFFERS = [100, 250, 500, 1000]
@@ -19,6 +23,12 @@ export const BUFFERS = [100, 250, 500, 1000]
 type Tags = Record<string, string>
 function classify(t: Tags, isLine: boolean, isArea: boolean): { cat: CatId; label: string } | null {
   const name = t.name ? ` “${t.name}”` : ''
+  const tLow = (t.name || '').toLowerCase()
+  if (t.shop === 'agrarian' || t.shop === 'farm' || t.shop === 'fertilizer' || t.shop === 'trade' || tLow.includes('fertilizer') || tLow.includes('seeds') || tLow.includes('krishi seva')) return { cat: 'agrishops', label: `Agri Shop${name}` }
+  if (t.amenity === 'marketplace' || t.commercial === 'market' || tLow.includes('mandi') || tLow.includes('apmc')) return { cat: 'mandis', label: `Mandi / Market${name}` }
+  if ((t.office === 'government' || t.amenity === 'research_institute') && (tLow.includes('krishi') || tLow.includes('kvk') || tLow.includes('agriculture') || tLow.includes('icar'))) return { cat: 'kvks', label: `KVK / Agri Office${name}` }
+  if (t.building === 'warehouse' || t.industrial === 'warehouse' || t.amenity === 'cold_storage' || tLow.includes('cold storage') || tLow.includes('godown')) return { cat: 'coldstorage', label: `Cold Storage / Warehouse${name}` }
+
   if (t.power === 'pole' || t.power === 'tower') return { cat: 'poles', label: `Electric ${t.power}` }
   if (t.power === 'transformer' || t.power === 'substation') return { cat: 'transformers', label: t.power === 'substation' ? 'Substation' : 'Transformer' }
   if (t.power === 'line' || t.power === 'minor_line') return { cat: 'lines', label: t.power === 'line' ? 'Power line' : 'Minor power line' }
@@ -85,6 +95,12 @@ way["man_made"="pipeline"](${bb});
 node["power"~"^(pole|tower|transformer|substation)$"](${bb});
 way["power"~"^(line|minor_line|substation)$"](${bb});
 );out geom 1200;`
+  const qAgri = `${head}
+nwr["shop"~"^(agrarian|farm|fertilizer|trade)$"](${bb});
+nwr["amenity"="marketplace"](${bb});
+nwr["office"="government"](${bb});
+nwr["building"="warehouse"](${bb});
+);out geom 800;`
   const fetchOne = async (q: string) => {
     let lastErr: unknown
     for (const url of ENDPOINTS) {
@@ -104,7 +120,7 @@ way["power"~"^(line|minor_line|substation)$"](${bb});
     throw lastErr instanceof Error ? lastErr : new Error('Could not reach the map data service')
   }
   const run = async () => {
-    const parts = await Promise.allSettled([fetchOne(qWater), fetchOne(qPower)])
+    const parts = await Promise.allSettled([fetchOne(qWater), fetchOne(qPower), fetchOne(qAgri)])
     if (parts.every(p => p.status === 'rejected')) throw new Error('The free OpenStreetMap data service is busy or unreachable right now. Please try again in a minute.')
     const out: Feat[] = []
     for (const part of parts) {

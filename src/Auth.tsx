@@ -13,7 +13,8 @@ import {
   Sprout,
   ShieldCheck,
   Layers,
-  Sparkles
+  Sparkles,
+  Star
 } from 'lucide-react'
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'

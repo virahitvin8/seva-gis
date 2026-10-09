@@ -52,7 +52,7 @@ Free &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; In-Browser
 
 ---
 
-## 🎬 Official Portal Walkthrough & Video Tour
+## <img src="docs/readme_icons/flickering_video.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Official Portal Walkthrough & Video Tour
 
 > **Captured directly from the official live portal at [sevagis.dpdns.org](https://sevagis.dpdns.org) featuring authentic Sentinel-2 L2A ingestion, Bottom-Of-Atmosphere (BOA) reflectances, Punjab Wheat Parcel #84, Krishna Delta Paddy, QGIS-precision layers, and Fields2Cover swath robotics.**
 > <br/>
@@ -126,7 +126,8 @@ Using K-Means++ clustering on multi-band spectral arrays, SEVA·GIS segments the
 
 ---
 
-## 🗺️ Where is what — Figma-Style Interactive Guided Tour
+<a id="where-is-what"></a>
+## <img src="docs/readme_icons/quick_tour_icon.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Where is what — Figma-Style Interactive Guided Tour
 
 > **Interactive Figma-style tour with smooth cursor tracking and contextual camera zooms to every control, tool, and parameter in SEVA·GIS.**
 > <br/>
@@ -156,13 +157,15 @@ Using K-Means++ clustering on multi-band spectral arrays, SEVA·GIS segments the
 
 ---
 
-## 📖 Contents
+<a id="contents"></a>
+## <img src="docs/readme_icons/turning_pages.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Contents
 
-[What is SEVA·GIS?](#-what-is-sevagis) · [Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)](#-dual-engine-hybrid-architecture) · [Step-by-Step Field Journey](#-how-it-works--the-step-by-step-field-journey) · [Spectral & SAR Sensor Suite](#-spectral--sar-radar-indices-suite) · [Farmer Decision Engines](#-farmer-decision-engines--operational-tools) · [GeoAI, Machine Learning & Quantum Studio](#-geoai-machine-learning--quantum-studio) · [Ground-Truth Accuracy](#-ground-truth-accuracy--field-validation) · [Pro-GIS Inputs & Multi-Format Exports](#-pro-gis-inputs--multi-format-exports) · [Complete Feature Matrix](#-complete-feature-matrix) · [Data Sources](#-open-data-sources) · [Limitations](#-limitations) · [Author & Credits](#-author)
+[What is SEVA·GIS?](#what-is-sevagis) · [Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)](#dual-engine) · [Step-by-Step Field Journey](#field-journey) · [Spectral & SAR Sensor Suite](#spectral-suite) · [Farmer Decision Engines](#decision-engines) · [GeoAI, Machine Learning & Quantum Studio](#geoai-studio) · [Ground-Truth Accuracy](#ground-truth) · [Pro-GIS Inputs & Multi-Format Exports](#pro-gis-exports) · [Complete Feature Matrix](#feature-matrix) · [Data Sources](#data-sources) · [Limitations](#limitations) · [Author & Credits](#author-credits)
 
 ---
 
-## 🌱 What is SEVA·GIS?
+<a id="what-is-sevagis"></a>
+## <img src="docs/logo.png" width="30" height="30" alt="SEVA·GIS" style="vertical-align: middle; display: inline-block;"/> What is SEVA·GIS?
 
 Most satellite crop monitoring platforms are locked behind expensive enterprise subscriptions or require specialized GIS training to operate. 
 
@@ -175,7 +178,8 @@ Most satellite crop monitoring platforms are locked behind expensive enterprise 
 
 ---
 
-## 🗺️ Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)
+<a id="dual-engine"></a>
+## <img src="docs/readme_icons/dual_engine_2d_3d.gif" width="32" height="32" style="vertical-align: middle; display: inline-block;"/> Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)
 
 To deliver both **instant mobile responsiveness** and **high-fidelity 3D terrain visualization**, SEVA·GIS employs a purpose-built dual-engine architecture:
 
@@ -199,7 +203,8 @@ To deliver both **instant mobile responsiveness** and **high-fidelity 3D terrain
 
 ---
 
-## 🚜 How it Works — The Step-by-Step Field Journey
+<a id="field-journey"></a>
+## <img src="docs/readme_icons/tractor_pulling.gif" width="32" height="32" style="vertical-align: middle; display: inline-block;"/> How it Works — The Step-by-Step Field Journey
 
 SEVA·GIS takes you from an empty map to a complete precision farming plan through streamlined steps:
 
@@ -227,7 +232,8 @@ SEVA·GIS takes you from an empty map to a complete precision farming plan throu
 
 ---
 
-## 🛰️ Spectral & SAR Radar Indices Suite
+<a id="spectral-suite"></a>
+## <img src="docs/readme_icons/radar_satellite.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Spectral & SAR Radar Indices Suite
 
 SEVA·GIS computes a full scientific suite of optical, red-edge, thermal, and radar indices client-side:
 
@@ -252,7 +258,8 @@ SEVA·GIS computes a full scientific suite of optical, red-edge, thermal, and ra
 
 ---
 
-## 💧 Farmer Decision Engines & Operational Tools
+<a id="decision-engines"></a>
+## <img src="docs/readme_icons/water_droplet.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Farmer Decision Engines & Operational Tools
 
 ### 1. Daily Irrigation Decision Engine ("Irrigate today? How much?")
 - Answers the single most critical farmer question: **"Should I run my pump today, and how much water does my crop need?"**
@@ -334,7 +341,8 @@ SEVA·GIS computes a full scientific suite of optical, red-edge, thermal, and ra
 
 ---
 
-## 🧠 GeoAI, Machine Learning & Quantum Studio
+<a id="geoai-studio"></a>
+## <img src="docs/readme_icons/ai_classification.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> GeoAI, Machine Learning & Quantum Studio
 
 SEVA·GIS features an in-browser artificial intelligence suite executing inside Web Workers without sending client data to external servers:
 
@@ -371,7 +379,8 @@ SEVA·GIS features an in-browser artificial intelligence suite executing inside 
 
 ---
 
-## 🎯 Ground-Truth Accuracy & Field Validation
+<a id="ground-truth"></a>
+## <img src="docs/readme_icons/arrow_target.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Ground-Truth Accuracy & Field Validation
 
 To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against field sensor instrumentation at the **Punjab Agricultural University (PAU) Agromet Observatory** in Ludhiana, Punjab ($30.9009^\circ\text{ N}, 75.8572^\circ\text{ E}$):
 
@@ -387,7 +396,8 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 ---
 
-## 📦 Pro-GIS Inputs & Multi-Format Exports
+<a id="pro-gis-exports"></a>
+## <img src="docs/readme_icons/packing_box.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Pro-GIS Inputs & Multi-Format Exports
 
 ### Supported Input Boundary Formats
 - **GeoJSON (RFC 7946):** Direct upload of standard feature collections and polygons.
@@ -410,7 +420,8 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 ---
 
-## 🛰️ Complete Feature Matrix
+<a id="feature-matrix"></a>
+## <img src="docs/readme_icons/satellite_earth_scan.gif" width="32" height="32" style="vertical-align: middle; display: inline-block;"/> Complete Feature Matrix
 
 | Area | Capability | Standard / Engine |
 |---|---|---|
@@ -445,7 +456,8 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 ---
 
-## 📡 Open Data Sources
+<a id="data-sources"></a>
+## <img src="docs/readme_icons/antenna_hologram.gif" width="32" height="32" style="vertical-align: middle; display: inline-block;"/> Open Data Sources
 
 | Provider | Data Ingested | Protocol / Format |
 |---|---|---|
@@ -458,7 +470,8 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 ---
 
-## ⚠️ Limitations
+<a id="limitations"></a>
+## <img src="docs/readme_icons/warning_triangle.gif" width="28" height="28" style="vertical-align: middle; display: inline-block;"/> Limitations
 
 - A satellite shows *where* a crop is weaker, not *why*.
 - Pest and moisture scores are rules of thumb, not forecasts.
@@ -468,13 +481,14 @@ To ensure agronomic reliability, SEVA·GIS parameters were benchmarked against f
 
 ---
 
-## 👨‍💻 Author
+<a id="author-credits"></a>
+## <img src="docs/readme_icons/author_waving.gif" width="32" height="32" style="vertical-align: middle; display: inline-block;"/> Author
 
 <div align="center">
 
 **N. Akshit Vinay**
 
-*Idea, design, and Vibe coded  for everyone who loves the land, and wants to see it grow.* &nbsp;❤️💥 <img src="docs/butterfly.gif" width="22" height="22" alt="Rainbow Butterfly" style="vertical-align: middle; display: inline-block;" />
+*Idea, design, and Vibe coded for everyone who loves the land, and wants to see it grow.* &nbsp;<img src="docs/readme_icons/heart_butterfly.gif" width="28" height="28" alt="Heart to Butterfly" style="vertical-align: middle; display: inline-block;" />
 
 <br/>
 <br/>
@@ -491,7 +505,7 @@ Released under the [MIT License](LICENSE).
 
 ---
 
-## 🙏 Credits
+## <img src="docs/readme_icons/clapping_hands.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Credits
 
 Complete citations for scientific datasets, open-source libraries, and algorithms are maintained in [docs/CREDITS.md](docs/CREDITS.md).
 

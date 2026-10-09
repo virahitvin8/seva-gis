@@ -139,7 +139,7 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   return makeGrid(raster.w, raster.h, bbox, wm, hm, b, ok, ring)
 }
 
-export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 700))
+export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 1200))
 const loadLight = (scene: Scene, farm: FarmGeo) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false))
 
 export const loadDem = (farm: FarmGeo) => memo(`dem3:${geoKey(farm)}`, async () => {

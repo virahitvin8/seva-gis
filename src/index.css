@@ -1165,6 +1165,667 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   }
 }
 
+/* =========================================================================
+   GIS Layers & Symbology Box, Farm Background Modes, and Zoom Stretch
+   ========================================================================= */
 
+/* Top Toolbar: Farm Background Selector */
+.ix-bg-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(16, 35, 27, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 4px 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+.ix-bg-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9cb8a3;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 4px;
+}
+.ix-bg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #d1e2d6;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-bg-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+.ix-bg-btn.btn-blk.on {
+  background: #000000;
+  color: #4ade80;
+  border-color: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+.ix-bg-btn.btn-wht.on {
+  background: #ffffff;
+  color: #064e3b;
+  border-color: #10b981;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+.ix-bg-btn:not(.btn-blk):not(.btn-wht).on {
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+}
+.dot-blk {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #000000;
+  border: 1.5px solid #4ade80;
+}
+.dot-wht {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #94a3b8;
+}
 
+/* Zoom Stretch Button */
+.ix-stretch-btn {
+  background: rgba(16, 35, 27, 0.94);
+  color: #bbf7d0;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  transition: all 0.15s ease;
+}
+.ix-stretch-btn:hover {
+  background: rgba(22, 101, 52, 0.9);
+  color: #ffffff;
+}
+.ix-stretch-btn.on {
+  background: #22c55e !important;
+  color: #052e16 !important;
+  font-weight: 700;
+}
 
+/* Layers Box Toggle Button */
+.ix-lb-btn {
+  background: rgba(16, 35, 27, 0.94);
+  color: #f0fdf4;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.ix-lb-btn.on {
+  background: #065f46;
+  border-color: #34d399;
+  color: #ffffff;
+}
+
+/* =========================================================================
+   GIS Layers & Symbology Panel (.ix-layers-box)
+   ========================================================================= */
+.ix-layers-box {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  bottom: 14px;
+  width: 390px;
+  max-width: calc(100% - 28px);
+  background: rgba(11, 23, 18, 0.95);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.65);
+  z-index: 550;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  color: #f0fdf4;
+}
+
+.ix-lb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: rgba(6, 44, 30, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 10px;
+}
+.ix-lb-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.ix-lb-title strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #f0fdf4;
+  display: block;
+  line-height: 1.2;
+}
+.ix-lb-title small {
+  font-size: 9.5px;
+  color: #a7f3d0;
+  display: block;
+}
+
+.ix-lb-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ix-lb-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #d1fae5;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-lb-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.ix-lb-tool-btn.active {
+  background: #10b981;
+  color: #042f1a;
+  border-color: #34d399;
+}
+.ix-lb-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #94a3b8;
+  background: transparent;
+  cursor: pointer;
+}
+.ix-lb-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+/* Tab Navigation */
+.ix-lb-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 6px;
+  gap: 3px;
+  overflow-x: auto;
+}
+.ix-lb-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.ix-lb-tabs button:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.06);
+}
+.ix-lb-tabs button.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+/* Body Content */
+.ix-lb-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Layer Cards in Active List */
+.ix-lb-active-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ix-lb-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.15s ease;
+}
+.ix-lb-card.off {
+  opacity: 0.5;
+}
+.ix-lb-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ix-lb-card-meta {
+  flex: 1;
+  min-width: 0;
+}
+.ix-lb-card-meta strong {
+  display: block;
+  font-size: 12.5px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ix-lb-badge {
+  font-size: 9px;
+  color: #6ee7b7;
+  font-family: 'JetBrains Mono', monospace;
+}
+.ix-vd-chip {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.ix-vd-chip.good {
+  background: #065f46;
+  color: #a7f3d0;
+}
+.ix-vd-chip.ok, .ix-vd-chip.info {
+  background: #1e293b;
+  color: #93c5fd;
+}
+.ix-vd-chip.warn {
+  background: #78350f;
+  color: #fde68a;
+}
+.ix-vd-chip.bad {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+.ix-lb-card-ops {
+  display: flex;
+  gap: 4px;
+}
+.ix-lb-card-ops button {
+  padding: 4px;
+  border-radius: 5px;
+  color: #94a3b8;
+  background: transparent;
+  cursor: pointer;
+}
+.ix-lb-card-ops button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Symbology Scale */
+.ix-lb-symbology {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ix-lb-scale-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ix-lb-bar {
+  height: 7px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.ix-lb-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #cbd5e1;
+}
+.ix-lb-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #94a3b8;
+}
+.ix-lb-stat-row b {
+  color: #34d399;
+}
+.ix-lb-rgb-note {
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+/* Opacity Row */
+.ix-lb-opacity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 9.5px;
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 6px;
+}
+.ix-lb-opacity-row input {
+  flex: 1;
+  max-width: 140px;
+  accent-color: #10b981;
+}
+
+/* Search and Catalog Tab */
+.ix-lb-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #94a3b8;
+}
+.ix-lb-search-bar input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #ffffff;
+  font-size: 11px;
+}
+.ix-lb-cat-pills {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.ix-lb-cat-pills button {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ix-lb-cat-pills button.active {
+  background: #065f46;
+  border-color: #10b981;
+  color: #a7f3d0;
+}
+
+.ix-lb-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+.ix-lb-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.ix-lb-cat-item.on {
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(6, 78, 59, 0.2);
+}
+.ix-lb-cat-info {
+  flex: 1;
+  min-width: 0;
+}
+.ix-lb-cat-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ix-lb-cat-name b {
+  font-size: 12px;
+  color: #f1f5f9;
+}
+.ix-cat-pill {
+  font-size: 8.5px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.ix-lb-cat-info small {
+  display: block;
+  font-size: 9.5px;
+  color: #94a3b8;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.ix-lb-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-lb-toggle-btn.add {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.ix-lb-toggle-btn.add:hover {
+  background: #10b981;
+  color: #042f1a;
+}
+.ix-lb-toggle-btn.remove {
+  background: #065f46;
+  color: #a7f3d0;
+  border: 1px solid #10b981;
+}
+
+/* Symbology Key Tab */
+.ix-lb-sym-full {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ix-lb-sym-header strong {
+  font-size: 13.5px;
+  color: #f1f5f9;
+  display: block;
+}
+.ix-lb-sym-header small {
+  font-size: 10.5px;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+.ix-lb-sym-gradient-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ix-lb-classes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ix-lb-classes-list h4 {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a7f3d0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 4px 0 2px;
+}
+.ix-lb-class-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 9px;
+  border-radius: 6px;
+}
+.ix-lb-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.ix-lb-class-name {
+  flex: 1;
+  font-size: 11px;
+  color: #e2e8f0;
+}
+.ix-lb-class-row code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+.ix-lb-sym-actions {
+  margin-top: 6px;
+}
+.ix-lb-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 7px;
+  background: #065f46;
+  border: 1px solid #10b981;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.ix-lb-action-btn:hover {
+  background: #047857;
+}
+
+/* Display & Stretch Settings Tab */
+.ix-lb-settings-group {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  padding: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ix-lb-settings-group h4 {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+.ix-settings-desc {
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.ix-settings-btns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 6px;
+}
+.ix-sett-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-sett-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+.ix-sett-btn.on {
+  background: #10b981;
+  color: #042f1a;
+  border-color: #34d399;
+  font-weight: 700;
+}
+.ix-sett-btn.full {
+  width: 100%;
+}
+
+/* Footer Status Bar */
+.ix-lb-footer {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ix-lb-foot-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  color: #a7f3d0;
+  letter-spacing: 0.04em;
+}
+.ix-pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+/* Empty State */
+.ix-lb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 15px;
+  text-align: center;
+  gap: 10px;
+  color: #94a3b8;
+}
+.ix-lb-empty p {
+  font-size: 11px;
+}

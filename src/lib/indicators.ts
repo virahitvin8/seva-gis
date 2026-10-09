@@ -145,15 +145,27 @@ export function terrainBands(elev: Float64Array, w: number, h: number, dx: numbe
 
 export type Layer = { url: string; stat: Stat | null; range: [number, number] | null; ind: Ind }
 
-const rangeOf = (ind: Ind, g: Grid): [number, number] | null => {
+export type RenderOptions = {
+  smooth?: boolean
+  dra?: boolean
+  sharpen?: number
+}
+
+const rangeOf = (ind: Ind, g: Grid, dra = false, stat?: Stat | null): [number, number] | null => {
+  if (dra && stat && stat.p90 > stat.p10 && ind.ramp) {
+    const span = stat.p90 - stat.p10
+    const lo = Math.max(ind.valid?.[0] ?? -1e9, stat.p10 - span * 0.05)
+    const hi = Math.min(ind.valid?.[1] ?? 1e9, stat.p90 + span * 0.05)
+    return [lo, hi]
+  }
   if (ind.range) return ind.range
   if (!ind.auto || !ind.value) return null
   const s = statsOf(g.b.elev, i => !!g.inside[i], ind.valid ?? [-1e9, 1e9])
   return s ? (s.max - s.min < 2 ? [s.min - 1, s.max + 1] : [s.min, s.max]) : null
 }
 
-export function renderLayer(ind: Ind, g: Grid, ring: Ring): Layer {
-  const range = rangeOf(ind, g)
+export function renderLayer(ind: Ind, g: Grid, ring: Ring, opts: RenderOptions = {}): Layer {
+  const { smooth = true, dra = false, sharpen = 0.3 } = opts
   const valid = ind.valid ?? [-1, 1]
   let stat: Stat | null = null
   if (ind.value) {
@@ -161,6 +173,7 @@ export function renderLayer(ind: Ind, g: Grid, ring: Ring): Layer {
     for (let i = 0; i < vals.length; i++) vals[i] = ind.value(g.b, i)
     stat = statsOf(vals, i => !!g.inside[i] && !!g.ok[i], valid)
   }
+  const range = rangeOf(ind, g, dra, stat)
   const paint = (i: number): [number, number, number] | null => {
     if (!g.ok[i]) return null
     if (ind.rgb) return ind.rgb(g.b, i)
@@ -169,7 +182,7 @@ export function renderLayer(ind: Ind, g: Grid, ring: Ring): Layer {
     if (!ind.ramp) { const c = Math.round(v); return [c, c, c] }
     return ind.log ? rampColor(ind.ramp, (Math.log10(v) - Math.log10(range![0])) / (Math.log10(range![1]) - Math.log10(range![0]))) : rampColor(ind.ramp, (v - range![0]) / (range![1] - range![0]))
   }
-  return { url: paintClipped(g.w, g.h, g.bbox, ring, paint), stat, range, ind }
+  return { url: paintClipped(g.w, g.h, g.bbox, ring, paint, smooth, sharpen), stat, range, ind }
 }
 
 export function sampleAt(g: Grid, lon: number, lat: number): Record<string, number> | null {

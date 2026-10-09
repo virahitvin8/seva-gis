@@ -278,6 +278,9 @@ export type YieldForecast = {
   errorMarginTonHa: number
   predictedQuintalAcre: number
   confidencePct: number
+  baseYieldTonHa: number
+  maxYieldTonHa: number
+  optimalNdvi: number
   factors: { ndviFactor: number; soilFactor: number; weatherFactor: number }
   explanation: string
 }
@@ -299,11 +302,16 @@ export function predictYield(
     mustard: { base: 1.8, max: 2.8, optimalNdvi: 0.70, alpha: 1.8 },
     tomato: { base: 28.0, max: 55.0, optimalNdvi: 0.80, alpha: 22.0 },
     potato: { base: 22.0, max: 40.0, optimalNdvi: 0.82, alpha: 18.0 },
-    pulses: { base: 1.2, max: 2.2, optimalNdvi: 0.68, alpha: 1.2 },
+    pulses: { base: 1.4, max: 2.4, optimalNdvi: 0.68, alpha: 1.2 },
+    gram: { base: 1.5, max: 2.5, optimalNdvi: 0.70, alpha: 1.3 },
+    chickpea: { base: 1.5, max: 2.5, optimalNdvi: 0.70, alpha: 1.3 },
+    lentil: { base: 1.3, max: 2.2, optimalNdvi: 0.66, alpha: 1.1 },
+    pigeonpea: { base: 1.6, max: 2.8, optimalNdvi: 0.74, alpha: 1.4 },
+    other: { base: 3.6, max: 6.0, optimalNdvi: 0.75, alpha: 3.0 },
   }
 
-  const normKey = (cropName || 'wheat').toLowerCase().trim()
-  const matchedKey = Object.keys(baseYields).find(k => normKey.includes(k)) || 'wheat'
+  const normKey = (cropName || 'other').toLowerCase().trim()
+  const matchedKey = Object.keys(baseYields).find(k => normKey.includes(k)) || 'other'
   const spec = baseYields[matchedKey]
 
   const ndviVal = Math.max(0.15, Math.min(0.95, peakNdvi || 0.65))
@@ -320,17 +328,20 @@ export function predictYield(
   const quintalAcre = +(est * 4.047).toFixed(1)
 
   return {
-    crop: cropName,
+    crop: cropName || 'Other crop',
     predictedYieldTonHa: est,
     errorMarginTonHa: margin,
     predictedQuintalAcre: quintalAcre,
     confidencePct: 88,
+    baseYieldTonHa: spec.base,
+    maxYieldTonHa: spec.max,
+    optimalNdvi: spec.optimalNdvi,
     factors: {
       ndviFactor: +ndviFactor.toFixed(2),
       soilFactor: +soilFactor.toFixed(2),
       weatherFactor: +weatherFactor.toFixed(2)
     },
-    explanation: `Yield modeled from peak seasonal NDVI (${ndviVal.toFixed(2)} vs optimal benchmark ${spec.optimalNdvi}), adjusted for soil pH and moisture conditions. Satellite error margin: ±${margin} t/ha.`
+    explanation: `Yield modeled from peak seasonal NDVI (${ndviVal.toFixed(2)} vs optimal benchmark ${spec.optimalNdvi}), adjusted for soil pH (${ph.toFixed(1)}) and moisture conditions. Satellite error margin: ±${margin} t/ha.`
   }
 }
 

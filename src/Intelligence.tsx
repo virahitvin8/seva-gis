@@ -1,7 +1,7 @@
 import LogoLoader from './LogoLoader'
 import SourceNote, { type SourceKey } from './SourceNote'
 import { useEffect, useMemo, useState } from 'react'
-import { Bug, CalendarRange, Film, GitCompareArrows, Layers3, Sparkles, Sprout } from 'lucide-react'
+import { Bug, CalendarRange, Film, GitCompareArrows, Layers3, RefreshCw, Sparkles, Sprout } from 'lucide-react'
 import { fetchSoil, fetchWeather } from './lib/agro'
 import { RISK_BANDS, changeAnalysis, hotspots, landCover, loadHistory, managementZones, pestRisks, phenology, riskBand, sceneNdvi, type ClassRow, type MapResult } from './lib/gee'
 import { MONTHS, PLAN_CROPS, SUIT_BANDS, fetchClimate, rotationAdvice, suitBand, suitability } from './lib/plan'
@@ -201,10 +201,29 @@ export default function Intelligence({ farm }: Props) {
     return () => window.removeEventListener('seva-set-lab-tab', onTab)
   }, [])
 
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [spinning, setSpinning] = useState(false)
+
+  function handleRefreshLab() {
+    setSpinning(true)
+    setRefreshKey(k => k + 1)
+    setTimeout(() => setSpinning(false), 800)
+  }
+
   return <section className="ag-wrap ge-wrap">
-    <div className="intelligence-heading"><h2>Analysis lab <span>Earth Engine-style workflows · Sentinel-2 · Open-Meteo · SoilGrids</span></h2></div>
+    <div className="intelligence-heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <h2>Analysis lab <span>Earth Engine-style workflows · Sentinel-2 · Open-Meteo · SoilGrids</span></h2>
+      <button
+        className={`box-refresh-btn ${spinning ? 'spinning' : ''}`}
+        title="Refresh Analysis lab"
+        aria-label="Refresh Analysis lab"
+        onClick={handleRefreshLab}
+      >
+        <RefreshCw size={14}/>
+      </button>
+    </div>
     <div className="ge-tabs" role="tablist">{TABS.map(([id, label, Icon]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon size={15}/>{label}</button>)}</div>
-    <div className="ge-body" key={`${tab}:${farm.id}`}>
+    <div className="ge-body" key={`${tab}:${farm.id}:${refreshKey}`}>
       {tab === 'map' && <MapTab farm={farm} scene={scene}/>}
       {tab === 'plan' && <PlanTab farm={farm}/>}
       {tab === 'change' && <ChangeTab farm={farm}/>}

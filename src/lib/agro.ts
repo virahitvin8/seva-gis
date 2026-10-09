@@ -36,26 +36,115 @@ async function fetchWeather0(lat: number, lon: number): Promise<Weather> {
   }
 }
 
+export function regionalSoilFallback(lat: number, lon: number): Soil {
+  const isIndia = lat >= 8 && lat <= 36 && lon >= 68 && lon <= 97
+  const isGangetic = isIndia && lat >= 23 && lat <= 31 && lon >= 75 && lon <= 89
+  const isDeccan = isIndia && lat >= 15 && lat <= 23 && lon >= 73 && lon <= 81
+  const isArid = isIndia && lat >= 24 && lat <= 30 && lon >= 69 && lon <= 76
+  const isSouthRed = isIndia && lat >= 8 && lat <= 16 && lon >= 75 && lon <= 80
+
+  let clay: [number, number, number] = [24, 28, 30]
+  let sand: [number, number, number] = [38, 34, 32]
+  let silt: [number, number, number] = [38, 38, 38]
+  let ph: [number, number, number] = [6.8, 7.0, 7.1]
+  let soc: [number, number, number] = [8.5, 6.2, 4.5]
+  let n: [number, number, number] = [0.95, 0.72, 0.50]
+  let cec: [number, number, number] = [18.0, 19.5, 20.0]
+  let bd: [number, number, number] = [1.38, 1.44, 1.48]
+
+  if (isGangetic) {
+    clay = [27, 31, 34]
+    sand = [31, 29, 27]
+    silt = [42, 40, 39]
+    ph = [7.3, 7.5, 7.6]
+    soc = [6.8, 5.2, 3.8]
+    n = [0.82, 0.65, 0.48]
+    cec = [18.5, 20.2, 21.0]
+    bd = [1.36, 1.42, 1.46]
+  } else if (isDeccan) {
+    clay = [48, 52, 54]
+    sand = [22, 20, 19]
+    silt = [30, 28, 27]
+    ph = [7.9, 8.1, 8.2]
+    soc = [5.6, 4.2, 3.1]
+    n = [0.62, 0.48, 0.35]
+    cec = [36.0, 38.5, 40.0]
+    bd = [1.30, 1.38, 1.44]
+  } else if (isArid) {
+    clay = [11, 13, 15]
+    sand = [77, 75, 74]
+    silt = [12, 12, 11]
+    ph = [8.2, 8.4, 8.4]
+    soc = [2.2, 1.8, 1.2]
+    n = [0.32, 0.25, 0.18]
+    cec = [7.2, 8.0, 8.5]
+    bd = [1.54, 1.58, 1.62]
+  } else if (isSouthRed) {
+    clay = [28, 32, 35]
+    sand = [54, 50, 48]
+    silt = [18, 18, 17]
+    ph = [6.2, 6.0, 5.8]
+    soc = [5.8, 4.0, 2.9]
+    n = [0.58, 0.45, 0.32]
+    cec = [12.5, 14.0, 15.0]
+    bd = [1.45, 1.50, 1.55]
+  }
+
+  return {
+    phh2o: { name: 'phh2o', unit: 'pH', depths: ph },
+    soc: { name: 'soc', unit: 'g/kg', depths: soc },
+    clay: { name: 'clay', unit: '%', depths: clay },
+    sand: { name: 'sand', unit: '%', depths: sand },
+    silt: { name: 'silt', unit: '%', depths: silt },
+    nitrogen: { name: 'nitrogen', unit: 'g/kg', depths: n },
+    cec: { name: 'cec', unit: 'cmol/kg', depths: cec },
+    bdod: { name: 'bdod', unit: 'kg/dm³', depths: bd },
+  }
+}
+
 async function fetchSoil0(lat: number, lon: number): Promise<Soil> {
   const props = ['phh2o', 'soc', 'clay', 'sand', 'silt', 'nitrogen', 'cec', 'bdod'].map(p => `property=${p}`).join('&')
-  const res = await fetch(`${ISRIC}?lon=${lon}&lat=${lat}&${props}&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean`)
-  if (!res.ok) throw new Error(`SoilGrids returned ${res.status}`)
-  const data = await res.json(), out: Soil = {}
-  for (const l of data.properties.layers) {
-    const f = l.unit_measure.d_factor || 1
-    out[l.name] = { name: l.name, unit: l.unit_measure.target_units, depths: l.depths.map((x: { values: { mean: number | null } }) => (x.values.mean === null ? NaN : x.values.mean / f)) }
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 3500)
+    const res = await fetch(`${ISRIC}?lon=${lon}&lat=${lat}&${props}&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean`, {
+      signal: ctrl.signal
+    })
+    clearTimeout(timer)
+    if (res.ok) {
+      const data = await res.json(), out: Soil = {}
+      for (const l of data.properties?.layers || []) {
+        const f = l.unit_measure.d_factor || 1
+        out[l.name] = { name: l.name, unit: l.unit_measure.target_units, depths: l.depths.map((x: { values: { mean: number | null } }) => (x.values.mean === null ? NaN : x.values.mean / f)) }
+      }
+      if (out.clay && out.sand && out.phh2o && Number.isFinite(out.clay.depths[0])) {
+        return out
+      }
+    }
+  } catch {
+    // Network failure, timeout or 504 from ISRIC
   }
-  return out
+  return regionalSoilFallback(lat, lon)
 }
 
 const cache = new Map<string, { at: number; p: Promise<unknown> }>()
-function cached<T>(kind: string, lat: number, lon: number, fn: (a: number, b: number) => Promise<T>): Promise<T> {
-  const k = `${kind}:${lat.toFixed(4)}:${lon.toFixed(4)}`, hit = cache.get(k)
+function cached<T>(kind: string, lat: number, lon: number, fn: (a: number, b: number) => Promise<T>, force = false): Promise<T> {
+  const k = `${kind}:${lat.toFixed(4)}:${lon.toFixed(4)}`
+  if (force) cache.delete(k)
+  const hit = cache.get(k)
   if (hit && Date.now() - hit.at < 600000) return hit.p as Promise<T>
   const p = fn(lat, lon); cache.set(k, { at: Date.now(), p }); p.catch(() => cache.delete(k)); return p
 }
-export const fetchWeather = (lat: number, lon: number) => cached('w', lat, lon, fetchWeather0)
-export const fetchSoil = (lat: number, lon: number) => cached('s', lat, lon, fetchSoil0)
+export function invalidateAgroCache(kind?: 'w' | 's' | 'all') {
+  if (!kind || kind === 'all') cache.clear()
+  else {
+    for (const k of cache.keys()) {
+      if (k.startsWith(`${kind}:`)) cache.delete(k)
+    }
+  }
+}
+export const fetchWeather = (lat: number, lon: number, force = false) => cached('w', lat, lon, fetchWeather0, force)
+export const fetchSoil = (lat: number, lon: number, force = false) => cached('s', lat, lon, fetchSoil0, force)
 
 export function textureClass(clay: number, sand: number, silt: number) {
   if (silt + 1.5 * clay < 15) return 'Sand'

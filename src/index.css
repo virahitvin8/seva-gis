@@ -784,3 +784,34 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 .scout-walk-link{color:#0284c7;font-weight:700;text-decoration:none}
 .scout-walk-link:hover{text-decoration:underline}
 
+/* Per-Box Refresh Button */
+.box-refresh-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px;border-radius:6px;color:var(--muted);border:1px solid transparent;background:transparent;transition:all .15s ease;cursor:pointer;line-height:1}
+.box-refresh-btn:hover{color:var(--primary);background:#ebf2e8;border-color:var(--border)}
+.box-refresh-btn.spinning svg{animation:spin .75s linear infinite}
+.card-refresh-btn{display:inline-flex;align-items:center;justify-content:center;padding:3px;border-radius:5px;color:#8f9d85;border:0;background:transparent;cursor:pointer;transition:all .15s ease}
+.card-refresh-btn:hover{color:#2e4c3a;background:#e9f0e3}
+.card-refresh-btn.spinning svg{animation:spin .75s linear infinite}
+
+/* Git Dot-Matrix Crop Calendar */
+.git-matrix-container{width:100%;overflow-x:auto;padding-bottom:6px}
+.git-matrix-wrap{display:inline-flex;flex-direction:column;gap:4px;min-width:680px}
+.git-matrix-months{display:flex;padding-left:32px;font-size:10px;color:var(--muted);font-weight:600;margin-bottom:2px}
+.git-matrix-grid{display:flex;gap:3px}
+.git-matrix-days{display:flex;flex-direction:column;gap:3px;font-size:9px;color:var(--muted);width:28px;padding-top:2px}
+.git-matrix-col{display:flex;flex-direction:column;gap:3px}
+.git-dot{width:11px;height:11px;border-radius:2px;cursor:pointer;transition:transform .12s ease,outline-color .12s ease}
+.git-dot:hover{transform:scale(1.35);z-index:10;outline:1.5px solid #1f3a2c}
+.git-dot.lvl-0{background:#ebedf0}
+.git-dot.lvl-1{background:#9be9a8}
+.git-dot.lvl-2{background:#40c463}
+.git-dot.lvl-3{background:#30a14e}
+.git-dot.lvl-4{background:#216e39}
+.git-dot.today{box-shadow:0 0 0 1.5px #2563eb}
+.git-matrix-legend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);margin-top:10px}
+.git-matrix-legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* Yield Forecast Enhanced Gauge & Metrics */
+.yield-forecast-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-top:14px}
+.yield-gauge-track{height:8px;border-radius:4px;background:linear-gradient(90deg,#fef08a 0%,#86efac 45%,#22c55e 75%,#15803d 100%);position:relative;margin:12px 0 6px}
+.yield-gauge-pin{position:absolute;top:-4px;width:16px;height:16px;border-radius:50%;background:#0f172a;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);transform:translateX(-50%);transition:left .3s ease}
+

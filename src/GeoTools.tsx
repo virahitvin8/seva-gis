@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownToLine, Compass, Crosshair, Ruler, Route, Sparkles } from 'lucide-react'
+import { ArrowDownToLine, Compass, Crosshair, RefreshCw, Ruler, Route, Sparkles } from 'lucide-react'
 import {
   computeDestinationPoint, convertArea, convertDistance, decimalToSexagesimal, findNearest, getAreaOfPolygon, getBounds, getBoundsOfDistance, getCenter, getCenterOfBounds,
   getDistance, getDistanceFromLine, getGreatCircleBearing, getPathLength, getPreciseDistance, getRhumbLineBearing, isPointInPolygon, isPointWithinRadius,
@@ -20,12 +20,30 @@ const toArea = (m2: number, u: string) => (u === 'ac' ? m2 / 4046.8564224 : conv
 const fromArea = (v: number, u: string) => (u === 'ac' ? v * 4046.8564224 : v / convertArea(1, u))
 const fromDist = (v: number, u: string) => v / convertDistance(1, u)
 
+function BoxRefresh({ title, onRefresh }: { title: string; onRefresh?: () => void }) {
+  const [spinning, setSpinning] = useState(false)
+  return (
+    <button
+      className={`box-refresh-btn ${spinning ? 'spinning' : ''}`}
+      title={`Refresh ${title}`}
+      onClick={() => {
+        setSpinning(true)
+        setTimeout(() => setSpinning(false), 700)
+        onRefresh?.()
+      }}
+    >
+      <RefreshCw size={13} />
+    </button>
+  )
+}
+
 function download(name: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type })), a = document.createElement('a')
   a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url)
 }
 
 export default function GeoTools({ farm, farms }: Props) {
+  const [calcKey, setCalcKey] = useState(0)
   const ring = useMemo(() => farmRing(farm), [farm])
   const closed = useMemo(() => (ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1] ? ring : [...ring, ring[0]]), [ring])
   const poly = useMemo(() => ring.map(pt), [ring])
@@ -38,14 +56,14 @@ export default function GeoTools({ farm, farms }: Props) {
       width: getDistance(nw, { latitude: b.maxLat, longitude: b.maxLng }), height: getDistance(nw, { latitude: b.minLat, longitude: b.minLng }),
       compactness: (4 * Math.PI * area) / (perimeter * perimeter),
     }
-  }, [poly, closed, farm.lat, farm.lon, ring.length])
+  }, [poly, closed, farm.lat, farm.lon, ring.length, calcKey])
 
   const others = farms.filter(x => x.id !== farm.id)
   const near = useMemo(() => {
     if (!others.length) return []
     const list = orderByDistance(g.center, others.map(o => ({ latitude: o.lat, longitude: o.lon, id: o.id }))) as { latitude: number; longitude: number; id: string; distance: number }[]
     return list.map(l => { const o = others.find(x => x.id === l.id)!; return { o, d: getPreciseDistance(g.center, l), bearing: getGreatCircleBearing(g.center, l), dir: dirOf(getRhumbLineBearing(g.center, l)) } })
-  }, [others.map(o => o.id).join(), g.center.latitude, g.center.longitude])
+  }, [others.map(o => o.id).join(), g.center.latitude, g.center.longitude, calcKey])
   const nearestPt = others.length ? findNearest(g.center, others.map(o => ({ latitude: o.lat, longitude: o.lon }))) as { latitude: number; longitude: number } : null
   const nearest = nearestPt ? others.find(o => o.lat === nearestPt.latitude && o.lon === nearestPt.longitude) : null
 
@@ -58,7 +76,7 @@ export default function GeoTools({ farm, farms }: Props) {
     for (let i = 0; i < closed.length - 1; i++) edge = Math.min(edge, getDistanceFromLine(qp, pt(closed[i]), pt(closed[i + 1])))
     const inside = isPointInPolygon(qp, poly)
     return { inside, edge, d: getDistance(g.center, qp), bearing: getRhumbLineBearing(g.center, qp), dir: dirOf(getRhumbLineBearing(g.center, qp)), within: isPointWithinRadius(qp, g.center, Number(q.radius) || 0) }
-  }, [q.lat, q.lon, q.radius, valid, closed, poly, g.center])
+  }, [q.lat, q.lon, q.radius, valid, closed, poly, g.center, calcKey])
 
   const [dest, setDest] = useState({ bearing: '90', dist: '250' })
   const dp = computeDestinationPoint(g.center, Number(dest.dist) || 0, Number(dest.bearing) || 0)
@@ -85,19 +103,19 @@ export default function GeoTools({ farm, farms }: Props) {
     const width = Math.max(1, Math.min(36, Number(swathWidth) || 6))
     const speed = Math.max(2, Math.min(30, Number(swathSpeed) || 8))
     return generateCoveragePath(closed, width, activeAngle, speed, Math.max(8, width * 1.5))
-  }, [closed, swathWidth, activeAngle, swathSpeed])
+  }, [closed, swathWidth, activeAngle, swathSpeed, calcKey])
 
   // Logistics & Isochrones (openrouteservice)
   const logistics = useMemo(() => {
     const areaHa = g.area / 10000
     return calculateFarmLogistics(closed, areaHa)
-  }, [closed, g.area])
+  }, [closed, g.area, calcKey])
 
   // Variable-Rate Nitrogen Prescription (awesome-agriculture)
   const vra = useMemo(() => {
     const areaHa = g.area / 10000
     return calculateVraPrescription(areaHa)
-  }, [g.area])
+  }, [g.area, calcKey])
 
   const ringWkt = `POLYGON((${closed.map(p => `${p[0].toFixed(6)} ${p[1].toFixed(6)}`).join(', ')}))`
   const geojson = { type: 'Feature', properties: { name: farm.name, area_ha: +(g.area / 10000).toFixed(3), perimeter_m: +g.perimeter.toFixed(1) }, geometry: { type: 'Polygon', coordinates: [closed] } }
@@ -109,7 +127,7 @@ export default function GeoTools({ farm, farms }: Props) {
     <div className="intelligence-heading"><h2>Geo toolkit <span>geolib · measure, locate, convert, export</span></h2>
       <div className="gt-exports"><button onClick={() => download(`${slug}.geojson`, JSON.stringify(geojson, null, 2), 'application/geo+json')}><ArrowDownToLine size={14}/>GeoJSON</button><button onClick={() => download(`${slug}.kml`, kml, 'application/vnd.google-earth.kml+xml')}><ArrowDownToLine size={14}/>KML</button><button onClick={() => download(`${slug}.wkt`, ringWkt, 'text/plain')}><ArrowDownToLine size={14}/>WKT</button></div></div>
     <div className="ag-cols">
-      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>Farm geometry</h3><small>{g.vertices} boundary points</small></div>
+      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>Farm geometry</h3><small>{g.vertices} boundary points</small><BoxRefresh title="Farm geometry" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <div className="ag-grid">
           <div className="ag-item neutral"><span>Geodesic area</span><b>{f(g.area / 10000, 2)} ha</b><small>{f(toArea(g.area, 'ac'), 2)} acres · {f(g.area, 0)} m²{Number.isFinite(drift) && Math.abs(drift) > 3 ? ` · differs ${f(drift, 0)}% from the saved ${farm.area} ha` : ''}</small></div>
           <div className="ag-item neutral"><span>Perimeter</span><b>{km(g.perimeter)}</b><small>fence or bund length</small></div>
@@ -123,7 +141,7 @@ export default function GeoTools({ farm, farms }: Props) {
       </section>
 
       {/* Fields2Cover Coverage Path Planning */}
-      <section className="ag-card"><div className="ag-head"><Route size={17}/><h3>Machinery swath planner</h3><small>Fields2Cover · Boustrophedon path planning</small></div>
+      <section className="ag-card"><div className="ag-head"><Route size={17}/><h3>Machinery swath planner</h3><small>Fields2Cover · Boustrophedon path planning</small><BoxRefresh title="Machinery swath planner" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <details className="gt-how"><summary>What is Coverage Path Planning?</summary>
           <p>Implements the <b>Fields2Cover</b> agricultural robotics algorithm. Generates parallel swath tracks inside your field with headland margins. Aligning swaths with the longest boundary edge (<b>{optAngle}°</b>) minimizes tractor turns, saving up to 18% machinery fuel and avoiding soil compaction.</p>
         </details>
@@ -157,7 +175,7 @@ export default function GeoTools({ farm, farms }: Props) {
       </section>
 
       {/* openrouteservice Agricultural Logistics */}
-      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Farm logistics &amp; reachability</h3><small>openrouteservice · transit isochrones</small></div>
+      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Farm logistics &amp; reachability</h3><small>openrouteservice · transit isochrones</small><BoxRefresh title="Farm logistics" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <details className="gt-how"><summary>How are reachability isochrones calculated?</summary>
           <p>Models rural machinery transit and grain hauling based on <b>openrouteservice</b> isochrone specifications. Includes unpaved rural road detour factors (0.75× for tractors, 0.80× for haul trucks) to evaluate transfer times to grain silos and collection depots.</p>
         </details>
@@ -172,7 +190,7 @@ export default function GeoTools({ farm, farms }: Props) {
       </section>
 
       {/* awesome-agriculture Variable-Rate Fertilizer Prescription (VRA) */}
-      <section className="ag-card"><div className="ag-head"><Sparkles size={17}/><h3>Variable-rate fertilizer (VRA)</h3><small>awesome-agriculture · 3-zone precision N</small></div>
+      <section className="ag-card"><div className="ag-head"><Sparkles size={17}/><h3>Variable-rate fertilizer (VRA)</h3><small>awesome-agriculture · 3-zone precision N</small><BoxRefresh title="Variable-rate fertilizer" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <details className="gt-how"><summary>How does Variable-Rate Application save fertilizer?</summary>
           <p>Precision agriculture prescriptions classify canopy vigor into 3 operational management zones (low vigor recovery, baseline maintenance, dense vigor safe-rate). Rather than blanket-applying 120 kg N/ha everywhere, VRA cuts nitrogen in lush zones to stop lodging and shifts nutrients to stressed areas.</p>
         </details>
@@ -203,13 +221,13 @@ export default function GeoTools({ farm, farms }: Props) {
         </div>
       </section>
 
-      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small></div>
+      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small><BoxRefresh title="Nearby farms" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         {near.length ? <table className="gt-table"><thead><tr><th>Farm</th><th>Distance</th><th>Bearing</th><th>Direction</th></tr></thead>
           <tbody>{near.map(n => <tr key={n.o.id} className={nearest?.id === n.o.id ? 'on' : ''}><td>{n.o.name}{nearest?.id === n.o.id && <em> nearest</em>}</td><td>{km(n.d)}</td><td>{f(n.bearing, 0)}°</td><td>{n.dir}</td></tr>)}</tbody></table> : <div className="ag-empty">Add a second farm to see distances between your farms.</div>}
         <small className="ag-note">Bearing is measured clockwise from true north: 0° N, 90° E, 180° S, 270° W.</small>
       </section>
 
-      <section className="ag-card"><div className="ag-head"><Crosshair size={17}/><h3>Point checker</h3><small>is it inside my boundary?</small></div>
+      <section className="ag-card"><div className="ag-head"><Crosshair size={17}/><h3>Point checker</h3><small>is it inside my boundary?</small><BoxRefresh title="Point checker" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <div className="gt-form"><label>Latitude<input value={q.lat} onChange={e => setQ({ ...q, lat: e.target.value })}/></label><label>Longitude<input value={q.lon} onChange={e => setQ({ ...q, lon: e.target.value })}/></label><label>Radius (m)<input value={q.radius} onChange={e => setQ({ ...q, radius: e.target.value })}/></label></div>
         {!valid ? <div className="ag-empty">Enter a valid latitude (−90 to 90) and longitude (−180 to 180).</div> : probe && <div className="ag-grid">
           <div className={`ag-item ${probe.inside ? 'good' : 'warn'}`}><span>Inside the farm</span><b>{probe.inside ? 'Yes' : 'No'}</b><small>{probe.inside ? `${f(probe.edge, 0)} m from the nearest boundary` : `${f(probe.edge, 0)} m outside the boundary`}</small></div>
@@ -218,7 +236,7 @@ export default function GeoTools({ farm, farms }: Props) {
         </div>}
       </section>
 
-      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Offset &amp; buffer</h3><small>destination point and search box</small></div>
+      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Offset &amp; buffer</h3><small>destination point and search box</small><BoxRefresh title="Offset & buffer" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <details className="gt-how"><summary>How do I use this?</summary><p><b>Offset</b> answers "where do I end up if I walk from the farm centre?". Type a compass bearing (0 = north, 90 = east, 180 = south, 270 = west) and a distance in metres. You get the exact latitude and longitude, useful for placing a well, a sample point or a boundary stone.</p><p><b>Buffer</b> draws a safety box around the farm centre. Type a radius in metres to see how much land it covers and its corner coordinates. In the Analysis lab, the numbered red spots show a distance and bearing from the farm centre, so you can type those two numbers here to get their coordinates.</p></details>
         <div className="gt-form"><label>Bearing °<input value={dest.bearing} onChange={e => setDest({ ...dest, bearing: e.target.value })}/></label><label>Distance m<input value={dest.dist} onChange={e => setDest({ ...dest, dist: e.target.value })}/></label></div>
         <div className="ag-grid"><div className="ag-item neutral"><span>Point {dest.dist || 0} m at {dest.bearing || 0}° from the centroid</span><b>{f(dp.latitude, 6)}°, {f(dp.longitude, 6)}°</b><small>{dirOf(Number(dest.bearing) || 0)} of the farm centre</small></div></div>
@@ -226,7 +244,7 @@ export default function GeoTools({ farm, farms }: Props) {
         <div className="ag-grid"><div className="ag-item neutral"><span>Box around the centroid</span><b>{f(bb[0].latitude, 5)}, {f(bb[0].longitude, 5)}</b><small>to {f(bb[1].latitude, 5)}, {f(bb[1].longitude, 5)} · covers {f(Math.PI * (Number(buf) || 0) ** 2 / 10000, 2)} ha as a circle</small></div></div>
       </section>
 
-      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>Converters</h3><small>coordinates, area, distance</small></div>
+      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>Converters</h3><small>coordinates, area, distance</small><BoxRefresh title="Converters" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <div className="gt-form"><label>Latitude<input value={conv.lat} onChange={e => setConv({ ...conv, lat: e.target.value })}/></label><label>Longitude<input value={conv.lon} onChange={e => setConv({ ...conv, lon: e.target.value })}/></label></div>
         <div className="ag-grid"><div className="ag-item neutral"><span>Degrees, minutes, seconds</span><b>{latDms} N/S</b><small>{lonDms} E/W</small></div></div>
         <div className="gt-form"><label>DMS to decimal<input placeholder={'14° 26′ 6″ N'} value={conv.dms} onChange={e => setConv({ ...conv, dms: e.target.value })}/></label>{dmsOut && <b className="gt-out">{dmsOut}</b>}</div>
@@ -236,7 +254,7 @@ export default function GeoTools({ farm, farms }: Props) {
         <div className="gt-chips">{DIST_UNITS.filter(u => u[0] !== conv.distU).map(u => <span key={u[0]}>{f(convertDistance(m, u[0]), 2)} {u[1]}</span>)}</div>
       </section>
 
-      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>WKT reader</h3><small>paste a polygon from QGIS or PostGIS</small></div>
+      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>WKT reader</h3><small>paste a polygon from QGIS or PostGIS</small><BoxRefresh title="WKT reader" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         <details className="gt-how"><summary>What is WKT and how do I use it?</summary><p>WKT (Well-Known Text) is a plain-text way to write a shape, for example <code>POLYGON((78.1 14.4, 78.2 14.4, 78.2 14.5, 78.1 14.5, 78.1 14.4))</code>. Each pair is longitude then latitude. GIS programs like QGIS, PostGIS and Google Earth Engine can copy shapes this way.</p><p>Paste it in the box below and SEVA.GIS shows its area and centre. To make it a farm, open <b>Add farm</b> then <b>Upload file</b> and choose a .wkt or .txt file containing the same text. The Analysis lab then maps exactly that shape.</p></details>
         <textarea className="gt-wkt" value={wkt} onChange={e => setWkt(e.target.value)} rows={3} spellCheck={false}/>
         {wktRes ? <div className="ag-grid"><div className="ag-item good"><span>Parsed polygon</span><b>{f(wktRes.area / 10000, 2)} ha</b><small>{wktRes.n} points · centre {f(wktRes.c ? Number(wktRes.c.latitude) : NaN, 5)}°, {f(wktRes.c ? Number(wktRes.c.longitude) : NaN, 5)}°. Use Add farm → upload to analyse it.</small></div></div> : <div className="ag-empty">Not a valid POLYGON((lon lat, …)) yet.</div>}

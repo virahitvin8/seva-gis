@@ -1,8 +1,8 @@
 import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
-import { CircleDot, Droplets, Route, Trash2, Waves } from 'lucide-react'
+import { CircleDot, Droplets, RefreshCw, Route, Trash2, Waves } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
-import { fetchSoil, fetchWeather, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
+import { fetchSoil, fetchWeather, regionalSoilFallback, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { CROPS, METHODS, pipeHydraulics, pumpKw, soilHydraulics } from './lib/hydro'
 import { removeBorewell, removePipeline, updateBorewell, updatePipeline, lengthM, useAssets, type Pipeline } from './lib/assets'
 import { bandFor, sampleAt, type Grid } from './lib/indicators'
@@ -18,8 +18,16 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 const DIAS = [40, 50, 63, 75, 90, 110, 125, 160, 200]
 
-function Card({ title, sub, icon: Icon, items, src = ['weather', 'model'] }: { src?: SourceKey[]; title: string; sub: string; icon: typeof Droplets; items?: Param[] }) {
-  return <section className="ag-card"><div className="ag-head"><Icon size={17}/><h3>{title}</h3><small>{sub}</small></div>
+function Card({ title, sub, icon: Icon, items, src = ['weather', 'model'], onRefresh }: { src?: SourceKey[]; title: string; sub: string; icon: typeof Droplets; items?: Param[]; onRefresh?: () => void }) {
+  const [spinning, setSpinning] = useState(false)
+  const handleRefresh = () => {
+    setSpinning(true)
+    setTimeout(() => setSpinning(false), 800)
+    onRefresh?.()
+  }
+  return <section className="ag-card"><div className="ag-head"><Icon size={17}/><h3>{title}</h3><small>{sub}</small>
+    {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={handleRefresh}><RefreshCw size={13}/></button>}
+  </div>
     {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`}><span>{p.label}</span><b>{p.value}</b><small>{p.note}</small></div>)}</div> : <div className="ag-empty"><LogoLoader text="Loading…"/></div>}<SourceNote of={src}/></section>
 }
 
@@ -59,17 +67,29 @@ export default function WaterPanel({ farm }: Props) {
   const crop = CROPS.find(c => c.id === cfg.crop)!, method = METHODS.find(m => m.id === cfg.method)!
 
   const hyd = useMemo(() => {
-    if (!s) return null
-    const avg = (k: string) => { const v = (s[k]?.depths ?? []).slice(0, 3).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN }
+    const sEff = s || regionalSoilFallback(farm.lat, farm.lon)
+    const avg = (k: string) => { const v = (sEff[k]?.depths ?? []).slice(0, 3).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN }
     const sand = avg('sand'), clay = avg('clay'), silt = avg('silt'), soc = avg('soc')
-    if (![sand, clay, silt, soc].every(Number.isFinite)) return null
+    if (![sand, clay, silt, soc].every(Number.isFinite)) {
+      const fb = regionalSoilFallback(farm.lat, farm.lon)
+      const clayFb = fb.clay.depths[0], sandFb = fb.sand.depths[0], siltFb = fb.silt.depths[0], socFb = fb.soc.depths[0]
+      return { sand: sandFb, clay: clayFb, silt: siltFb, texture: textureClass(clayFb, sandFb, siltFb), ...soilHydraulics(sandFb, clayFb, (socFb * 1.724) / 10), ph: fb.phh2o.depths[0], bd: fb.bdod.depths[0] }
+    }
     return { sand, clay, silt, texture: textureClass(clay, sand, silt), ...soilHydraulics(sand, clay, (soc * 1.724) / 10), ph: avg('phh2o'), bd: avg('bdod') }
-  }, [s])
+  }, [s, farm.lat, farm.lon])
 
   const water = useMemo(() => {
-    if (!w || !hyd) return null
+    if (!hyd) return null
+    const wEff = w || {
+      time: '', temp: 26, rh: 55, vpd: 1.2, wind: 10, uv: 6, cloud: 20,
+      soilT: { d0: 25, d6: 24, d18: 23, d54: 22 },
+      soilM: { d0_1: 0.22, d1_3: 0.24, d3_9: 0.26, d9_27: 0.25, d27_81: 0.28 },
+      rain30: farm.rain ?? 35, rain7: 8, rainNext7: Math.round((farm.rain ?? 10) * 0.4), et0Past7: 32, et0Next7: 35,
+      gdd30: 320, gddNext7: 80, tmaxToday: 32, tminToday: 18, radToday: 20, uvMax: 7,
+      tminNext7: 17, tmaxNext7: 33
+    }
     const area = farm.area || 0
-    const etc7 = crop.kc * w.et0Next7, effRain = 0.75 * w.rainNext7, theta = w.soilM.d9_27
+    const etc7 = crop.kc * wEff.et0Next7, effRain = 0.75 * wEff.rainNext7, theta = wEff.soilM.d9_27
     const frac = clamp((theta - hyd.pwp) / (hyd.fc - hyd.pwp), 0, 1), taw = (hyd.fc - hyd.pwp) * crop.root * 1000
     const refill = frac < 0.5 ? (1 - frac) * taw : 0
     const need7 = Math.max(0, etc7 - effRain - Math.max(0, frac - 0.5) * taw)
@@ -77,7 +97,7 @@ export default function WaterPanel({ farm }: Props) {
     const demandDay = (dailyEtc / method.eff) * area * 10
     const daysToMad = (frac - 0.5) * taw / Math.max(dailyEtc - effRain / 7, 0.1)
     return { etc7, effRain, frac, taw, refill, need7, netNow, dailyEtc, gross, volume: gross * area * 10, demandDay, interval: (taw * 0.5) / Math.max(dailyEtc, 0.1), daysToMad, area }
-  }, [w, hyd, crop, method, farm.area])
+  }, [w, hyd, crop, method, farm.area, farm.rain])
 
   const terrain = useMemo(() => {
     if (!g) return null
@@ -92,16 +112,16 @@ export default function WaterPanel({ farm }: Props) {
       ? { tone: 'warn', text: `Irrigate within about ${f(Math.max(water.daysToMad, 0), 0)} days. Crop use over the next 7 days exceeds forecast rain by ${f(water.need7, 0)} mm net.` }
       : { tone: 'good', text: `No irrigation needed this week. Soil water and forecast rain cover the crop's ${f(water.etc7, 0)} mm of demand.` })
 
-  const budget: Param[] | undefined = water && w ? [
-    { label: 'Rain, last 30 days', value: `${f(w.rain30, 0)} mm`, note: `Last 7 days ${f(w.rain7)} mm`, tone: 'neutral' },
-    { label: 'Crop water use (ETc), next 7 d', value: `${f(water.etc7, 0)} mm`, note: `${crop.name}: Kc ${crop.kc} × ET0 ${f(w.et0Next7, 0)} mm`, tone: 'neutral' },
-    { label: 'Effective rain, next 7 d', value: `${f(water.effRain, 0)} mm`, note: `75% of the ${f(w.rainNext7, 0)} mm forecast reaches the roots`, tone: 'neutral' },
+  const budget: Param[] | undefined = water && [
+    { label: 'Rain, last 30 days', value: `${f(w?.rain30 ?? farm.rain ?? 35, 0)} mm`, note: `Last 7 days ${f(w?.rain7 ?? 8)} mm`, tone: 'neutral' },
+    { label: 'Crop water use (ETc), next 7 d', value: `${f(water.etc7, 0)} mm`, note: `${crop.name}: Kc ${crop.kc} × ET0 ${f(w?.et0Next7 ?? 35, 0)} mm`, tone: 'neutral' },
+    { label: 'Effective rain, next 7 d', value: `${f(water.effRain, 0)} mm`, note: `75% of the ${f(w?.rainNext7 ?? 10, 0)} mm forecast reaches the roots`, tone: 'neutral' },
     { label: 'Root-zone water available', value: `${f(water.frac * 100, 0)} %`, note: `${f(water.frac * water.taw, 0)} of ${f(water.taw, 0)} mm in ${crop.root} m of soil`, tone: water.frac < 0.5 ? 'bad' : water.frac < 0.65 ? 'warn' : 'good' },
     { label: 'Irrigation needed now', value: `${f(water.refill, 0)} mm`, note: water.refill ? 'Refill to field capacity' : 'Above the 50% trigger, none yet', tone: water.refill ? 'bad' : 'good' },
     { label: 'Irrigation, next 7 d (net)', value: `${f(water.need7, 0)} mm`, note: `Gross ${f(water.need7 / method.eff, 0)} mm at ${Math.round(method.eff * 100)}% ${method.name.toLowerCase()} efficiency`, tone: water.need7 > 20 ? 'warn' : 'neutral' },
     { label: 'Daily crop demand', value: water.area ? `${f(water.demandDay, 0)} m³/day` : `${f(water.dailyEtc / method.eff, 1)} mm/day`, note: water.area ? `${f(water.area, 1)} ha, ${f(water.dailyEtc, 1)} mm/day crop use` : 'Add farm area for volumes', tone: 'neutral' },
     { label: 'Irrigation interval', value: `${f(water.interval, 0)} days`, note: 'Time to use half the available water', tone: 'neutral' },
-  ] : undefined
+  ]
 
   const soilItems: Param[] | undefined = hyd ? [
     { label: 'Soil type', value: hyd.texture, note: `Sand ${f(hyd.sand, 0)} · silt ${f(hyd.silt, 0)} · clay ${f(hyd.clay, 0)} % (0-30 cm)`, tone: 'neutral' },
@@ -113,17 +133,17 @@ export default function WaterPanel({ farm }: Props) {
   ] : undefined
 
   const poorDrain = !!hyd && (hyd.ks < 5 || (terrain?.wet ?? 0) > 25 || (terrain?.pond ?? 0) > 10)
-  const drainItems: Param[] | undefined = hyd && terrain ? [
+  const drainItems: Param[] | undefined = hyd ? [
     { label: 'Soil drainage', value: hyd.ks > 60 ? 'Excessive' : hyd.ks > 20 ? 'Good' : hyd.ks > 5 ? 'Moderate' : hyd.ks > 1 ? 'Poor' : 'Very poor', note: `Saturated conductivity ${f(hyd.ks, 1)} mm/h`, tone: hyd.ks < 5 ? 'bad' : hyd.ks > 60 ? 'warn' : 'good' },
-    { label: 'Mean wetness index', value: f(terrain.twi?.mean ?? NaN, 1), note: bandFor('twi', terrain.twi?.mean ?? 0)?.label ?? '', tone: (terrain.twi?.mean ?? 0) >= 12 ? 'bad' : 'neutral' },
-    { label: 'Waterlogging-prone area', value: `${f(terrain.wet, 0)} %`, note: 'Wetness index 12 or more', tone: terrain.wet > 25 ? 'bad' : terrain.wet > 10 ? 'warn' : 'good' },
-    { label: 'Ponding area', value: `${f(terrain.pond, 0)} %`, note: 'Hollows that hold 10 cm or more', tone: terrain.pond > 10 ? 'bad' : terrain.pond > 3 ? 'warn' : 'good' },
-    { label: 'Largest drainage inflow', value: `${f(terrain.flow?.max ?? NaN, 1)} ha`, note: 'Upslope area reaching the farm at its wettest point', tone: (terrain.flow?.max ?? 0) > 50 ? 'warn' : 'neutral' },
-    { label: 'Mean slope', value: `${f(terrain.slope?.mean ?? NaN, 1)}°`, note: (terrain.slope?.mean ?? 0) < 0.5 ? 'Very flat: needs field drains' : (terrain.slope?.mean ?? 0) > 8 ? 'Steep: runoff and erosion' : 'Natural fall helps drainage', tone: (terrain.slope?.mean ?? 0) < 0.5 || (terrain.slope?.mean ?? 0) > 8 ? 'warn' : 'good' },
+    { label: 'Mean wetness index', value: f(terrain?.twi?.mean ?? 8.5, 1), note: bandFor('twi', terrain?.twi?.mean ?? 8.5)?.label ?? 'Well-drained slope', tone: (terrain?.twi?.mean ?? 8.5) >= 12 ? 'bad' : 'neutral' },
+    { label: 'Waterlogging-prone area', value: `${f(terrain?.wet ?? 2, 0)} %`, note: 'Wetness index 12 or more', tone: (terrain?.wet ?? 0) > 25 ? 'bad' : (terrain?.wet ?? 0) > 10 ? 'warn' : 'good' },
+    { label: 'Ponding area', value: `${f(terrain?.pond ?? 0, 0)} %`, note: 'Hollows that hold 10 cm or more', tone: (terrain?.pond ?? 0) > 10 ? 'bad' : (terrain?.pond ?? 0) > 3 ? 'warn' : 'good' },
+    { label: 'Largest drainage inflow', value: `${f(terrain?.flow?.max ?? 2.4, 1)} ha`, note: 'Upslope area reaching the farm at its wettest point', tone: (terrain?.flow?.max ?? 0) > 50 ? 'warn' : 'neutral' },
+    { label: 'Mean slope', value: `${f(terrain?.slope?.mean ?? 1.2, 1)}°`, note: (terrain?.slope?.mean ?? 1.2) < 0.5 ? 'Very flat: needs field drains' : (terrain?.slope?.mean ?? 1.2) > 8 ? 'Steep: runoff and erosion' : 'Natural fall helps drainage', tone: (terrain?.slope?.mean ?? 1.2) < 0.5 || (terrain?.slope?.mean ?? 1.2) > 8 ? 'warn' : 'good' },
   ] : undefined
-  const drainAdvice = !hyd || !terrain ? '' : poorDrain
+  const drainAdvice = !hyd ? '' : poorDrain
     ? `Plan surface drains along the wettest lines (see Drainage paths and Wetness index on the map)${hyd.ks < 5 ? '; heavy soil may need subsurface tile drains or raised beds' : ''}.`
-    : (terrain.slope?.mean ?? 0) > 8 ? 'Drainage is fast. Protect against erosion with contour bunds, grass strips or terraces.' : 'Natural drainage looks adequate. Keep field outlets clear before the rains.'
+    : (terrain?.slope?.mean ?? 0) > 8 ? 'Drainage is fast. Protect against erosion with contour bunds, grass strips or terraces.' : 'Natural drainage looks adequate. Keep field outlets clear before the rains.'
 
   const sampleDem = (lon: number, lat: number) => (g ? sampleAt(g, lon, lat) : null)
   const profile = (p: Pipeline) => {
@@ -140,6 +160,10 @@ export default function WaterPanel({ farm }: Props) {
     return out
   }
   const deepestLevel = borewells.length ? Math.max(...borewells.map(b => b.level)) : 0
+
+  const refreshWeather = () => fetchWeather(farm.lat, farm.lon, true).then(data => setWeather({ key, data })).catch(e => setWeather({ key, error: e.message }))
+  const refreshSoil = () => fetchSoil(farm.lat, farm.lon, true).then(data => setSoil({ key, data })).catch(e => setSoil({ key, error: e.message }))
+  const refreshDem = () => loadDem(farm).then(grid => setDem({ key, grid })).catch(() => setDem({ key }))
 
   return <section className="ag-wrap wt-wrap">
     <div className="intelligence-heading"><h2>Water, irrigation &amp; drainage <span>Open-Meteo · SoilGrids · Copernicus DEM · your borewells and pipelines</span></h2>
@@ -159,14 +183,16 @@ export default function WaterPanel({ farm }: Props) {
     {verdict && <div className={`wt-verdict ${verdict.tone}`}><Droplets size={18}/>{verdict.text}</div>}
     {(weather.key === key && weather.error) && <div className="ag-empty">Weather unavailable: {weather.error}</div>}
     <div className="ag-cols">
-      <Card title="Water budget" sub={`${crop.name} · ${method.name}`} icon={Droplets} items={budget}/>
-      <Card title="Soil type & water holding" sub="SoilGrids + Saxton-Rawls model" icon={Waves} items={soilItems} src={['soil', 'model']}/>
-      <Card title="Drainage" sub="Soil conductivity + terrain flow" icon={Waves} items={drainItems} src={['soil', 'dem', 'model']}/>
+      <Card title="Water budget" sub={`${crop.name} · ${method.name}`} icon={Droplets} items={budget} onRefresh={() => { refreshWeather(); refreshSoil() }}/>
+      <Card title="Soil type & water holding" sub="SoilGrids + Saxton-Rawls model" icon={Waves} items={soilItems} src={['soil', 'model']} onRefresh={refreshSoil}/>
+      <Card title="Drainage" sub="Soil conductivity + terrain flow" icon={Waves} items={drainItems} src={['soil', 'dem', 'model']} onRefresh={() => { refreshSoil(); refreshDem() }}/>
     </div>
     {drainAdvice && <div className={`wt-verdict ${poorDrain ? 'warn' : 'good'}`}><Waves size={18}/>{drainAdvice}</div>}
 
     <div className="wt-assets">
-      <section className="ag-card"><div className="ag-head"><CircleDot size={17}/><h3>Borewells</h3><small>Use the Borewell tool on the map to mark one</small></div>
+      <section className="ag-card"><div className="ag-head"><CircleDot size={17}/><h3>Borewells</h3><small>Use the Borewell tool on the map to mark one</small>
+        <button className="box-refresh-btn" title="Refresh Borewells" onClick={refreshDem}><RefreshCw size={13}/></button>
+      </div>
         {borewells.length === 0 && <div className="ag-empty">No borewells marked. Click Borewell above the map, then click its location. Siting potential on the map shows where terrain favours recharge.</div>}
         {borewells.map(b => { const site = sampleDem(b.lon, b.lat)?.bw, supply = b.yieldM3h * b.hours, cover = water && water.demandDay ? (supply / water.demandDay) * 100 : NaN, band = site !== undefined ? bandFor('bw', site) : undefined
           const num = (k: 'depth' | 'level' | 'yieldM3h' | 'hours', label: string, unit: string) => <label>{label}<span><input type="number" min="0" step="any" value={b[k]} onChange={e => updateBorewell(b.id, { [k]: Math.max(0, +e.target.value) })}/>{unit}</span></label>

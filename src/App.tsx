@@ -167,8 +167,6 @@ export default function App() {
     setFarms(current => [...current, next]); setSelected(next.id); setModal(''); refresh(next)
   }
 
-  }
-
   function go(text: string) {
     setNav(text); setMenu(false)
     if (text === 'Alerts') return setModal('alerts')

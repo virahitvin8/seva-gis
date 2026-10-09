@@ -10,7 +10,7 @@
 
 > **SEVA.GIS:** Spatial Evaluation &amp; Vegetation Analytics. Free GeoAI farm monitor using live Sentinel-2 data.
 > <br/>
-> **Live App:** [sevagis.dpdns.org](https://sevagis.dpdns.org) &nbsp;|&nbsp; **Backup:** [virahitvin8.github.io/seva-gis/](https://virahitvin8.github.io/seva-gis/)
+> **Live App:** [sevagis.dpdns.org](https://sevagis.dpdns.org) &nbsp;|&nbsp; **Documentation:** [How it works](https://sevagis.dpdns.org/how-it-works.html) &nbsp;·&nbsp; [NDVI explained](https://sevagis.dpdns.org/ndvi-explained.html) &nbsp;·&nbsp; [FAQ](https://sevagis.dpdns.org/faq.html) &nbsp;|&nbsp; **Backup:** [virahitvin8.github.io/seva-gis/](https://virahitvin8.github.io/seva-gis/)
 
 **See your farm the way a satellite does.**
 <br/>

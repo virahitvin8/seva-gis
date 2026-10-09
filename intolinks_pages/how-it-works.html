@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How SEVA.GIS works: from farm boundary to field report | SEVA.GIS</title>
+<meta name="description" content="See how SEVA.GIS turns a farm boundary into Sentinel-2 crop health maps, irrigation advice, fertilizer zones and a printable report, free and without an account.">
+<link rel="canonical" href="https://sevagis.dpdns.org/how-it-works.html">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header><a class="brand" href="/">SEVA·GIS</a><nav><a href="/how-it-works.html">How it works</a><a href="/ndvi-explained.html">NDVI explained</a><a href="/faq.html">FAQ</a></nav></header>
+<main>
+<h1>How SEVA.GIS works</h1>
+<p>SEVA.GIS shows your farm the way a satellite sees it. You draw your field, and the app fetches fresh Sentinel-2 imagery and explains what it means for your crop. Everything runs in your browser, and your boundaries stay on your device.</p>
+<h2>Step 1. Mark your farm</h2>
+<p>Draw the boundary on the map, walk the edge with your phone's GPS, or type corner coordinates. You can also upload GeoJSON, KML, GPX, WKT, CSV or a zipped Shapefile. The app calculates the area in hectares and acres.</p>
+<h2>Step 2. Get a fresh, clear satellite image</h2>
+<p>SEVA.GIS searches the Sentinel-2 archive on Microsoft Planetary Computer for the newest scene with under 30% cloud. Clouds, shadows and haze are masked out, and the image is clipped to your field.</p>
+<h2>Step 3. Read the crop health indices</h2>
+<table><tr><th>Index</th><th>What it tells you</th></tr>
+<tr><td>NDVI</td><td>How green and vigorous the crop is</td></tr>
+<tr><td>NDMI</td><td>Water inside the leaves, an early sign of irrigation need</td></tr>
+<tr><td>NDWI</td><td>Standing water or waterlogged patches</td></tr>
+<tr><td>NDRE</td><td>Chlorophyll and nitrogen in dense, mature crops</td></tr>
+<tr><td>EVI</td><td>Canopy structure, corrected for haze and soil</td></tr>
+<tr><td>BSI</td><td>Bare soil, useful for fallow and early growth</td></tr></table>
+<p>Each number comes with a colour scale, a status such as Healthy, Moderate or Stressed, and a plain-language explanation.</p>
+<h2>Step 4. Check terrain, water and weather</h2>
+<p>The app shows slope, aspect and a wetness index from 30 m elevation data, nearby wells and canals from OpenStreetMap, and a 7-day forecast with evapotranspiration to help you decide whether to irrigate.</p>
+<h2>Step 5. Plan the work</h2>
+<p>Create tractor driving paths for your implement width, three-zone fertilizer prescriptions, travel-time maps for tractors and trucks, and a comparison of two dates to spot early crop decline.</p>
+<h2>Step 6. Download your report</h2>
+<p>Export a printable PDF or HTML report with your boundary, satellite image, north arrow, scale bar and index scores.</p>
+<p class="note">A satellite shows <em>where</em> a crop is weaker, not <em>why</em>. Use the maps to decide where to walk and check.</p>
+<p><a class="cta" href="/">Open the SEVA.GIS app</a></p>
+</main>
+<footer>SEVA.GIS (Spatial Evaluation &amp; Vegetation Analytics) is a free, open-source farm monitor by N. Akshit Vinay. Satellite data: ESA Copernicus Sentinel-2.</footer>
+</body>
+</html>

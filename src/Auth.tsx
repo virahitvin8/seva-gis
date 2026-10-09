@@ -18,8 +18,10 @@ import {
   ChevronUp,
   Star,
   ShieldCheck,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react'
+import MethodologyModal from './MethodologyModal'
 import { GUEST, closeWorkspace, db, login, openWorkspace, register, sessionId, setSession } from './lib/db'
 
 import Wordmark from './Wordmark'
@@ -48,6 +50,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [snippetTab, setSnippetTab] = useState<'git' | 'steps' | 'faq' | 'ndvi'>('git')
   const [copiedClone, setCopiedClone] = useState(false)
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0)
+  const [guideModalOpen, setGuideModalOpen] = useState(false)
   const pw = useRef<HTMLInputElement>(null)
 
   const copyCloneCmd = () => {
@@ -202,33 +205,69 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   <div className="au-snippet-head">
                     <div className="au-snippet-title">
                       <BookOpen size={15} style={{ color: '#b6f36a' }} />
-                      <b>How SEVA.GIS Works in 4 Steps</b>
+                      <b>Scientific Methodology &amp; Pipeline</b>
                     </div>
-                    <a href="/how-it-works.html" className="au-snippet-link">
-                      <span>Full guide</span>
-                      <ExternalLink size={12} />
-                    </a>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => setGuideModalOpen(true)}
+                        className="au-snippet-link"
+                        style={{ cursor: 'pointer', border: '1px solid #b6f36a44', background: '#b6f36a18' }}
+                      >
+                        <Sparkles size={11} style={{ color: '#b6f36a' }} />
+                        <span>Flowchart &amp; Thesis</span>
+                      </button>
+                      <a href="/how-it-works.html" target="_blank" rel="noreferrer" className="au-snippet-link" title="Open complete research documentation">
+                        <span>Web Guide</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setGuideModalOpen(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 7,
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: 'linear-gradient(90deg, rgba(182,243,106,0.15) 0%, rgba(56,242,208,0.15) 100%)',
+                      border: '1px solid rgba(182, 243, 106, 0.35)',
+                      borderRadius: 8,
+                      color: '#b6f36a',
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Sparkles size={13} />
+                    <span>Open Scientific Thesis &amp; Pipeline Flowchart</span>
+                  </button>
+
                   <div className="au-steps-mini">
                     <div className="au-step-item">
-                      <span className="au-step-num">Step 1</span>
-                      <b className="au-step-title">Mark Field</b>
-                      <span className="au-step-desc">Draw boundary, walk GPS, or upload GeoJSON / KML / Shapefile.</span>
+                      <span className="au-step-num">Stage 1</span>
+                      <b className="au-step-title">Geodesic Boundary</b>
+                      <span className="au-step-desc">RFC 7946 WGS84 GeoJSON &amp; local equidistant metric projection.</span>
                     </div>
                     <div className="au-step-item">
-                      <span className="au-step-num">Step 2</span>
-                      <b className="au-step-title">Sentinel-2 Pass</b>
-                      <span className="au-step-desc">Cloud-masked L2A multispectral imagery fetched on-demand.</span>
+                      <span className="au-step-num">Stage 2</span>
+                      <b className="au-step-title">Sentinel-2 STAC</b>
+                      <span className="au-step-desc">Cloud &lt;30%, SCL scene mask, Sen2Cor surface reflectance (BOA).</span>
                     </div>
                     <div className="au-step-item">
-                      <span className="au-step-num">Step 3</span>
-                      <b className="au-step-title">Spectral Math</b>
-                      <span className="au-step-desc">10m NDVI, NDMI, NDRE, chlorophyll &amp; moisture stress indices.</span>
+                      <span className="au-step-num">Stage 3</span>
+                      <b className="au-step-title">14 Spectral Indices</b>
+                      <span className="au-step-desc">Float32Array: NDVI, NDMI, NDRE, EVI, SAVI, REIP &amp; Horn 1981 DEM TWI.</span>
                     </div>
                     <div className="au-step-item">
-                      <span className="au-step-num">Step 4</span>
-                      <b className="au-step-title">Farm Actions</b>
-                      <span className="au-step-desc">3-zone fertilizer prescriptions, tractor swaths &amp; PDF reports.</span>
+                      <span className="au-step-num">Stage 4</span>
+                      <b className="au-step-title">Robotics &amp; VRA</b>
+                      <span className="au-step-desc">Fields2Cover Dubins swath paths &amp; Jenks 3-zone Urea optimization.</span>
                     </div>
                   </div>
                 </>
@@ -363,10 +402,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <Star size={12} style={{ color: '#b6f36a' }} />
             <span>GitHub</span>
           </a>
-          <a href="/how-it-works.html" className="au-card-link-item" title="How SEVA.GIS works">
+          <button
+            type="button"
+            onClick={() => setGuideModalOpen(true)}
+            className="au-card-link-item"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', cursor: 'pointer' }}
+            title="How SEVA.GIS works (Scientific Thesis & Methodology)"
+          >
             <BookOpen size={12} />
             <span>How it works</span>
-          </a>
+          </button>
           <a href="/faq.html" className="au-card-link-item" title="Frequently asked questions">
             <HelpCircle size={12} />
             <span>FAQ</span>
@@ -446,11 +491,28 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             </ul>
           </div>
           <div className="au-hub-card-foot">
-            <span style={{ fontSize: 11, color: '#9fb5a5' }}>Full Documentation</span>
-            <a href="/how-it-works.html" className="au-hub-card-btn">
-              <span>Read Guide</span>
-              <ExternalLink size={13} />
-            </a>
+            <span style={{ fontSize: 11, color: '#9fb5a5' }}>Scientific Thesis</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setGuideModalOpen(true)}
+                className="au-hub-card-btn"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                title="Open interactive research methodology & flowchart"
+              >
+                <span>Read Guide</span>
+                <Sparkles size={13} />
+              </button>
+              <a
+                href="/how-it-works.html"
+                target="_blank"
+                rel="noreferrer"
+                title="Open full web guide in new tab"
+                style={{ color: '#9fb5a5', display: 'grid', placeItems: 'center', textDecoration: 'none' }}
+              >
+                <ExternalLink size={12} />
+              </a>
+            </div>
           </div>
         </div>
 
@@ -521,5 +583,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </div>
     </section>
+
+    {guideModalOpen && <MethodologyModal onClose={() => setGuideModalOpen(false)} />}
   </div>
 }

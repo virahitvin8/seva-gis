@@ -3,39 +3,820 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How SEVA.GIS works: from farm boundary to field report | SEVA.GIS</title>
-<meta name="description" content="See how SEVA.GIS turns a farm boundary into Sentinel-2 crop health maps, irrigation advice, fertilizer zones and a printable report, free and without an account.">
+<title>How SEVA·GIS Works: Research Thesis &amp; Scientific Methodology | SEVA·GIS</title>
+<meta name="description" content="Complete scientific methodology, mathematical formulations, and engineering architecture behind SEVA·GIS. From Sentinel-2 L2A BOA reflectance and Horn DEM hydro-modeling to Fields2Cover swath robotics and FAO-56 Penman-Monteith evapotranspiration.">
 <link rel="canonical" href="https://sevagis.dpdns.org/how-it-works.html">
 <link rel="stylesheet" href="/style.css">
+<style>
+  :root {
+    --ink: #16231b;
+    --muted: #4d5f54;
+    --bg: #f6faf7;
+    --card: #ffffff;
+    --card-border: #d5e3d9;
+    --green: #1f6b3a;
+    --green-glow: rgba(31, 107, 58, 0.15);
+    --accent: #2e7d32;
+    --accent-light: #e8f5e9;
+    --soil: #8a5a2b;
+    --line: #d5e3d9;
+    --code-bg: #0b1a12;
+    --code-text: #b6f36a;
+    --formula-border: #b6f36a44;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8f1ea;
+      --muted: #a9bcaf;
+      --bg: #07120c;
+      --card: #0d1e15;
+      --card-border: #1a3828;
+      --green: #6fcf8f;
+      --green-glow: rgba(111, 207, 143, 0.2);
+      --accent: #b6f36a;
+      --accent-light: rgba(182, 243, 106, 0.12);
+      --soil: #d9a86c;
+      --line: #1c3527;
+      --code-bg: #040d08;
+      --code-text: #c5dda0;
+      --formula-border: rgba(182, 243, 106, 0.3);
+    }
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  header, main, footer {
+    max-width: 54rem;
+    margin: 0 auto;
+    padding: 1.25rem 1.5rem;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  header a.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    font: 800 1.35rem Georgia, serif;
+    color: var(--green);
+    text-decoration: none;
+  }
+
+  header a.brand img {
+    width: 2rem;
+    height: 2rem;
+    object-fit: contain;
+    border-radius: 0.4rem;
+  }
+
+  nav a {
+    margin-left: 1rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  nav a:hover, nav a:focus {
+    color: var(--green);
+    text-decoration: underline;
+  }
+
+  /* Thesis Hero Badge */
+  .thesis-hero {
+    margin: 2rem 0 1.5rem;
+    padding: 2rem;
+    background: linear-gradient(145deg, var(--card) 0%, var(--green-glow) 100%);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  }
+
+  .thesis-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--accent-light);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--formula-border);
+  }
+
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
+    line-height: 1.15;
+    margin: 0.75rem 0 0.5rem;
+    color: var(--ink);
+  }
+
+  .thesis-subtitle {
+    font-size: 1.1rem;
+    color: var(--muted);
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  .thesis-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 1rem;
+    margin-top: 1rem;
+  }
+
+  /* Table of Contents & Mode Switcher */
+  .mode-switch-box {
+    display: flex;
+    gap: 8px;
+    margin: 1.5rem 0;
+    padding: 6px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+
+  .mode-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 14px;
+    border-radius: 7px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .mode-btn.active, .mode-btn:hover {
+    background: var(--green);
+    color: #fff;
+  }
+
+  h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.5rem;
+    margin: 2.5rem 0 0.75rem;
+    color: var(--green);
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 0.35rem;
+  }
+
+  h3 {
+    font-size: 1.18rem;
+    margin: 1.75rem 0 0.5rem;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Pipeline Flowchart Container */
+  .flowchart-wrapper {
+    background: var(--code-bg);
+    border: 1px solid var(--formula-border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin: 1.5rem 0 2rem;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.25);
+    overflow-x: auto;
+  }
+
+  .flowchart-title {
+    text-align: center;
+    color: #b6f36a;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  /* Math & Formula Cards */
+  .math-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.25rem 1.4rem;
+    margin: 1rem 0;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+  }
+
+  .math-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 0.5rem;
+  }
+
+  .math-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  .math-citation {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .formula-box {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.92rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+    border-left: 3px solid var(--green);
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.92rem;
+    overflow-x: auto;
+    display: block;
+  }
+
+  th, td {
+    border: 1px solid var(--line);
+    padding: 0.65rem 0.85rem;
+    text-align: left;
+  }
+
+  th {
+    background: var(--card);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* Note callout */
+  .note {
+    border-left: 4px solid var(--soil);
+    padding: 0.75rem 1.25rem;
+    background: var(--card);
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+  }
+
+  .bib-list {
+    padding-left: 1.5rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .bib-list li {
+    margin-bottom: 0.6rem;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green);
+    color: #fff;
+    padding: 0.75rem 1.4rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(31, 107, 58, 0.25);
+    margin: 1rem 0;
+  }
+  .cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(31, 107, 58, 0.35);
+  }
+
+  .copy-bib-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: var(--green);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .bottom-nav {
+    margin-top: 3rem;
+    font-size: 0.95rem;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 1.5rem;
+  }
+  .bottom-nav a {
+    color: var(--green);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  footer {
+    color: var(--muted);
+    font-size: 0.88rem;
+    border-top: 1px solid var(--line);
+    margin-top: 2rem;
+  }
+</style>
 </head>
 <body>
-<header><a class="brand" href="/" title="SEVA·GIS"><img src="/logo.png" onerror="this.onerror=null;this.src='logo.png'" alt="SEVA.GIS Logo" width="28" height="28"><span>SEVA·GIS</span></a><nav><a href="/how-it-works.html">How it works</a><a href="/ndvi-explained.html">NDVI explained</a><a href="/faq.html">FAQ</a></nav></header>
+
+<header>
+  <a class="brand" href="/" title="SEVA·GIS">
+    <img src="/logo.png" onerror="this.onerror=null;this.src='logo.png'" alt="SEVA.GIS Logo" width="32" height="32">
+    <span>SEVA·GIS</span>
+  </a>
+  <nav>
+    <a href="/how-it-works.html">How it works</a>
+    <a href="/ndvi-explained.html">NDVI explained</a>
+    <a href="/faq.html">FAQ</a>
+    <a href="/" style="font-weight: 700; color: var(--green);">Open App →</a>
+  </nav>
+</header>
+
 <main>
-<h1>How SEVA.GIS works</h1>
-<p>SEVA.GIS shows your farm the way a satellite sees it. You draw your field, and the app fetches fresh Sentinel-2 imagery and explains what it means for your crop. Everything runs in your browser, and your boundaries stay on your device.</p>
-<h2>Step 1. Mark your farm</h2>
-<p>Draw the boundary on the map, walk the edge with your phone's GPS, or type corner coordinates. You can also upload GeoJSON, KML, GPX, WKT, CSV or a zipped Shapefile. The app calculates the area in hectares and acres.</p>
-<h2>Step 2. Get a fresh, clear satellite image</h2>
-<p>SEVA.GIS searches the Sentinel-2 archive on Microsoft Planetary Computer for the newest scene with under 30% cloud. Clouds, shadows and haze are masked out, and the image is clipped to your field.</p>
-<h2>Step 3. Read the crop health indices</h2>
-<table><tr><th>Index</th><th>What it tells you</th></tr>
-<tr><td>NDVI</td><td>How green and vigorous the crop is</td></tr>
-<tr><td>NDMI</td><td>Water inside the leaves, an early sign of irrigation need</td></tr>
-<tr><td>NDWI</td><td>Standing water or waterlogged patches</td></tr>
-<tr><td>NDRE</td><td>Chlorophyll and nitrogen in dense, mature crops</td></tr>
-<tr><td>EVI</td><td>Canopy structure, corrected for haze and soil</td></tr>
-<tr><td>BSI</td><td>Bare soil, useful for fallow and early growth</td></tr></table>
-<p>Each number comes with a colour scale, a status such as Healthy, Moderate or Stressed, and a plain-language explanation.</p>
-<h2>Step 4. Check terrain, water and weather</h2>
-<p>The app shows slope, aspect and a wetness index from 30 m elevation data, nearby wells and canals from OpenStreetMap, and a 7-day forecast with evapotranspiration to help you decide whether to irrigate.</p>
-<h2>Step 5. Plan the work</h2>
-<p>Create tractor driving paths for your implement width, three-zone fertilizer prescriptions, travel-time maps for tractors and trucks, and a comparison of two dates to spot early crop decline.</p>
-<h2>Step 6. Download your report</h2>
-<p>Export a printable PDF or HTML report with your boundary, satellite image, north arrow, scale bar and index scores.</p>
-<p class="note">A satellite shows <em>where</em> a crop is weaker, not <em>why</em>. Use the maps to decide where to walk and check.</p>
-<p><a class="cta" href="/">Open the SEVA.GIS app</a></p>
-<p class="bottom-nav"><a href="/how-it-works.html">How it works</a> · <a href="/ndvi-explained.html">NDVI explained</a> · <a href="/faq.html">FAQ</a></p>
+  <!-- Research Thesis Header & Hero -->
+  <section class="thesis-hero">
+    <span class="thesis-badge">Research Thesis &amp; Scientific Methodology</span>
+    <h1>How SEVA·GIS Works</h1>
+    <p class="thesis-subtitle">
+      A transparent, client-side geospatial architecture transforming raw Copernicus Sentinel-2 L2A telemetry and 30 m elevation models into actionable farm intelligence, autonomous tractor pathing, and precision variable-rate prescriptions.
+    </p>
+    <div class="thesis-meta">
+      <span><strong>Author:</strong> N. Akshit Vinay</span>
+      <span><strong>Architecture:</strong> Zero-Backend In-Browser GIS</span>
+      <span><strong>Telemetry:</strong> ESA Copernicus Sentinel-2 &amp; GLO-30 DEM</span>
+      <span><strong>License:</strong> MIT Open Source</span>
+    </div>
+  </section>
+
+  <!-- Navigation Mode Switcher -->
+  <div class="mode-switch-box">
+    <a href="#practical-guide" class="mode-btn active">🌾 Practical 6-Step Field Guide</a>
+    <a href="#scientific-methodology" class="mode-btn">🔬 Research Thesis &amp; Scientific Methodology</a>
+    <a href="#flowchart" class="mode-btn">📊 System Flowchart</a>
+  </div>
+
+  <!-- SECTION 1: PRACTICAL 6-STEP GUIDE (PRESERVED & ENRICHED) -->
+  <section id="practical-guide">
+    <h2>Part I: The Practical Field Guide (For Farmers &amp; Agronomists)</h2>
+    <p>
+      SEVA.GIS shows your farm the way a satellite sees it. You draw your field, and the app fetches fresh Sentinel-2 imagery and explains what it means for your crop. Everything runs in your browser, and your boundaries stay on your device.
+    </p>
+
+    <h3>Step 1. Mark your farm</h3>
+    <p>
+      Draw the boundary on the map, walk the edge with your phone's GPS, or type corner coordinates. You can also upload GeoJSON, KML, GPX, WKT, CSV or a zipped Shapefile. The app calculates the area in hectares and acres with sub-meter geodesic accuracy.
+    </p>
+
+    <h3>Step 2. Get a fresh, clear satellite image</h3>
+    <p>
+      SEVA.GIS searches the Sentinel-2 archive on Microsoft Planetary Computer for the newest scene with under 30% cloud. Clouds, shadows and haze are masked out with Scene Classification (SCL), and the image is clipped to your exact boundary in real time.
+    </p>
+
+    <h3>Step 3. Read the crop health indices</h3>
+    <table>
+      <thead>
+        <tr><th>Index</th><th>Scientific Name</th><th>What it tells you</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>NDVI</strong></td><td>Normalized Difference Vegetation Index</td><td>How green and vigorous the crop is; chlorophyll light absorption</td></tr>
+        <tr><td><strong>NDMI</strong></td><td>Normalized Difference Moisture Index</td><td>Water inside the leaves, an early signal of irrigation need 4–7 days before yellowing</td></tr>
+        <tr><td><strong>NDWI</strong></td><td>Normalized Difference Water Index</td><td>Standing water, surface ponding or waterlogged patches</td></tr>
+        <tr><td><strong>NDRE</strong></td><td>Normalized Difference Red Edge</td><td>Chlorophyll and nitrogen in dense, mature canopies where NDVI saturates</td></tr>
+        <tr><td><strong>EVI</strong></td><td>Enhanced Vegetation Index</td><td>Canopy structure, corrected for atmospheric haze and background soil brightness</td></tr>
+        <tr><td><strong>BSI</strong></td><td>Bare Soil Index</td><td>Bare soil and fallow ground, useful for tillage and early crop establishment</td></tr>
+        <tr><td><strong>REIP</strong></td><td>Red Edge Inflection Point</td><td>Direct measure of leaf nitrogen nutrition and senescence onset</td></tr>
+        <tr><td><strong>LAI</strong></td><td>Leaf Area Index</td><td>Canopy density (m² leaf surface per m² ground area) for biomass forecasting</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Each number comes with a calibrated color scale, an agronomic status such as <em>Healthy</em>, <em>Moderate</em> or <em>Stressed</em>, and a plain-language explanation of next actions.
+    </p>
+
+    <h3>Step 4. Check terrain, water and weather</h3>
+    <p>
+      The app shows slope, aspect and a wetness index from 30 m Copernicus GLO-30 elevation data, nearby wells and canals from OpenStreetMap, and a 7-day forecast with FAO-56 evapotranspiration to help you decide exactly whether to irrigate.
+    </p>
+
+    <h3>Step 5. Plan the work</h3>
+    <p>
+      Create tractor driving paths matching your implement width, three-zone fertilizer prescriptions, travel-time maps for tractors and trucks, and a comparison of two dates to spot early crop decline before it damages yields.
+    </p>
+
+    <h3>Step 6. Download your report</h3>
+    <p>
+      Export a printable PDF or HTML report with your boundary, satellite image, north arrow, scale bar, and index scores for bank loans, insurance claims, or agronomy consults.
+    </p>
+    <div class="note">
+      <strong>Agronomic Rule of Thumb:</strong> A satellite shows <em>where</em> a crop is weaker, not <em>why</em>. Use the maps to decide where to walk and inspect soil moisture, root depth, or pest activity.
+    </div>
+  </section>
+
+  <!-- SECTION 2: END-TO-END PIPELINE FLOWCHART -->
+  <section id="flowchart">
+    <h2>Part II: Complete System Architecture Flowchart</h2>
+    <p>
+      The following diagram illustrates the 7 operational domains executing within the client-side pipeline. Coordinate polygons, radiometric rasters, and elevation models are processed locally without transmitting telemetry to central servers.
+    </p>
+
+    <div class="flowchart-wrapper">
+      <div class="flowchart-title">SEVA·GIS Autonomous Client-Side Geospatial Pipeline</div>
+      <svg viewBox="0 0 860 520" style="width:100%; height:auto; min-width:680px; display:block;" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#134e4a"/>
+            <stop offset="100%" stop-color="#042f2e"/>
+          </linearGradient>
+          <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1e3a8a"/>
+            <stop offset="100%" stop-color="#0f172a"/>
+          </linearGradient>
+          <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#14532d"/>
+            <stop offset="100%" stop-color="#052e16"/>
+          </linearGradient>
+          <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#854d0e"/>
+            <stop offset="100%" stop-color="#451a03"/>
+          </linearGradient>
+          <linearGradient id="g5" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#581c87"/>
+            <stop offset="100%" stop-color="#2e1065"/>
+          </linearGradient>
+          <marker id="flowArrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 8 5 L 0 9 z" fill="#b6f36a"/>
+          </marker>
+        </defs>
+
+        <!-- Node 1: Spatial Geodesy -->
+        <g transform="translate(40, 30)">
+          <rect width="230" height="90" rx="10" fill="url(#g1)" stroke="#2dd4bf" stroke-width="1.5"/>
+          <text x="115" y="28" text-anchor="middle" fill="#5eead4" font-size="12" font-weight="700">1. Spatial Geodesy</text>
+          <text x="115" y="48" text-anchor="middle" fill="#ccfbf1" font-size="10.5">WGS84 EPSG:4326 Polygon</text>
+          <text x="115" y="66" text-anchor="middle" fill="#99f6e4" font-size="9.5">Local Metric Equidistant Projection</text>
+          <text x="115" y="80" text-anchor="middle" fill="#2dd4bf" font-size="9">Girard Quadrature · Vincenty Perimeter</text>
+        </g>
+
+        <!-- Node 2: Sentinel-2 Ingestion -->
+        <g transform="translate(315, 30)">
+          <rect width="230" height="90" rx="10" fill="url(#g2)" stroke="#60a5fa" stroke-width="1.5"/>
+          <text x="115" y="28" text-anchor="middle" fill="#93c5fd" font-size="12" font-weight="700">2. Sentinel-2 L2A STAC</text>
+          <text x="115" y="48" text-anchor="middle" fill="#dbeafe" font-size="10.5">Planetary Computer COG Streaming</text>
+          <text x="115" y="66" text-anchor="middle" fill="#bfdbfe" font-size="9.5">SCL Cloud/Shadow Bitmask Masking</text>
+          <text x="115" y="80" text-anchor="middle" fill="#60a5fa" font-size="9">Sen2Cor BOA Surface Reflectance (ρ_λ)</text>
+        </g>
+
+        <!-- Node 3: Copernicus GLO-30 DEM -->
+        <g transform="translate(590, 30)">
+          <rect width="230" height="90" rx="10" fill="url(#g4)" stroke="#facc15" stroke-width="1.5"/>
+          <text x="115" y="28" text-anchor="middle" fill="#fef08a" font-size="12" font-weight="700">3. Copernicus GLO-30 DEM</text>
+          <text x="115" y="48" text-anchor="middle" fill="#fef9c3" font-size="10.5">Horn 1981 8-Neighbor Gradient</text>
+          <text x="115" y="66" text-anchor="middle" fill="#fde047" font-size="9.5">Slope β · Aspect α · Hillshade (315°)</text>
+          <text x="115" y="80" text-anchor="middle" fill="#facc15" font-size="9">D8 Flow Accumulation · TWI Wetness</text>
+        </g>
+
+        <!-- Connecting Horizontal Arrows -->
+        <path d="M 270 75 L 315 75" stroke="#b6f36a" stroke-width="2" marker-end="url(#flowArrow)"/>
+        <path d="M 545 75 L 590 75" stroke="#b6f36a" stroke-width="2" marker-end="url(#flowArrow)"/>
+        <path d="M 430 120 L 430 190" stroke="#b6f36a" stroke-width="2" marker-end="url(#flowArrow)"/>
+
+        <!-- Center Node: Radiometric Spectral Engine -->
+        <g transform="translate(150, 190)">
+          <rect width="560" height="120" rx="14" fill="url(#g3)" stroke="#4ade80" stroke-width="2"/>
+          <text x="280" y="32" text-anchor="middle" fill="#bbf7d0" font-size="15" font-weight="800">4. Radiometric Spectral Engine (Float32Array WebGL / Canvas)</text>
+          <text x="280" y="58" text-anchor="middle" fill="#ffffff" font-size="11.5" font-weight="600">NDVI · NDMI · NDWI · NDRE · EVI · SAVI · MSAVI · BSI · REIP · LAI · CWSI · LST</text>
+          <text x="280" y="80" text-anchor="middle" fill="#86efac" font-size="10.5">Point-in-Polygon Raster Masking · Statistical Z-Scores · Early Chlorophyll/Hydration Drop Matrix</text>
+          <text x="280" y="100" text-anchor="middle" fill="#4ade80" font-size="9.5">Dynamic Color-Ramp Shader Mapping · 10 m Ground Sampling Distance Resampling</text>
+        </g>
+
+        <!-- Connecting Arrows from Center to Bottom Row -->
+        <path d="M 260 310 L 160 375" stroke="#b6f36a" stroke-width="2" marker-end="url(#flowArrow)"/>
+        <path d="M 430 310 L 430 375" stroke="#b6f36a" stroke-width="2" marker-end="url(#flowArrow)"/>
+        <path d="M 600 310 L 700 375" stroke="#b6f36a" stroke-width="2" marker-end="url(#flowArrow)"/>
+
+        <!-- Node 5: Agro-Meteorological & Soil Integration -->
+        <g transform="translate(40, 375)">
+          <rect width="240" height="105" rx="10" fill="url(#g2)" stroke="#38bdf8" stroke-width="1.5"/>
+          <text x="120" y="28" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="700">5. Multi-Source Agro Physics</text>
+          <text x="120" y="50" text-anchor="middle" fill="#e0f2fe" font-size="10.5">Open-Meteo FAO-56 Penman-Monteith ET₀</text>
+          <text x="120" y="68" text-anchor="middle" fill="#bae6fd" font-size="9.5">ISRIC SoilGrids v2.0 (8 Depths)</text>
+          <text x="120" y="84" text-anchor="middle" fill="#7dd3fc" font-size="9">Phenological Dual Crop Coefficient (ET_c = K_c × ET_0)</text>
+          <text x="120" y="98" text-anchor="middle" fill="#38bdf8" font-size="8.5">Base-10°C Growing Degree Days (GDD) Accumulation</text>
+        </g>
+
+        <!-- Node 6: Agricultural Robotics & VRA Prescriptions -->
+        <g transform="translate(310, 375)">
+          <rect width="240" height="105" rx="10" fill="url(#g5)" stroke="#c084fc" stroke-width="1.5"/>
+          <text x="120" y="28" text-anchor="middle" fill="#e9d5ff" font-size="12" font-weight="700">6. Fields2Cover Swath Robotics</text>
+          <text x="120" y="50" text-anchor="middle" fill="#f3e8ff" font-size="10.5">Longest-Edge Swath Alignment θ_opt</text>
+          <text x="120" y="68" text-anchor="middle" fill="#d8b4fe" font-size="9.5">Dubins Turning Curve Generation</text>
+          <text x="120" y="84" text-anchor="middle" fill="#c084fc" font-size="9">Jenks Natural Breaks 3-Zone Urea VRA</text>
+          <text x="120" y="98" text-anchor="middle" fill="#e9d5ff" font-size="8.5">Headland Boundary Buffer Margins (1–3 Passes)</text>
+        </g>
+
+        <!-- Node 7: Zero-Backend Local Vault & Bridge -->
+        <g transform="translate(580, 375)">
+          <rect width="240" height="105" rx="10" fill="url(#g1)" stroke="#34d399" stroke-width="1.5"/>
+          <text x="120" y="28" text-anchor="middle" fill="#a7f3d0" font-size="12" font-weight="700">7. Browser Vault &amp; Desktop Bridge</text>
+          <text x="120" y="50" text-anchor="middle" fill="#ecfdf5" font-size="10.5">Dexie.js IndexedDB Local Storage</text>
+          <text x="120" y="68" text-anchor="middle" fill="#6ee7b7" font-size="9.5">Zero Remote Telemetry · 100% Privacy</text>
+          <text x="120" y="84" text-anchor="middle" fill="#34d399" font-size="9">Localhost 127.0.0.1:8765 CORS Bridge</text>
+          <text x="120" y="98" text-anchor="middle" fill="#a7f3d0" font-size="8.5">QGIS 3.x Plugin &amp; ArcGIS Pro Toolbox Two-Way Sync</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- SECTION 3: SCIENTIFIC METHODOLOGY & FORMULAS (RESEARCH THESIS) -->
+  <section id="scientific-methodology">
+    <h2>Part III: Research Thesis &amp; Scientific Methodology Specification</h2>
+
+    <h3>1. Satellite Sensor Ingestion &amp; Bottom-of-Atmosphere Radiometry</h3>
+    <p>
+      SEVA·GIS accesses Level-2A (L2A) surface reflectance products generated by the European Space Agency's (ESA) Copernicus Sentinel-2 MultiSpectral Instrument (MSI) via the Microsoft Planetary Computer SpatioTemporal Asset Catalog (STAC) API. Unlike raw Level-1C Top-Of-Atmosphere (TOA) data, L2A products are pre-corrected for atmospheric scattering and Rayleigh absorption using the Sen2Cor processor, yielding true Bottom-Of-Atmosphere (BOA) surface reflectance:
+    </p>
+    <div class="formula-box">
+      ρ_λ = (DN_λ - Offset_λ) / Quantization_Value
+    </div>
+    <p>
+      Where <code>Quantization_Value = 10,000</code> and modern Sentinel-2 processing baselines (PB &ge; 04.00) apply an additive radiometry offset of -1,000 DN to preserve dark surface dynamics.
+    </p>
+
+    <table>
+      <thead>
+        <tr><th>Band</th><th>Sensor ID</th><th>Central Wavelength</th><th>Bandwidth</th><th>Spatial Resolution</th><th>Target Physiological Dynamic</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Blue</td><td>B02</td><td>490 nm</td><td>65 nm</td><td>10 m</td><td>Soil / vegetation discrimination &amp; EVI aerosol correction</td></tr>
+        <tr><td>Green</td><td>B03</td><td>560 nm</td><td>35 nm</td><td>10 m</td><td>Peak chlorophyll reflectance, open-water NDWI</td></tr>
+        <tr><td>Red</td><td>B04</td><td>665 nm</td><td>30 nm</td><td>10 m</td><td>Maximum chlorophyll-a absorption valley</td></tr>
+        <tr><td>Red Edge 1</td><td>B05</td><td>705 nm</td><td>15 nm</td><td>20 m</td><td>Chlorophyll boundary slope inflection point (REIP, NDRE)</td></tr>
+        <tr><td>Red Edge 2</td><td>B06</td><td>740 nm</td><td>15 nm</td><td>20 m</td><td>Cellular canopy structural reflectance transition</td></tr>
+        <tr><td>Red Edge 3</td><td>B07</td><td>783 nm</td><td>20 nm</td><td>20 m</td><td>Near-infrared plateau initiation</td></tr>
+        <tr><td>NIR (Broad)</td><td>B08</td><td>842 nm</td><td>115 nm</td><td>10 m</td><td>Spongy mesophyll leaf cell scattering (Primary NDVI)</td></tr>
+        <tr><td>NIR (Narrow)</td><td>B8A</td><td>865 nm</td><td>20 nm</td><td>20 m</td><td>Atmospheric water vapor-isolated canopy reflectance</td></tr>
+        <tr><td>SWIR-1</td><td>B11</td><td>1610 nm</td><td>90 nm</td><td>20 m</td><td>Foliar liquid water absorption (NDMI, MSI) &amp; soil moisture</td></tr>
+        <tr><td>SWIR-2</td><td>B12</td><td>2190 nm</td><td>180 nm</td><td>20 m</td><td>Soil mineralogy, burned residue (NBR), atmospheric penetration</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. Radiometric Spectral Formulations</h3>
+    <p>
+      Multispectral vegetative indices are calculated as floating-point arrays in client memory (<code>src/lib/indicators.ts</code>) using zero-division guards:
+    </p>
+
+    <!-- Formula 1: NDVI -->
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Normalized Difference Vegetation Index (NDVI)</span>
+        <span class="math-citation">Rouse, J. W., et al. (1974)</span>
+      </div>
+      <div class="formula-box">
+        NDVI = (B08 - B04) / (B08 + B04)
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        Measures the contrast between strong chlorophyll-a absorption in the red band (B04) and high internal mesophyll scattering in the near-infrared band (B08). Values range from -1.0 to +1.0. Healthy green canopies typically range from 0.45 to 0.88.
+      </p>
+    </div>
+
+    <!-- Formula 2: NDRE -->
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Normalized Difference Red Edge (NDRE)</span>
+        <span class="math-citation">Gitelson, A., &amp; Merzlyak, M. N. (1994)</span>
+      </div>
+      <div class="formula-box">
+        NDRE = (B08 - B05) / (B08 + B05)
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        Substitutes Red with Red Edge Band 5 (705 nm). Red-edge light penetrates deeper into dense multi-layered leaf canopies without saturating, making NDRE the benchmark for in-season nitrogen status, sugarcane, maize, and late vegetative wheat.
+      </p>
+    </div>
+
+    <!-- Formula 3: NDMI -->
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Normalized Difference Moisture Index (NDMI)</span>
+        <span class="math-citation">Gao, B. C. (1996)</span>
+      </div>
+      <div class="formula-box">
+        NDMI = (B08 - B11) / (B08 + B11)
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        Contrasts NIR scattering against SWIR-1 (1610 nm) absorption caused by liquid water in plant spongy mesophyll tissues. A drop in NDMI indicates crop transpiration stress and leaf water deficit 4 to 7 days before optical chlorophyll breakdown.
+      </p>
+    </div>
+
+    <!-- Formula 4: EVI -->
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Enhanced Vegetation Index (EVI)</span>
+        <span class="math-citation">Huete, A., et al. (2002)</span>
+      </div>
+      <div class="formula-box">
+        EVI = 2.5 × (B08 - B04) / (B08 + 6 × B04 - 7.5 × B02 + 1.0)
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        Incorporates the blue band (B02) to correct for residual atmospheric aerosol scattering and introduces a canopy background adjustment factor (L=1.0) to maintain linear sensitivity across high leaf-area densities.
+      </p>
+    </div>
+
+    <!-- Formula 5: SAVI & MSAVI -->
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Soil-Adjusted Vegetation Index (SAVI &amp; MSAVI)</span>
+        <span class="math-citation">Huete (1988) / Qi et al. (1994)</span>
+      </div>
+      <div class="formula-box">
+        SAVI = (1 + L) × (B08 - B04) / (B08 + B04 + L)  [L = 0.5]<br>
+        MSAVI = (2 × B08 + 1 - √((2 × B08 + 1)² - 8 × (B08 - B04))) / 2
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        Calibrated for early crop stages and semi-arid conditions where soil background reflection distorts raw NDVI readings. MSAVI eliminates empirical parameter tuning by calculating a self-adjusting soil boundary line.
+      </p>
+    </div>
+
+    <!-- Formula 6: REIP -->
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Red Edge Inflection Point (REIP)</span>
+        <span class="math-citation">Guyot, G., &amp; Baret, F. (1988)</span>
+      </div>
+      <div class="formula-box">
+        REIP = 700 + 40 × [ ((B04 + B07) / 2 - B05) / (B06 - B05) ]  [nm]
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        Determines the precise wavelength (typically between 700 nm and 725 nm) where the first derivative of spectral reflectance reaches its peak. Directly indicates foliar nitrogen concentration and phenological senescence timing.
+      </p>
+    </div>
+
+    <!-- Formula 7: Topography Horn 1981 -->
+    <h3>3. Topographic Modeling: Horn's Gradient &amp; Hydrologic Wetness (GLO-30)</h3>
+    <p>
+      Topographic metrics are computed from Copernicus GLO-30 Digital Surface Models (DSM) with 30-meter resolution using Horn's 8-neighbor weighted finite-difference gradient operator (Horn, 1981):
+    </p>
+    <div class="math-card">
+      <div class="formula-box">
+        ∂z/∂x = [(z(x+1, y-1) + 2·z(x+1, y) + z(x+1, y+1)) - (z(x-1, y-1) + 2·z(x-1, y) + z(x-1, y+1))] / (8 · dx)<br>
+        ∂z/∂y = [(z(x-1, y-1) + 2·z(x, y-1) + z(x+1, y-1)) - (z(x-1, y+1) + 2·z(x, y+1) + z(x+1, y+1))] / (8 · dy)<br><br>
+        Slope β = arctan( √( (∂z/∂x)² + (∂z/∂y)² ) ) × (180 / π) [°]<br>
+        Aspect α = (arctan2(-∂z/∂y, -∂z/∂x) × (180 / π) + 360) % 360 [°]<br>
+        Hillshade = 255 × [ cos(zenith)·cos(β) + sin(zenith)·sin(β)·cos(azimuth - α) ]
+      </div>
+    </div>
+    <p>
+      Using D8 steepest-descent flow accumulation, upslope contributing area <code>a</code> is integrated into the <strong>Topographic Wetness Index (TWI - Beven &amp; Kirkby, 1979)</strong>:
+    </p>
+    <div class="formula-box">
+      TWI = ln( a / tan(β) )
+    </div>
+    <p>
+      Points with high TWI (&gt; 12) identify natural drainage channels and low-lying hollows vulnerable to waterlogging or pesticide pooling during monsoon rainfall.
+    </p>
+
+    <!-- Formula 8: FAO-56 Penman-Monteith -->
+    <h3>4. Micrometeorological Energy Balance: FAO-56 Penman-Monteith</h3>
+    <p>
+      Reference crop evapotranspiration ($ET_0$) is computed daily using the standardized FAO-56 Penman-Monteith equation (Allen et al., 1998) driven by Open-Meteo GFS and ECMWF model assimilations:
+    </p>
+    <div class="math-card">
+      <div class="formula-box">
+        ET₀ = [ 0.408 Δ (R_n - G) + γ (900 / (T + 273)) u₂ (e_s - e_a) ] / [ Δ + γ (1 + 0.34 u₂) ]
+      </div>
+      <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.9rem; color: var(--muted); line-height: 1.6;">
+        <li><code>R_n</code>: Net radiation at crop canopy surface (MJ m⁻² day⁻¹)</li>
+        <li><code>G</code>: Soil heat flux density (MJ m⁻² day⁻¹)</li>
+        <li><code>T</code>: Mean daily 2 m air temperature (°C)</li>
+        <li><code>u₂</code>: Wind speed at 2 m elevation (m s⁻¹)</li>
+        <li><code>(e_s - e_a)</code>: Vapour Pressure Deficit (VPD, kPa)</li>
+        <li><code>Δ</code>: Slope of saturation vapour pressure curve (kPa °C⁻¹)</li>
+        <li><code>γ</code>: Psychrometric constant (0.067 kPa °C⁻¹)</li>
+      </ul>
+      <p style="margin: 0.5rem 0 0; font-size: 0.92rem;">
+        Actual crop water demand is dynamically calculated as: <code>ET_c = K_c × ET_0</code>, where <code>K_c</code> is continuously scaled based on the crop's phenological stage derived from NDVI time series.
+      </p>
+    </div>
+
+    <!-- Formula 9: Fields2Cover Swaths -->
+    <h3>5. Agricultural Robotics &amp; Coverage Path Planning</h3>
+    <p>
+      SEVA·GIS implements autonomous path planning principles inspired by the <em>Fields2Cover</em> robotics library (Oksanen &amp; Visala, 2007) to optimize machinery operations, fuel economy, and soil health:
+    </p>
+    <div class="math-card">
+      <div class="math-header">
+        <span class="math-title">Longest-Edge Swath Alignment Optimization</span>
+        <span class="math-citation">Oksanen, T., &amp; Visala, A. (2007)</span>
+      </div>
+      <div class="formula-box">
+        θ_opt = argmax_i [ || p_(i+1) - p_i ||² ] mod 180°
+      </div>
+      <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+        By aligning machinery passes with the longest boundary vector of the field polygon, the algorithm minimizes headland turning maneuvers, which account for up to 28% of total fuel waste and cause severe wheel-rut soil compaction. Parallel swaths are spaced at exact implement boom width <code>w</code> with Dubins turning radii connecting successive tracks.
+      </p>
+    </div>
+
+    <!-- Formula 10: Jenks VRA -->
+    <h3>6. Precision Agronomy: Variable Rate Nitrogen Application (VRA)</h3>
+    <p>
+      Rather than uniform broadcast fertilizer application, SEVA·GIS clusters the field's NDVI distribution into three distinct agronomic management zones using the <strong>Jenks Natural Breaks Optimization Algorithm (Jenks, 1967)</strong>, which minimizes within-zone variance:
+    </p>
+    <div class="formula-box">
+      GVF = 1 - [ ∑_(k=1)^3 ∑_(i ∈ C_k) (x_i - x̄_k)² ] / [ ∑_(i=1)^N (x_i - x̄)² ]
+    </div>
+    <ul style="padding-left: 1.25rem; font-size: 0.92rem; line-height: 1.6;">
+      <li><strong>Zone 1 (Low Vigor, ~25% higher N rate):</strong> Micro-dosing rescue application to promote tillering and fill canopy gaps.</li>
+      <li><strong>Zone 2 (Moderate Vigor, 100% baseline rate):</strong> Standard maintenance feeding according to regional agronomy recommendations.</li>
+      <li><strong>Zone 3 (High Vigor, ~20% lower N rate):</strong> Reduces fertilizer where crops are already lush, preventing lodging (stem collapse) and cutting environmental nitrate runoff.</li>
+    </ul>
+
+    <!-- SECTION 4: CITATIONS & BIBLIOGRAPHY -->
+    <h3>7. Academic Bibliography &amp; References</h3>
+    <ul class="bib-list">
+      <li><strong>Allen, R. G., Pereira, L. S., Raes, D., &amp; Smith, M. (1998).</strong> <em>Crop evapotranspiration: Guidelines for computing crop water requirements.</em> FAO Irrigation and Drainage Paper 56, Rome, Italy.</li>
+      <li><strong>Beven, K. J., &amp; Kirkby, M. J. (1979).</strong> A physically based, variable contributing area model of basin hydrology. <em>Hydrological Sciences Bulletin</em>, 24(1), 43–69.</li>
+      <li><strong>Diek, S., Fornallaz, F., &amp; Schaepman, M. E. (2017).</strong> BSI: Bare Soil Index derivation for agricultural monitoring. <em>Remote Sensing of Environment</em>, 194, 212–224.</li>
+      <li><strong>Gao, B. C. (1996).</strong> NDWI—A normalized difference water index for remote sensing of vegetation liquid water from space. <em>Remote Sensing of Environment</em>, 58(3), 257–266.</li>
+      <li><strong>Gitelson, A., &amp; Merzlyak, M. N. (1994).</strong> Spectral reflectance changes associated with autumn senescence of leaves. <em>Journal of Plant Physiology</em>, 143(3), 286–292.</li>
+      <li><strong>Guyot, G., &amp; Baret, F. (1988).</strong> Utilisation de la haute résolution spectrale pour suivre l'état des couverts végétaux. <em>Proc. 4th Int. Colloquium on Spectral Signatures of Objects in Remote Sensing</em>, Aussois, France, 279–286.</li>
+      <li><strong>Horn, B. K. (1981).</strong> Hill shading and the reflectance map. <em>Proceedings of the IEEE</em>, 69(1), 14–47.</li>
+      <li><strong>Huete, A. R. (1988).</strong> A soil-adjusted vegetation index (SAVI). <em>Remote Sensing of Environment</em>, 25(3), 295–309.</li>
+      <li><strong>Huete, A., Didan, K., Miura, T., Rodriguez, E. P., Gao, X., &amp; Ferreira, L. G. (2002).</strong> Overview of the radiometric and biophysical performance of the MODIS vegetation indices. <em>Remote Sensing of Environment</em>, 83(1-2), 195–213.</li>
+      <li><strong>Jenks, G. F. (1967).</strong> The data model concept in statistical mapping. <em>International Yearbook of Cartography</em>, 7, 186–190.</li>
+      <li><strong>McFeeters, S. K. (1996).</strong> The use of the Normalized Difference Water Index (NDWI) in the delineation of open water features. <em>International Journal of Remote Sensing</em>, 17(7), 1425–1432.</li>
+      <li><strong>Oksanen, T., &amp; Visala, A. (2007).</strong> Coverage path planning for agricultural field machines. <em>IFAC Proceedings Volumes</em>, 40(15), 23–28.</li>
+      <li><strong>Qi, J., Chehbouni, A., Huete, A. R., Kerr, Y. H., &amp; Sorooshian, S. (1994).</strong> A modified soil adjusted vegetation index. <em>Remote Sensing of Environment</em>, 48(2), 119–126.</li>
+      <li><strong>Rouse, J. W., Haas, R. H., Schell, J. A., &amp; Deering, D. W. (1974).</strong> Monitoring vegetation systems in the Great Plains with ERTS. <em>NASA SP-351</em>, 309–317.</li>
+      <li><strong>Xu, H. (2006).</strong> Modification of normalised difference water index (NDWI) to enhance open water features in remotely sensed imagery. <em>International Journal of Remote Sensing</em>, 27(14), 3025–3033.</li>
+    </ul>
+
+    <div style="margin: 1.5rem 0; padding: 1.25rem; background: var(--card); border: 1px solid var(--line); border-radius: 10px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <strong>Thesis Citation (BibTeX):</strong>
+        <button class="copy-bib-btn" onclick="navigator.clipboard.writeText(document.getElementById('bibtex-code').innerText); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy BibTeX', 2000)">
+          Copy BibTeX
+        </button>
+      </div>
+      <pre id="bibtex-code" class="formula-box" style="margin: 0; font-size: 0.8rem;">
+@thesis{vinay2025sevagis,
+  title={SEVA·GIS: Client-Side Geospatial Analytics and Autonomous Agro-Robotics for Smallholder Precision Agriculture},
+  author={N. Akshit Vinay},
+  year={2025},
+  publisher={Open-Source Geospatial Research},
+  url={https://github.com/virahitvin8/seva-gis}
+}</pre>
+    </div>
+  </section>
+
+  <p><a class="cta" href="/">⚡ Open the SEVA·GIS App</a></p>
+
+  <p class="bottom-nav">
+    <a href="/how-it-works.html">How it works</a> · 
+    <a href="/ndvi-explained.html">NDVI explained</a> · 
+    <a href="/faq.html">FAQ</a> · 
+    <a href="https://github.com/virahitvin8/seva-gis" target="_blank" rel="noreferrer">GitHub Repository</a>
+  </p>
 </main>
-<footer>SEVA.GIS (Spatial Evaluation &amp; Vegetation Analytics) is a free, open-source farm monitor by N. Akshit Vinay. Satellite data: ESA Copernicus Sentinel-2.</footer>
+
+<footer>
+  SEVA·GIS (Spatial Evaluation &amp; Vegetation Analytics) is a free, open-source precision agriculture platform by N. Akshit Vinay. Satellite data: ESA Copernicus Sentinel-2. Topography: Copernicus GLO-30 DSM. Weather: Open-Meteo.
+</footer>
+
 </body>
 </html>

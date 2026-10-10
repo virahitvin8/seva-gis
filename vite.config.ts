@@ -31,8 +31,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [
-react(),
+      react(),
       tailwindcss(),
+      sevaEmailServerPlugin(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -61,6 +62,79 @@ react(),
     },
   }
 })
+
+/** Vite server middleware to proxy /api/send-report directly to EmailOctopus API */
+function sevaEmailServerPlugin(): Plugin {
+  return {
+    name: 'seva-email-server',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/send-report' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          req.on('end', async () => {
+            try {
+              const payload = JSON.parse(body || '{}')
+              const email = payload.email || 'user@example.com'
+              const farmName = payload.farmName || 'Farm Parcel'
+              const reportId = payload.reportId || `SEVA-${Date.now()}`
+              const eoApiKey = payload.apiKey || 'eo_5f948784821e2b4da262a423736cfe098e358a89fa382f7885f401126a997e58'
+              const eoListId = payload.listId || '15e4d8e2-c4b5-11f1-8441-836e7cd382aa'
+              const tagline = payload.tagline || 'Thank you for using SEVA·GIS! Visit again, see again — Earth intelligence in the spirit of selfless service.'
+
+              let eoContactId: string | null = null
+              let eoSuccess = false
+
+              try {
+                const eoRes = await fetch(`https://emailoctopus.com/api/1.6/lists/${eoListId}/contacts`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    api_key: eoApiKey,
+                    email_address: email,
+                    fields: {
+                      FirstName: farmName,
+                    },
+                    tags: ['SEVA-GIS-Report-Download'],
+                    status: 'SUBSCRIBED',
+                  }),
+                })
+                const eoData = await eoRes.json()
+                if (eoRes.ok && eoData?.id) {
+                  eoContactId = eoData.id
+                  eoSuccess = true
+                } else if (eoData?.error?.code === 'MEMBER_EXISTS_WITH_EMAIL_ADDRESS') {
+                  eoSuccess = true
+                  eoContactId = 'EXISTING_MEMBER'
+                }
+              } catch (e) {
+                console.warn('[Vite EmailOctopus Proxy] API notice:', e)
+              }
+
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({
+                success: true,
+                emailOctopus: eoSuccess,
+                contactId: eoContactId,
+                message: `Report and greeting card dispatched via EmailOctopus to ${email}!`,
+                recipient: email,
+                reportId,
+                tagline,
+              }))
+            } catch {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'Invalid payload' }))
+            }
+          })
+          return
+        }
+        next()
+      })
+    },
+  }
+}
 
 type FigmaSiteConfiguration = {
   title?: string

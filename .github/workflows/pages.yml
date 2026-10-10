@@ -16,12 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { lfs: true }
-      - uses: pnpm/action-setup@v4
-        with: { version: 10 }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+        with: { node-version: 22 }
+      - run: npm install
+      - run: npm run build
         env:
           BASE_PATH: ./
       - run: cp dist/index.html dist/404.html

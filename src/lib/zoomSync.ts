@@ -13,12 +13,12 @@ export function getSavedZoom(fallback = 15): number {
   if (typeof window === 'undefined') return fallback
   const saved = localStorage.getItem(STORAGE_KEY)
   const parsed = saved ? parseFloat(saved) : NaN
-  return Number.isFinite(parsed) && parsed >= 3 && parsed <= 21 ? parsed : fallback
+  return Number.isFinite(parsed) && parsed >= 3 && parsed <= 18 ? parsed : fallback
 }
 
 export function setGlobalZoom(zoom: number, center?: { lat: number; lon: number }): void {
   if (typeof window === 'undefined') return
-  const clamped = Math.max(3, Math.min(21, Math.round(zoom * 10) / 10))
+  const clamped = Math.max(3, Math.min(19, Math.round(zoom * 10) / 10))
   localStorage.setItem(STORAGE_KEY, String(clamped))
   window.dispatchEvent(
     new CustomEvent<ZoomEventDetail>(EVENT_NAME, {

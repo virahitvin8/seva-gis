@@ -6,7 +6,7 @@ import {
   Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search,
   SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers,
   Lock, LockOpen, Map as MapIcon, Ruler, Maximize2, Tag, ExternalLink,
-  Sliders, ChevronRight, Trash2, FileCheck2, Scissors
+  Sliders, ChevronRight, Trash2, FileCheck2, Scissors, RotateCcw
 } from 'lucide-react'
 import {
   GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict,
@@ -149,8 +149,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const sceneKey = scene ? `${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}` : 'no-scene'
 
   // GIS Engine Controls: Background mode, Dynamic Range Adjustment (DRA), High-DPI Clarity
+  // Default to 'default' (Natural satellite basemap with clear boundary overlay).
+  // Cleanly resets any stale 'black' or 'white' background in localStorage that caused repeating black-screen traps.
   const [bgMode, setBgMode] = useState<'default' | 'black' | 'white'>(() => {
-    return (localStorage.getItem('seva-map-bg') as any) || 'default'
+    try {
+      const saved = localStorage.getItem('seva-map-bg')
+      if (saved === 'black' || saved === 'white') {
+        localStorage.removeItem('seva-map-bg')
+      }
+    } catch {}
+    return 'default'
   })
   useEffect(() => { localStorage.setItem('seva-map-bg', bgMode) }, [bgMode])
 
@@ -214,8 +222,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   // Strict 75% Box Ratio Auto Zoom & MinZoom Boundary
   // Automatically resizes and fits the AOI so it fills 75% of the viewport container (12.5% padding on each margin).
-  // Constrains map.setMinZoom(aoi75Zoom) so the user can zoom IN to inspect crops,
-  // but CANNOT zoom OUT below 75%, preserving constant scale and permanently overcoming black-screen tile void glitches.
+  // Constrains zoom within safe bounds (13 to 18) so imagery never exceeds native resolution,
+  // overcoming black-screen tile void glitches while maintaining cartographic scale.
   const fit75PercentAoi = (instance: L.Map, animate = false) => {
     if (!instance) return
     const [w, s, e, n] = farmBBox(farm)
@@ -225,18 +233,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
     const padX = Math.max(30, Math.round(sz.x * 0.125))
     const padY = Math.max(30, Math.round(sz.y * 0.125))
-    const aoi75Zoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, padY * 2))
+    const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, padY * 2))
+    // Safe zoom: Max 18 (Esri max native zoom level) to avoid blank tile 404s, Min 13
+    const safeAoiZoom = Math.min(18, Math.max(13, computedZoom))
 
     instance.fitBounds(bounds, {
       paddingTopLeft: [padX, padY],
       paddingBottomRight: [padX, padY],
-      maxZoom: 19,
+      maxZoom: 18,
       animate,
     })
 
-    // Constant scale: only zoom in (> 75%), NEVER zoom out below 75%!
-    instance.setMinZoom(aoi75Zoom)
-    return aoi75Zoom
+    // Constant scale: only lock to safeAoiZoom when locked; allow zooming out when unlocked
+    instance.setMinZoom(locked ? safeAoiZoom : Math.max(3, safeAoiZoom - 4))
+    instance.setMaxZoom(19)
+    return safeAoiZoom
   }
 
   useEffect(() => {
@@ -267,8 +278,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     return () => clearTimeout(t)
   }, [locked, mapObj, geo])
 
-  // Automatic wake/unlock recovery: restores map viewport whenever device, phone, or browser tab changes visibility
+  // Automatic wake/unlock recovery and container resize observer
   useEffect(() => {
+    const el = element.current
     const m = mapObj
     if (!m) return
     const handleWakeAndVisibility = () => {
@@ -283,11 +295,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     window.addEventListener('focus', handleWakeAndVisibility)
     window.addEventListener('pageshow', handleWakeAndVisibility)
     window.addEventListener('resize', handleWakeAndVisibility)
+
+    let ro: ResizeObserver | null = null
+    if (el && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        m.invalidateSize({ pan: false })
+      })
+      ro.observe(el)
+    }
+
     return () => {
       document.removeEventListener('visibilitychange', handleWakeAndVisibility)
       window.removeEventListener('focus', handleWakeAndVisibility)
       window.removeEventListener('pageshow', handleWakeAndVisibility)
       window.removeEventListener('resize', handleWakeAndVisibility)
+      if (ro) ro.disconnect()
     }
   }, [mapObj])
 
@@ -375,17 +397,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
   }, [])
 
-  // Base map tile handling (suppressed when pure solid black or white canvas mode is active)
+  // Base map tile handling (always renders robust basemap tiles underneath)
   useEffect(() => {
     const instance = mapObj
     if (!instance) return
     localStorage.setItem(BASE_STORE, base)
     baseLayers.current.forEach(l => l.remove()); baseLayers.current = []
-
-    // If solid black or white background is active in farm-only mode, keep pure canvas background
-    if ((bgMode === 'black' || bgMode === 'white') && aoiOnly) {
-      return
-    }
 
     const add = (url: string, attribution: string, o: L.TileLayerOptions = {}) => {
       const l = L.tileLayer(url, { attribution, maxZoom: 21, maxNativeZoom: 18, zIndex: 10 + baseLayers.current.length, ...o }).addTo(instance)
@@ -430,7 +447,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
   }, [mapObj, base, scene?.id, scene?.ids?.join(), bgMode, aoiOnly])
 
-  // Boundary frame and Solid Black / Solid White exterior canvas
+  // Boundary frame and exterior canvas mask with evenodd hole rendering
   useEffect(() => {
     const instance = map.current
     if (!instance) return
@@ -440,45 +457,54 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     frame.current = group
 
     if (element.current) {
-      if (bgMode === 'black') element.current.style.backgroundColor = '#000000'
-      else if (bgMode === 'white') element.current.style.backgroundColor = '#ffffff'
-      else element.current.style.backgroundColor = '#15291f'
+      element.current.style.backgroundColor = '#15291f'
     }
 
+    const worldOuter: L.LatLngTuple[] = [
+      [-85, -180],
+      [-85, 180],
+      [85, 180],
+      [85, -180],
+    ]
+
     if (bgMode === 'black') {
-      // Solid Black background outside farm boundary (Google Earth Engine dark canvas mode)
-      L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
+      // Solid Dark background outside farm boundary (Google Earth Engine dark canvas mode)
+      L.polygon([worldOuter, ring], {
         stroke: false,
         fillColor: '#000000',
-        fillOpacity: 1.0,
+        fillOpacity: 0.88,
+        fillRule: 'evenodd',
         interactive: false
       }).addTo(group)
       L.polygon(ring, { color: '#22c55e', weight: 2.8, fill: false, interactive: false }).addTo(group)
     } else if (bgMode === 'white') {
       // Solid White background outside farm boundary (QGIS / ArcMap Print Layout style)
-      L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
+      L.polygon([worldOuter, ring], {
         stroke: false,
         fillColor: '#ffffff',
-        fillOpacity: 1.0,
+        fillOpacity: 0.88,
+        fillRule: 'evenodd',
         interactive: false
       }).addTo(group)
       L.polygon(ring, { color: '#15803d', weight: 2.8, fill: false, interactive: false }).addTo(group)
     } else if (aoiOnly) {
       // Shapefile clipping mask: Mask surroundings so all parameters display upon the farm AOI only
-      L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
+      L.polygon([worldOuter, ring], {
         stroke: false,
         fillColor: '#05130b',
-        fillOpacity: 0.88,
+        fillOpacity: 0.85,
+        fillRule: 'evenodd',
         interactive: false
       }).addTo(group)
       L.polygon(ring, { color: '#22c55e', weight: 3, dashArray: '6 4', fill: false, interactive: false }).addTo(group)
     } else {
       // Standard view with surroundings: gently dim surroundings only when explicitly requested
       if (dim) {
-        L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
+        L.polygon([worldOuter, ring], {
           stroke: false,
           fillColor: '#07110c',
           fillOpacity: 0.45,
+          fillRule: 'evenodd',
           interactive: false
         }).addTo(group)
       }
@@ -487,7 +513,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
     fit75PercentAoi(instance, false)
     return () => { group.remove(); frame.current = null }
-  }, [geo, dim, bgMode, aoiOnly])
+  }, [farm.id, geo, dim, bgMode, aoiOnly, locked])
 
   // Cadastral Survey Boundaries and Official Pattadar Passbook Layer
   useEffect(() => {
@@ -859,6 +885,23 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           {locked ? <Lock size={15}/> : <LockOpen size={15}/>}
           <span>{locked ? 'Locked' : 'Unlocked'}</span>
           <b className="ix-btn-badge">{locked ? '75% Locked' : 'Live'}</b>
+        </button>
+
+        <button
+          className="ix-tb-btn"
+          onClick={() => {
+            setBgMode('default')
+            setAoiOnly(false)
+            if (map.current) {
+              fit75PercentAoi(map.current, true)
+              map.current.invalidateSize({ pan: false })
+            }
+          }}
+          title="Reset map: Restore natural satellite imagery, center AOI at 75%, and clear black screen"
+        >
+          <RotateCcw size={15}/>
+          <span>Reset</span>
+          <b className="ix-btn-badge">75% Fit</b>
         </button>
       </div>
 

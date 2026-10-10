@@ -212,140 +212,6 @@ export function download(name: string, text: string, type = 'application/geo+jso
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click()
 }
 
-export type Method = 'kmeans' | 'mindist' | 'ml' | 'rf' | 'cnn' | 'lstm' | 'ensemble' | 'quantum'
-export const METHODS: { id: Method; name: string; kind: string; why: string }[] = [
-  { id: 'kmeans', name: 'K-means', kind: 'Unsupervised', why: 'Finds natural groups by itself. Same idea as scikit-learn KMeans and ISODATA in ENVI and ERDAS.' },
-  { id: 'mindist', name: 'Minimum distance', kind: 'Supervised', why: 'Each pixel joins the nearest class average. Classic in GDAL, Orfeo Toolbox and QGIS Semi-Automatic Classification.' },
-  { id: 'ml', name: 'Maximum likelihood', kind: 'Supervised', why: 'Each pixel joins the most probable class using spread as well as average. Standard in SNAP, ENVI and ArcGIS.' },
-  { id: 'rf', name: 'Random Forest', kind: 'Ensemble ML', why: 'Forest of 20 randomized decision trees splitting across multi-spectral bands to classify crop vigour with high robustness against noise.' },
-  { id: 'cnn', name: 'CNN (Spatial)', kind: 'Deep Learning', why: '2D convolutional spatial kernels capturing texture, canopy roughness, and boundary edge contexts.' },
-  { id: 'lstm', name: 'LSTM (Temporal)', kind: 'Recurrent Neural', why: 'Long Short-Term Memory sequence model projecting time-series transitions and crop growth curve trajectories.' },
-  { id: 'ensemble', name: 'Ensemble blend', kind: 'Meta-Learner', why: 'Soft-voting consensus combining Random Forest, CNN spatial context, and rule-based physical constraints.' },
-  { id: 'quantum', name: 'Quantum VQC', kind: 'Experimental', why: 'Variational Quantum Classifier simulation encoding 4 spectral features into parameterized Bloch-sphere qubit rotations and CNOT entanglement.' },
-]
-export type Sup = { labels: Int8Array; classes: { id: string; name: string; color: string; pct: number; ha: number }[]; url: string }
-
-// Supervised classifiers trained automatically: confident pixels from the rule-based land cover act as training samples.
-export function superviseAuto(g: Grid, ring: Ring, method: Method): Sup | null {
-  const rules = landCoverLabels(g), idx: number[] = []
-  for (let i = 0; i < rules.length; i++) if (rules[i] >= 0) idx.push(i)
-  if (idx.length < 40) return null
-  const F = (i: number) => features(g, i), d = 6
-  const stats = LANDCOVER.map((_, c) => {
-    const m = idx.filter(i => rules[i] === c)
-    if (m.length < 12) return null
-    const mean = new Array(d).fill(0), v = new Array(d).fill(0)
-    m.forEach(i => F(i).forEach((x, j) => (mean[j] += x / m.length)))
-    m.forEach(i => F(i).forEach((x, j) => (v[j] += (x - mean[j]) ** 2 / m.length)))
-    return { mean, v: v.map(x => Math.max(x, 1e-5)) }
-  })
-  const gv = new Array(d).fill(0)
-  const all = idx.map(F)
-  const gm = new Array(d).fill(0)
-  all.forEach(f => f.forEach((x, j) => (gm[j] += x / all.length)))
-  all.forEach(f => f.forEach((x, j) => (gv[j] += (x - gm[j]) ** 2 / all.length)))
-  const labels = new Int8Array(g.w * g.h).fill(-1), counts = new Array(LANDCOVER.length).fill(0)
-
-  // Random Forest: Ensemble of randomized split decision trees
-  const rfTrees = method === 'rf' || method === 'ensemble' ? Array.from({ length: 15 }, (_, treeIdx) => {
-    const featSubset = [treeIdx % d, (treeIdx + 2) % d, (treeIdx + 4) % d]
-    const splits = LANDCOVER.map((_, c) => {
-      const st = stats[c]
-      return st ? featSubset.map(fi => st.mean[fi]) : null
-    })
-    return { featSubset, splits }
-  }) : []
-
-  idx.forEach(i => {
-    const f = F(i); let best = -1, bs = Infinity
-
-    if (method === 'mindist') {
-      stats.forEach((st, c) => {
-        if (!st) return
-        const sc = f.reduce((s, x, j) => s + (x - st.mean[j]) ** 2 / gv[j], 0)
-        if (sc < bs) { bs = sc; best = c }
-      })
-    } else if (method === 'ml') {
-      stats.forEach((st, c) => {
-        if (!st) return
-        const sc = f.reduce((s, x, j) => s + Math.log(st.v[j]) + (x - st.mean[j]) ** 2 / st.v[j], 0)
-        if (sc < bs) { bs = sc; best = c }
-      })
-    } else if (method === 'rf') {
-      const votes = new Array(LANDCOVER.length).fill(0)
-      rfTrees.forEach(t => {
-        let tBest = -1, tDist = Infinity
-        stats.forEach((st, c) => {
-          if (!st) return
-          const dSum = t.featSubset.reduce((sum, fi) => sum + (f[fi] - st.mean[fi]) ** 2, 0)
-          if (dSum < tDist) { tDist = dSum; tBest = c }
-        })
-        if (tBest >= 0) votes[tBest]++
-      })
-      best = votes.indexOf(Math.max(...votes))
-    } else if (method === 'cnn') {
-      // 2D Spatial context convolution kernel
-      const px = i % g.w, py = Math.floor(i / g.w)
-      let neighborMeanNdvi = f[4]
-      let nValid = 1
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) continue
-          const ni = (py + dy) * g.w + (px + dx)
-          if (ni >= 0 && ni < g.w * g.h && g.inside[ni] && g.ok[ni]) {
-            neighborMeanNdvi += (g.b.B08[ni] - g.b.B04[ni]) / (g.b.B08[ni] + g.b.B04[ni] + 1e-9)
-            nValid++
-          }
-        }
-      }
-      neighborMeanNdvi /= nValid
-      // Blend pixel spectral features with CNN spatial smoothed kernel
-      stats.forEach((st, c) => {
-        if (!st) return
-        const specSc = f.reduce((s, x, j) => s + (x - st.mean[j]) ** 2 / gv[j], 0)
-        const contextSc = Math.abs(neighborMeanNdvi - st.mean[4]) * 2.5
-        const total = specSc + contextSc
-        if (total < bs) { bs = total; best = c }
-      })
-    } else if (method === 'lstm') {
-      // Temporal decay weighting prioritizing active growing canopy signatures
-      const ndviVal = f[4], ndmiVal = f[5]
-      stats.forEach((st, c) => {
-        if (!st) return
-        const sc = (ndviVal - st.mean[4]) ** 2 * 3.5 + (ndmiVal - st.mean[5]) ** 2 * 2.0 + (f[1] - st.mean[1]) ** 2
-        if (sc < bs) { bs = sc; best = c }
-      })
-    } else if (method === 'ensemble') {
-      // Soft-voting blend: 40% RF + 35% CNN + 25% Maximum Likelihood
-      const scores = new Array(LANDCOVER.length).fill(0)
-      stats.forEach((st, c) => {
-        if (!st) return
-        const dSum = f.reduce((s, x, j) => s + (x - st.mean[j]) ** 2 / gv[j], 0)
-        scores[c] = Math.exp(-dSum / 2)
-      })
-      best = scores.indexOf(Math.max(...scores))
-    } else if (method === 'quantum') {
-      // Parameterized Quantum Circuit simulation:
-      // Map 4 normalized features to Ry(theta), Rz(phi) rotations and compute Pauli-Z expectation values
-      const theta1 = f[0] * Math.PI, theta2 = f[2] * Math.PI
-      const phi1 = f[4] * Math.PI, phi2 = f[5] * Math.PI
-      const qExp = Math.cos(theta1) * Math.sin(phi1) + Math.cos(theta2) * Math.sin(phi2)
-      stats.forEach((st, c) => {
-        if (!st) return
-        const stQExp = Math.cos(st.mean[0] * Math.PI) * Math.sin(st.mean[4] * Math.PI) + Math.cos(st.mean[2] * Math.PI) * Math.sin(st.mean[5] * Math.PI)
-        const diff = Math.abs(qExp - stQExp)
-        if (diff < bs) { bs = diff; best = c }
-      })
-    }
-
-    if (best >= 0) { labels[i] = best; counts[best]++ }
-  })
-
-  const ha = (g.dx * g.dy) / 10000
-  const classes = LANDCOVER.map((c, k) => ({ id: c.id, name: c.name, color: c.color, pct: (counts[k] / idx.length) * 100, ha: counts[k] * ha }))
-  return { labels, classes, url: paintClipped(g.w, g.h, g.bbox, ring, i => (labels[i] >= 0 ? hex(classes[labels[i]].color) : null), false) }
-}
-
 export type YieldForecast = {
   crop: string
   predictedYieldTonHa: number
@@ -420,18 +286,22 @@ export function predictYield(
 }
 
 const sharpCache = new Map<string, string>()
+const MAX_SHARP_CACHE = 4
 
-// Sharp true colour: Esri World Imagery (sub-metre high resolution) exported/stitched for the farm bbox and clipped to the boundary.
+// Esri World Imagery export for the farm boundary. Capture date and native resolution vary by location.
 export async function sharpTrueColour(ring: Ring): Promise<string> {
   const xs = ring.map(p => p[0]), ys = ring.map(p => p[1])
   const w = Math.min(...xs), e = Math.max(...xs), s0 = Math.min(...ys), n = Math.max(...ys)
   const cacheKey = `${w.toFixed(5)},${s0.toFixed(5)},${e.toFixed(5)},${n.toFixed(5)}`
-  if (sharpCache.has(cacheKey)) {
-    return sharpCache.get(cacheKey)!
+  const cached = sharpCache.get(cacheKey)
+  if (cached) {
+    sharpCache.delete(cacheKey)
+    sharpCache.set(cacheKey, cached)
+    return cached
   }
 
   const cos = Math.cos(((s0 + n) / 2) * Math.PI / 180), wm = (e - w) * 111320 * cos, hm = (n - s0) * 111320
-  const maxDim = 1024 // Optimized resolution: crisp sub-metre detail without GPU/memory overload
+  const maxDim = 1024 // Bound image memory; this does not change the source imagery resolution
   const W = wm >= hm ? maxDim : Math.max(256, Math.round(maxDim * (wm / hm))), H = wm >= hm ? Math.max(256, Math.round(maxDim * (hm / wm))) : maxDim
 
   const c = document.createElement('canvas'); c.width = W; c.height = H
@@ -462,13 +332,21 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
       for (let y = tileY(n, z); y <= tileY(s0, z); y++) {
         tilePromises.push(new Promise(resolve => {
           const img = new Image(); img.crossOrigin = 'anonymous'
+          let done = false
+          const finish = () => {
+            if (done) return
+            done = true
+            clearTimeout(timeout)
+            resolve()
+          }
+          const timeout = setTimeout(finish, 5000)
           img.onload = () => {
             const x0 = ((lonOf(x, z) - w) / (e - w)) * W, x1 = ((lonOf(x + 1, z) - w) / (e - w)) * W
             const y0 = ((n - latOf(y, z)) / (n - s0)) * H, y1 = ((n - latOf(y + 1, z)) / (n - s0)) * H
-            ctx.drawImage(img, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
-            resolve()
+            if (!done) ctx.drawImage(img, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+            finish()
           }
-          img.onerror = () => resolve()
+          img.onerror = finish
           img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
         }))
       }
@@ -489,7 +367,7 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
   outCtx.clip()
   outCtx.drawImage(c, 0, 0, W, H)
   const result = outCanvas.toDataURL('image/jpeg', 0.88)
-  if (sharpCache.size > 20) sharpCache.clear()
   sharpCache.set(cacheKey, result)
+  if (sharpCache.size > MAX_SHARP_CACHE) sharpCache.delete(sharpCache.keys().next().value!)
   return result
 }

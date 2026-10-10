@@ -336,7 +336,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   <g transform="translate(160, 180)">
                     <rect width="520" height="110" rx="12" fill="url(#flowGrad3)" stroke="#4ade80" strokeWidth="2" filter="url(#flowGlow)" />
                     <text x="260" y="30" textAnchor="middle" fill="#bbf7d0" fontSize="14" fontWeight="800">4. In-Browser Radiometric Spectral Engine (Float32Array WebGL)</text>
-                    <text x="260" y="55" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="600">NDVI · NDMI · NDWI · NDRE · EVI · SAVI · MSAVI · BSI · REIP · LAI · CWSI · LST</text>
+                    <text x="260" y="55" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="600">NDVI · NDMI · NDWI · NDRE · EVI · SAVI · MSAVI · BSI · REIP · LAI</text>
                     <text x="260" y="78" textAnchor="middle" fill="#86efac" fontSize="10">Pixel Clipping to Polygon · Statistical Z-Scores · Early Stress Warning Matrix</text>
                     <text x="260" y="96" textAnchor="middle" fill="#4ade80" fontSize="9.5">Zero-Division Safe Formulations · 10 m Resolution Resampling</text>
                   </g>
@@ -461,14 +461,6 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     bands: 'B04 (665 nm), B05 (705 nm), B06 (740 nm), B07 (783 nm)',
                     desc: 'Wavelength of maximum first-derivative slope in the red-edge region. Highly correlated with total leaf nitrogen and senescence onset.',
                     color: '#f43f5e'
-                  },
-                  {
-                    name: 'Crop Water Stress Index (CWSI)',
-                    author: 'Idso et al. 1981 / SEVA Proxy',
-                    formula: 'CWSI = clamp( (0.35 - NDMI) / 0.55, 0, 1 )',
-                    bands: 'Derived from NDMI canopy hydration deficit',
-                    desc: 'Normalized metric where 0.0 indicates full transpiration and 1.0 indicates severe stomatal closure and transpiration cessation.',
-                    color: '#fb923c'
                   },
                   {
                     name: 'Bare Soil Index (BSI)',

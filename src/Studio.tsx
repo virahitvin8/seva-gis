@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
 import { Download, RefreshCw, Sprout, Layers, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { LANDCOVER } from './lib/gee'
-import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
+import { autoClassify, sharpTrueColour, download, landCoverLabels, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { MapFrame } from './LabMap'
 
@@ -15,7 +15,6 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const [k, setK] = useState(4)
   const [sharp, setSharp] = useState('')
   const [picMode, setPicMode] = useState<'4k' | 'clipped' | 'raw'>('clipped')
-  const [method, setMethod] = useState<Method>('kmeans')
   const [yieldKey, setYieldKey] = useState(0)
   const [yieldSpinning, setYieldSpinning] = useState(false)
   const [selectedCombo, setSelectedCombo] = useState<string>('natural')
@@ -40,7 +39,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
 
   const ring = useMemo(() => farmRing(farm), [farm.id, farm.lat, farm.lon, farm.area, farm.polygon])
 
-  // Only fetch and stitch sub-metre satellite imagery when user explicitly selects 4K picture mode
+  // Load a separate Esri basemap view only when requested.
   useEffect(() => {
     if (picMode !== '4k') return
     let dead = false
@@ -81,24 +80,14 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   }
 
   const auto = useMemo(() => {
-    if (!g || method !== 'kmeans') return null
+    if (!g) return null
     try {
       return autoClassify(g, ring, k)
     } catch (e) {
       console.warn('[GeoAI Studio] autoClassify error:', e)
       return null
     }
-  }, [g, ring, k, method])
-
-  const sup = useMemo(() => {
-    if (!g || method === 'kmeans') return null
-    try {
-      return superviseAuto(g, ring, method)
-    } catch (e) {
-      console.warn('[GeoAI Studio] superviseAuto error:', e)
-      return null
-    }
-  }, [g, ring, method])
+  }, [g, ring, k])
 
   const yieldPred = useMemo(() => {
     const peakNdvi = farm.analysis?.ndvi.mean ?? 0.68
@@ -110,21 +99,19 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   if (!g) return <div className="ag-empty"><LogoLoader text="Loading Sentinel-2 bands…"/></div>
   const slug = farm.name.replace(/\W+/g, '-').toLowerCase(), date = scene.datetime.slice(0, 10)
   const exportRule = () => download(`${slug}-landcover.geojson`, JSON.stringify(vectorize(g, landCoverLabels(g), LANDCOVER, { farm: farm.name, scene: date, method: 'rule-based' })))
-  const exportAuto = () => { const r = sup ? { l: sup.labels, d: sup.classes } : auto ? { l: auto.labels, d: auto.clusters } : null; if (r) download(`${slug}-auto-classes.geojson`, JSON.stringify(vectorize(g, r.l, r.d, { farm: farm.name, scene: date, method }))) }
+  const exportAuto = () => { if (auto) download(`${slug}-spectral-groups.geojson`, JSON.stringify(vectorize(g, auto.labels, auto.clusters, { farm: farm.name, scene: date, method: 'k-means' }))) }
   return <>
-    <p className="ge-note">GeoAI sorts every pixel of your farm into natural groups by itself. No clicking, no training. It reads green, red, near-infrared and shortwave-infrared light, then groups pixels that behave alike. Why? Crops, soil and water reflect light differently, so similar ground ends up in the same group.</p>
-    <div className="st-classes"><span>Method</span>{METHODS.map(m => <button key={m.id} className={method === m.id ? 'on' : ''} onClick={() => setMethod(m.id)}>{m.name}<small> {m.kind}</small></button>)}</div>
-    <p className="ge-note">{METHODS.find(m => m.id === method)!.why}{method !== 'kmeans' && ' It trains itself from pixels that the land-cover rules are confident about, so you never draw training samples.'}</p>
-    {method === 'kmeans' && <div className="st-classes"><span>Number of groups</span>{[3, 4, 5].map(n => <button key={n} className={k === n ? 'on' : ''} onClick={() => setK(n)}>{n}</button>)}</div>}
+    <p className="ge-note">Group pixels with similar Sentinel-2 reflectance. The clusters describe spectral similarity; they are not confirmed crop types or field diagnoses.</p>
+    <div className="st-classes"><span>Number of spectral groups</span>{[3, 4, 5].map(n => <button key={n} className={k === n ? 'on' : ''} onClick={() => setK(n)}>{n}</button>)}</div>
     <div className="ge-cols">
       <div>
         <MapFrame
           farm={farm}
           scene={scene}
           overlay={picMode === '4k' ? (sharp || undefined) : photo}
-          title={picMode === '4k' ? 'True colour (4K UHD)' : picMode === 'raw' ? `RAW (${activeCombo ? activeCombo.name : activeBands.join('·')})` : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
-          note={picMode === '4k' ? 'What a camera above your farm sees, in crystal-clear 4K ultra-high resolution (sub-metre satellite imagery). Clipped directly to your farm boundary.' : picMode === 'raw' ? 'Full unclipped Sentinel-2 scene tile on black background frame matching Google Earth Engine, QGIS, and ArcMap pixel grids without blur.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
-          caption={picMode === '4k' ? 'True colour · 4K Ultra-Res AOI (Sub-metre Satellite Imagery)' : picMode === 'raw' ? `RAW Scene Tile · GEE / QGIS symbology (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 10 m multispectral (${activeBands.join('·')})`}
+          title={picMode === '4k' ? 'Esri World Imagery' : picMode === 'raw' ? `Unclipped Sentinel-2 (${activeCombo ? activeCombo.name : activeBands.join('·')})` : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
+          note={picMode === '4k' ? 'Esri basemap imagery clipped to the farm. Its capture date and resolution vary by location; it is separate from the selected Sentinel-2 scene.' : picMode === 'raw' ? 'Sentinel-2 band composite outside the farm boundary on a black background.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
+          caption={picMode === '4k' ? 'Esri World Imagery · capture date varies' : picMode === 'raw' ? `Sentinel-2 scene tile (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 (${activeBands.join('·')})`}
           highlightAoi={false}
         />
         <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -133,18 +120,18 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             <button
               className={picMode === '4k' ? 'on' : ''}
               onClick={() => setPicMode('4k')}
-              title="Crystal-clear sub-metre 4K resolution imagery clipped directly to your farm polygon"
+              title="Show Esri World Imagery clipped to this farm; capture dates vary by location"
             >
               <Sparkles size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-              ✨ 4K Ultra-Res (Sub-metre)
+              Esri basemap
             </button>
             <button
               className={picMode === 'clipped' ? 'on' : ''}
               onClick={() => setPicMode('clipped')}
-              title="Sentinel-2 10 m multispectral satellite imagery clipped to your farm boundary"
+              title="Sentinel-2 composite clipped to your farm boundary; native band resolution varies"
             >
               <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-              🌿 Farm Clipped (10 m)
+              🌿 Sentinel-2 view
             </button>
             <button
               className={picMode === 'raw' ? 'on' : ''}
@@ -417,27 +404,15 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
           </div>
         </div>
       </div>
-      {sup ? (
-        <div style={{ position: 'relative' }}>
-          <MapFrame
-            farm={farm}
-            scene={scene}
-            overlay={sup.url}
-            title={METHODS.find(m => m.id === method)!.name}
-            note="Each colour is one land-cover class."
-            legend={sup.classes.filter(c => c.pct > 0).map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
-          />
-        </div>
-      ) : method !== 'kmeans' ? (
-        <div className="ge-wait">Not enough clear pixels to classify</div>
-      ) : auto ? (
+      {auto ? (
         <div style={{ position: 'relative' }}>
           <MapFrame
             farm={farm}
             scene={scene}
             overlay={auto.url}
-            title="Automatic classes"
-            note="Each colour is one group found by the computer."
+            title="Spectral groups"
+            note="Each color is a cluster of pixels with similar reflectance, not a confirmed crop class."
+            opacity={0.72}
             legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
           />
         </div>
@@ -445,7 +420,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
         <div className="ge-wait">Not enough clear pixels to classify</div>
       )}
     </div>
-    {method === 'kmeans' && auto && <div className="sc-box compact ge-legend"><div className="sc-title"><b>What the groups mean</b><span>greenness (NDVI, −1 to 1) · share · area</span></div>
+    {auto && <div className="sc-box compact ge-legend"><div className="sc-title"><b>What the groups show</b><span>average NDVI · share · area</span></div>
       <ul>{auto.clusters.map(c => <li key={c.id}><i style={{ background: c.color }}/><span>{c.name}</span><code>NDVI {f(c.ndvi, 2)} · {f(c.pct, 0)}% · {f(c.ha, 2)} ha</code></li>)}</ul>
       <small>Groups with the lowest greenness are the first places to walk and check.</small></div>}
 
@@ -564,7 +539,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
       </small>
     </div>
 
-    <div className="st-export"><button onClick={exportRule}><Download size={14}/>Land cover polygons (GeoJSON)</button><button disabled={!auto && !sup} onClick={exportAuto}><Download size={14}/>Automatic classes (GeoJSON)</button></div>
+    <div className="st-export"><button onClick={exportRule}><Download size={14}/>Rule-based land cover (GeoJSON)</button><button disabled={!auto} onClick={exportAuto}><Download size={14}/>Spectral groups (GeoJSON)</button></div>
     <p className="ge-note">GeoJSON opens in QGIS, ArcGIS, Google Earth Engine and geojson.io. Built on one cloud-masked Sentinel-2 scene. Methods follow scikit-learn, GDAL, Orfeo Toolbox, SNAP and QGIS Semi-Automatic Classification.</p>
   </>
 }

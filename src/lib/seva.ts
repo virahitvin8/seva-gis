@@ -40,11 +40,19 @@ const NET = 'Could not reach the satellite service. Check your internet connecti
 async function guarded(url: string) {
   let last: unknown
   for (let k = 0; k < 2; k++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 20000)
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, { signal: controller.signal })
       if (!response.ok) throw new Error(`Planetary Computer returned ${response.status}`)
       return response
-    } catch (e) { last = e; if (e instanceof Error && /returned 4/.test(e.message)) break; await new Promise(r => setTimeout(r, 600)) }
+    } catch (e) {
+      last = e instanceof Error && e.name === 'AbortError' ? new Error('The satellite service timed out. Check your connection and try again.') : e
+      if (last instanceof Error && /returned 4/.test(last.message)) break
+      if (k === 0) await new Promise(r => setTimeout(r, 600))
+    } finally {
+      clearTimeout(timer)
+    }
   }
   throw last instanceof TypeError ? new Error(NET) : last
 }
@@ -52,9 +60,17 @@ async function getJson(url: string) { return (await guarded(url)).json() }
 async function getNpy(url: string) { return parseNpy(await (await guarded(url)).arrayBuffer()) }
 
 const cache = new Map<string, Promise<unknown>>()
+const MAX_GRID_CACHE_ENTRIES = 3
 function memo<T>(key: string, make: () => Promise<T>): Promise<T> {
   let p = cache.get(key) as Promise<T> | undefined
-  if (!p) { p = make().catch(e => { cache.delete(key); throw e }); cache.set(key, p) }
+  if (p) {
+    cache.delete(key)
+    cache.set(key, p)
+    return p
+  }
+  p = make().catch(e => { cache.delete(key); throw e })
+  cache.set(key, p)
+  while (cache.size > MAX_GRID_CACHE_ENTRIES) cache.delete(cache.keys().next().value!)
   return p
 }
 const geoKey = (farm: FarmGeo) => farmBBox(farm).map(v => v.toFixed(6)).join(',') + (farm.polygon ? `:${farm.polygon.length}` : '')
@@ -139,7 +155,7 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   return makeGrid(raster.w, raster.h, bbox, wm, hm, b, ok, ring)
 }
 
-export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 1200))
+export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 900))
 const loadLight = (scene: Scene, farm: FarmGeo) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false))
 
 export const loadDem = (farm: FarmGeo) => memo(`dem3:${geoKey(farm)}`, async () => {
@@ -185,16 +201,22 @@ function stressShare(g: Grid) {
 }
 
 const statsCache = new Map<string, { ndvi: Stat; ndmi: Stat; stressPct: number }>()
+const MAX_STATS_CACHE_ENTRIES = 16
 
 async function sceneStats(scene: Scene, farm: FarmGeo) {
   const cacheKey = `${scene.id}:${geoKey(farm)}`
   const cached = statsCache.get(cacheKey)
-  if (cached) return cached
+  if (cached) {
+    statsCache.delete(cacheKey)
+    statsCache.set(cacheKey, cached)
+    return cached
+  }
   const g = await loadLight(scene, farm)
   const ndvi = indexStat(g, 'ndvi'), ndmi = indexStat(g, 'ndmi')
   if (!ndvi || !ndmi) throw new Error('No valid pixels inside the farm (cloud or edge of scene).')
   const res = { ndvi, ndmi, stressPct: stressShare(g) }
   statsCache.set(cacheKey, res)
+  while (statsCache.size > MAX_STATS_CACHE_ENTRIES) statsCache.delete(statsCache.keys().next().value!)
   return res
 }
 
@@ -333,4 +355,4 @@ export async function searchScenes(farm: FarmGeo, from: string, to: string, maxC
   return list.map(([, its]) => ({ id: its[0].id, ids: its.slice(1, 6).map(i => i.id), datetime: its[0].datetime, cloud: Math.round(its.reduce((a, b) => a + b.cloud, 0) / its.length) }))
 }
 
-export const loadFrame = (scene: Scene, farm: FarmGeo) => s2Grid(scene, farm, ['B02', 'B03', 'B04', 'B08'], 10, 480, false)
+export const loadFrame = (scene: Scene, farm: FarmGeo) => s2Grid(scene, farm, ['B02', 'B03', 'B04', 'B08'], 10, 720, false)

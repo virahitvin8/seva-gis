@@ -96,12 +96,20 @@ export function rampColor(ramp: string[], t: number): [number, number, number] {
 
 export type Stat = { mean: number; min: number; max: number; p10: number; p50: number; p90: number; n: number }
 export function statsOf(values: Float64Array, ok: (i: number) => boolean, range: [number, number]): Stat | null {
-  const xs: number[] = []
-  for (let i = 0; i < values.length; i++) { const v = values[i]; if (ok(i) && Number.isFinite(v) && v >= range[0] && v <= range[1]) xs.push(v) }
-  if (!xs.length) return null
-  xs.sort((a, b) => a - b)
-  const q = (p: number) => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))]
-  return { mean: xs.reduce((a, b) => a + b, 0) / xs.length, min: xs[0], max: xs[xs.length - 1], p10: q(0.1), p50: q(0.5), p90: q(0.9), n: xs.length }
+  const xs = new Float64Array(values.length)
+  let n = 0, sum = 0, min = Infinity, max = -Infinity
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    if (!ok(i) || !Number.isFinite(v) || v < range[0] || v > range[1]) continue
+    xs[n++] = v
+    sum += v
+    if (v < min) min = v
+    if (v > max) max = v
+  }
+  if (!n) return null
+  const sorted = xs.subarray(0, n).sort()
+  const q = (p: number) => sorted[Math.min(n - 1, Math.floor(p * n))]
+  return { mean: sum / n, min, max, p10: q(0.1), p50: q(0.5), p90: q(0.9), n }
 }
 
 export type Painter = (i: number) => [number, number, number] | null

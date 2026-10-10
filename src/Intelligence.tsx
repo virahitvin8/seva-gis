@@ -236,7 +236,7 @@ export default function Intelligence({ farm }: Props) {
 
   return <section className="ag-wrap ge-wrap">
     <div className="intelligence-heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <h2>Analysis lab <span>Earth Engine-style workflows · Sentinel-2 · Open-Meteo · SoilGrids</span></h2>
+      <h2>Analysis lab <span>Satellite trends · field zones · planning</span></h2>
       <button
         className={`box-refresh-btn ${spinning ? 'spinning' : ''}`}
         title="Refresh Analysis lab"

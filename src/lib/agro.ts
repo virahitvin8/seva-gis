@@ -316,37 +316,6 @@ export function kidFriendlyIndicator(id: string, v: number, stressPct = 0): { la
         tone: v >= 2.5 ? 'good' : 'neutral'
       }
     }
-    case 'tvdi': {
-      const meaning = v <= 0.35 ? 'Cool & hydrated (no drought)' : 'Warm canopy under heat stress'
-      return {
-        label: 'Heat & Drought Pressure (TVDI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Cool plant temperature proves roots are drinking soil water to sweat and cool down.`,
-        tone: v <= 0.4 ? 'good' : 'warn'
-      }
-    }
-    case 'cwsi': {
-      const meaning = v <= 0.3 ? 'Happy sweating crop' : 'Thirsty plant closing pores'
-      return {
-        label: 'Plant Sweat Index (CWSI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Near zero means leaf breathing pores are wide open, sweating, and happy.`,
-        tone: v <= 0.3 ? 'good' : 'warn'
-      }
-    }
-    case 'sar_wet': {
-      const meaning = v >= 20 && v <= 55 ? 'Comfortable root moisture' : v > 70 ? 'Waterlogged roots' : 'Dry root bed'
-      return {
-        label: 'Root-Zone Water Balance (SAR)',
-        note: `Meaning: ${meaning} (${v.toFixed(1)}%). Reason: Simulates radar echo and terrain drainage to check if roots have air or are drowning.`,
-        tone: v > 70 ? 'warn' : 'good'
-      }
-    }
-    case 'lst': {
-      return {
-        label: 'Ground Surface Temp (LST)',
-        note: `Meaning: ${v.toFixed(1)} °C. Reason: Plant leaf canopy shades the soil from harsh sun heat, keeping roots cool.`,
-        tone: v <= 35 ? 'good' : 'warn'
-      }
-    }
     default:
       return {
         label: id.toUpperCase(),

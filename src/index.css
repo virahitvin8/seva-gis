@@ -1985,3 +1985,57 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 }
 
 
+
+/* Map workspace: reserve a real side dock for layer controls instead of covering the map. */
+.ix-outer.has-dock {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  gap: 12px;
+  align-items: stretch;
+}
+.ix-outer.has-dock > .ix-wrap { width: 100%; min-width: 0; }
+.ix-panel-dock { min-width: 0; }
+.ix-panel-dock:empty { display: none; }
+.ix-panel-dock .ix-layers-box {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  height: 700px;
+  z-index: 5;
+}
+.ix-layers-box.detached {
+  position: fixed !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: min(420px, calc(100vw - 16px)) !important;
+  height: min(720px, calc(100vh - 16px)) !important;
+  z-index: 10000;
+}
+.ix-lb-header.draggable { cursor: move; touch-action: none; user-select: none; }
+.ix-top .ix-bg-bar, .ix-top .ix-stretch-btn { display: none; }
+.ix-assets-list { display: grid; gap: 6px; margin-top: 10px; }
+.ix-asset-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; background: rgba(255,255,255,.04); }
+.ix-asset-row span { min-width: 0; display: grid; gap: 2px; }
+.ix-asset-row strong { font-size: 11px; color: #e2e8f0; }
+.ix-asset-row small, .ix-assets-empty { font-size: 10px; color: #94a3b8; }
+.ix-asset-row button { display: grid; place-items: center; padding: 6px; border-radius: 6px; color: #fca5a5; background: rgba(127,29,29,.25); cursor: pointer; }
+.ix-asset-row button:hover { color: #fff; background: #b91c1c; }
+.land-record-card { margin: 0 0 20px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-bg, #fff); }
+.land-record-head { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.land-record-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; color: #276749; background: #e9f5e9; }
+.land-record-head h3 { margin: 0; font-size: 15px; }
+.land-record-head p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+.land-record-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 14px 0; }
+.land-record-facts > div { display: grid; grid-template-columns: 18px 1fr; gap: 3px 7px; align-items: center; color: #557263; }
+.land-record-facts span { font-size: 10px; color: var(--muted); }
+.land-record-facts strong { grid-column: 2; font-size: 12px; color: var(--ink, #173e2b); overflow-wrap: anywhere; }
+.land-record-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: 8px; color: #4b5e52; background: #f2f6ee; font-size: 11px; line-height: 1.5; }
+.land-record-note svg { flex: none; margin-top: 1px; }
+@media (max-width: 900px) {
+  .ix-outer.has-dock { grid-template-columns: minmax(0, 1fr); }
+  .ix-panel-dock .ix-layers-box { height: min(600px, 75vh); min-height: 380px; }
+}
+@media (max-width: 560px) { .land-record-facts { grid-template-columns: 1fr; } }
+.reveal-placeholder { height: 96px; }
+.reveal-loading { display: grid; place-items: center; gap: 8px; min-height: 96px; margin: 0 0 16px; border: 1px solid var(--border); border-radius: 12px; color: var(--muted); background: var(--card-bg, #fff); font-size: 12px; }

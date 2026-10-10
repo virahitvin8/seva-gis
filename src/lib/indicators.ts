@@ -35,10 +35,6 @@ export const INDICATORS: Ind[] = [
   { id: 'reip', name: 'REIP', group: 'Vegetation', source: 'S2', desc: 'Red Edge Inflection Point (nm, Guyot & Baret). Direct indicator of nitrogen nutrition and senescence timing.', ramp: ['#a50026', '#fdae61', '#ffffbf', '#a6d96a', '#006837'], range: [700, 735], unit: 'nm', valid: [680, 760] },
   { id: 'lai', name: 'LAI', group: 'Vegetation', source: 'S2', desc: 'Leaf Area Index (m²/m²). Green leaf surface per unit ground area for biomass and canopy development.', ramp: ['#ffffe5', '#d9f0a3', '#78c679', '#238443', '#004529'], range: [0, 5], unit: 'm²/m²', valid: [0, 10] },
   { id: 'chla', name: 'Chlorophyll (CIgreen)', group: 'Vegetation', source: 'S2', desc: 'Krishi Drishti chlorophyll index: B07 / B03 - 1. High sensitivity to leaf nitrogen status.', ramp: ['#ffffcc', '#c2e699', '#78c679', '#31a354', '#006837'], range: [0, 5], valid: [-1, 15] },
-  { id: 'tvdi', name: 'TVDI', group: 'Water & moisture', source: 'S2', desc: 'Temperature Vegetation Dryness Index. Captures combined thermal and water stress before optical fading.', ramp: ['#2166ac', '#67a9cf', '#f7f7f7', '#fddbc7', '#ef8a62', '#b2182b'], range: [0, 1], valid: [0, 1] },
-  { id: 'cwsi', name: 'CWSI', group: 'Water & moisture', source: 'S2', desc: 'Crop Water Stress Index. 0 = well-watered, 1 = severe transpiration deficit and stomatal closure.', ramp: ['#2b83ba', '#abdda4', '#ffffbf', '#fdae61', '#d7191c'], range: [0, 1], valid: [0, 1] },
-  { id: 'sar_wet', name: 'SAR waterlogging & soil moisture', group: 'Water & moisture', source: 'S2', desc: 'Radar backscatter proxy & drainage convergence for monsoon waterlogging and saturated root-zones.', ramp: ['#f7fbff', '#deebf7', '#9ecae1', '#3182bd', '#08519c'], range: [0, 100], unit: '%', valid: [0, 100] },
-  { id: 'lst', name: 'Land Surface Temp (LST)', group: 'Water & moisture', source: 'S2', desc: 'Radiometric surface temperature proxy (°C) calibrated with canopy emissivity and thermal windows.', ramp: ['#2c7bb6', '#abd9e9', '#ffffbf', '#fdae61', '#d7191c'], range: [18, 48], unit: '°C', valid: [-10, 70] },
   { id: 'aspect', name: 'Aspect (orientation)', group: 'Terrain', source: 'DEM', desc: 'Slope compass direction (0° N, 90° E, 180° S, 270° W). Sun exposure and runoff orientation.', ramp: ['#2b83ba', '#abdda4', '#ffffbf', '#fdae61', '#d7191c', '#2b83ba'], range: [0, 360], unit: '°', valid: [0, 360] },
   { id: 'dem', name: 'Elevation (DEM)', group: 'Terrain', source: 'DEM', desc: 'Copernicus GLO-30 digital surface model, 30 m.', ramp: ['#2b8a5e', '#7fbf6b', '#e8dc8a', '#c9a066', '#8a6a4a', '#f2f2f2'], unit: 'm', auto: true, valid: [-500, 9000] },
   { id: 'slope', name: 'Slope', group: 'Terrain', source: 'DEM', desc: 'Terrain slope from the DEM (Horn method).', ramp: ['#f7fcb9', '#addd8e', '#fdae61', '#f46d43', '#a50026'], range: [0, 15], unit: '°', valid: [0, 90] },
@@ -82,25 +78,6 @@ const calc: Record<string, (b: Bands, i: number) => number> = {
     return !Number.isFinite(ndvi) || ndvi <= 0.1 ? 0 : Math.min(7.5, Math.max(0, -Math.log(Math.max(0.02, (0.92 - Math.min(0.88, ndvi)) / 0.85)) / 0.65))
   },
   chla: (b, i) => (b.B03[i] > 0 ? Math.min(8, Math.max(0, b.B07[i] / b.B03[i] - 1)) : NaN),
-  tvdi: (b, i) => {
-    const ndvi = nd(b.B08[i], b.B04[i]), swir = (b.B11[i] + (b.B12?.[i] ?? b.B11[i])) / 2
-    const wet = 0.05 + 0.08 * Math.max(0, ndvi), dry = 0.35 - 0.12 * Math.max(0, ndvi)
-    return Math.min(1, Math.max(0, (swir - wet) / Math.max(0.05, dry - wet)))
-  },
-  cwsi: (b, i) => {
-    const ndmi = nd(b.B08[i], b.B11[i]), ndvi = nd(b.B08[i], b.B04[i])
-    return ndvi < 0.15 ? NaN : Math.min(1, Math.max(0, (0.35 - ndmi) / 0.55))
-  },
-  sar_wet: (b, i) => {
-    const mndwi = nd(b.B03[i], b.B11[i]), swirLow = b.B11[i] < 0.12 ? 1 : 0
-    const twi = b.twi ? Math.min(1, Math.max(0, (b.twi[i] - 7) / 8)) : 0.5
-    return Math.min(100, Math.max(0, ((mndwi > 0 ? 0.7 : 0.2) + (swirLow ? 0.3 : 0) + twi * 0.3) * 100))
-  },
-  lst: (b, i) => {
-    const swir = b.B11[i], ndvi = nd(b.B08[i], b.B04[i])
-    const pv = Math.pow(Math.min(1, Math.max(0, (ndvi - 0.15) / 0.65)), 2)
-    return +(293 + (swir / 0.35) * 25 - (pv * 4) - 273.15).toFixed(1)
-  },
   aspect: (b, i) => b.aspect?.[i] ?? NaN,
   dem: (b, i) => b.elev[i],
   slope: (b, i) => b.slope[i],
@@ -213,10 +190,6 @@ export const MEANING: Record<string, Band[]> = {
   reip: [{ to: 708, label: 'Senescent / severe N deficit', color: '#a50026' }, { to: 715, label: 'Low nitrogen', color: '#fdae61' }, { to: 724, label: 'Optimal nitrogen', color: '#a6d96a' }, { to: Infinity, label: 'Rich red edge peak', color: '#006837' }],
   lai: [{ to: 0.8, label: 'Sparse / early stand', color: '#d73027' }, { to: 2.0, label: 'Developing canopy', color: '#fee08b' }, { to: 3.5, label: 'Full ground cover', color: '#a6d96a' }, { to: Infinity, label: 'Dense lush biomass', color: '#004529' }],
   stress: [{ to: 0.25, label: 'Normal / healthy', color: '#1a9850' }, { to: 0.5, label: 'Mild early stress', color: '#fee08b' }, { to: 0.75, label: 'Moderate stress', color: '#fdae61' }, { to: Infinity, label: 'High acute stress', color: '#d73027' }],
-  tvdi: [{ to: 0.3, label: 'Wet / well-watered', color: '#2166ac' }, { to: 0.55, label: 'Normal moisture', color: '#f7f7f7' }, { to: 0.75, label: 'Thermal drying', color: '#ef8a62' }, { to: Infinity, label: 'Severe drought stress', color: '#b2182b' }],
-  cwsi: [{ to: 0.25, label: 'No water stress', color: '#2b83ba' }, { to: 0.5, label: 'Mild transpiration drop', color: '#abdda4' }, { to: 0.75, label: 'Moderate water deficit', color: '#fdae61' }, { to: Infinity, label: 'Severe stomatal closure', color: '#d7191c' }],
-  sar_wet: [{ to: 20, label: 'Well drained / dry', color: '#f7fbff' }, { to: 45, label: 'Moist root zone', color: '#9ecae1' }, { to: 75, label: 'High waterlogging', color: '#3182bd' }, { to: Infinity, label: 'Standing flood water', color: '#08519c' }],
-  lst: [{ to: 25, label: 'Cool canopy', color: '#2c7bb6' }, { to: 32, label: 'Moderate temperature', color: '#abd9e9' }, { to: 38, label: 'Warm', color: '#fdae61' }, { to: Infinity, label: 'Heat stress risk', color: '#d73027' }],
   aspect: [{ to: 45, label: 'North', color: '#2b83ba' }, { to: 135, label: 'East (morning sun)', color: '#abdda4' }, { to: 225, label: 'South (high solar heat)', color: '#fdae61' }, { to: 315, label: 'West (evening heat)', color: '#d7191c' }, { to: Infinity, label: 'North', color: '#2b83ba' }],
   nbr: [{ to: 0.1, label: 'Bare / burnt', color: '#d73027' }, { to: 0.3, label: 'Sparse canopy', color: '#fee08b' }, { to: Infinity, label: 'Healthy canopy', color: '#1a9850' }],
   ndwi: wet,
@@ -246,10 +219,6 @@ const VERDICT: Record<string, [string, Tone][]> = {
   reip: T(['Severe deficit', 'bad'], ['Low N', 'bad'], ['Optimal', 'good'], ['Lush peak', 'good']),
   lai: T(['Sparse', 'bad'], ['Developing', 'ok'], ['Covered', 'good'], ['Dense', 'good']),
   stress: T(['Healthy', 'good'], ['Mild stress', 'ok'], ['Moderate', 'bad'], ['Acute stress', 'bad']),
-  tvdi: T(['Well watered', 'good'], ['Normal', 'ok'], ['Drying', 'bad'], ['Drought', 'bad']),
-  cwsi: T(['Hydrated', 'good'], ['Mild drop', 'ok'], ['Deficit', 'bad'], ['Stress', 'bad']),
-  sar_wet: T(['Drained', 'good'], ['Moist', 'good'], ['Waterlogged', 'bad'], ['Flooded', 'bad']),
-  lst: T(['Cool', 'good'], ['Moderate', 'good'], ['Warm', 'ok'], ['Heat risk', 'bad']),
   aspect: T(['North', 'info'], ['East', 'info'], ['South', 'info'], ['West', 'info'], ['North', 'info']),
   nbr: T(['Poor', 'bad'], ['Fair', 'ok'], ['Healthy', 'good']),
   ndwi: T(['Dry', 'info'], ['Low water', 'info'], ['Wet', 'info'], ['Open water', 'info']),

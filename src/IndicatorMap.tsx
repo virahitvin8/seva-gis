@@ -738,8 +738,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     let eeErrors = 0
     eeLayer.on('tileerror', () => {
       eeErrors++
-      if (eeErrors >= 1) {
-        console.info('Earth Engine tiles returned error/404, auto-falling back to Planetary Computer raster')
+      if (eeErrors >= 4) {
+        console.info('Earth Engine tiles returned repeated error/404, auto-falling back to Planetary Computer raster')
         setEarthEngineOverlay(null)
         setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
       }

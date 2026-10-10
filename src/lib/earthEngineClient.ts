@@ -9,9 +9,6 @@ export function getEarthEngineEndpoint(): string {
   if (envUrl) return envUrl
   const savedUrl = localStorage.getItem('seva-ee-api-url')?.replace(/\/$/, '')
   if (savedUrl) return savedUrl
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:8080'
-  }
   return PROD_BACKEND_URL
 }
 

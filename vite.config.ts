@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: process.env.BASE_PATH ? process.env.BASE_PATH : process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
     build: {
+      emptyOutDir: true,
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,
     },

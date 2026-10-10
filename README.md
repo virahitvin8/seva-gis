@@ -6,15 +6,6 @@
 
 # 𝐒 𝐄 𝐕 𝐀 &nbsp; 𝐆 Ｉ Ｓ
 
-```text
-  ███████╗███████╗██╗   ██╗ █████╗         ██████╗ ██╗███████╗
-  ██╔════╝██╔════╝██║   ██║██╔══██╗       ██╔════╝ ██║██╔════╝
-  ███████╗█████╗  ██║   ██║███████║       ██║  ███╗██║███████╗
-  ╚════██║██╔══╝  ╚██╗ ██╔╝██╔══██║       ██║   ██║██║╚════██║
-  ███████║███████╗ ╚████╔╝ ██║  ██║       ╚██████╔╝██║███████║
-  ╚══════╝╚══════╝  ╚═══╝  ╚═╝  ╚═╝        ╚═════╝ ╚═╝╚══════╝
-```
-
 ### *Spatial Evaluation & Vegetation Analytics*
 
 **See your farm the way a satellite does.**  
@@ -116,15 +107,9 @@ Extensive validation across agricultural test parcels in semi-arid and sub-humid
 
 <div align="center">
 
-### 🌴 3D Particle Loader — Seedling to Coconut Palm Tree
-
 <a href="https://seva-gis-backend-e724a.web.app">
   <img src="docs/plant-coconut-loader.gif" alt="SEVA GIS 3D Coconut Palm Tree Loader" width="240"/>
 </a>
-
-<br/>
-
-*▲ 3D particle loader: seedling sprout surging with sparkle wave boost into a swaying coconut palm tree*
 
 </div>
 

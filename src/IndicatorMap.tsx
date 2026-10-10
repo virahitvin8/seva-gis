@@ -7,8 +7,9 @@ import {
   SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers,
   Lock, LockOpen, Map as MapIcon, Ruler, Maximize2, Tag, ExternalLink,
   Sliders, ChevronRight, Trash2, FileCheck2, Scissors, RotateCcw,
-  Minus, Edit3, Save, Users, CheckCircle2
+  Minus, Edit3, Save, Users, CheckCircle2, Cpu, Sparkles
 } from 'lucide-react'
+import GeeAgentCenter from './GeeAgentCenter'
 import {
   GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict,
   compass, gradientCss, renderLayer, sampleAt, type Grid, type Layer, type Group
@@ -145,6 +146,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [cadastreSyncTick, setCadastreSyncTick] = useState(0)
   const [editingCadastre, setEditingCadastre] = useState(false)
   const [showFamilyOnMap, setShowFamilyOnMap] = useState(true)
+  const [geeCenterOpen, setGeeCenterOpen] = useState(false)
 
   const savedCadastre = useMemo(() => {
     try {
@@ -1099,6 +1101,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </button>
 
         <button
+          className={`ix-tb-btn ${geeCenterOpen ? 'on' : ''}`}
+          onClick={() => setGeeCenterOpen(prev => !prev)}
+          title="Google Earth Engine Live Cloud Stream & Autonomous Agent Crew Studio"
+        >
+          <Cpu size={15}/>
+          <span>GEE Studio</span>
+          <b className="ix-btn-badge">{earthEngineOverlay?.sceneKey === sceneKey ? 'Live Stream' : 'AI Crew'}</b>
+        </button>
+
+        <button
           className={`ix-tb-btn ${locked ? 'on is-locked-btn' : ''}`}
           onClick={() => setLocked(!locked)}
           title={locked ? 'Map is locked at 75% scale. Click to unlock pan & zoom.' : 'Map is live. Click to lock at 75% scale.'}
@@ -1131,10 +1143,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         {/* Clean, Non-Redundant Map HUD Bar */}
         <div className="ix-map-hud-bar" role="status" aria-label="Map status and orientation">
-          <div className={`ix-hud-pill${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`} title={earthEngineStatus}>
+          <button
+            className={`ix-hud-pill is-btn${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`}
+            onClick={() => setGeeCenterOpen(true)}
+            title="Click to open Google Earth Engine & Autonomous Agent Studio"
+          >
             <span className="gee-dot" />
-            <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'GEE Live · S2 L2A' : 'Sentinel-2 L2A'}</span>
-          </div>
+            <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'GEE Live · S2 L2A' : 'GEE Studio · S2 L2A'}</span>
+            <Sparkles size={11} className="text-emerald-400" />
+          </button>
 
           <div className="ix-hud-pill" title={`Live map zoom ${mapZoom.toFixed(1)}x · Synchronized across dashboard`}>
             <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
@@ -2190,6 +2207,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             )}
           </div>
         )}
+
+        <GeeAgentCenter
+          farm={farm}
+          isOpen={geeCenterOpen}
+          onClose={() => setGeeCenterOpen(false)}
+          onApplyGeeSettings={(comp, combo, stretch) => {
+            setActiveBandCombo(combo)
+            setStretchDra(stretch)
+          }}
+        />
       </div>
 
       {/* 25% box ratio seedling-to-coconut palm tree loader during map processing */}

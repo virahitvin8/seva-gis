@@ -145,7 +145,7 @@ export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint
 
 /**
  * Renders raw unclipped Sentinel-2 satellite scene tile on a solid black background
- * 100% identical to Google Earth Engine, QGIS, and ArcMap raster canvas views.
+ * A raw Sentinel-2 scene render. Its appearance depends on the selected bands and stretch.
  */
 export function paintRaw(w: number, h: number, bbox: Bbox, paint: Painter, smooth = false): string {
   const small = document.createElement('canvas')

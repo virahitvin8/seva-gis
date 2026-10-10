@@ -136,7 +136,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             <button
               className={picMode === 'raw' ? 'on' : ''}
               onClick={() => setPicMode('raw')}
-              title="RAW Sentinel-2 scene tile on black background frame exactly as shown in Google Earth Engine, QGIS, and ArcMap"
+              title="Raw Sentinel-2 scene tile on a black background; the display depends on the selected bands and stretch"
             >
               <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
               🛰️ RAW (Black Tile · GEE/QGIS)

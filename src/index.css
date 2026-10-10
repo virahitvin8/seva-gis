@@ -525,11 +525,6 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .wm.pro .wm-text{font-weight:700;letter-spacing:-1px;background:linear-gradient(180deg,#ffffff 0%,#dfeed2 55%,#9db98f 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 #0c2a1f) drop-shadow(0 3px 3px #00000066) drop-shadow(0 6px 10px #00000044)}
 .wm.pro .wm-text em{-webkit-text-fill-color:transparent;background:linear-gradient(180deg,#e4ffb8 0%,#a6d86a 60%,#6f9a45 100%);-webkit-background-clip:text;background-clip:text;font-weight:700}
 .kit-frame{position:absolute;inset:7px;border:2px solid #10231bcc;outline:1px solid #fff9;outline-offset:-5px;pointer-events:none;z-index:600;border-radius:2px}
-.kit-title{position:absolute;left:18px;bottom:48px;z-index:610;pointer-events:none;background:#fcfdf9ee;border:1.5px solid #10231b;padding:7px 11px;border-radius:2px;display:grid;gap:2px;box-shadow:2px 2px 0 #10231b33;max-width:280px}
-.kit-title small{font:600 8px 'JetBrains Mono',monospace;letter-spacing:1.4px;color:#5b7a4a}
-.kit-title b{font:800 15px 'Manrope',sans-serif;color:#10231b;letter-spacing:-.3px}
-.kit-title span{font-size:9px;color:#5f6f60}
-.kit-title{left:auto;right:18px;bottom:30px}
 .ct{grid-template-columns:minmax(0,640px);justify-content:center}
 .cr-heart{display:inline-block;width:1em;height:1em;margin-left:6px;vertical-align:-.12em;transform-origin:center;animation:crbeat 1.1s ease-in-out infinite;filter:drop-shadow(0 0 4px #e0245e88)}
 @keyframes crbeat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}45%{transform:scale(1.18)}60%{transform:scale(1)}}

@@ -6,7 +6,9 @@ import { paintClipped } from './lib/raster'
 import { gradientCss, type Grid } from './lib/indicators'
 
 export type Kit = { hill: boolean; contour: boolean; aspect: boolean; dem: boolean; grid: boolean; legend: boolean }
-export const KIT_DEFAULT: Kit = { hill: true, contour: true, aspect: false, dem: false, grid: true, legend: true }
+// Keep the satellite view unobstructed on first load. Terrain and graticule layers
+// remain available as opt-in overlays from the map tools.
+export const KIT_DEFAULT: Kit = { hill: false, contour: false, aspect: false, dem: false, grid: false, legend: false }
 type Farm = FarmData & { id: string }
 
 const ASPECT = ['#4575b4', '#74add1', '#abd9e9', '#fee090', '#fdae61', '#f46d43', '#d73027', '#a50026']
@@ -125,7 +127,6 @@ export default function MapKit({ map, farm, kit, farmOnly }: { map: L.Map | null
 
   return <>
     <div className="kit-frame" aria-hidden="true"/>
-    <div className="kit-title"><small>CARTOGRAPHIC PREVIEW</small><b>{(farm as { name?: string }).name || 'Farm map'}</b><span>{farm.area ? `${farm.area} ha · ` : ''}WGS 84 · Sentinel-2 10 m · Copernicus DEM 30 m</span></div>
     <div className="kit-north" aria-label="North is up"><svg viewBox="0 0 40 52" width="34" height="44"><path d="M20 2 L32 44 L20 36 L8 44Z" fill="#f4ffd0" stroke="#10231b" strokeWidth="2" strokeLinejoin="round"/><path d="M20 2 L32 44 L20 36Z" fill="#10231b"/></svg><b>N</b></div>
     {kit.legend && need && <div className="kit-legend" aria-label="Map layer legend">
       <strong>Map layers</strong>

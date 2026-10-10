@@ -1,5 +1,5 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react'
-import ReactDOM from 'react-dom/client'
+import ReactDOM, { type Root } from 'react-dom/client'
 import App from './App'
 import AuthGate from './Auth'
 import '@fortawesome/fontawesome-free/css/all.min.css'
@@ -52,7 +52,13 @@ class GlobalErrorBoundary extends Component<Props, State> {
   }
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Keep a single React root when the Figma/Vite preview re-evaluates this entry
+// module during hot reload. Calling createRoot twice on #root emits a runtime
+// error and can leave the preview in a broken state.
+const rootHost = window as Window & { __sevaReactRoot?: Root }
+const root = rootHost.__sevaReactRoot ??= ReactDOM.createRoot(document.getElementById('root')!)
+
+root.render(
   <React.StrictMode>
     <GlobalErrorBoundary>
       <AuthGate><App /></AuthGate>

@@ -93,14 +93,14 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const [mapObj, setMapObj] = useState<L.Map | null>(null)
   const [kit, setKit] = useState<Kit>(() => {
     try {
-      return { ...KIT_DEFAULT, ...JSON.parse(localStorage.getItem('seva-kit-v2') || '{}') }
+      return { ...KIT_DEFAULT, ...JSON.parse(localStorage.getItem('seva-kit-v3') || '{}') }
     } catch {
       return KIT_DEFAULT
     }
   })
-  useEffect(() => { localStorage.setItem('seva-kit-v2', JSON.stringify(kit)) }, [kit])
+  useEffect(() => { localStorage.setItem('seva-kit-v3', JSON.stringify(kit)) }, [kit])
   const [query, setQuery] = useState('')
-  const [dim, setDim] = useState(true)
+  const [dim, setDim] = useState(false)
   const [picked, setPicked] = useState<Picked | null>(null)
   const [view3d, setView3d] = useState(false)
   const [tool, setTool] = useState<'none' | 'borewell' | 'pipeline'>('none')

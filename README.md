@@ -63,9 +63,11 @@
 
 <div align="center">
 
-[![Architecture diagram of virahitvin8/seva-gis](https://gitdiagram.com/virahitvin8/seva-gis/diagram.png)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=picture)
+<a href="https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=picture">
+  <img src="docs/architecture-diagram.png" alt="Architecture diagram of virahitvin8/seva-gis" width="850"/>
+</a>
 
-<br/>
+<br/><br/>
 
 [![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=badge)
 

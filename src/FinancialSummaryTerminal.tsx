@@ -53,11 +53,12 @@ export default function FinancialSummaryTerminal({
   isOpen,
   onClose
 }: {
-  farm: { id: string; name: string; location: string; crop: string; area: number; analysis?: Analysis; rain?: number; moisture?: number; elevation?: number }
+  farm?: { id: string; name: string; location: string; crop: string; area: number; analysis?: Analysis; rain?: number; moisture?: number; elevation?: number } | null
   isOpen: boolean
   onClose: () => void
 }) {
-  const storageKey = `seva-financial-sessions-${farm.id}`
+  const farmId = farm?.id || 'default'
+  const storageKey = `seva-financial-sessions-${farmId}`
   const [sessions, setSessions] = useState<AgroSession[]>(() => {
     try {
       const saved = localStorage.getItem(storageKey)
@@ -68,7 +69,7 @@ export default function FinancialSummaryTerminal({
     } catch {}
     // Seed with current analysis if available
     const initial = [...DEFAULT_SESSIONS]
-    if (farm.analysis) {
+    if (farm?.analysis) {
       initial[5] = {
         ...initial[5],
         ndvi: Number(farm.analysis.ndvi.mean.toFixed(2)),
@@ -86,10 +87,12 @@ export default function FinancialSummaryTerminal({
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[sessions.length - 1]?.id || 'sess-6')
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(sessions))
-  }, [sessions, storageKey])
+    if (farm) {
+      localStorage.setItem(storageKey, JSON.stringify(sessions))
+    }
+  }, [sessions, storageKey, farm])
 
-  if (!isOpen) return null
+  if (!isOpen || !farm) return null
 
   const activeSession = sessions.find(s => s.id === selectedSessionId) || sessions[sessions.length - 1]
 
@@ -183,9 +186,9 @@ export default function FinancialSummaryTerminal({
               <b style={{ color: '#4ade80', letterSpacing: '1px', fontSize: '13px', fontFamily: 'monospace' }}>SEVA·FINANCIAL TERMINAL</b>
             </div>
             <span style={{ color: '#64748b', fontSize: '12px' }}>|</span>
-            <span style={{ fontWeight: 700, fontSize: '14px', color: '#f8fafc' }}>{farm.name.toUpperCase()}</span>
+            <span style={{ fontWeight: 700, fontSize: '14px', color: '#f8fafc' }}>{farm?.name ? farm.name.toUpperCase() : 'FARM'}</span>
             <span style={{ background: '#132e1b', color: '#86efac', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
-              {farm.crop.toUpperCase()} / PARCEL #{farm.id.slice(0, 6)}
+              {farm?.crop ? farm.crop.toUpperCase() : 'CROP'} / PARCEL #{farm?.id ? farm.id.slice(0, 6) : '000000'}
             </span>
           </div>
 

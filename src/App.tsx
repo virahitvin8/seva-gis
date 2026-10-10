@@ -54,35 +54,48 @@ import { MitraGuide, MitraAvatar } from './Mitra'
 import { pickGreeting, todayLabel } from './lib/greet'
 import { logoMark as brandLogo } from './assets/brand'
 const DEFAULT_SECTION_ORDER = [
-  'workspace',
-  'journal',
-  'health',
-  'intelligence',
-  'advice',
-  'panels',
-  'land',
-  'cropLib',
-  'village',
-  'gisExport',
-  'lab',
-  'geo',
-  'history',
+  'crop-journal',
+  'health-score',
+  'field-intelligence',
+  'numbers-guide',
+  'advice-grid',
+  'agro-water',
+  'land-passbook',
+  'crop-library',
+  'village-view',
+  'gis-export',
+  'intelligence-lab',
+  'measurement-tools',
+  'weekly-records',
 ]
 
 const SECTION_TITLES: Record<string, string> = {
-  workspace: 'Field Map & Spatial Workspace',
+  'crop-journal': 'Crop Journal & Growth Cycles',
   journal: 'Crop Journal & Growth Cycles',
+  'health-score': 'Field Health Score',
   health: 'Field Health Score',
+  'field-intelligence': 'Spectral Indices & Atmosphere',
   intelligence: 'Spectral Indices & Atmosphere',
+  'numbers-guide': 'Vegetation & Index Guide',
+  'advice-grid': 'Irrigation & Drainage Advisory',
   advice: 'Irrigation & Drainage Advisory',
+  'agro-water': 'Agro & Hydrology Panels',
   panels: 'Agro & Hydrology Panels',
+  'land-passbook': 'Cadastral Land Registry (RoR 1B)',
   land: 'Cadastral Land Registry (RoR 1B)',
+  'crop-library': 'Crop Library & Agronomy Knowledge',
   cropLib: 'Crop Library & Agronomy Knowledge',
+  'village-view': 'Village View & Multi-Plot Map',
   village: 'Village View & Multi-Plot Map',
+  'gis-export': 'GIS Export & Shapefile Backup',
   gisExport: 'GIS Export & Shapefile Backup',
+  'intelligence-lab': 'GeoAI Analysis Lab',
   lab: 'GeoAI Analysis Lab',
+  'measurement-tools': 'Precision Measurement & Robotics',
   geo: 'Precision Measurement & Robotics',
+  'weekly-records': 'Multi-Temporal Satellite History',
   history: 'Multi-Temporal Satellite History',
+  workspace: 'Field Map & Spatial Workspace',
 }
 
 function BrandLogo() { return <img className="brand-logo-image" src={brandLogo} alt="SEVA.GIS official logo" onError={(e) => { e.currentTarget.src = '/logo.png' }} /> }
@@ -342,6 +355,7 @@ export default function App() {
         let content = null
         switch (secId) {
           case 'crop-journal':
+          case 'journal':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Crop journal">
@@ -353,9 +367,11 @@ export default function App() {
             )
             break
           case 'health-score':
+          case 'health':
             content = <FieldHealthScore farm={farm}/>
             break
           case 'field-intelligence':
+          case 'intelligence':
             content = (
               <>
                 <div className="intelligence-heading">
@@ -390,6 +406,7 @@ export default function App() {
             content = <NumbersGuide/>
             break
           case 'advice-grid':
+          case 'advice':
             content = (
               <div className="advice-grid">
                 {([['Irrigation advisory', Droplets, irrigationAdvice(farm)], ['Construction suitability', Mountain, constructionSuitability(farm)]] as [string, typeof Droplets, Advice][]).map(([title, Icon, advice]) => (
@@ -408,6 +425,7 @@ export default function App() {
             )
             break
           case 'agro-water':
+          case 'panels':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Field panels">
@@ -420,9 +438,11 @@ export default function App() {
             )
             break
           case 'land-passbook':
+          case 'land':
             content = <Reveal><LandInfoCard farm={farm}/></Reveal>
             break
           case 'crop-library':
+          case 'cropLib':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Crop library">
@@ -434,6 +454,7 @@ export default function App() {
             )
             break
           case 'village-view':
+          case 'village':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Map tools">
@@ -445,6 +466,7 @@ export default function App() {
             )
             break
           case 'gis-export':
+          case 'gisExport':
             content = (
               <Reveal defer>
                 <SectionBoundary name="GIS export tools">
@@ -456,6 +478,7 @@ export default function App() {
             )
             break
           case 'intelligence-lab':
+          case 'lab':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Analysis lab">
@@ -467,6 +490,7 @@ export default function App() {
             )
             break
           case 'measurement-tools':
+          case 'geo':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Measurement tools">
@@ -478,6 +502,7 @@ export default function App() {
             )
             break
           case 'weekly-records':
+          case 'history':
             content = (
               <Reveal defer>
                 <SectionBoundary name="Satellite history">
@@ -521,10 +546,10 @@ export default function App() {
     {message && <div className="toast" role="status"><ShieldCheck size={19}/>{message}<button aria-label="Dismiss" onClick={() => setMessage('')}><X size={17}/></button></div>}
     {modal && <div className="modal-backdrop" onClick={() => setModal('')}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={event => event.stopPropagation()}><button className="modal-close" aria-label="Close dialog" onClick={() => setModal('')}><X size={20}/></button><span className="modal-icon"><BrandLogo/></span><div className="eyebrow">SEVA · LAND INTELLIGENCE</div><h2 id="modal-title">{modal === 'add' ? 'Set up a field for remote review.' : modal === 'zone' ? 'Understand this spot.' : modal === 'sources' ? 'Open data. Transparent limits.' : modal === 'alerts' ? 'Your field advisories.' : modal === 'reports' ? 'Take your insights with you.' : modal === 'data' ? 'Your account and data.' : modal === 'settings' ? 'Your personal workspace.' : 'From coordinates to clarity.'}</h2>
       {modal === 'data' ? <Suspense fallback={<div className="reveal-loading">Loading data manager…</div>}><DataManager/></Suspense> : modal === 'add' ? <AddFarm onAdd={addBoundary} onError={setMessage}/> : modal === 'zone' ? (() => {
-        const verdict = classify(zone ? zone.ndvi : farm.analysis?.ndvi.mean)
-        return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Farm average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>What should I do?</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>Satellite values are not pixel cloud-masked and are not field-validated. Confirm on the ground before acting.</div></>
+        const verdict = classify(zone ? zone.ndvi : farm?.analysis?.ndvi.mean)
+        return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm?.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Farm average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm?.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm?.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm?.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>What should I do?</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>Satellite values are not pixel cloud-masked and are not field-validated. Confirm on the ground before acting.</div></>
       })() : modal === 'sources' ? <><p>Each value is labelled as observed, modeled, or estimated where it appears. Satellite results can vary with scene coverage and cloud conditions.</p>{[['Satellite imagery','Sentinel-2 L2A preview from Microsoft Planetary Computer. Native band resolution varies.'],['Google Earth Engine tiles','Optional Cloud Run rendering for the selected spectral layer. Summary values and terrain models remain labelled by their own source until separately migrated and checked.'],['Vegetation indices','Calculated in the browser from available Sentinel-2 preview bands. Cloud and shadow masking uses the scene classification layer when available.'],['Weather & soil','Open-Meteo forecast data and SoilGrids estimates. Soil moisture is modeled at coarse resolution, not measured by a farm sensor.'],['Terrain','Copernicus GLO-30 digital elevation data for elevation, slope, aspect and hillshade. This is not an engineering survey.']].map(([title,description]) => <div className="source-item" key={title}><Check size={17}/><div><h3>{title}</h3><p>{description}</p></div></div>)}<a className="external-link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo documentation<ExternalLink size={15}/></a></> : modal === 'alerts' ? <>{farms.filter(farmNeedsAttention).map(item => <button className="alert-row" key={item.id} onClick={() => { setSelected(item.id); setZone(null); setModal('zone') }}><Droplets size={21}/><div><h3>{item.name}</h3><p>{item.status} · {item.analysis!.stressPct.toFixed(0)}% of pixels stressed</p></div><ChevronRight size={18}/></button>)}{!farms.some(farmNeedsAttention) && <p>No farms currently need attention based on their latest satellite scene.</p>}<p>Alerts reflect the last analysis on this device. Background monitoring and email notifications are not connected.</p></> : modal === 'reports' ? <Suspense fallback={<div className="reveal-loading">Preparing report…</div>}><ReportPanel farm={farm as any}/></Suspense> : modal === 'guide' ? <Suspense fallback={<div className="reveal-loading">Loading field guide…</div>}><Guide/></Suspense> : modal === 'settings' ? <><p>Farms are stored in this browser only, and are not synced across devices. Clearing browser storage removes them.</p><p>This build has no payment flow. External providers have their own terms and availability.</p><button className="outline" onClick={signOut}><LogOut size={16}/>Log out of {who.name}</button><button className="outline" onClick={() => { setModal(''); setMessage('Google login and cloud sync require a configured authentication project. No account connection is active.') }}>About Google sign-in<ArrowUpRight size={16}/></button></> : <><p>1. Add or select a field boundary.<br/>2. Check the date and cloud conditions of the latest clear satellite pass.<br/>3. Compare earlier passes and switch map layers to spot changes.<br/>4. Select a point or zone to review its available values.<br/>5. Save or share a report for someone else to review remotely.</p><div className="privacy-note"><ShieldCheck size={20}/>Satellite and model estimates should be checked on the ground before making decisions.</div></>}
     </section></div>}
-    <FinancialSummaryTerminal farm={farm} isOpen={showTerminal} onClose={() => setShowTerminal(false)} />
+    {farm && <FinancialSummaryTerminal farm={farm} isOpen={showTerminal} onClose={() => setShowTerminal(false)} />}
   </div>
 }

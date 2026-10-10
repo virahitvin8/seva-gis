@@ -37,7 +37,19 @@ import {
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
 
-export default function ReportPanel({ farm }: { farm: ReportFarm }) {
+export default function ReportPanel({ farm }: { farm?: ReportFarm | null }) {
+  if (!farm) {
+    return (
+      <div style={{ padding: '36px 20px', textAlign: 'center', color: '#94a3b8' }}>
+        <p style={{ margin: '0 0 10px', fontSize: '15px', color: '#cbd5e1', fontWeight: 600 }}>No field selected</p>
+        <p style={{ margin: 0, fontSize: '13px' }}>Please add or select a field boundary first to view or generate farm reports.</p>
+      </div>
+    )
+  }
+  return <ReportPanelInner farm={farm} />
+}
+
+function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [reports, setReports] = useState<Partial<Record<ReportLang, { html: string; data: unknown; id: string; lang: ReportLang }>>>({})

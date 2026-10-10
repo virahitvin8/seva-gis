@@ -1,4 +1,26 @@
-# SEVA·GIS — Spatial Evaluation & Vegetation Analytics
+<div align="center">
+
+<a href="https://seva-gis-backend-e724a.web.app">
+  <img src="docs/logo.png" alt="SEVA GIS Logo" width="130"/>
+</a>
+
+# 𝐒 𝐄 𝐕 𝐀 &nbsp; 𝐆 Ｉ Ｓ
+
+```text
+  ███████╗███████╗██╗   ██╗ █████╗         ██████╗ ██╗███████╗
+  ██╔════╝██╔════╝██║   ██║██╔══██╗       ██╔════╝ ██║██╔════╝
+  ███████╗█████╗  ██║   ██║███████║       ██║  ███╗██║███████╗
+  ╚════██║██╔══╝  ╚██╗ ██╔╝██╔══██║       ██║   ██║██║╚════██║
+  ███████║███████╗ ╚████╔╝ ██║  ██║       ╚██████╔╝██║███████║
+  ╚══════╝╚══════╝  ╚═══╝  ╚═╝  ╚═╝        ╚═════╝ ╚═╝╚══════╝
+```
+
+### *Spatial Evaluation & Vegetation Analytics*
+
+**See your farm the way a satellite does.**  
+*Free &nbsp;·&nbsp; Open-Source &nbsp;·&nbsp; Keyless &nbsp;·&nbsp; In-Browser GeoAI & 3D Cartography*
+
+<br/>
 
 [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/virahitvin8/seva-gis)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
@@ -9,6 +31,8 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-v0.115-009688.svg)](https://fastapi.tiangolo.com/)
 [![Copernicus Sentinel-2](https://img.shields.io/badge/Copernicus-Sentinel--2_L2A-orange.svg)](https://dataspace.copernicus.eu/)
 [![Matcha Vault](https://img.shields.io/badge/Storage-Matcha_OPFS_Vault-9333ea.svg)](https://github.com/floatpane/matcha)
+
+</div>
 
 > **"Earth intelligence in the spirit of selfless service."**  
 > **SEVA·GIS** (**S**patial **E**valuation & **V**egetation **A**nalytics) is an open-source, publication-grade geospatial artificial intelligence and precision agriculture platform. Engineered with a zero-telemetry client-side philosophy, SEVA·GIS empowers farmers, agronomists, remote sensing researchers, and agricultural stewards to remotely assess land parcels anywhere on Earth with sub-meter geometric fidelity, publication-grade 3D cartographic mapping, calibrated Sentinel-2 radiometric indices, government land records (RoR Form 1B), and financial analytics terminals.
@@ -89,6 +113,20 @@ Extensive validation across agricultural test parcels in semi-arid and sub-humid
 * **Vegetative Health Zonation**: Sentinel-2 L2A BOA surface reflectance resolves intra-field canopy vigor variations with an average $R^2$ of $0.68$ against ground-truth quadrat biomass surveys.
 * **Hydrological Water Balance**: Integration of the SCS-CN formulation with Copernicus DEM slope gradients yields seasonal runoff ratios between $18.5\%$ and $24.8\%$ during monsoon peaks, accurately predicting natural drainage accumulation zones.
 * **Input Efficiency**: Variable rate application (VRA) nitrogen prescription reduces localized over-fertilization by up to $18\%$, cutting chemical runoff while preventing yield loss in high-stress patches.
+
+<div align="center">
+
+### 🌴 3D Particle Loader — Seedling to Coconut Palm Tree
+
+<a href="https://seva-gis-backend-e724a.web.app">
+  <img src="docs/plant-coconut-loader.gif" alt="SEVA GIS 3D Coconut Palm Tree Loader" width="240"/>
+</a>
+
+<br/>
+
+*▲ 3D particle loader: seedling sprout surging with sparkle wave boost into a swaying coconut palm tree*
+
+</div>
 
 ---
 

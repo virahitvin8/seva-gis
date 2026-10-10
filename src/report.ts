@@ -27,6 +27,10 @@ export const MAP_CHOICES: { id: string; name: string; note: string; group: strin
   { id: 'lulc', name: 'Decadal Land Use / Land Cover (Fig 3.3)', note: 'ESA WorldCover 10m LULC classification', group: 'Land Cover' },
   { id: 'soil', name: 'Soil Series & Hydraulic Map (Fig 3.4)', note: 'FAO DSMW & ISRIC SoilGrids textural partition', group: 'Soil & Weather' },
   { id: 'stations', name: 'Agro-Meteorological Network (Fig 3.5)', note: 'IMD / Open-Meteo High Resolution NWP Grid', group: 'Soil & Weather' },
+  { id: 'discharge', name: 'Ground Discharge & Stream Network (Fig 3.6)', note: 'River reaches, sub-basins & MPWRD gauging stations', group: 'Hydrology' },
+  { id: 'water_balance', name: 'Landuse Water Summary & Hydrology (Fig 4.1 & 4.2)', note: 'Continuous water balance cross-section & SWAT budget', group: 'Hydrology' },
+  { id: 'calibration', name: 'SWAT Streamflow Calibration (Fig 4.3)', note: 'Monthly hydrograph with 95PPU uncertainty band', group: 'Hydrology' },
+  { id: 'sensitivity', name: 'Global Parameter Sensitivity (Fig 4.7)', note: 'SUFI-2 t-stat & p-value parameter ranking', group: 'Hydrology' },
   { id: 'ndwi', name: 'Surface Water & Wetland (NDWI)', note: 'Open water bodies and saturated depressions', group: 'Water' },
   { id: 'evi', name: 'Dense Canopy Coverage (EVI)', note: 'Enhanced vegetation index mitigating aerosol distortion', group: 'Vegetation' },
   { id: 'ndre', name: 'Nitrogen Red Edge Stress (NDRE)', note: 'Red edge early nitrogen deficiency detection', group: 'Vegetation' },
@@ -45,7 +49,7 @@ export const BAND_SYMBOLOGY_CHOICES: { id: string; name: string; note: string; b
 ]
 
 export const DEFAULT_OPTS: ReportOpts = {
-  maps: ['fresh', 'ndvi', 'ndmi', 'terrain', 'lulc', 'soil', 'stations'],
+  maps: ['fresh', 'terrain', 'lulc', 'soil', 'stations', 'discharge', 'water_balance', 'calibration', 'sensitivity', 'ndvi', 'ndmi'],
   cart: { title: true, north: true, scale: true, legend: true, coords: true },
   contour: 5,
   lang: 'en',

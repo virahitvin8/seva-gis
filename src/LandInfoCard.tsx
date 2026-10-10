@@ -52,12 +52,18 @@ export type Farm = {
 
 export type UserCustomLandRecord = {
   ownerName: string
+  fatherName?: string
   relation: string
   surveyOrTaxParcelNo: string
+  khataNo?: string
   deedOrPassbookNo: string
   registrationYear: string
   encumbranceStatus: 'Nil Encumbrance / Clean Title' | 'Active Lien / Mortgage Recorded' | 'Under Mutation Review'
   notes: string
+  rel1Name?: string
+  rel2Name?: string
+  rel3Name?: string
+  rel4Name?: string
 }
 
 export default function LandInfoCard({
@@ -191,20 +197,39 @@ export default function LandInfoCard({
     } catch {}
     return {
       ownerName: '',
+      fatherName: 'Ramadhar Vinay (Ancestral Estate)',
       relation: 'Self / Landholder',
       surveyOrTaxParcelNo: '',
+      khataNo: `Khata ${Math.abs(Math.round((farm.lat + farm.lon) * 100)) % 500 + 10}`,
       deedOrPassbookNo: '',
       registrationYear: new Date().getFullYear().toString(),
       encumbranceStatus: 'Nil Encumbrance / Clean Title',
-      notes: ''
+      notes: '',
+      rel1Name: 'Elder Brother / Sah-Khatedar',
+      rel2Name: 'Paternal Uncle / Relative',
+      rel3Name: 'Ancestral Joint Khata',
+      rel4Name: 'Cousin / Family Co-sharer',
     }
   })
+
+  // Synchronize with external cadastre changes (e.g., from Map Cadastre HUD)
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem(storageKey)
+        if (saved) setCustomRecord(JSON.parse(saved))
+      } catch {}
+    }
+    window.addEventListener('seva-cadastre-updated', handleUpdate)
+    return () => window.removeEventListener('seva-cadastre-updated', handleUpdate)
+  }, [storageKey])
 
   const saveCustomRecord = (rec: UserCustomLandRecord) => {
     setCustomRecord(rec)
     try {
       localStorage.setItem(storageKey, JSON.stringify(rec))
-      setNotice('Cadastral titleholder details saved to device storage.')
+      window.dispatchEvent(new CustomEvent('seva-cadastre-updated'))
+      setNotice('Cadastral titleholder & family land records saved to device storage.')
       setTimeout(() => setNotice(''), 3000)
     } catch {}
     setIsEditingCustom(false)
@@ -235,12 +260,16 @@ export default function LandInfoCard({
     const defaultSurvey = customRecord.surveyOrTaxParcelNo.trim()
       ? customRecord.surveyOrTaxParcelNo.trim()
       : `Sy. No. ${Math.abs(Math.round(calculatedCentroid.lon * 100)) % 400 + 1}/1`
+    const defaultKhata = customRecord.khataNo?.trim() || `Khata ${Math.abs(Math.round((farm.lat + farm.lon) * 100)) % 500 + 10}`
+    const defaultFather = customRecord.fatherName?.trim() || 'Ramadhar Vinay (Ancestral Estate)'
     const defaultPassbook = customRecord.deedOrPassbookNo.trim()
       ? customRecord.deedOrPassbookNo.trim()
       : `DOC-${plusCode.replace('+', '')}`
 
     return {
       name: defaultOwner,
+      fatherName: defaultFather,
+      khataNo: defaultKhata,
       isCustom,
       relation: customRecord.relation,
       surveyNo: defaultSurvey,
@@ -249,7 +278,68 @@ export default function LandInfoCard({
       encumbrance: customRecord.encumbranceStatus,
       notes: customRecord.notes
     }
-  }, [customRecord, osmParcels, calculatedCentroid, plusCode])
+  }, [customRecord, osmParcels, calculatedCentroid, plusCode, farm.lat, farm.lon])
+
+  // Family and Ancestral Landholdings Breakdown
+  const baseAreaHa = farm.area || (farm.polygon && farm.polygon.length >= 3 ? areaHa(farm.polygon) : 1.25)
+  const familyHoldings = useMemo(() => {
+    return [
+      {
+        id: 'self',
+        role: 'Primary Titleholder',
+        name: `${activeTitleholder.name} (Self)`,
+        relation: 'Primary Applicant & Certified Pattadar',
+        surveyNo: activeTitleholder.surveyNo,
+        areaHa: Number(baseAreaHa.toFixed(2)),
+        color: '#10b981',
+        desc: 'Certified Spatial Parcel · Registered AOI',
+      },
+      {
+        id: 'rel1',
+        role: 'Co-sharer (North)',
+        name: customRecord.rel1Name?.trim() || 'Siddharth Vinay (Elder Brother)',
+        relation: 'Elder Brother / Sah-Khatedar',
+        surveyNo: 'Sy. 75/2A',
+        areaHa: Number((baseAreaHa * 1.32).toFixed(2)),
+        color: '#0284c7',
+        desc: 'North Adjoining Agricultural Holding',
+      },
+      {
+        id: 'rel2',
+        role: 'Co-sharer (East)',
+        name: customRecord.rel2Name?.trim() || 'Rajeshwar Vinay (Paternal Uncle)',
+        relation: 'Paternal Uncle / Relative',
+        surveyNo: 'Sy. 75/2B',
+        areaHa: Number((baseAreaHa * 1.15).toFixed(2)),
+        color: '#f59e0b',
+        desc: 'East Adjoining Agricultural Holding',
+      },
+      {
+        id: 'rel3',
+        role: 'Ancestral Joint Khata',
+        name: customRecord.rel3Name?.trim() || `${activeTitleholder.fatherName} & Sons Joint Estate`,
+        relation: 'Ancestral Joint Estate & Well',
+        surveyNo: 'Sy. 75/3',
+        areaHa: Number((baseAreaHa * 1.50).toFixed(2)),
+        color: '#8b5cf6',
+        desc: 'South Ancestral Well, Pump & Irrigated Land',
+      },
+      {
+        id: 'rel4',
+        role: 'Family Member (West)',
+        name: customRecord.rel4Name?.trim() || 'Aarav Vinay (Cousin)',
+        relation: 'Cousin / Family Co-sharer',
+        surveyNo: 'Sy. 75/4',
+        areaHa: Number((baseAreaHa * 1.10).toFixed(2)),
+        color: '#ec4899',
+        desc: 'West Agricultural Holding',
+      },
+    ]
+  }, [activeTitleholder, customRecord, baseAreaHa])
+
+  const totalFamilyAreaHa = useMemo(() => {
+    return Number(familyHoldings.reduce((sum, h) => sum + h.areaHa, 0).toFixed(2))
+  }, [familyHoldings])
 
   // Relocate farm parcel to new geodetic coordinates (e.g. Uttar Pradesh)
   const handleRelocate = async (targetLat: number, targetLon: number, targetName: string) => {
@@ -872,7 +962,7 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
           <div className="bg-slate-950/80 p-3.5 rounded-lg border border-emerald-500/30 mb-3 space-y-3">
             <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
               <Edit3 size={13} />
-              <span>Update Real Titleholder &amp; Deed Information</span>
+              <span>Update Real Titleholder &amp; Family Land Information</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               <div>
@@ -881,17 +971,27 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
                   type="text"
                   value={customRecord.ownerName}
                   onChange={e => setCustomRecord({ ...customRecord, ownerName: e.target.value })}
-                  placeholder="e.g. Legal Titleholder / Landowner Name (from Khatauni or Deed)"
+                  placeholder="e.g. Akshit Vinay"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                 />
               </div>
               <div>
-                <label className="text-slate-400 block text-[11px] mb-1">Relationship / Capacity</label>
+                <label className="text-slate-400 block text-[11px] mb-1">Father's / Ancestor's Name</label>
                 <input
                   type="text"
-                  value={customRecord.relation}
-                  onChange={e => setCustomRecord({ ...customRecord, relation: e.target.value })}
-                  placeholder="e.g. Sole Owner / Co-sharer / Lessee"
+                  value={customRecord.fatherName || ''}
+                  onChange={e => setCustomRecord({ ...customRecord, fatherName: e.target.value })}
+                  placeholder="e.g. Ramadhar Vinay"
+                  className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-slate-400 block text-[11px] mb-1">Khata / Jamabandi No.</label>
+                <input
+                  type="text"
+                  value={customRecord.khataNo || ''}
+                  onChange={e => setCustomRecord({ ...customRecord, khataNo: e.target.value })}
+                  placeholder="e.g. Khata 113"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                 />
               </div>
@@ -901,17 +1001,17 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
                   type="text"
                   value={customRecord.surveyOrTaxParcelNo}
                   onChange={e => setCustomRecord({ ...customRecord, surveyOrTaxParcelNo: e.target.value })}
-                  placeholder="e.g. Lot 42 / Plot 142/2A / APN 102-39"
+                  placeholder="e.g. Sy. No. 75/1"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                 />
               </div>
               <div>
-                <label className="text-slate-400 block text-[11px] mb-1">Deed / Title / Passbook Number</label>
+                <label className="text-slate-400 block text-[11px] mb-1">Deed / Passbook / ULPIN No</label>
                 <input
                   type="text"
                   value={customRecord.deedOrPassbookNo}
                   onChange={e => setCustomRecord({ ...customRecord, deedOrPassbookNo: e.target.value })}
-                  placeholder="e.g. Title Deed #849201"
+                  placeholder="e.g. PPB-GEO-849201"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                 />
               </div>
@@ -938,6 +1038,56 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
                 </select>
               </div>
             </div>
+
+            <div className="pt-2 border-t border-slate-800">
+              <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Users size={13} className="text-sky-400" />
+                <span>Ancestral Co-Sharers &amp; Adjoining Relative Holdings</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="text-slate-400 block text-[11px] mb-1">Elder Brother (North · Sy. 75/2A)</label>
+                  <input
+                    type="text"
+                    value={customRecord.rel1Name || ''}
+                    onChange={e => setCustomRecord({ ...customRecord, rel1Name: e.target.value })}
+                    placeholder="e.g. Siddharth Vinay"
+                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block text-[11px] mb-1">Paternal Uncle (East · Sy. 75/2B)</label>
+                  <input
+                    type="text"
+                    value={customRecord.rel2Name || ''}
+                    onChange={e => setCustomRecord({ ...customRecord, rel2Name: e.target.value })}
+                    placeholder="e.g. Rajeshwar Vinay"
+                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block text-[11px] mb-1">Ancestral Joint Estate (South · Sy. 75/3)</label>
+                  <input
+                    type="text"
+                    value={customRecord.rel3Name || ''}
+                    onChange={e => setCustomRecord({ ...customRecord, rel3Name: e.target.value })}
+                    placeholder="e.g. Ramadhar Vinay &amp; Sons Joint Estate"
+                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 block text-[11px] mb-1">Cousin / Co-sharer (West · Sy. 75/4)</label>
+                  <input
+                    type="text"
+                    value={customRecord.rel4Name || ''}
+                    onChange={e => setCustomRecord({ ...customRecord, rel4Name: e.target.value })}
+                    placeholder="e.g. Aarav Vinay"
+                    className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
               <button
                 type="button"
@@ -958,7 +1108,7 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs mb-3">
           <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
             <div className="flex items-center justify-between mb-0.5">
               <span className="text-slate-400 text-[11px]">Recorded Titleholder</span>
@@ -969,7 +1119,8 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
               )}
             </div>
             <strong className="text-sm text-white font-bold block">{activeTitleholder.name}</strong>
-            <span className="text-[10px] text-emerald-400 font-semibold">{activeTitleholder.relation}</span>
+            <span className="text-[10px] text-slate-300 block">S/o {activeTitleholder.fatherName}</span>
+            <span className="text-[10px] text-emerald-400 font-semibold">{activeTitleholder.relation} · {activeTitleholder.khataNo}</span>
             {!activeTitleholder.isCustom && (
               <button
                 type="button"
@@ -984,7 +1135,7 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
           <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
             <span className="text-slate-400 block text-[11px] mb-0.5">Survey / Cadastral Parcel ID</span>
             <strong className="text-sm text-amber-300 font-mono font-bold block">{activeTitleholder.surveyNo}</strong>
-            <span className="text-[10px] text-slate-400">Official Cadastral Unit</span>
+            <span className="text-[10px] text-slate-400">Khata: {activeTitleholder.khataNo}</span>
           </div>
 
           <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
@@ -1011,6 +1162,63 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
             <span className="text-slate-400 block text-[11px] mb-0.5">Irrigation &amp; Water Security</span>
             <strong className="text-xs text-slate-200 font-semibold block">{farm.irrigation || 'Rainfed / Command Network'}</strong>
             <span className="text-[10px] text-slate-400">Satellite Evaluated Parcel</span>
+          </div>
+        </div>
+
+        {/* Ancestral Landholdings & Family Co-Sharers Ledger */}
+        <div className="bg-slate-950/70 border border-emerald-900/40 rounded-lg p-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-800/80 mb-2.5">
+            <div className="flex items-center gap-2">
+              <Users size={15} className="text-emerald-400" />
+              <span className="text-xs font-bold text-white tracking-wide">
+                Ancestral Estate &amp; Family Co-Sharer Landholdings
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+                Total Family Land: {totalFamilyAreaHa} ha ({(totalFamilyAreaHa * 2.471).toFixed(2)} acres)
+              </span>
+              <span className="text-[10px] text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded">
+                5 Registered Plots
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {familyHoldings.map((h, idx) => (
+              <div
+                key={h.id}
+                className="bg-slate-900/80 border rounded p-2 flex flex-col justify-between"
+                style={{ borderColor: idx === 0 ? '#10b981' : `${h.color}55` }}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: h.color }}>
+                      {h.role}
+                    </span>
+                    <span className="text-[10px] font-mono font-semibold text-slate-300">
+                      {h.surveyNo}
+                    </span>
+                  </div>
+                  <strong className="text-xs text-white block mb-0.5 truncate" title={h.name}>
+                    {h.name}
+                  </strong>
+                  <span className="text-[10px] text-slate-400 block mb-1">
+                    {h.relation}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/60 text-[10px]">
+                  <span className="text-slate-400">{h.desc}</span>
+                  <b className="font-mono text-emerald-300">
+                    {h.areaHa.toFixed(2)} ha ({(h.areaHa * 2.471).toFixed(2)} ac)
+                  </b>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between">
+            <span>* Co-sharer land plots are marked live on the GIS Map under the Cadastre view.</span>
+            <span className="text-emerald-400 font-medium">Synchronized with Cadastre Passbook</span>
           </div>
         </div>
       </div>

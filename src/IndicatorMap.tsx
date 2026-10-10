@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers,
   Lock, LockOpen, Map as MapIcon, Ruler, Maximize2, Tag, ExternalLink,
   Sliders, ChevronRight, Trash2, FileCheck2, Scissors, RotateCcw,
-  Minus, Edit3, Save, Users, CheckCircle2, Cpu, Sparkles
+  Minus, Edit3, Save, Users, CheckCircle2, Cpu, Sparkles, Compass, FileText
 } from 'lucide-react'
 import GeeAgentCenter from './GeeAgentCenter'
 import {
@@ -148,6 +148,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [showFamilyOnMap, setShowFamilyOnMap] = useState(true)
   const [geeCenterOpen, setGeeCenterOpen] = useState(false)
 
+  // Listen for cadastre updates across dashboard (e.g. from LandInfoCard)
+  useEffect(() => {
+    const handleUpdate = () => setCadastreSyncTick(t => t + 1)
+    window.addEventListener('seva-cadastre-updated', handleUpdate)
+    return () => window.removeEventListener('seva-cadastre-updated', handleUpdate)
+  }, [])
+
+  // Cartographic Thesis Print Frame Mode (Matching MAPS REF publication figures)
+  const [thesisFrameOpen, setThesisFrameOpen] = useState(false)
+  const [thesisTheme, setThesisTheme] = useState<'dem' | 'lulc' | 'soil' | 'stations' | 'discharge'>('dem')
+  const [cartoLegendPos, setCartoLegendPos] = useState({ x: 28, y: 140 })
+  const [cartoLegendDragging, setCartoLegendDragging] = useState(false)
+  const [cartoLegendMinimized, setCartoLegendMinimized] = useState(false)
+  const cartoLegendDragOffset = useRef({ x: 0, y: 0 })
+
   const savedCadastre = useMemo(() => {
     try {
       const raw = localStorage.getItem(`seva-cadastre-record-${farm.id}`)
@@ -213,6 +228,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         updatedAt: new Date().toISOString(),
       }
       localStorage.setItem(`seva-cadastre-record-${farm.id}`, JSON.stringify(payload))
+      window.dispatchEvent(new CustomEvent('seva-cadastre-updated'))
       setCadastreSyncTick(t => t + 1)
       setEditingCadastre(false)
     } catch (err) {
@@ -274,6 +290,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [panelDetached, setPanelDetached] = useState(false)
   const [panelPosition, setPanelPosition] = useState({ x: 24, y: 96 })
   const [panelDragging, setPanelDragging] = useState(false)
+  const [panelMinimized, setPanelMinimized] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
 
   const [layersBoxTab, setLayersBoxTab] = useState<'active' | 'symbology' | 'tools' | 'display' | 'catalog'>('active')
@@ -334,6 +351,18 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     window.addEventListener('pointerup', end, { once: true })
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
   }, [dataDragging])
+
+  useEffect(() => {
+    if (!cartoLegendDragging) return
+    const move = (event: PointerEvent) => setCartoLegendPos({
+      x: Math.max(8, Math.min(window.innerWidth - 320, event.clientX - cartoLegendDragOffset.current.x)),
+      y: Math.max(8, Math.min(window.innerHeight - 80, event.clientY - cartoLegendDragOffset.current.y)),
+    })
+    const end = () => setCartoLegendDragging(false)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', end, { once: true })
+    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
+  }, [cartoLegendDragging])
 
   useEffect(() => {
     if (!map.current) return
@@ -604,53 +633,24 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       [85, -180],
     ]
 
-    if (bgMode === 'black') {
-      // Solid Dark background outside farm boundary (Google Earth Engine dark canvas mode)
-      L.polygon([worldOuter, ring], {
-        stroke: false,
-        fillColor: '#000000',
-        fillOpacity: 0.88,
-        fillRule: 'evenodd',
-        interactive: false
-      }).addTo(group)
-      L.polygon(ring, { color: '#22c55e', weight: 2.8, fill: false, interactive: false }).addTo(group)
-    } else if (bgMode === 'white') {
-      // Solid White background outside farm boundary (QGIS / ArcMap Print Layout style)
-      L.polygon([worldOuter, ring], {
-        stroke: false,
-        fillColor: '#ffffff',
-        fillOpacity: 0.88,
-        fillRule: 'evenodd',
-        interactive: false
-      }).addTo(group)
-      L.polygon(ring, { color: '#15803d', weight: 2.8, fill: false, interactive: false }).addTo(group)
-    } else if (aoiOnly) {
-      // Shapefile clipping mask: Mask surroundings so all parameters display upon the farm AOI only
-      L.polygon([worldOuter, ring], {
-        stroke: false,
-        fillColor: '#05130b',
-        fillOpacity: 0.85,
-        fillRule: 'evenodd',
-        interactive: false
-      }).addTo(group)
-      L.polygon(ring, { color: '#22c55e', weight: 3, dashArray: '6 4', fill: false, interactive: false }).addTo(group)
-    } else {
-      // Standard view with surroundings: gently dim surroundings only when explicitly requested
-      if (dim) {
-        L.polygon([worldOuter, ring], {
-          stroke: false,
-          fillColor: '#07110c',
-          fillOpacity: 0.45,
-          fillRule: 'evenodd',
-          interactive: false
-        }).addTo(group)
+    // Only draw the standard farm boundary stroke when the cadastre layer is closed.
+    // When cadastre is open, cadastreLayerRef renders the certified cadastral parcel with monuments and badges,
+    // avoiding duplicate overlapping rings.
+    if (!cadastreOpen) {
+      if (bgMode === 'black') {
+        L.polygon(ring, { color: '#22c55e', weight: 2.8, fill: false, interactive: false }).addTo(group)
+      } else if (bgMode === 'white') {
+        L.polygon(ring, { color: '#15803d', weight: 2.8, fill: false, interactive: false }).addTo(group)
+      } else if (aoiOnly) {
+        L.polygon(ring, { color: '#22c55e', weight: 3, dashArray: '6 4', fill: false, interactive: false }).addTo(group)
+      } else {
+        L.polygon(ring, { color: '#f4ffd0', weight: 2.5, fill: false, interactive: false }).addTo(group)
       }
-      L.polygon(ring, { color: '#f4ffd0', weight: 2.5, fill: false, interactive: false }).addTo(group)
     }
 
     fit75PercentAoi(instance, false)
     return () => { group.remove(); frame.current = null }
-  }, [farm.id, geo, dim, bgMode, aoiOnly, locked])
+  }, [farm.id, geo, dim, bgMode, aoiOnly, locked, cadastreOpen])
 
   // Cadastral Survey Boundaries and Official Pattadar Passbook Layer
   useEffect(() => {
@@ -1101,6 +1101,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </button>
 
         <button
+          className={`ix-tb-btn ${thesisFrameOpen ? 'on' : ''}`}
+          onClick={() => setThesisFrameOpen(prev => !prev)}
+          title="Toggle Authentic Cartographic Thesis Print Layout Mode (SRTM DEM, LULC 9-Class, Soil 5-Class, Reaches)"
+        >
+          <Compass size={15}/>
+          <span>Carto Frame</span>
+          <b className="ix-btn-badge">{thesisFrameOpen ? 'Thesis ON' : 'Off'}</b>
+        </button>
+
+        <button
           className={`ix-tb-btn ${geeCenterOpen ? 'on' : ''}`}
           onClick={() => setGeeCenterOpen(prev => !prev)}
           title="Google Earth Engine Live Cloud Stream & Autonomous Agent Crew Studio"
@@ -1205,16 +1215,22 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   <Sliders size={13} />
                   <span>{stretchDra ? 'Contrast on' : 'Auto contrast'}</span>
                 </button>
-                <span className="ix-lb-tool-btn active" title="Nearest-neighbour pixel display, with no smoothing or sharpening.">
-                  <Box size={13} />
-                  <span>Pixel view</span>
-                </span>
+                <button
+                  className="ix-lb-tool-btn"
+                  title={panelMinimized ? 'Expand Layers Box' : 'Minimize Layers Box to clear map view'}
+                  aria-label={panelMinimized ? 'Expand Layers Box' : 'Minimize Layers Box'}
+                  onClick={() => setPanelMinimized(v => !v)}
+                >
+                  {panelMinimized ? <Maximize2 size={13} /> : <Minus size={13} />}
+                </button>
                 <button className="ix-lb-close" onClick={() => setLayersBoxOpen(false)} aria-label="Close Layers Box">
                   <X size={15} />
                 </button>
               </div>
             </div>
 
+            {!panelMinimized && (
+              <>
             {/* Tab Navigation */}
             <div className="ix-lb-tabs" role="tablist">
               <button
@@ -1681,128 +1697,228 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 {earthEngineOverlay?.sceneKey === sceneKey ? `EARTH ENGINE · ${date.toUpperCase()} · ${earthEngineOverlay.sceneCount} MATCHING SCENES` : scene ? `PREVIEW · SENTINEL-2 L2A · ${date.toUpperCase()} · ${scene.cloud}% CLOUD` : loading ? 'LOADING SATELLITE PREVIEW…' : 'AWAITING SATELLITE PASS'}
               </span>
             </div>
-          </div>
-        )
-        return panelDetached ? createPortal(boxContent, document.body) : boxContent
-      })()}
-
-        <NearbyLayer map={mapObj} farm={farm} open={nearOpen} onClose={() => setNearOpen(false)} mine={{ b: mine.b, p: mine.p }}/>
-        <MapKit map={mapObj} farm={farm} kit={kit} farmOnly={aoiOnly}/>
-        <RulerTape map={mapObj} farm={farm} open={rulerOpen} onClose={() => setRulerOpen(false)} onActiveChange={setRulerActive}/>
-
-        {tool !== 'none' && (
-          <div className="ix-hint">
-            {tool === 'borewell' ? 'Click the map where the borewell is' : `Click along the pipeline route · ${draft.length} point${draft.length === 1 ? '' : 's'}${draft.length > 1 ? ` · ${Math.round(lengthM(draft))} m` : ''}`}
-            {tool === 'pipeline' && <button disabled={draft.length < 2} onClick={finishPipe}>Finish</button>}
-            <button onClick={() => { setTool('none'); setDraft([]) }}>Cancel</button>
-          </div>
+          </>
         )}
+      </div>
+    )
+    return panelDetached ? createPortal(boxContent, document.body) : boxContent
+  })()}
 
-        <button
-          className="map-location"
-          aria-label="Centre on farm"
-          onClick={() => {
-            const [w, s, e, n] = farmBBox(farm)
-            map.current?.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [70, 70], maxZoom: 17 })
-          }}
+    <NearbyLayer map={mapObj} farm={farm} open={nearOpen} onClose={() => setNearOpen(false)} mine={{ b: mine.b, p: mine.p }}/>
+    <MapKit map={mapObj} farm={farm} kit={kit} farmOnly={aoiOnly}/>
+    <RulerTape map={mapObj} farm={farm} open={rulerOpen} onClose={() => setRulerOpen(false)} onActiveChange={setRulerActive}/>
+
+    {tool !== 'none' && (
+      <div className="ix-hint">
+        {tool === 'borewell' ? 'Click the map where the borewell is' : `Click along the pipeline route · ${draft.length} point${draft.length === 1 ? '' : 's'}${draft.length > 1 ? ` · ${Math.round(lengthM(draft))} m` : ''}`}
+        {tool === 'pipeline' && <button disabled={draft.length < 2} onClick={finishPipe}>Finish</button>}
+        <button onClick={() => { setTool('none'); setDraft([]) }}>Cancel</button>
+      </div>
+    )}
+
+    {view3d && <Suspense fallback={null}><Walk3D farm={farm} onClose={() => setView3d(false)}/></Suspense>}
+
+    {/* Authentic Cartographic Thesis Print Layout Frame Overlay (Exact reproduction of MAPS REF thesis figures) */}
+    {thesisFrameOpen && (
+      <div className="ix-carto-neatline-overlay" aria-label="Thesis Cartographic Frame">
+        {/* Top Header Publication Banner */}
+        <div className="ix-carto-top-banner">
+          <div className="ix-carto-title-main">
+            {thesisTheme === 'dem' && 'DIGITAL ELEVATION MODEL (DEM 30M) OF THE STUDY WATERSHED'}
+            {thesisTheme === 'lulc' && 'LAND USE / LAND COVER (SWAT CLASSIFICATION) MAP'}
+            {thesisTheme === 'soil' && 'FAO SOIL ASSOCIATION CLASSIFICATION (DSMW) MAP'}
+            {thesisTheme === 'stations' && 'HYDRO-METEOROLOGICAL MONITORING STATIONS OVER DEM'}
+            {thesisTheme === 'discharge' && 'GROUND DISCHARGE GAUGING STATIONS & SUB-BASIN REACHES'}
+          </div>
+          <div className="ix-carto-subtitle">
+            SEVA·GIS SPATIAL WATERSHED SUITE · WAINGANGA BASIN · SRTM / SENTINEL-2 PROCESSING OUTPUT
+          </div>
+        </div>
+
+        {/* Outer and Inner Dual Neatline with Corner Geodetic Crosshairs */}
+        <div className="ix-carto-border-frame">
+          <div className="ix-carto-tick tick-top-left">{(farm.lat + 0.04).toFixed(4)}°N, {(farm.lon - 0.04).toFixed(4)}°E</div>
+          <div className="ix-carto-tick tick-top-right">{(farm.lat + 0.04).toFixed(4)}°N, {(farm.lon + 0.04).toFixed(4)}°E</div>
+          <div className="ix-carto-tick tick-bottom-left">{(farm.lat - 0.04).toFixed(4)}°N, {(farm.lon - 0.04).toFixed(4)}°E</div>
+          <div className="ix-carto-tick tick-bottom-right">{(farm.lat - 0.04).toFixed(4)}°N, {(farm.lon + 0.04).toFixed(4)}°E</div>
+        </div>
+
+        {/* Authentic Topographic North Arrow Compass Rose */}
+        <div className="ix-carto-north-compass" title="True Geodetic North">
+          <svg viewBox="0 0 40 40" width="38" height="38">
+            <circle cx="20" cy="20" r="18" fill="rgba(255,255,255,0.85)" stroke="#0f172a" strokeWidth="1.5" />
+            <polygon points="20,4 24,18 20,16 16,18" fill="#0f172a" />
+            <polygon points="20,36 24,22 20,24 16,22" fill="#94a3b8" />
+            <polygon points="36,20 22,24 24,20 22,16" fill="#64748b" />
+            <polygon points="4,20 18,24 16,20 18,16" fill="#cbd5e1" />
+            <text x="20" y="11" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#ffffff">N</text>
+          </svg>
+        </div>
+
+        {/* Alternating Metric Publication Scale Bar */}
+        <div className="ix-carto-scalebar">
+          <div className="ix-carto-scale-labels">
+            <span>0</span>
+            <span>2.5</span>
+            <span>5.0</span>
+            <span>10 km</span>
+          </div>
+          <div className="ix-carto-scale-blocks">
+            <span className="block black" />
+            <span className="block white" />
+            <span className="block black" />
+            <span className="block white" />
+          </div>
+        </div>
+
+        {/* Detachable & Draggable Cartographic Publication Legend */}
+        <div
+          className={`ix-carto-legend-box ${cartoLegendMinimized ? 'minimized' : ''}`}
+          style={{ position: 'fixed', left: cartoLegendPos.x, top: cartoLegendPos.y, zIndex: 1100 }}
+          role="dialog"
+          aria-label="Publication Legend"
         >
-          <LocateFixed size={19}/>
-        </button>
-
-        {view3d && <Suspense fallback={null}><Walk3D farm={farm} onClose={() => setView3d(false)}/></Suspense>}
-
-        {baseOpen && (
-          <div className="ix-panel ix-bases" role="dialog" aria-label="Base map">
-            <div className="ix-panel-head"><strong>Base map</strong><button aria-label="Close" onClick={() => setBaseOpen(false)}><X size={16}/></button></div>
-            <div className="ix-list">
-              {BASES.map(b => (
-                <button key={b.id} className={base === b.id ? 'on' : ''} disabled={b.id === 'original' && !scene} onClick={() => setBase(b.id)}>
-                  <span className="ix-ico" style={{ background: b.sw }}/>
-                  <span><b>{b.name}</b><small>{b.id === 'original' && !scene ? 'Press Refresh first to find a satellite scene' : b.note}</small></span>
-                  {base === b.id ? <Check size={15}/> : null}
-                </button>
-              ))}
+          <div
+            className="ix-carto-legend-head"
+            style={{ cursor: 'grab' }}
+            onPointerDown={e => {
+              if ((e.target as HTMLElement).closest('button')) return
+              cartoLegendDragOffset.current = { x: e.clientX - cartoLegendPos.x, y: e.clientY - cartoLegendPos.y }
+              setCartoLegendDragging(true)
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Compass size={14} className="text-emerald-700" />
+              <strong style={{ fontSize: 11, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Cartographic Legend
+              </strong>
             </div>
-          </div>
-        )}
-
-        {tools && (
-          <div className="ix-panel ix-tools" role="dialog" aria-label="Tools">
-            <div className="ix-panel-head"><strong>Tools & Overlays</strong><button aria-label="Close" onClick={() => setTools(false)}><X size={16}/></button></div>
-            <div className="ix-list">
-              <h4>See it in 3D</h4>
-              <button onClick={() => { setView3d(true); setTools(false) }}>
-                <span className="ix-ico g3"><Box size={18}/></span>
-                <span><b>3D Elevation & Terrain Flyover</b><small>Walk, fly a drone or look from above</small></span>
-                <Plus size={15}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <button
+                className="ix-win-btn"
+                title={cartoLegendMinimized ? 'Expand Legend' : 'Minimize Legend'}
+                onClick={() => setCartoLegendMinimized(!cartoLegendMinimized)}
+              >
+                {cartoLegendMinimized ? <Maximize2 size={12} /> : <Minus size={12} />}
               </button>
-
-              <h4>Google Earth Pro Measuring</h4>
-              <button className={rulerOpen ? 'on' : ''} onClick={() => { setRulerOpen(true); setTools(false); setPanel(false) }}>
-                <span className="ix-ico" style={{ background: '#fef08a', color: '#854d0e' }}><Ruler size={18}/></span>
-                <span><b>Metered Tape / Ruler</b><small>Measure East side height, width, boundaries</small></span>
-                {rulerOpen ? <Check size={15}/> : <Plus size={15}/>}
-              </button>
-
-              <h4>Water on your farm</h4>
-              <button className={tool === 'borewell' ? 'on' : ''} onClick={() => { setDraft([]); setAoiOnly(false); setTool(tool === 'borewell' ? 'none' : 'borewell'); setTools(false) }}>
-                <span className="ix-ico bw"><CircleDot size={18}/></span>
-                <span><b>Mark a borewell</b><small>Tap the map where it is{mine.b.length ? ` · ${mine.b.length} saved` : ''}</small></span>
-                {tool === 'borewell' ? <Check size={15}/> : <Plus size={15}/>}
-              </button>
-              <button className={tool === 'pipeline' ? 'on' : ''} onClick={() => { setDraft([]); setAoiOnly(false); setTool(tool === 'pipeline' ? 'none' : 'pipeline'); setTools(false) }}>
-                <span className="ix-ico pp"><Route size={18}/></span>
-                <span><b>Draw a pipeline</b><small>Tap points along the route{mine.p.length ? ` · ${mine.p.length} saved` : ''}</small></span>
-                {tool === 'pipeline' ? <Check size={15}/> : <Plus size={15}/>}
-              </button>
-
-              <h4>Map layers (always available)</h4>
-              {([['hill', 'Hillshade', 'Shaded relief, like sunlight on the ground', 'hs'], ['contour', 'Contour lines', 'Lines joining points of the same height', 'ct'], ['aspect', 'Slope direction', 'Which way each part of the farm faces', 'as'], ['dem', 'Elevation colours', 'Low to high ground in colour', 'dm'], ['grid', 'Grid lines', 'Latitude and longitude lines with numbers', 'gr'], ['legend', 'Show legend', 'A key for the layers above', 'lg']] as [keyof Kit, string, string, string][]).map(([k, name, hint, c]) => (
-                <button key={k} className={kit[k] ? 'on' : ''} onClick={() => setKit({ ...kit, [k]: !kit[k] })}>
-                  <span className={`ix-ico k-${c}`}><Layers size={18}/></span>
-                  <span><b>{name}</b><small>{hint}</small></span>
-                  {kit[k] ? <Check size={15}/> : <Plus size={15}/>}
-                </button>
-              ))}
-
-              <h4>Map view</h4>
-              <button className={dim ? 'on' : ''} onClick={() => setDim(!dim)}>
-                <span className="ix-ico dm"><Mountain size={18}/></span>
-                <span><b>{dim ? 'Surroundings dimmed' : 'Surroundings bright'}</b><small>Dim everything outside your farm</small></span>
-                {dim ? <Check size={15}/> : <Plus size={15}/>}
-              </button>
-              <button onClick={() => { const [w, s2, e, n] = farmBBox(farm); map.current?.fitBounds(L.latLngBounds([s2, w], [n, e]), { padding: [70, 70], maxZoom: 17 }); setTools(false) }}>
-                <span className="ix-ico lc"><LocateFixed size={18}/></span>
-                <span><b>Centre on my farm</b><small>Zoom back to the boundary</small></span>
-                <Plus size={15}/>
+              <button
+                className="ix-win-btn"
+                title="Close Cartographic Frame"
+                onClick={() => setThesisFrameOpen(false)}
+              >
+                <X size={13} />
               </button>
             </div>
           </div>
-        )}
 
-        {panel && (
-          <div className="ix-panel" role="dialog" aria-label="Parameters">
-            <div className="ix-panel-head"><strong>Parameters</strong><button aria-label="Close" onClick={() => setPanel(false)}><X size={16}/></button></div>
-            <label className="ix-search"><Search size={14}/><input autoFocus placeholder="Search NDVI, drainage, soil moisture…" value={query} onChange={e => setQuery(e.target.value)}/></label>
-            <div className="ix-list">
-              {GROUPS.map(group => {
-                const list = results.filter(i => i.group === group)
-                return list.length ? (
-                  <div key={group}>
-                    <h4>{group}</h4>
-                    {list.map(ind => (
-                      <button key={ind.id} className={active.includes(ind.id) ? 'on' : ''} onClick={() => toggle(ind.id)}>
-                        <span className="ix-swatch" style={{ background: ind.ramp ? gradientCss(ind.ramp) : 'linear-gradient(90deg,#3c6a4a,#c8a15a,#e4e4e4)' }}/>
-                        <span><b>{ind.name}</b><small>{ind.desc}</small></span>
-                        {active.includes(ind.id) ? <Check size={15}/> : <Plus size={15}/>}
-                      </button>
-                    ))}
+          {!cartoLegendMinimized && (
+            <div className="ix-carto-legend-body">
+              {/* Theme Switcher Tabs */}
+              <div className="ix-carto-theme-nav">
+                <button className={thesisTheme === 'dem' ? 'active' : ''} onClick={() => setThesisTheme('dem')}>DEM</button>
+                <button className={thesisTheme === 'lulc' ? 'active' : ''} onClick={() => setThesisTheme('lulc')}>LULC</button>
+                <button className={thesisTheme === 'soil' ? 'active' : ''} onClick={() => setThesisTheme('soil')}>Soil</button>
+                <button className={thesisTheme === 'stations' ? 'active' : ''} onClick={() => setThesisTheme('stations')}>Stations</button>
+                <button className={thesisTheme === 'discharge' ? 'active' : ''} onClick={() => setThesisTheme('discharge')}>Reaches</button>
+              </div>
+
+              {/* Exact Swatches Matching MAPS REF */}
+              {thesisTheme === 'dem' && (
+                <div className="ix-carto-legend-list">
+                  <div className="ix-legend-title">Elevation Gradient (SRTM 30m)</div>
+                  <div className="ix-dem-ramp-bar">
+                    <span style={{ background: 'linear-gradient(to right, #1a9850, #ffffbf, #fc8d59, #8c510a, #ffffff)' }} />
                   </div>
-                ) : null
-              })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#475569', fontWeight: 600 }}>
+                    <span>Low: 135 m</span>
+                    <span>High: 1012 m</span>
+                  </div>
+                </div>
+              )}
+
+              {thesisTheme === 'lulc' && (
+                <div className="ix-carto-legend-list">
+                  <div className="ix-legend-title">SWAT Land Use / Land Cover (9 Classes)</div>
+                  {[
+                    { code: 'WATR', label: 'Water', color: '#2b83ba' },
+                    { code: 'URMD', label: 'Residential-Medium Density', color: '#d7191c' },
+                    { code: 'SWRN', label: 'Range-Grasses', color: '#fdae61' },
+                    { code: 'RNGE', label: 'Range-Brush', color: '#ffffbf' },
+                    { code: 'RNGB', label: 'Range-Buffer', color: '#abd9e9' },
+                    { code: 'FRST', label: 'Forest-Mixed', color: '#1a9641' },
+                    { code: 'FRSD', label: 'Forest-Deciduous', color: '#a6d96a' },
+                    { code: 'AGRR', label: 'Agricultural Land-Row Crops', color: '#dfc27d' },
+                    { code: 'AGRL', label: 'Agricultural Land-Generic', color: '#bf812d' },
+                  ].map(c => (
+                    <div key={c.code} className="ix-legend-item">
+                      <span className="swatch" style={{ background: c.color }} />
+                      <b>{c.code}</b>
+                      <span>{c.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {thesisTheme === 'soil' && (
+                <div className="ix-carto-legend-list">
+                  <div className="ix-legend-title">FAO Soil Association (5 Classes)</div>
+                  {[
+                    { code: 'Bv12-3b-3696', label: 'Vertic Cambisols', color: '#d73027' },
+                    { code: 'I-Bc-Lc-3714', label: 'Lithosols & Chromic Luvisols', color: '#fc8d59' },
+                    { code: 'Lf62-1a-3791', label: 'Ferric Luvisols', color: '#fee08b' },
+                    { code: 'Vc43-3ab-3861', label: 'Chromic Vertisols', color: '#91bfdb' },
+                    { code: 'Vp20-3a-3866', label: 'Pellic Vertisols', color: '#4575b4' },
+                  ].map(s => (
+                    <div key={s.code} className="ix-legend-item">
+                      <span className="swatch" style={{ background: s.color }} />
+                      <b>{s.code}</b>
+                      <span>{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {thesisTheme === 'stations' && (
+                <div className="ix-carto-legend-list">
+                  <div className="ix-legend-title">Monitoring Network (Fig 3.5)</div>
+                  <div className="ix-legend-item">
+                    <span className="swatch" style={{ background: '#e11d48', transform: 'rotate(45deg)', width: 10, height: 10 }} />
+                    <b>Rain Gauge</b>
+                    <span>Precipitation (PREC)</span>
+                  </div>
+                  <div className="ix-legend-item">
+                    <span className="swatch" style={{ background: '#0f172a', clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
+                    <b>Temperature</b>
+                    <span>Max/Min Temp Sensors</span>
+                  </div>
+                </div>
+              )}
+
+              {thesisTheme === 'discharge' && (
+                <div className="ix-carto-legend-list">
+                  <div className="ix-legend-title">Hydrological Stations (Fig 3.6)</div>
+                  <div className="ix-legend-item">
+                    <span className="swatch" style={{ background: '#0284c7', height: 4, borderRadius: 2 }} />
+                    <b>Stream Network</b>
+                    <span>SWAT Reach Order 1-4</span>
+                  </div>
+                  <div className="ix-legend-item">
+                    <span className="swatch" style={{ background: '#10b981', borderRadius: '50%' }} />
+                    <b>Deoghat Station</b>
+                    <span>Calibrated Discharge Gauge</span>
+                  </div>
+                  <div className="ix-legend-item">
+                    <span className="swatch" style={{ background: '#f59e0b', borderRadius: '50%' }} />
+                    <b>Bandol & Ugli</b>
+                    <span>Tributary Outlets</span>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
+    )}
 
         {picked && (
           <div

@@ -229,7 +229,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const [w, s, e, n] = farmBBox(farm)
     const bounds = L.latLngBounds([s, w], [n, e])
     const sz = instance.getSize()
-    if (!sz || sz.x <= 0 || sz.y <= 0) return
+    if (!sz || sz.x <= 0 || sz.y <= 0) {
+      instance.invalidateSize({ pan: false })
+      instance.setView([farm.lat, farm.lon], 16)
+      return 16
+    }
 
     const padX = Math.max(30, Math.round(sz.x * 0.125))
     const padY = Math.max(30, Math.round(sz.y * 0.125))
@@ -328,12 +332,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     setMapObj(instance)
     L.control.zoom({ position: 'bottomright' }).addTo(instance)
 
-    setTimeout(() => {
-      if (instance && instance.getContainer()) {
-        fit75PercentAoi(instance, false)
-        instance.invalidateSize({ pan: false })
-      }
-    }, 60)
+    // Staggered size invalidation to guarantee tile loading across all browser render passes
+    const timers = [40, 150, 350, 750, 1500].map(delay =>
+      setTimeout(() => {
+        if (instance && instance.getContainer()) {
+          fit75PercentAoi(instance, false)
+          instance.invalidateSize({ pan: false })
+        }
+      }, delay)
+    )
 
     const onZoom = () => {
       const z = instance.getZoom()
@@ -389,6 +396,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     instance.on('moveend', syncView)
 
     return () => {
+      timers.forEach(t => clearTimeout(t))
       instance.off('zoomend', syncView)
       instance.off('moveend', syncView)
       el.removeEventListener('wheel', onWheel)
@@ -444,6 +452,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         add('https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2021_3857/default/g/{z}/{y}/{x}.jpg', 'Sentinel-2 cloudless © EOX (Copernicus Sentinel data 2021)', { maxNativeZoom: 13, maxZoom: 20 })
       }
     }
+    instance.invalidateSize({ pan: false })
     return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
   }, [mapObj, base, scene?.id, scene?.ids?.join(), bgMode, aoiOnly])
 

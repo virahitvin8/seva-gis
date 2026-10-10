@@ -1091,19 +1091,35 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   border-radius: 0 0 8px 8px;
   overflow: hidden;
 }
+.map-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 580px;
+  background: #15291f;
+  overflow: hidden;
+}
 .ix-outer {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 580px;
   width: 100%;
   position: relative;
 }
 .ix-wrap {
   position: relative;
-  flex: 1;
   width: 100%;
-  min-height: 0;
+  height: 560px;
+  min-height: 540px;
+  flex: 1 0 540px;
   overflow: hidden;
+  background: radial-gradient(circle at 30% 20%, #14382a, #07110c);
+}
+.field-map {
+  width: 100%;
+  height: 100%;
+  min-height: 540px;
+  z-index: 1;
 }
 
 /* =========================================================================

@@ -321,32 +321,71 @@ export default function FinancialSummaryTerminal({
 
         {/* Inner Content Area */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
-          {/* Sub Navigation */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
+          {/* Sub Navigation - High-Contrast 3 Primary Boxes */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
-                className={`outline sm ${activeTab === 'terminal' ? 'primary' : ''}`}
                 onClick={() => setActiveTab('terminal')}
-                style={{ borderRadius: '6px' }}
+                style={{
+                  background: activeTab === 'terminal' ? 'linear-gradient(135deg, #166534, #15803d)' : '#102218',
+                  color: activeTab === 'terminal' ? '#ffffff' : '#86efac',
+                  border: `1.5px solid ${activeTab === 'terminal' ? '#4ade80' : 'rgba(74, 222, 128, 0.4)'}`,
+                  boxShadow: activeTab === 'terminal' ? '0 0 16px rgba(74, 222, 128, 0.4)' : 'none',
+                  borderRadius: '8px',
+                  padding: '9px 15px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <Activity size={13} style={{ marginRight: 5 }} />
-                6-Session Comparative Tracker
+                <Activity size={14} color={activeTab === 'terminal' ? '#ffffff' : '#4ade80'} />
+                <span>6-Session Comparative Tracker</span>
               </button>
               <button
-                className={`outline sm ${activeTab === 'comparison' ? 'primary' : ''}`}
                 onClick={() => setActiveTab('comparison')}
-                style={{ borderRadius: '6px' }}
+                style={{
+                  background: activeTab === 'comparison' ? 'linear-gradient(135deg, #166534, #15803d)' : '#102218',
+                  color: activeTab === 'comparison' ? '#ffffff' : '#86efac',
+                  border: `1.5px solid ${activeTab === 'comparison' ? '#4ade80' : 'rgba(74, 222, 128, 0.4)'}`,
+                  boxShadow: activeTab === 'comparison' ? '0 0 16px rgba(74, 222, 128, 0.4)' : 'none',
+                  borderRadius: '8px',
+                  padding: '9px 15px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <BarChart3 size={13} style={{ marginRight: 5 }} />
-                Multi-Session Candlestick / Trends
+                <BarChart3 size={14} color={activeTab === 'comparison' ? '#ffffff' : '#4ade80'} />
+                <span>Multi-Session Candlestick / Trends</span>
               </button>
               <button
-                className={`outline sm ${activeTab === 'matrix' ? 'primary' : ''}`}
                 onClick={() => setActiveTab('matrix')}
-                style={{ borderRadius: '6px' }}
+                style={{
+                  background: activeTab === 'matrix' ? 'linear-gradient(135deg, #166534, #15803d)' : '#102218',
+                  color: activeTab === 'matrix' ? '#ffffff' : '#86efac',
+                  border: `1.5px solid ${activeTab === 'matrix' ? '#4ade80' : 'rgba(74, 222, 128, 0.4)'}`,
+                  boxShadow: activeTab === 'matrix' ? '0 0 16px rgba(74, 222, 128, 0.4)' : 'none',
+                  borderRadius: '8px',
+                  padding: '9px 15px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                <Layers size={13} style={{ marginRight: 5 }} />
-                Comprehensive Parameter Matrix
+                <Layers size={14} color={activeTab === 'matrix' ? '#ffffff' : '#4ade80'} />
+                <span>Comprehensive Parameter Matrix</span>
               </button>
             </div>
 
@@ -410,75 +449,75 @@ export default function FinancialSummaryTerminal({
                 })}
               </div>
 
-              {/* Selected Session Deep Analytical Cards */}
+              {/* Selected Session Deep Analytical Cards - High Contrast 3 Boxes */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
-                <div style={{ background: '#0e1811', border: '1px solid #1e3325', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '12px', color: '#4ade80', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Leaf size={15} /> SPECTRAL CANOPY METRICS
+                <div style={{ background: 'linear-gradient(145deg, #12281a, #0b1a11)', border: '1.5px solid rgba(74, 222, 128, 0.45)', borderRadius: '12px', padding: '16px', boxShadow: '0 6px 18px rgba(0,0,0,0.45)' }}>
+                  <div style={{ fontSize: '12px', color: '#4ade80', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Leaf size={16} /> SPECTRAL CANOPY METRICS
                   </div>
                   <div style={{ display: 'grid', gap: '8px', fontSize: '12.5px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Canopy Vigor (NDVI):</span>
-                      <b style={{ color: '#4ade80' }}>{activeSession.ndvi.toFixed(3)}</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(74, 222, 128, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Canopy Vigor (NDVI):</span>
+                      <b style={{ color: '#4ade80', fontSize: '13px' }}>{activeSession.ndvi.toFixed(3)}</b>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Canopy Water (NDMI):</span>
-                      <b style={{ color: '#38bdf8' }}>{activeSession.ndmi.toFixed(3)}</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(74, 222, 128, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Canopy Water (NDMI):</span>
+                      <b style={{ color: '#38bdf8', fontSize: '13px' }}>{activeSession.ndmi.toFixed(3)}</b>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Stressed Canopy Area:</span>
-                      <b style={{ color: activeSession.stressPct > 20 ? '#fbbf24' : '#4ade80' }}>{activeSession.stressPct.toFixed(1)}%</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(74, 222, 128, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Stressed Canopy Area:</span>
+                      <b style={{ color: activeSession.stressPct > 20 ? '#fbbf24' : '#4ade80', fontSize: '13px' }}>{activeSession.stressPct.toFixed(1)}%</b>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#94a3b8' }}>Phenological Stage:</span>
+                      <span style={{ color: '#cbd5e1' }}>Phenological Stage:</span>
                       <b style={{ color: '#f8fafc' }}>{activeSession.stage}</b>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ background: '#0e1811', border: '1px solid #1e3325', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Droplets size={15} /> HYDROLOGY &amp; SOIL WATER
+                <div style={{ background: 'linear-gradient(145deg, #0e242d, #09171e)', border: '1.5px solid rgba(56, 189, 248, 0.45)', borderRadius: '12px', padding: '16px', boxShadow: '0 6px 18px rgba(0,0,0,0.45)' }}>
+                  <div style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Droplets size={16} /> HYDROLOGY &amp; SOIL WATER
                   </div>
                   <div style={{ display: 'grid', gap: '8px', fontSize: '12.5px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Soil Moisture (0-1 cm):</span>
-                      <b style={{ color: '#38bdf8' }}>{activeSession.soilMoisture}%</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(56, 189, 248, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Soil Moisture (0-1 cm):</span>
+                      <b style={{ color: '#38bdf8', fontSize: '13px' }}>{activeSession.soilMoisture}%</b>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>7-Day Precipitation Sum:</span>
-                      <b style={{ color: '#f8fafc' }}>{activeSession.rainfallMm.toFixed(1)} mm</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(56, 189, 248, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>7-Day Precipitation Sum:</span>
+                      <b style={{ color: '#f8fafc', fontSize: '13px' }}>{activeSession.rainfallMm.toFixed(1)} mm</b>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Actual Evapotranspiration:</span>
-                      <b style={{ color: '#facc15' }}>{activeSession.etMm.toFixed(1)} mm</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(56, 189, 248, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Actual Evapotranspiration:</span>
+                      <b style={{ color: '#facc15', fontSize: '13px' }}>{activeSession.etMm.toFixed(1)} mm</b>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#94a3b8' }}>Elevation (a.s.l.):</span>
+                      <span style={{ color: '#cbd5e1' }}>Elevation (a.s.l.):</span>
                       <b style={{ color: '#f8fafc' }}>{activeSession.elevationM} m</b>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ background: '#0e1811', border: '1px solid #1e3325', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '12px', color: '#facc15', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <TrendingUp size={15} /> AGRONOMIC ECONOMICS &amp; VRA
+                <div style={{ background: 'linear-gradient(145deg, #2a2410, #171408)', border: '1.5px solid rgba(250, 204, 21, 0.45)', borderRadius: '12px', padding: '16px', boxShadow: '0 6px 18px rgba(0,0,0,0.45)' }}>
+                  <div style={{ fontSize: '12px', color: '#facc15', fontWeight: 800, letterSpacing: '0.5px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <TrendingUp size={16} /> AGRONOMIC ECONOMICS &amp; VRA
                   </div>
                   <div style={{ display: 'grid', gap: '8px', fontSize: '12.5px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>VRA Urea Prescription:</span>
-                      <b style={{ color: '#facc15' }}>{activeSession.nitrogenUreaKg} kg/ha</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(250, 204, 21, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>VRA Urea Prescription:</span>
+                      <b style={{ color: '#facc15', fontSize: '13px' }}>{activeSession.nitrogenUreaKg} kg/ha</b>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Estimated Yield Outlook:</span>
-                      <b style={{ color: '#4ade80' }}>{activeSession.yieldEstQtl.toFixed(1)} Qtl/ha</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(250, 204, 21, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Estimated Yield Outlook:</span>
+                      <b style={{ color: '#4ade80', fontSize: '13px' }}>{activeSession.yieldEstQtl.toFixed(1)} Qtl/ha</b>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #162a1d', paddingBottom: '4px' }}>
-                      <span style={{ color: '#94a3b8' }}>Water Productivity:</span>
-                      <b style={{ color: '#38bdf8' }}>1.42 kg/m³</b>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(250, 204, 21, 0.15)', paddingBottom: '5px' }}>
+                      <span style={{ color: '#cbd5e1' }}>Water Productivity:</span>
+                      <b style={{ color: '#38bdf8', fontSize: '13px' }}>1.42 kg/m³</b>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#94a3b8' }}>Irrigation Status:</span>
+                      <span style={{ color: '#cbd5e1' }}>Irrigation Status:</span>
                       <b style={{ color: activeSession.soilMoisture < 20 ? '#fbbf24' : '#4ade80' }}>
                         {activeSession.soilMoisture < 20 ? 'Irrigation Needed' : 'Adequate Moisture'}
                       </b>
@@ -489,9 +528,9 @@ export default function FinancialSummaryTerminal({
             </div>
           )}
 
-          {/* TAB 2: Multi-Session Trends (TradingView Inspired Sparklines & SVG Chart) */}
+          {/* TAB 2: Multi-Session Trends (High Contrast Card & TradingView Inspired SVG Chart) */}
           {activeTab === 'comparison' && (
-            <div style={{ background: '#0e1811', border: '1px solid #1e3325', borderRadius: '12px', padding: '20px' }}>
+            <div style={{ background: 'linear-gradient(145deg, #102418, #0a170f)', border: '1.5px solid rgba(74, 222, 128, 0.45)', borderRadius: '14px', padding: '22px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
               <h4 style={{ margin: '0 0 16px', color: '#f8fafc', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <TrendingUp size={16} color="#4ade80" />
                 6-Session Trajectory Trendlines (NDVI Vigor vs. Canopy Stress)

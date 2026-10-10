@@ -120,6 +120,9 @@ const offsetFor = (datetime: string) => (datetime >= '2022-01-25' ? 1000 : 0)
 const CLEAR = new Set([4, 5, 6, 7])
 
 async function fetchBands(id: string, bbox: Bbox, w: number, h: number, expr: string, collection = COLLECTION) {
+  if (!id || id.startsWith('gee-')) {
+    throw new Error(`Invalid scene ID for Planetary Computer: ${id}`)
+  }
   return getNpy(`${DATA}/item/bbox/${bbox.join(',')}/${w}x${h}.npy?collection=${collection}&item=${encodeURIComponent(id)}&asset_as_band=true&reproject=nearest&resampling=nearest&expression=${encodeURIComponent(expr)}`)
 }
 
@@ -144,8 +147,9 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   let acc: Raster | null = null, errors: unknown[] = [], done = 0
   const covered = () => { let c = 0; for (let i = 0; i < good.length; i++) if (good[i] && inside[i]) c++; return total ? c / total : 1 }
   const take = async (ids: string[]) => {
-    for (let start = 0; start < ids.length; start += 2) {
-      const batch = ids.slice(start, start + 2)
+    const validIds = ids.filter(id => id && !id.startsWith('gee-'))
+    for (let start = 0; start < validIds.length; start += 2) {
+      const batch = validIds.slice(start, start + 2)
       const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, expr)))
       rs.forEach(r => { if (r.status === 'fulfilled') { acc = mergeInto(acc, r.value, good, isGood); done++ } else errors.push(r.reason) })
     }
@@ -161,8 +165,31 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   return makeGrid(raster.w, raster.h, bbox, wm, hm, b, ok, ring)
 }
 
-export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 900))
-const loadLight = (scene: Scene, farm: FarmGeo) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false))
+export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}:${geoKey(farm)}`, async () => {
+  let targetScene = scene
+  if (!targetScene.id || targetScene.id.startsWith('gee-') || !targetScene.id.startsWith('S2')) {
+    try {
+      const found = await findScene(farmBBox(farm))
+      if (found) targetScene = found
+    } catch (e) {
+      console.warn('findScene resolution fallback for loadScene:', e)
+    }
+  }
+  return s2Grid(targetScene, farm, S2_BANDS, 10, 900)
+})
+
+const loadLight = (scene: Scene, farm: FarmGeo) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, async () => {
+  let targetScene = scene
+  if (!targetScene.id || targetScene.id.startsWith('gee-') || !targetScene.id.startsWith('S2')) {
+    try {
+      const found = await findScene(farmBBox(farm))
+      if (found) targetScene = found
+    } catch (e) {
+      console.warn('findScene resolution fallback for loadLight:', e)
+    }
+  }
+  return s2Grid(targetScene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false)
+})
 
 export const loadDem = (farm: FarmGeo) => memo(`dem3:${geoKey(farm)}`, async () => {
   const fb = farmBBox(farm), c: [number, number] = [(fb[0] + fb[2]) / 2, (fb[1] + fb[3]) / 2]
@@ -360,9 +387,10 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
             if (slopeDeg !== undefined) slopePct = Math.tan((slopeDeg * Math.PI) / 180) * 100
           }
         } catch {}
+        const realScene = await findScene(farmBBox(farm), opts).catch(() => null)
         return {
-          scene: {
-            id: 'gee-sentinel2-l2a',
+          scene: realScene ?? {
+            id: 'S2_SYNTHETIC',
             datetime: new Date().toISOString(),
             cloud: 5,
           },

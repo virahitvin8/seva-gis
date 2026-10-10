@@ -10,16 +10,21 @@ import {
   Send,
   History,
   Trash2,
-  ExternalLink,
-  CheckCircle2,
   FolderOpen,
   Eye,
-  RefreshCw,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  Layers,
+  Sliders,
+  CheckSquare,
+  Square,
+  ShieldCheck,
+  Compass,
 } from 'lucide-react'
 import {
   DEFAULT_OPTS,
   MAP_CHOICES,
+  BAND_SYMBOLOGY_CHOICES,
   REPORT_LANG_NAMES,
   buildReport,
   type CartOpts,
@@ -84,7 +89,6 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     }
   })
 
-  // Load report history on mount and tab switch
   const loadHistory = async () => {
     const list = await getReportHistory(farm.id)
     setHistoryList(list)
@@ -102,7 +106,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const toggleLang = (l: ReportLang) => {
     let next: ReportLang[]
     if (selectedLangs.includes(l)) {
-      if (selectedLangs.length === 1) return // Keep at least one
+      if (selectedLangs.length === 1) return
       next = selectedLangs.filter(x => x !== l)
     } else {
       next = [...selectedLangs, l]
@@ -111,18 +115,28 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     localStorage.setItem('seva-report-langs', JSON.stringify(next))
   }
 
-  const toggleMap = (id: string) =>
-    upd({
-      ...opts,
-      maps: opts.maps.includes(id) ? opts.maps.filter(m => m !== id) : MAP_CHOICES.map(m => m.id).filter(m => m === id || opts.maps.includes(m)),
-    })
+  const toggleMap = (id: string) => {
+    const next = opts.maps.includes(id) ? opts.maps.filter(m => m !== id) : [...opts.maps, id]
+    upd({ ...opts, maps: next })
+  }
+
+  const toggleBandSymbology = (id: string) => {
+    const cur = opts.bandSymbologies ?? []
+    const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]
+    upd({ ...opts, bandSymbologies: next })
+  }
+
+  const selectAllMaps = () => upd({ ...opts, maps: MAP_CHOICES.map(m => m.id) })
+  const defaultMaps = () => upd({ ...opts, maps: DEFAULT_OPTS.maps })
+  const selectAllBands = () => upd({ ...opts, bandSymbologies: BAND_SYMBOLOGY_CHOICES.map(b => b.id) })
+  const defaultBands = () => upd({ ...opts, bandSymbologies: DEFAULT_OPTS.bandSymbologies ?? ['rgb', 'cir', 'agri'] })
 
   const CART: [keyof CartOpts, string, string][] = [
-    ['title', 'Title & Border Plaque', 'top middle neatline banner'],
-    ['north', 'Compass Rose North Arrow', 'top right geodetic quadrant'],
-    ['scale', 'Dual-Tone Metric Scale Bar', 'bottom left corner'],
-    ['legend', 'Comprehensive Map Legend', 'bottom right corner'],
-    ['coords', 'Geodetic Grid Coordinate Ticks', 'tick marks along all 4 border sides'],
+    ['title', 'Title & Border Plaque', 'top-left neatline banner'],
+    ['north', 'Compass Rose North Arrow', 'top-right geodetic quadrant'],
+    ['scale', 'Dual-Tone Metric Scale Bar', 'bottom-left corner'],
+    ['legend', 'Comprehensive Map Legend', 'bottom-right corner'],
+    ['coords', 'Geodetic Grid Coordinate Ticks', 'tick marks along all 4 borders'],
   ]
 
   const farmUpper = farm.name.toUpperCase().trim()
@@ -137,13 +151,21 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     setReports({})
     setBusy('Starting')
     try {
+      let viewport: { zoom?: number; bbox?: [number, number, number, number] } | undefined
+      try {
+        const saved = JSON.parse(localStorage.getItem('seva-map-view-bounds') || '{}')
+        if (saved.zoom || saved.bbox) {
+          viewport = { zoom: saved.zoom, bbox: saved.bbox }
+        }
+      } catch {}
+      const runOpts: ReportOpts = { ...opts, viewport }
+
       const res: Partial<Record<ReportLang, { html: string; data: unknown; id: string; lang: ReportLang }>> = {}
       for (const l of selectedLangs) {
         setBusy(`Compiling ${REPORT_LANG_NAMES[l].native} 3D report…`)
-        const r = await buildReport(farm, setBusy, { ...opts, lang: l })
+        const r = await buildReport(farm, setBusy, { ...runOpts, lang: l })
         res[l] = r
 
-        // Save to Matcha-inspired local device history
         await saveReportToHistory({
           id: r.id + '-' + l,
           farmId: farm.id,
@@ -199,7 +221,6 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     fr?.contentWindow?.print()
   }
 
-  // Email report handler connected to EmailOctopus API v1.6
   const handleSendEmail = async (e?: React.FormEvent) => {
     e?.preventDefault?.()
     if (!emailInput || !emailInput.includes('@')) {
@@ -241,7 +262,6 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     }
   }
 
-  // Auto-dispatch report to user's desired email on download
   const handleDownloadDossier = async () => {
     if (!curReport) return
     save(`${baseFilename}.html`, curReport.html, 'text/html')
@@ -310,6 +330,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
       {/* CREATE TAB */}
       {tab === 'create' && (
         <>
+          {/* Language Selection */}
           <div className="rp-lang-select">
             <div className="rp-lang-header">
               <Languages size={15} />
@@ -329,46 +350,200 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             </div>
           </div>
 
-          <p style={{ margin: '14px 0', fontSize: '13.5px', color: '#334155' }}>
-            Compiles a complete 3D academic dossier titled <b>{baseFilename}</b> in <b>{selectedLangs.map(l => REPORT_LANG_NAMES[l].native).join(', ')}</b>: Title &amp; Declaration pages, Table of Contents, List of Figures &amp; Tables, Abstract, Chapters I to V, 3D extruded terrain mesh, calibrated cartography sheets, sensitivity dotty plots, and APA references.
+          {/* Section 1: Core Dossier Elements Checkboxes */}
+          <div style={{ marginTop: '16px', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13.5px', color: '#1b4332' }}>
+                <Layers size={16} color="#2d6a4f" />
+                <span>Core Report Items &amp; Land Registry</span>
+              </div>
+              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select items to include in dossier</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: opts.include3dTerrain !== false ? '#f0fdf4' : '#ffffff', cursor: 'pointer', fontSize: '12.5px' }}>
+                <input
+                  type="checkbox"
+                  checked={opts.include3dTerrain !== false}
+                  onChange={() => upd({ ...opts, include3dTerrain: opts.include3dTerrain === false })}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>3D Topographic Terrain Model</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>Isometric extruded elevation mesh (Fig 1.1)</div>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '6px', border: opts.includeCadastre ? '1.5px solid #059669' : '1px solid #e2e8f0', background: opts.includeCadastre ? '#ecfdf5' : '#ffffff', cursor: 'pointer', fontSize: '12.5px' }}>
+                <input
+                  type="checkbox"
+                  checked={!!opts.includeCadastre}
+                  onChange={() => upd({ ...opts, includeCadastre: !opts.includeCadastre })}
+                />
+                <div>
+                  <div style={{ fontWeight: 700, color: '#047857' }}>Cadastral Land Registry (RoR 1B)</div>
+                  <div style={{ fontSize: '11px', color: '#065f46' }}>Khasra, Survey No, ULPIN &amp; Title Verification</div>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: opts.includeCharts !== false ? '#f0fdf4' : '#ffffff', cursor: 'pointer', fontSize: '12.5px' }}>
+                <input
+                  type="checkbox"
+                  checked={opts.includeCharts !== false}
+                  onChange={() => upd({ ...opts, includeCharts: opts.includeCharts === false })}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Sensitivity Charts &amp; Dotty Plots</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>SUFI-2 parameter calibration scatter plots</div>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: opts.includeTables !== false ? '#f0fdf4' : '#ffffff', cursor: 'pointer', fontSize: '12.5px' }}>
+                <input
+                  type="checkbox"
+                  checked={opts.includeTables !== false}
+                  onChange={() => upd({ ...opts, includeTables: opts.includeTables === false })}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Hydrology &amp; Agronomy Tables</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>SCS-CN water budget &amp; spectral indicators</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Section 2: Analysis Lab Parameters Checkboxes */}
+          <div style={{ marginTop: '14px', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13.5px', color: '#1b4332' }}>
+                <Sliders size={16} color="#2d6a4f" />
+                <span>Analysis Lab Parameters &amp; Maps ({opts.maps.length}/{MAP_CHOICES.length})</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="outline sm" onClick={selectAllMaps} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
+                  Select All
+                </button>
+                <button type="button" className="outline sm" onClick={defaultMaps} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
+                  Defaults
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '6px' }}>
+              {MAP_CHOICES.map(m => {
+                const checked = opts.maps.includes(m.id)
+                return (
+                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', border: checked ? '1px solid #a7f3d0' : '1px solid #f1f5f9', background: checked ? '#f0fdf4' : '#fafafa', cursor: 'pointer', fontSize: '12px' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleMap(m.id)}
+                    />
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontWeight: 600, color: '#0f172a' }}>{m.name.split(' (')[0]}</span>
+                      <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>{m.group}</span>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Section 3: Remote Field Review - Band Combinations Checkboxes */}
+          <div style={{ marginTop: '14px', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13.5px', color: '#1b4332' }}>
+                <ShieldCheck size={16} color="#2d6a4f" />
+                <span>Band Combination Symbology Images ({(opts.bandSymbologies ?? []).length}/{BAND_SYMBOLOGY_CHOICES.length})</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="outline sm" onClick={selectAllBands} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
+                  Select All
+                </button>
+                <button type="button" className="outline sm" onClick={defaultBands} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
+                  Defaults
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '6px' }}>
+              {BAND_SYMBOLOGY_CHOICES.map(b => {
+                const checked = (opts.bandSymbologies ?? []).includes(b.id)
+                return (
+                  <label key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', border: checked ? '1px solid #a7f3d0' : '1px solid #f1f5f9', background: checked ? '#f0fdf4' : '#fafafa', cursor: 'pointer', fontSize: '12px' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleBandSymbology(b.id)}
+                    />
+                    <div>
+                      <span style={{ fontWeight: 600, color: '#0f172a' }}>{b.name}</span>
+                      <span style={{ fontSize: '10.5px', color: '#2d6a4f', display: 'block', fontFamily: 'monospace' }}>{b.bands}</span>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          <p style={{ margin: '14px 0 10px', fontSize: '13px', color: '#334155' }}>
+            Compiles a complete 3D academic dossier titled <b>{baseFilename}</b> in <b>{selectedLangs.map(l => REPORT_LANG_NAMES[l].native).join(', ')}</b>. All raster layers are ingested from official Sentinel-2 L2A &amp; Copernicus DEM, perfectly centered in geodetic frames without border collision.
           </p>
 
-          <button className="primary" onClick={make} disabled={!!busy}>
+          <button className="primary" onClick={make} disabled={!!busy} style={{ width: '100%', justifyContent: 'center', padding: '12px 18px', fontSize: '14.5px' }}>
             {busy ? <LogoLoader inline size={24} text="" /> : <Sparkles size={16} />}
             {busy ? `${busy}` : hasReports ? 'Re-Generate Dossier' : 'Generate 3D Cartographic Report'}
           </button>
 
           {err && <p className="rp-err">{err}</p>}
 
-          {/* EmailOctopus delivery snippet box */}
+          {/* EmailOctopus delivery snippet box - Stacked Clean Layout */}
           {hasReports && curReport && (
-            <div className="rp-email-box" style={{ background: '#f8fafc', border: '1px solid #10b981', borderRadius: '12px', padding: '14px', marginTop: '16px' }}>
+            <div className="rp-email-box" style={{ background: '#f8fafc', border: '1.5px solid #10b981', borderRadius: '12px', padding: '16px', marginTop: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '13.5px', color: '#0f172a' }}>
-                  <Mail size={16} color="#059669" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
+                  <Mail size={17} color="#059669" />
                   <span>EmailOctopus Report Delivery</span>
                 </div>
                 <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
                   ● EmailOctopus API Connected
                 </span>
               </div>
-              <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#64748b' }}>
-                Enter your email address to receive an official copy with full NDVI &amp; SWAT hydrological telemetry when you download or dispatch.
+              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
+                Enter your email address to receive an official copy with full NDVI &amp; SWAT hydrological telemetry.
               </p>
-              <form onSubmit={handleSendEmail} style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="email"
-                  placeholder="Enter recipient email (e.g., farmer@example.com)"
-                  value={emailInput}
-                  onChange={e => setEmailInput(e.target.value)}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #94a3b8', fontSize: '13px' }}
-                />
-                <button type="submit" className="primary sm" disabled={sendingEmail}>
-                  <Send size={14} />
+
+              {/* Email form with input placed ABOVE the send button */}
+              <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
+                    Recipient Email Address:
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="Type your email address here (e.g., name@gmail.com)"
+                    value={emailInput}
+                    onChange={e => setEmailInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #10b981',
+                      fontSize: '13.5px',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      outline: 'none',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                    }}
+                  />
+                </div>
+                <button type="submit" className="primary sm" disabled={sendingEmail} style={{ width: '100%', justifyContent: 'center', padding: '10px 16px', fontSize: '13.5px' }}>
+                  <Send size={15} />
                   {sendingEmail ? 'Sending...' : 'Send via EmailOctopus'}
                 </button>
               </form>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', fontSize: '12px', color: '#475569' }}>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12.5px', color: '#475569' }}>
                 <input
                   type="checkbox"
                   id="auto-email-cb"
@@ -380,8 +555,9 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   Automatically send copy to this email address whenever I click "Download Dossier"
                 </label>
               </div>
+
               {emailSuccess && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: '#047857', fontSize: '12.5px', marginTop: '10px', background: '#ecfdf5', padding: '8px 12px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: '#047857', fontSize: '12.5px', marginTop: '12px', background: '#ecfdf5', padding: '10px 14px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
                   <CheckCircle2 size={16} style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <strong>{emailSuccess}</strong>
@@ -584,7 +760,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             ))}
           </div>
           <p className="rp-tip">
-            <b>Cartographic Guarantee.</b> All exported maps include exact geodetic coordinate grids (lat/lon tick marks), dual-tone metric scale bars, 4-point compass rose, and neatline neatness adhering to academic publishing standards.
+            <b>Cartographic Guarantee.</b> All exported maps include exact geodetic coordinate grids (lat/lon tick marks), dual-tone metric scale bars, 4-point compass rose, and neatline neatness adhering to academic publishing standards without overlapping the farm AOI.
           </p>
           <button className="outline" onClick={() => upd(DEFAULT_OPTS)}>Reset Cartography Defaults</button>
         </div>

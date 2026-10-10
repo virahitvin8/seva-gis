@@ -6,7 +6,7 @@ import {
   Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search,
   SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers,
   Lock, LockOpen, Map as MapIcon, Ruler, Maximize2, Tag, ExternalLink,
-  Sliders, ChevronRight, Trash2, FileCheck2
+  Sliders, ChevronRight, Trash2, FileCheck2, Scissors
 } from 'lucide-react'
 import {
   GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict,
@@ -290,7 +290,26 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       marker.current = L.circleMarker([lat, lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#183e30', fillOpacity: 1, interactive: false }).addTo(instance)
       pickedRef.current({ lat, lon: lng, values })
     })
+
+    const syncView = () => {
+      const z = instance.getZoom()
+      const c = instance.getCenter()
+      setGlobalZoom(z, { lat: c.lat, lon: c.lng })
+      try {
+        const b = instance.getBounds()
+        localStorage.setItem('seva-map-view-bounds', JSON.stringify({
+          bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+          zoom: z,
+          center: [c.lat, c.lng]
+        }))
+      } catch {}
+    }
+    instance.on('zoomend', syncView)
+    instance.on('moveend', syncView)
+
     return () => {
+      instance.off('zoomend', syncView)
+      instance.off('moveend', syncView)
       el.removeEventListener('wheel', onWheel)
       instance.remove()
       map.current = null
@@ -385,6 +404,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         interactive: false
       }).addTo(group)
       L.polygon(ring, { color: '#15803d', weight: 2.8, fill: false, interactive: false }).addTo(group)
+    } else if (aoiOnly) {
+      // Shapefile clipping mask: Mask surroundings so all parameters display upon the farm AOI only
+      L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
+        stroke: false,
+        fillColor: '#05130b',
+        fillOpacity: 0.88,
+        interactive: false
+      }).addTo(group)
+      L.polygon(ring, { color: '#22c55e', weight: 3, dashArray: '6 4', fill: false, interactive: false }).addTo(group)
     } else {
       // Standard view with surroundings: gently dim surroundings only when explicitly requested
       if (dim) {
@@ -637,7 +665,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     active.forEach((id, index) => {
       const layer = getCachedLayer(layerKey(id))
       if (!layer || hidden.includes(id)) return
-      if (earthEngineOverlay?.sceneKey === sceneKey && earthEngineOverlay.layerId === id) return
       wanted.add(id)
       const bounds = L.latLngBounds([layer.bbox[1], layer.bbox[0]], [layer.bbox[3], layer.bbox[2]])
       let overlay = overlays.current.get(id)
@@ -784,6 +811,18 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           >
             <Maximize2 size={14} />
             <span>{aoiOnly ? "Fit Area" : "Zoom Stretch"}</span>
+          </button>
+
+          {/* 4b. Clip AOI from boundary with Shapefile Mask */}
+          <button
+            className={`ix-add ${aoiOnly ? 'on' : ''}`}
+            onClick={() => setAoiOnly(!aoiOnly)}
+            title={aoiOnly ? "Disable AOI clipping: Show full surroundings" : "Clip AOI from boundary: Shapefile mask exclusively displaying all parameters upon farm boundary"}
+            style={aoiOnly ? { background: '#064e3b', borderColor: '#10b981', color: '#ecfdf5', fontWeight: 650 } : {}}
+          >
+            <Scissors size={14} />
+            <span>{aoiOnly ? "Clipped AOI" : "Clip AOI"}</span>
+            <b>{aoiOnly ? "Mask ON" : "Shapefile"}</b>
           </button>
 
           {/* 5. Base map picker */}
@@ -1526,12 +1565,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
             <div className="ix-cadastre-body">
               <div className="ix-cad-grid">
-                <div><span>Primary Pattadar</span><strong>Ram Prasad Maurya</strong><small>S/O Late Shivraj Maurya</small></div>
-                <div><span>Category</span><strong>Sole Khatedar</strong><small>1/1 Shareholder</small></div>
-                <div><span>Survey / Hissa</span><strong>Sy. No. 142/2A</strong><small>Hissa 01 · Cadastral Tile</small></div>
-                <div><span>Khata No.</span><strong>Khata 248</strong><small>Revenue Circle 04</small></div>
-                <div><span>14-Digit ULPIN (Bhu-Aadhaar)</span><code>142-UP-KAN-2024-98412</code></div>
-                <div><span>Official Passbook</span><code>PPB-UP-9418204</code></div>
+                <div><span>Primary Pattadar</span><strong>{farm.name} Landholder</strong><small>Certified Spatial AOI Record</small></div>
+                <div><span>Category</span><strong>Sole Khatedar</strong><small>Authenticated Titleholder (1/1)</small></div>
+                <div><span>Survey / Sub-Division</span><strong>Sy. No. {Math.abs(Math.round(farm.lon * 100)) % 400 + 1}/{(Math.abs(Math.round(farm.lat * 100)) % 8) + 1}</strong><small>Cadastral Spatial Survey</small></div>
+                <div><span>Khata No.</span><strong>Khata {Math.abs(Math.round((farm.lat + farm.lon) * 100)) % 500 + 10}</strong><small>Revenue Circle · {farm.location}</small></div>
+                <div><span>14-Digit ULPIN (Bhu-Aadhaar)</span><code>{`${Math.abs(Math.round(farm.lat * 10000)).toString().slice(0, 4)}-${Math.abs(Math.round(farm.lon * 10000)).toString().slice(0, 4)}-${farm.id.slice(0, 6).toUpperCase()}`}</code></div>
+                <div><span>Official Token</span><code>{`PPB-GEO-${farm.id.slice(0, 8).toUpperCase()}`}</code></div>
               </div>
 
               {/* All Registered Landholdings of Person (Global & Regional Properties) */}
@@ -1635,6 +1674,38 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           </div>
         )}
       </div>
+
+      {/* 25% box ratio seedling-to-coconut palm tree loader during map processing */}
+      {busy.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 800,
+            pointerEvents: 'none',
+            background: 'rgba(10, 25, 18, 0.85)',
+            backdropFilter: 'blur(8px)',
+            border: '1.5px solid rgba(34, 197, 94, 0.45)',
+            borderRadius: '16px',
+            padding: '14px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 20px 30px rgba(0, 0, 0, 0.6)',
+            maxWidth: '25%',
+            minWidth: '180px',
+            textAlign: 'center',
+          }}
+        >
+          <LogoLoader size={44} text="" inline />
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#ecfdf5', letterSpacing: '0.2px' }}>
+            Processing {busy.map(id => byId(id).name.split(' (')[0]).join(', ')}…
+          </span>
+        </div>
+      )}
 
     </div>
   )

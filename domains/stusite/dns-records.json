@@ -1,0 +1,24 @@
+{
+  "domain": "sevagis.stusite.me",
+  "dashboardUrl": "https://dash.stusite.me/domains/03b9b883-c3dd-440b-8a98-54c794872395/",
+  "targetHost": "virahitvin8.github.io",
+  "instructions": "In dash.stusite.me DNS Manager, add the CNAME record below. If CNAME at apex is not allowed, add the 4 A records instead.",
+  "recommendedRecord": {
+    "type": "CNAME",
+    "name": "@",
+    "value": "virahitvin8.github.io",
+    "ttl": 3600
+  },
+  "apexFallbackARecords": [
+    { "type": "A", "name": "@", "value": "185.199.108.153", "ttl": 3600 },
+    { "type": "A", "name": "@", "value": "185.199.109.153", "ttl": 3600 },
+    { "type": "A", "name": "@", "value": "185.199.110.153", "ttl": 3600 },
+    { "type": "A", "name": "@", "value": "185.199.111.153", "ttl": 3600 }
+  ],
+  "apexFallbackAAAARecords": [
+    { "type": "AAAA", "name": "@", "value": "2606:50c0:8000::153", "ttl": 3600 },
+    { "type": "AAAA", "name": "@", "value": "2606:50c0:8001::153", "ttl": 3600 },
+    { "type": "AAAA", "name": "@", "value": "2606:50c0:8002::153", "ttl": 3600 },
+    { "type": "AAAA", "name": "@", "value": "2606:50c0:8003::153", "ttl": 3600 }
+  ]
+}

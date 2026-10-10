@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
+    "set-domain": "node scripts/set-domain.js",
     "deploy:firebase": "npm run build && npx firebase-tools deploy --only hosting",
     "format": "oxfmt"
   },

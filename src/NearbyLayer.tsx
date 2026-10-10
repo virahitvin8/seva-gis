@@ -21,11 +21,12 @@ export default function NearbyLayer({ map, farm, open, onClose, mine }: { map: L
   const ring = useMemo(() => farmRing(farm), [farm.id, farm.lat, farm.lon, farm.area, farm.polygon?.length])
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(prefs)) }, [prefs])
   useEffect(() => {
+    if (!open) return
     let dead = false
     setFeats(null); setErr('')
     loadNearby(ring).then(f => { if (!dead) setFeats(f) }).catch(e => { if (!dead) setErr(e instanceof Error ? e.message : 'Could not load') })
     return () => { dead = true }
-  }, [ring, attempt])
+  }, [open, ring, attempt])
 
   const counts = useMemo(() => {
     const c = {} as Record<CatId, { n: number; nearest: number }>
@@ -35,7 +36,7 @@ export default function NearbyLayer({ map, farm, open, onClose, mine }: { map: L
   }, [feats])
 
   useEffect(() => {
-    if (!map) return
+    if (!map || !open) return
     const g = L.layerGroup().addTo(map)
     if (!map.getPane('nearby')) { map.createPane('nearby').style.zIndex = '450' }
     const col = (id: CatId) => CATS.find(c => c.id === id)!.color
@@ -62,7 +63,7 @@ export default function NearbyLayer({ map, farm, open, onClose, mine }: { map: L
       else L.polyline(toLL(f.pts), { pane: 'nearby', color: c, weight: f.cat === 'lines' ? 2 : 3, dashArray: f.cat === 'lines' ? '2 5' : f.cat === 'pipes' ? '9 5' : undefined }).bindTooltip(tip, { sticky: true }).addTo(g)
     })
     return () => { g.remove() }
-  }, [map, feats, prefs, ring, JSON.stringify(mine)])
+  }, [map, open, feats, prefs, ring, JSON.stringify(mine)])
 
   const toggle = (id: CatId) => setPrefs(p => ({ ...p, on: p.on.includes(id) ? p.on.filter(x => x !== id) : [...p.on, id] }))
   const all = (kind: 'water' | 'power' | 'agri', on: boolean) => setPrefs(p => { const ids = CATS.filter(c => c.kind === kind).map(c => c.id); return { ...p, on: on ? [...new Set([...p.on, ...ids])] : p.on.filter(x => !ids.includes(x)) } })

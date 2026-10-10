@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom'
 import {
   Check, Eye, EyeOff, Box, CircleDot, LocateFixed, Route, Plus, Search,
   SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers,
-  Lock, LockOpen, MapPin, Map as MapIcon, Ruler, Maximize2, Sparkles, Tag,
-  Sliders, ChevronRight
+  Lock, LockOpen, Map as MapIcon, Ruler, Maximize2, Tag, ExternalLink,
+  Sliders, ChevronRight, Trash2
 } from 'lucide-react'
 import {
   GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict,
@@ -14,19 +14,38 @@ import {
 } from './lib/indicators'
 import { pixelAt } from './lib/raster'
 import { ndviClass } from './lib/agro'
-import { addBorewell, addPipeline, lengthM, useAssets } from './lib/assets'
-import { generateScoutHotspots, useScoutState, toggleHotspotsOnMap } from './lib/scoutStore'
+import { addBorewell, addPipeline, lengthM, removeBorewell, removePipeline, useAssets } from './lib/assets'
 import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
 import RulerTape from './RulerTape'
 import { BAND_COMBINATIONS } from './lib/geoai'
-import { farmBBox, farmRing, loadDem, loadScene, type FarmData } from './lib/seva'
+import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts } from './lib/seva'
+import { buildEarthEngineScript, supportsEarthEngineIndicator } from './lib/earthEngine'
+import { createEarthEngineMap, isEarthEngineConfigured } from './lib/earthEngineClient'
+import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 
-type MapFarm = FarmData & { id: string }
+type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
 
 const Walk3D = lazy(() => import('./Walk3D'))
 const layerCache = new Map<string, Layer>()
+const MAX_CACHED_LAYERS = 8
+const getCachedLayer = (key: string) => {
+  const layer = layerCache.get(key)
+  if (!layer) return undefined
+  layerCache.delete(key)
+  layerCache.set(key, layer)
+  return layer
+}
+const setCachedLayer = (key: string, layer: Layer) => {
+  layerCache.delete(key)
+  layerCache.set(key, layer)
+  while (layerCache.size > MAX_CACHED_LAYERS) layerCache.delete(layerCache.keys().next().value!)
+}
+const comboLayer: Record<string, string> = {
+  natural: 'rgb', cir: 'cir', agri: 'agri', moisture: 'moist_rgb',
+  swir: 'swir_rgb', chlorophyll: 're_rgb', geology: 'geology_rgb',
+}
 const STORE = 'seva-indicators'
 const ESRI = (n: string) => `https://server.arcgisonline.com/ArcGIS/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`
 const BASES: { id: string; name: string; note: string; sw: string }[] = [
@@ -42,7 +61,7 @@ const BASE_STORE = 'seva-basemap'
 const dp = (id: string, d: number) => ({ dem: 0, bw: 0, slope: 1, twi: 1, flow: 1, sink: 1 } as Record<string, number>)[id] ?? d
 const fmt = (id: string, v: number) => { const ind = byId(id); return `${v.toFixed(dp(id, 3))}${ind.unit ? ` ${ind.unit}` : ''}` }
 
-export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading: boolean }) {
+export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: { farm: MapFarm; loading: boolean; panelTarget: HTMLDivElement | null; sceneOpts?: SceneOpts }) {
   const element = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const frame = useRef<L.LayerGroup | null>(null)
@@ -62,6 +81,9 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [earthEngineOverlay, setEarthEngineOverlay] = useState<{ tileUrl: string; layerId: string; sceneKey: string; sceneCount: string } | null>(null)
+  const [earthEngineStatus, setEarthEngineStatus] = useState('')
+  const earthEngineTiles = useRef<L.TileLayer | null>(null)
   const [panel, setPanel] = useState(false)
   const [baseOpen, setBaseOpen] = useState(false)
   const [nearOpen, setNearOpen] = useState(false)
@@ -73,18 +95,19 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const baseLayers = useRef<L.TileLayer[]>([])
   const [tools, setTools] = useState(false)
   const [aoiOnly, setAoiOnly] = useState(false)
-  const [locked, setLocked] = useState(() => localStorage.getItem('seva-map-lock') !== '0')
+  const [locked, setLocked] = useState(() => localStorage.getItem('seva-map-lock') === '1')
   const [mapObj, setMapObj] = useState<L.Map | null>(null)
+  const [mapZoom, setMapZoom] = useState(() => getSavedZoom(15))
   const [kit, setKit] = useState<Kit>(() => {
     try {
-      return { ...KIT_DEFAULT, ...JSON.parse(localStorage.getItem('seva-kit-v2') || '{}') }
+      return { ...KIT_DEFAULT, ...JSON.parse(localStorage.getItem('seva-kit-v3') || '{}') }
     } catch {
       return KIT_DEFAULT
     }
   })
-  useEffect(() => { localStorage.setItem('seva-kit-v2', JSON.stringify(kit)) }, [kit])
+  useEffect(() => { localStorage.setItem('seva-kit-v3', JSON.stringify(kit)) }, [kit])
   const [query, setQuery] = useState('')
-  const [dim, setDim] = useState(true)
+  const [dim, setDim] = useState(false)
   const [picked, setPicked] = useState<Picked | null>(null)
   const [view3d, setView3d] = useState(false)
   const [tool, setTool] = useState<'none' | 'borewell' | 'pipeline'>('none')
@@ -96,7 +119,10 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const draftRef = useRef(setDraft)
   const toolSet = useRef(setTool)
   const scene = farm.analysis?.scene
-  const geo = `${farm.id}:${farm.lat}:${farm.lon}:${farm.area}:${farm.polygon?.length ?? 0}`
+  const geo = farm.polygon && farm.polygon.length >= 3
+    ? `${farm.id}:${farm.polygon.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(';')}`
+    : `${farm.id}:${farm.lat.toFixed(7)}:${farm.lon.toFixed(7)}:${farm.area.toFixed(4)}`
+  const sceneKey = scene ? `${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}` : 'no-scene'
 
   // GIS Engine Controls: Background mode, Dynamic Range Adjustment (DRA), High-DPI Clarity
   const [bgMode, setBgMode] = useState<'default' | 'black' | 'white'>(() => {
@@ -107,20 +133,56 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const [stretchDra, setStretchDra] = useState(() => localStorage.getItem('seva-stretch-dra') === '1')
   useEffect(() => { localStorage.setItem('seva-stretch-dra', stretchDra ? '1' : '0') }, [stretchDra])
 
-  const [renderMode, setRenderMode] = useState<'smooth' | 'crisp'>(() => {
-    return (localStorage.getItem('seva-render-mode') as any) || 'smooth'
-  })
-  useEffect(() => { localStorage.setItem('seva-render-mode', renderMode) }, [renderMode])
-
   // Dedicated Layers Box (Table of Contents / Symbology manager)
-  const [layersBoxOpen, setLayersBoxOpen] = useState(() => localStorage.getItem('seva-lb-open') !== '0')
-  useEffect(() => { localStorage.setItem('seva-lb-open', layersBoxOpen ? '1' : '0') }, [layersBoxOpen])
+  const [layersBoxOpen, setLayersBoxOpen] = useState(() => localStorage.getItem('seva-lb-open-v2') === '1')
+  useEffect(() => { localStorage.setItem('seva-lb-open-v2', layersBoxOpen ? '1' : '0') }, [layersBoxOpen])
+  const [panelDetached, setPanelDetached] = useState(false)
+  const [panelPosition, setPanelPosition] = useState({ x: 24, y: 96 })
+  const [panelDragging, setPanelDragging] = useState(false)
+  const dragOffset = useRef({ x: 0, y: 0 })
 
   const [layersBoxTab, setLayersBoxTab] = useState<'active' | 'symbology' | 'tools' | 'display' | 'catalog'>('active')
   const [catalogCat, setCatalogCat] = useState<string>('All')
   const [activeBandCombo, setActiveBandCombo] = useState<string>('natural')
+  const [earthEngineNotice, setEarthEngineNotice] = useState('')
 
-  const layerKey = (id: string) => `${byId(id).source === 'DEM' ? 'dem' : scene?.id}:${geo}:${id}:${renderMode}:${stretchDra ? 'dra' : 'std'}`
+  async function openEarthEngine() {
+    const script = buildEarthEngineScript(farm, active.find(supportsEarthEngineIndicator) ?? 'ndvi', activeBandCombo, sceneOpts)
+    window.open('https://code.earthengine.google.com/', '_blank', 'noopener,noreferrer')
+    try {
+      await navigator.clipboard.writeText(script)
+      setEarthEngineNotice('Farm outline and script copied. Paste them into Earth Engine, then Run.')
+    } catch {
+      const blob = new Blob([script], { type: 'text/javascript' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${farm.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-earth-engine.js`
+      link.click()
+      URL.revokeObjectURL(url)
+      setEarthEngineNotice('Script downloaded. Open it and paste the code into Earth Engine.')
+    }
+  }
+
+  useEffect(() => {
+    if (!panelDragging) return
+    const move = (event: PointerEvent) => setPanelPosition({
+      x: Math.max(8, Math.min(window.innerWidth - Math.min(420, window.innerWidth - 16) - 8, event.clientX - dragOffset.current.x)),
+      y: Math.max(8, Math.min(window.innerHeight - Math.min(720, window.innerHeight - 16) - 8, event.clientY - dragOffset.current.y)),
+    })
+    const end = () => setPanelDragging(false)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', end, { once: true })
+    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
+  }, [panelDragging])
+
+  useEffect(() => {
+    if (!map.current) return
+    const timer = window.setTimeout(() => map.current?.invalidateSize({ pan: false }), 120)
+    return () => window.clearTimeout(timer)
+  }, [layersBoxOpen, panelDetached])
+
+  const layerKey = (id: string) => `${byId(id).source === 'DEM' ? 'dem' : sceneKey}:${geo}:${id}:${stretchDra ? 'dra' : 'std'}`
   const pickedRef = useRef(setPicked)
   pickedRef.current = setPicked
 
@@ -129,16 +191,41 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     localStorage.setItem('seva-map-lock', locked ? '1' : '0')
     const m = mapObj
     if (!m) return
-    const hs = [m.dragging, m.scrollWheelZoom, m.doubleClickZoom, m.touchZoom, m.boxZoom, m.keyboard] as { enable: () => void; disable: () => void }[]
+    // Allow smooth scroll wheel zoom on the map when unlocked, while preventing outer page scrolling
+    const hs = [m.dragging, m.doubleClickZoom, m.touchZoom, m.boxZoom, m.keyboard, m.scrollWheelZoom] as { enable: () => void; disable: () => void }[]
     hs.forEach(h => (locked ? h.disable() : h.enable()))
   }, [locked, mapObj])
 
   useEffect(() => {
     if (!element.current) return
-    const instance = L.map(element.current, { zoomControl: false, attributionControl: true }).setView([farm.lat, farm.lon], 15)
+    const initialZoom = getSavedZoom(15)
+    const instance = L.map(element.current, {
+      zoomControl: false,
+      attributionControl: true,
+      scrollWheelZoom: !locked,
+      wheelPxPerZoomLevel: 100,
+      wheelDebounceTime: 40,
+    }).setView([farm.lat, farm.lon], initialZoom)
     map.current = instance
     setMapObj(instance)
     L.control.zoom({ position: 'bottomright' }).addTo(instance)
+
+    const onZoom = () => {
+      const z = instance.getZoom()
+      setMapZoom(z)
+      setGlobalZoom(z, { lat: instance.getCenter().lat, lon: instance.getCenter().lng })
+    }
+    instance.on('zoomend', onZoom)
+    instance.on('zoom', onZoom)
+    instance.on('moveend', onZoom)
+
+    // Stop wheel events from propagating outside map to keep user from jumping into top headlines
+    const el = element.current
+    const onWheel = (e: WheelEvent) => {
+      e.stopPropagation()
+    }
+    el.addEventListener('wheel', onWheel, { passive: true })
+
     instance.on('click', (event: L.LeafletMouseEvent) => {
       const { lat, lng } = event.latlng
       const t = toolRef.current
@@ -159,7 +246,11 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
       marker.current = L.circleMarker([lat, lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#183e30', fillOpacity: 1, interactive: false }).addTo(instance)
       pickedRef.current({ lat, lon: lng, values })
     })
-    return () => { instance.remove(); map.current = null }
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      instance.remove()
+      map.current = null
+    }
   }, [])
 
   // Base map tile handling (suppressed when pure solid black or white canvas mode is active)
@@ -177,6 +268,20 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     const add = (url: string, attribution: string, o: L.TileLayerOptions = {}) => {
       const l = L.tileLayer(url, { attribution, maxZoom: 20, maxNativeZoom: 16, zIndex: baseLayers.current.length + 1, ...o }).addTo(instance)
       baseLayers.current.push(l)
+      let tileErrors = 0
+      let fallbackAdded = false
+      l.on('tileerror', () => {
+        tileErrors++
+        if (fallbackAdded || tileErrors < 3) return
+        fallbackAdded = true
+        const fallback = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+          maxNativeZoom: 19,
+          zIndex: 30,
+        }).addTo(instance)
+        baseLayers.current.push(fallback)
+      })
     }
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
     if (base === 'sat' || base === 'hybrid') {
@@ -265,31 +370,40 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   // Fetch and render high resolution raster grids
   useEffect(() => {
     let dead = false
-    const missing = active.filter(id => !layerCache.has(layerKey(id)) && (byId(id).source === 'DEM' || scene))
+    const missing = active.filter(id => !getCachedLayer(layerKey(id)) && (byId(id).source === 'DEM' || scene))
     const needS2 = active.some(id => byId(id).source === 'S2') && scene
     const needDem = active.some(id => byId(id).source === 'DEM')
+    const rendering: string[] = []
     ;(async () => {
       const ring = farmRing(farm)
-      if (needS2) { try { grids.current.s2 = await loadScene(scene!, farm) } catch (e) { fail('S2', e) } }
-      if (needDem) { try { grids.current.dem = await loadDem(farm) } catch (e) { fail('DEM', e) } }
+      if (needS2) {
+        try { const grid = await loadScene(scene!, farm); if (dead) return; grids.current.s2 = grid }
+        catch (e) { fail('S2', e) }
+      }
+      if (dead) return
+      if (needDem) {
+        try { const grid = await loadDem(farm); if (dead) return; grids.current.dem = grid }
+        catch (e) { fail('DEM', e) }
+      }
+      if (dead) return
       for (const id of missing) {
+        if (dead) return
         const ind = byId(id), g = ind.source === 'DEM' ? grids.current.dem : grids.current.s2
         if (!g) continue
-        setBusy(b => [...b, id])
+        rendering.push(id)
+        setBusy(b => b.includes(id) ? b : [...b, id])
         await new Promise(r => setTimeout(r, 0))
+        if (dead) return
         try {
-          layerCache.set(
+          setCachedLayer(
             layerKey(id),
-            renderLayer(ind, g, ring, {
-              smooth: renderMode === 'smooth',
-              dra: stretchDra,
-              sharpen: renderMode === 'smooth' ? 0.35 : 0
-            })
+            renderLayer(ind, g, ring, { dra: stretchDra })
           )
           if (!dead) setErrors(x => { const { [id]: _drop, ...rest } = x; return rest })
         } catch (e) {
           fail(id, e)
         }
+        rendering.splice(rendering.indexOf(id), 1)
         if (!dead) setBusy(b => b.filter(x => x !== id))
       }
       if (!dead) setTick(t => t + 1)
@@ -300,26 +414,89 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
       const targets = id === 'S2' ? active.filter(x => byId(x).source === 'S2') : id === 'DEM' ? active.filter(x => byId(x).source === 'DEM') : [id]
       setErrors(x => Object.fromEntries([...Object.entries(x), ...targets.map(t => [t, message])]))
     }
-    return () => { dead = true }
-  }, [active.join(), geo, scene?.id, renderMode, stretchDra])
+    return () => {
+      dead = true
+      if (rendering.length) setBusy(b => b.filter(id => !rendering.includes(id)))
+    }
+  }, [active.join(), geo, sceneKey, stretchDra])
+
+  useEffect(() => {
+    const primaryId = [...active].reverse().find(id => !hidden.includes(id) && byId(id).source === 'S2')
+    const layer = primaryId ? byId(primaryId) : null
+    if (!isEarthEngineConfigured) {
+      setEarthEngineOverlay(null)
+      setEarthEngineStatus('Earth Engine service not connected · preview imagery comes from Microsoft Planetary Computer.')
+      return
+    }
+    if (!scene || !farm.polygon || farm.polygon.length < 3 || !layer) {
+      setEarthEngineOverlay(null)
+      setEarthEngineStatus('Add a field boundary and a Sentinel-2 layer to request Earth Engine tiles.')
+      return
+    }
+    if (stretchDra) {
+      setEarthEngineOverlay(null)
+      setEarthEngineStatus('Local contrast adjustment is active · switch it off to request Earth Engine rendered tiles.')
+      return
+    }
+    if (!layer.rgb && !supportsEarthEngineIndicator(layer.id)) {
+      setEarthEngineOverlay(null)
+      setEarthEngineStatus(`${layer.name} is rendered by the local analysis pipeline; Earth Engine tiles are available for spectral indices and band combinations.`)
+      return
+    }
+
+    const controller = new AbortController()
+    setEarthEngineOverlay(null)
+    setEarthEngineStatus('Requesting selected scene and map style from Earth Engine…')
+    createEarthEngineMap({
+      farm,
+      sceneOpts: sceneOpts ?? {},
+      layer,
+      bandCombination: layer.rgb ? activeBandCombo : undefined,
+    }, controller.signal).then(result => {
+      if (controller.signal.aborted) return
+      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: result.sceneCount })
+      setEarthEngineStatus(`Earth Engine map tiles · ${result.sceneCount} matching Sentinel-2 scene${result.sceneCount === '1' ? '' : 's'}`)
+    }).catch(error => {
+      if (controller.signal.aborted) return
+      setEarthEngineStatus(`${error instanceof Error ? error.message : 'Earth Engine request failed'} Local preview remains available.`)
+    })
+    return () => controller.abort()
+  }, [active.join(), hidden.join(), geo, sceneKey, stretchDra, activeBandCombo, JSON.stringify(sceneOpts)])
+
+  useEffect(() => {
+    const instance = map.current
+    earthEngineTiles.current?.remove()
+    earthEngineTiles.current = null
+    if (!instance || !earthEngineOverlay || earthEngineOverlay.sceneKey !== sceneKey || hidden.includes(earthEngineOverlay.layerId)) return
+    earthEngineTiles.current = L.tileLayer(earthEngineOverlay.tileUrl, {
+      attribution: 'Sentinel-2 L2A · Google Earth Engine',
+      maxZoom: 20,
+      maxNativeZoom: 16,
+      zIndex: 700,
+      opacity: opacity[earthEngineOverlay.layerId] ?? 1,
+      crossOrigin: true,
+    }).addTo(instance)
+    return () => { earthEngineTiles.current?.remove(); earthEngineTiles.current = null }
+  }, [mapObj, earthEngineOverlay, hidden.join(), JSON.stringify(opacity), sceneKey])
 
   useEffect(() => {
     const instance = map.current
     if (!instance) return
-    const [w, s, e, n] = farmBBox(farm)
-    const bounds = L.latLngBounds([s, w], [n, e])
     const wanted = new Set<string>()
     active.forEach((id, index) => {
-      const layer = layerCache.get(layerKey(id))
+      const layer = getCachedLayer(layerKey(id))
       if (!layer || hidden.includes(id)) return
+      if (earthEngineOverlay?.sceneKey === sceneKey && earthEngineOverlay.layerId === id) return
       wanted.add(id)
+      const bounds = L.latLngBounds([layer.bbox[1], layer.bbox[0]], [layer.bbox[3], layer.bbox[2]])
       let overlay = overlays.current.get(id)
-      if (!overlay) { overlay = L.imageOverlay(layer.url, bounds, { interactive: false, zIndex: 300 + index }).addTo(instance); overlays.current.set(id, overlay) }
+      if (!overlay) { overlay = L.imageOverlay(layer.url, bounds, { interactive: false, zIndex: 300 + index, className: 'seva-raster-pixels' }).addTo(instance); overlays.current.set(id, overlay) }
+      else overlay.setBounds(bounds)
       overlay.setOpacity(opacity[id] ?? (layer.ind.rgb || id === 'hillshade' ? 1 : 0.92))
       overlay.setZIndex(300 + index)
     })
     overlays.current.forEach((o, id) => { if (!wanted.has(id)) { o.remove(); overlays.current.delete(id) } })
-  }, [active.join(), hidden.join(), JSON.stringify(opacity), tick, geo, scene?.id, renderMode, stretchDra])
+  }, [active.join(), hidden.join(), JSON.stringify(opacity), tick, geo, sceneKey, stretchDra, earthEngineOverlay])
 
   useEffect(() => { if (element.current) element.current.style.cursor = tool === 'none' ? '' : 'crosshair' }, [tool])
   useEffect(() => {
@@ -344,8 +521,8 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   }
 
   const toggle = (id: string) => setActive(a => (a.includes(id) ? a.filter(x => x !== id) : [...a, id]))
-  const topLegend = [...active].reverse().find(id => !hidden.includes(id) && layerCache.get(layerKey(id)))
-  const topLayer = topLegend ? layerCache.get(layerKey(topLegend)) : undefined
+  const topLegend = [...active].reverse().find(id => !hidden.includes(id) && getCachedLayer(layerKey(id)))
+  const topLayer = topLegend ? getCachedLayer(layerKey(topLegend)) : undefined
   const results = useMemo(() => INDICATORS.filter(i => `${i.name} ${i.desc} ${i.group}`.toLowerCase().includes(query.toLowerCase())), [query])
   const date = scene ? new Date(scene.datetime).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''
   const cls = picked?.values.ndvi !== undefined ? ndviClass(picked.values.ndvi) : null
@@ -368,53 +545,21 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   }
 
 
-  const scoutState = useScoutState()
-  const scoutSpots = useMemo(() => generateScoutHotspots(farm), [farm.lat, farm.lon])
-
-  useEffect(() => {
-    const m = map.current
-    if (!m) return
-    if (!scoutState.showOnMap) return
-    const g = L.layerGroup().addTo(m)
-    scoutSpots.forEach((s) => {
-      const isFocused = scoutState.focusedSpotId === s.id
-      const icon = L.divIcon({
-        className: 'scout-map-pin-container',
-        html: `<div class="scout-map-pin ${s.priority.toLowerCase()} ${isFocused ? 'focused' : ''}"><span>#${s.id}</span></div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      })
-      const marker = L.marker([s.lat, s.lon], { icon, zIndexOffset: isFocused ? 1000 : 500 }).addTo(g)
-      const popupHtml = `
-        <div class="scout-popup">
-          <div class="scout-popup-header">
-            <span class="scout-popup-badge ${s.priority.toLowerCase()}">Spot #${s.id} · ${s.priority} Priority</span>
-            <span class="scout-popup-ndvi">NDVI ${s.ndvi}</span>
-          </div>
-          <b class="scout-popup-title">${s.signature}</b>
-          <p class="scout-popup-action"><b>Scout Action:</b> ${s.inspection}</p>
-          <div class="scout-popup-meta">
-            <span>🧭 ${s.distM} m ${s.bearing} (${s.degree}°)</span>
-            <a href="https://www.google.com/maps?q=${s.lat},${s.lon}" target="_blank" rel="noreferrer" class="scout-walk-link">Walk with GPS ↗</a>
-          </div>
-        </div>
-      `
-      marker.bindPopup(popupHtml, { minWidth: 240, maxWidth: 300, className: 'scout-custom-popup' })
-      if (isFocused) {
-        marker.openPopup()
-        m.panTo([s.lat, s.lon], { animate: true, duration: 0.5 })
-      }
-    })
-    return () => { g.remove() }
-  }, [mapObj, scoutState.showOnMap, scoutState.focusedSpotId, scoutSpots])
-
-  const [slot, setSlot] = useState<HTMLElement | null>(null)
-  useEffect(() => { setSlot(document.getElementById('legend-slot')) }, [])
-
   return (
     <div className="ix-outer">
       <div className="ix-wrap">
         <div ref={element} className={`field-map${locked ? ' is-locked' : ''}`} />
+
+        <div className={`ix-gee-badge${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`} title={earthEngineStatus}>
+          <span className="gee-dot" />
+          <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'Earth Engine tiles · Sentinel-2 L2A' : isEarthEngineConfigured ? 'Earth Engine connection pending' : 'Satellite preview · public data'}</span>
+        </div>
+
+        <div className="ix-zoom-sync-badge" title={`Live map zoom ${mapZoom.toFixed(1)}x synchronizes all GeoAI analysis maps across the dashboard`}>
+          <span className="zoom-pulse-dot" />
+          <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
+          <span className="zoom-synced-pill">DASHBOARD SYNCED</span>
+        </div>
 
         <button
           className={`ix-lock${locked ? ' on' : ''}`}
@@ -532,52 +677,50 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
             <b>{rulerActive ? 'Measuring' : 'Tape'}</b>
           </button>
 
-          {/* 8. Scout Hotspots */}
-          <button
-            className={`ix-add ${scoutState.showOnMap ? 'on' : ''}`}
-            style={scoutState.showOnMap ? { background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' } : {}}
-            onClick={() => {
-              toggleHotspotsOnMap()
-              setLayersBoxOpen(true)
-              setLayersBoxTab('tools')
-              setRulerOpen(false)
-            }}
-            title="Mark and show Scout Hotspot target pins on the map — Adjust in Section Layer"
-          >
-            <MapPin size={15}/>
-            <span>Hotspots</span>
-            <b>{scoutSpots.length}</b>
-          </button>
         </div>
 
-        {/* THE INTEGRATED GIS LAYERS BOX */}
-        {layersBoxOpen && (
-          <div className="ix-layers-box" role="dialog" aria-label="GIS Layers & Symbology Box">
-            <div className="ix-lb-header">
+        {/* The panel lives beside the map, or floats outside it when detached. */}
+        {layersBoxOpen && (panelDetached || panelTarget) && createPortal(
+          <div
+            className={`ix-layers-box${panelDetached ? ' detached' : ''}`}
+            style={panelDetached ? { left: panelPosition.x, top: panelPosition.y } : undefined}
+            role="dialog"
+            aria-label="GIS Layers & Symbology Box"
+          >
+            <div className={`ix-lb-header${panelDetached ? ' draggable' : ''}`} onPointerDown={event => {
+              if (!panelDetached || (event.target as HTMLElement).closest('button')) return
+              dragOffset.current = { x: event.clientX - panelPosition.x, y: event.clientY - panelPosition.y }
+              setPanelDragging(true)
+            }}>
               <div className="ix-lb-title">
                 <Layers size={17} className="text-emerald-400" />
                 <div>
                   <strong>Layers & Symbology Box</strong>
-                  <small>Sentinel-2 10m · QGIS & Earth Engine Precision</small>
+                  <small>Satellite layers and map tools</small>
                 </div>
               </div>
               <div className="ix-lb-actions">
                 <button
+                  className="ix-lb-tool-btn"
+                  title={panelDetached ? 'Dock panel beside the map' : 'Detach panel so it can move outside the map'}
+                  aria-label={panelDetached ? 'Dock layers panel' : 'Detach layers panel'}
+                  onClick={() => setPanelDetached(value => !value)}
+                >
+                  <Move size={13} />
+                  <span>{panelDetached ? 'Dock' : 'Detach'}</span>
+                </button>
+                <button
                   className={`ix-lb-tool-btn ${stretchDra ? 'active' : ''}`}
-                  title={stretchDra ? "Dynamic Range Stretch (DRA) is ON (p10-p90 intra-field stretch)" : "Turn ON Dynamic Range Adjustment (DRA) for high intra-field contrast"}
+                  title={stretchDra ? 'Auto contrast is on; this changes map colors, not pixel values.' : 'Improve map color contrast using the farm pixel range.'}
                   onClick={() => setStretchDra(!stretchDra)}
                 >
                   <Sliders size={13} />
-                  <span>{stretchDra ? "DRA On" : "DRA Off"}</span>
+                  <span>{stretchDra ? 'Contrast on' : 'Auto contrast'}</span>
                 </button>
-                <button
-                  className={`ix-lb-tool-btn ${renderMode === 'smooth' ? 'active' : ''}`}
-                  title={renderMode === 'smooth' ? "Bicubic High-DPI Smooth Rendering" : "Crisp Native 10m Pixel Grid"}
-                  onClick={() => setRenderMode(renderMode === 'smooth' ? 'crisp' : 'smooth')}
-                >
-                  <Sparkles size={13} />
-                  <span>{renderMode === 'smooth' ? "Smooth" : "10m Grid"}</span>
-                </button>
+                <span className="ix-lb-tool-btn active" title="Nearest-neighbour pixel display, with no smoothing or sharpening.">
+                  <Box size={13} />
+                  <span>Pixel view</span>
+                </span>
                 <button className="ix-lb-close" onClick={() => setLayersBoxOpen(false)} aria-label="Close Layers Box">
                   <X size={15} />
                 </button>
@@ -639,7 +782,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                 <div className="ix-lb-active-list">
                   {active.map(id => {
                     const ind = byId(id)
-                    const layer = layerCache.get(layerKey(id))
+                    const layer = getCachedLayer(layerKey(id))
                     const off = hidden.includes(id)
                     const waiting = ind.source === 'S2' && !scene
                     const vd = layer?.stat ? verdict(id, layer.stat.mean) : null
@@ -652,7 +795,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                           />
                           <div className="ix-lb-card-meta">
                             <strong>{ind.name}</strong>
-                            <span className="ix-lb-badge">{ind.source === 'S2' ? 'Sentinel-2 10m' : 'Copernicus 30m'}</span>
+                            <span className="ix-lb-badge">{ind.source === 'S2' ? 'Sentinel-2' : 'Copernicus DEM'}</span>
                           </div>
                           {vd && <span className={`ix-vd-chip ${vd.tone}`}>{vd.word}</span>}
                           <div className="ix-lb-card-ops">
@@ -693,6 +836,10 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                               <small>min {fmt(id, layer.stat.min)} · max {fmt(id, layer.stat.max)}</small>
                             )}
                           </div>
+                          {layer && <small className="ix-lb-resolution-note">
+                            Output cells about {Math.max(1, Math.round(layer.cellSizeM))} m · nearest-neighbour, no smoothing
+                            {ind.source === 'S2' ? ' · Sentinel-2 source bands are 10 m or 20 m' : ' · Copernicus DEM source is about 30 m'}
+                          </small>}
                         </div>
 
                         {/* Opacity Control */}
@@ -789,7 +936,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                 <div className="ix-lb-sym-full">
                   <div className="ix-lb-sym-header">
                     <strong>Multispectral Band Symbology</strong>
-                    <small>Sentinel-2 10m multispectral composite band combinations</small>
+                    <small>Sentinel-2 band combinations; native band resolution varies</small>
                   </div>
                   <div className="ix-band-combos-grid">
                     {BAND_COMBINATIONS.map(c => {
@@ -798,7 +945,27 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                         <div
                           key={c.id}
                           className={`ix-band-card ${isSel ? 'active' : ''}`}
-                          onClick={() => setActiveBandCombo(c.id)}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isSel}
+                          onClick={() => {
+                            const layerId = comboLayer[c.id]
+                            if (!layerId) return
+                            setActiveBandCombo(c.id)
+                            setActive([layerId])
+                            setHidden([])
+                            setLayersBoxTab('active')
+                          }}
+                          onKeyDown={event => {
+                            if (event.key !== 'Enter' && event.key !== ' ') return
+                            event.preventDefault()
+                            const layerId = comboLayer[c.id]
+                            if (!layerId) return
+                            setActiveBandCombo(c.id)
+                            setActive([layerId])
+                            setHidden([])
+                            setLayersBoxTab('active')
+                          }}
                         >
                           <div className="ix-band-card-top">
                             <span className="ix-band-badge">{c.badge}</span>
@@ -877,43 +1044,11 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                   </div>
                 </div>
 
-                {/* 2. Scout Hotspots */}
-                <div className="ix-lb-tool-card">
-                  <div className="ix-lb-tool-head">
-                    <MapPin size={16} className="text-red-400" />
-                    <strong>Scout Hotspot Targets ({scoutSpots.length})</strong>
-                    <span className={`ix-tool-badge ${scoutState.showOnMap ? 'on' : ''}`}>
-                      {scoutState.showOnMap ? 'Showing Pins' : 'Hidden'}
-                    </span>
-                  </div>
-                  <p className="ix-tool-desc">
-                    Ground verification GPS inspection pins highlighting stress anomalies, canopy gaps, and soil moisture variations.
-                  </p>
-                  <div className="ix-tool-actions">
-                    <button
-                      className={`ix-sett-btn ${scoutState.showOnMap ? 'on' : ''}`}
-                      onClick={() => toggleHotspotsOnMap()}
-                    >
-                      <MapPin size={13} />
-                      <span>{scoutState.showOnMap ? 'Hide Pins on Map' : 'Show Pins on Map'}</span>
-                    </button>
-                  </div>
-                  <div className="ix-hotspots-mini-list">
-                    {scoutSpots.slice(0, 4).map(s => (
-                      <div key={s.id} className="ix-hotspot-item">
-                        <span className={`ix-hotspot-pill ${s.priority.toLowerCase()}`}>#{s.id} · {s.priority}</span>
-                        <span className="ix-hotspot-sig">{s.signature}</span>
-                        <a href={`https://www.google.com/maps?q=${s.lat},${s.lon}`} target="_blank" rel="noreferrer" className="ix-hotspot-link">GPS ↗</a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 {/* 3. Water Assets & Borewells */}
                 <div className="ix-lb-tool-card">
                   <div className="ix-lb-tool-head">
                     <Droplets size={16} className="text-blue-400" />
-                    <strong>Farm Water Infrastructure ({mine.b.length} Borewells)</strong>
+                    <strong>Farm water points ({mine.b.length + mine.p.length})</strong>
                   </div>
                   <p className="ix-tool-desc">
                     Pin active borewells, irrigation pumps, drip lines, and recharge points directly onto your parcel.
@@ -926,24 +1061,31 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                       <Plus size={13} />
                       <span>{tool === 'borewell' ? 'Click Map to Place Borewell' : 'Add Borewell Point'}</span>
                     </button>
+                    <button
+                      className={`ix-sett-btn ${tool === 'pipeline' ? 'on' : ''}`}
+                      onClick={() => { setDraft([]); setTool(tool === 'pipeline' ? 'none' : 'pipeline') }}
+                    >
+                      <Route size={13} />
+                      <span>{tool === 'pipeline' ? 'Click the map to draw' : 'Draw a pipeline'}</span>
+                    </button>
+                  </div>
+                  <div className="ix-assets-list">
+                    {mine.b.map(borewell => (
+                      <div className="ix-asset-row" key={borewell.id}>
+                        <span><strong>{borewell.name}</strong><small>{borewell.depth} m deep · {borewell.yieldM3h} m³/h</small></span>
+                        <button aria-label={`Remove ${borewell.name}`} title={`Remove ${borewell.name}`} onClick={() => removeBorewell(borewell.id)}><Trash2 size={14}/></button>
+                      </div>
+                    ))}
+                    {mine.p.map(pipeline => (
+                      <div className="ix-asset-row" key={pipeline.id}>
+                        <span><strong>{pipeline.name}</strong><small>{Math.round(lengthM(pipeline.pts))} m · Ø{pipeline.dia} mm</small></span>
+                        <button aria-label={`Remove ${pipeline.name}`} title={`Remove ${pipeline.name}`} onClick={() => removePipeline(pipeline.id)}><Trash2 size={14}/></button>
+                      </div>
+                    ))}
+                    {!mine.b.length && !mine.p.length && <small className="ix-assets-empty">No borewells or pipelines added for this farm.</small>}
                   </div>
                 </div>
 
-                {/* 4. Swath Robotics & Heading */}
-                <div className="ix-lb-tool-card">
-                  <div className="ix-lb-tool-head">
-                    <Route size={16} className="text-emerald-400" />
-                    <strong>Fields2Cover Swath Robotics (CPP)</strong>
-                  </div>
-                  <p className="ix-tool-desc">
-                    Coverage Path Planning with optimal driving angle (aligned to cadastral field axis) minimizing overlaps and fuel use.
-                  </p>
-                  <div className="ix-robotics-stats">
-                    <div><span>Optimal Swath Heading:</span> <b>74.2°</b></div>
-                    <div><span>Implement Working Width:</span> <b>18.0 m (Amazone)</b></div>
-                    <div><span>Headland Turn Loops:</span> <b>2 Passes (0.41 ha)</b></div>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -1020,48 +1162,39 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                 </div>
 
                 <div className="ix-lb-settings-group">
-                  <h4>Radiometric Dynamic Range (DRA)</h4>
-                  <p className="ix-settings-desc">Stretch the color scale dynamically to the {"farm's"} exact pixel min and max (p10 to p90), maximizing intra-field contrast.</p>
+                  <h4>Local image contrast</h4>
+                  <p className="ix-settings-desc">Adjust the contrast of the locally rendered Sentinel-2 preview. These settings do not change an Earth Engine Code Editor script or guarantee a pixel-for-pixel match.</p>
                   <button
                     className={`ix-sett-btn full ${stretchDra ? 'on' : ''}`}
                     onClick={() => setStretchDra(!stretchDra)}
                   >
                     <Sliders size={13} />
-                    <span>Dynamic Range Adjustment: {stretchDra ? 'Enabled (p10-p90 Stretch)' : 'Standard Full Scale'}</span>
+                    <span>{stretchDra ? 'Local contrast adjustment active' : 'Adjust local contrast'}</span>
                   </button>
                 </div>
 
                 <div className="ix-lb-settings-group">
-                  <h4>Rendering Clarity & Resampling</h4>
-                  <p className="ix-settings-desc">Toggle between high-DPI bicubic smoothed view and crisp native 10m square pixel grid inspection.</p>
-                  <div className="ix-settings-btns">
-                    <button
-                      className={`ix-sett-btn ${renderMode === 'smooth' ? 'on' : ''}`}
-                      onClick={() => setRenderMode('smooth')}
-                    >
-                      <Sparkles size={13} />
-                      <span>High-DPI Bicubic Smooth</span>
-                    </button>
-                    <button
-                      className={`ix-sett-btn ${renderMode === 'crisp' ? 'on' : ''}`}
-                      onClick={() => setRenderMode('crisp')}
-                    >
-                      <Box size={13} />
-                      <span>Crisp 10m Pixel Grid</span>
-                    </button>
-                  </div>
+                  <h4>Earth Engine service</h4>
+                  <p className="ix-settings-desc">{earthEngineStatus} Summary values and terrain layers still use their separately labelled public data sources.</p>
                 </div>
               </div>
             )}
 
             {/* Footer Status Bar */}
+            <div className="ix-gee-handoff">
+              <div><strong>Continue in Google Earth Engine</strong><small>Copies this field outline and the selected date, cloud limit, band view, and index style into JavaScript. The Code Editor runs the request under your signed-in Earth Engine account.</small></div>
+              <small className="ix-ee-status" role="status">{earthEngineStatus}</small>
+              <button onClick={openEarthEngine}><ExternalLink size={14}/>Copy script &amp; open</button>
+              {earthEngineNotice && <p role="status">{earthEngineNotice}</p>}
+            </div>
             <div className="ix-lb-footer">
               <span className="ix-lb-foot-status">
                 <span className="ix-pulse-dot" />
-                {scene ? `SENTINEL-2 L2A · ${date.toUpperCase()} · ${scene.cloud}% CLOUD · SCL MASKED` : loading ? 'FETCHING SENTINEL-2 SCENE…' : 'AWAITING SATELLITE PASS'}
+                {earthEngineOverlay?.sceneKey === sceneKey ? `EARTH ENGINE · ${date.toUpperCase()} · ${earthEngineOverlay.sceneCount} MATCHING SCENES` : scene ? `PREVIEW · SENTINEL-2 L2A · ${date.toUpperCase()} · ${scene.cloud}% CLOUD` : loading ? 'LOADING SATELLITE PREVIEW…' : 'AWAITING SATELLITE PASS'}
               </span>
             </div>
-          </div>
+          </div>,
+          panelDetached ? document.body : panelTarget!
         )}
 
         <NearbyLayer map={mapObj} farm={farm} open={nearOpen} onClose={() => setNearOpen(false)} mine={{ b: mine.b, p: mine.p }}/>
@@ -1208,78 +1341,6 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
         )}
       </div>
 
-      {/* Synchronized Legend Slot Portal */}
-      {createPortal(
-        <div className="ix-below">
-          <div className="ix-stack">
-            <span className="ix-lg-title">Layers on the map</span>
-            {active.map(id => {
-              const ind = byId(id), layer = layerCache.get(layerKey(id)), off = hidden.includes(id), waiting = ind.source === 'S2' && !scene
-              return (
-                <div key={id} className={`ix-row ${off ? 'off' : ''}`}>
-                  <span className="ix-swatch" style={{ background: ind.ramp ? gradientCss(ind.ramp) : 'linear-gradient(90deg,#3c6a4a,#c8a15a,#e4e4e4)' }}/>
-                  <div className="ix-nm">
-                    <strong>
-                      {ind.name}
-                      {(() => { const vd = layer?.stat ? verdict(id, layer.stat.mean) : null; return vd ? <b className={`ix-vd ${vd.tone}`}>{vd.word}</b> : null })()}
-                    </strong>
-                    {(() => { const vd = layer?.stat ? verdict(id, layer.stat.mean) : null; return vd ? <small className="ix-why">{vd.why}</small> : null })()}
-                  </div>
-                  <em>{errors[id] ? 'error' : waiting ? 'waiting for scene' : busy.includes(id) || !layer ? 'loading…' : layer.stat ? fmt(id, layer.stat.mean) : ind.rgb ? 'composite' : '—'}</em>
-                  <input aria-label={`${ind.name} opacity`} type="range" min="0.2" max="1" step="0.05" value={opacity[id] ?? 0.92} onChange={e => setOpacity(o => ({ ...o, [id]: Number(e.target.value) }))}/>
-                  <button aria-label={off ? 'Show' : 'Hide'} onClick={() => setHidden(h => (off ? h.filter(x => x !== id) : [...h, id]))}>{off ? <EyeOff size={14}/> : <Eye size={14}/>}</button>
-                  <button aria-label={`Remove ${ind.name}`} onClick={() => toggle(id)}><X size={14}/></button>
-                </div>
-              )
-            })}
-            {active.length === 0 && <div className="ix-empty">No parameters on the map. Add one to analyse this farm.</div>}
-            {Object.values(errors)[0] && <div className="ix-error">{Object.values(errors)[0]}</div>}
-          </div>
-
-          <div className="ix-bottom">
-            {topLayer && (
-              <div className="ix-legend">
-                <span className="ix-lg-title">What the colours mean</span>
-                <div>
-                  <strong>
-                    {topLayer.ind.name}
-                    {(() => { const vd = topLayer.stat ? verdict(topLayer.ind.id, topLayer.stat.mean) : null; return vd ? <b className={`ix-vd ${vd.tone}`}>{vd.word}</b> : null })()}
-                  </strong>
-                  <small>{topLayer.ind.desc}</small>
-                  {(() => { const vd = topLayer.stat ? verdict(topLayer.ind.id, topLayer.stat.mean) : null; return vd ? <small className="ix-why">{vd.why}</small> : null })()}
-                </div>
-                {topLayer.ind.ramp && topLayer.range ? (
-                  <>
-                    <i style={{ background: gradientCss(topLayer.ind.ramp) }}/>
-                    <div className="ix-scale">
-                      <span>{topLayer.range[0].toFixed(dp(topLayer.ind.id, 1))}</span>
-                      <span>{(topLayer.ind.log ? Math.sqrt(topLayer.range[0] * topLayer.range[1]) : (topLayer.range[0] + topLayer.range[1]) / 2).toFixed(dp(topLayer.ind.id, 2))}</span>
-                      <span>{topLayer.range[1].toFixed(dp(topLayer.ind.id, 1))}{topLayer.ind.unit ?? ''}</span>
-                    </div>
-                  </>
-                ) : (
-                  <small>{topLayer.ind.rgb ? 'Sentinel-2 composite, clear pixels only' : 'Grey scale: dark = shaded'}</small>
-                )}
-                {MEANING[topLayer.ind.id] && (
-                  <ul className="ix-meaning">
-                    {MEANING[topLayer.ind.id].map((b, i) => (
-                      <li key={b.label}><i style={{ background: b.color }}/><span>{b.label}</span><code>{bandRange(topLayer.ind.id, i)}</code></li>
-                    ))}
-                  </ul>
-                )}
-                {topLayer.ind.id === 'dem' && <small>Metres above sea level. Greens low, browns and white high.</small>}
-                {topLayer.stat && <small className="ix-stat">Farm: min {fmt(topLayer.ind.id, topLayer.stat.min)} · mean {fmt(topLayer.ind.id, topLayer.stat.mean)} · max {fmt(topLayer.ind.id, topLayer.stat.max)}</small>}
-              </div>
-            )}
-            {loading && <span className="ix-ll"><LogoLoader size={46} text="Fetching Sentinel-2 scene…"/></span>}
-            <span className="ix-source">
-              <span/>
-              {scene ? `SENTINEL-2 L2A · ${date.toUpperCase()} · ${scene.cloud}% CLOUD · SCL CLOUD-MASKED` : loading ? 'FETCHING SENTINEL-2 SCENE…' : 'NO SATELLITE SCENE YET'}
-            </span>
-          </div>
-        </div>,
-        slot || document.body
-      )}
     </div>
   )
 }

@@ -16,6 +16,36 @@ export function areaHa(ring: Ring): number {
   return Math.abs(sum) / 2 / 10000
 }
 
+export function perimeterM(ring: Ring): number {
+  if (ring.length < 2) return 0
+  const { lat } = centroid(ring)
+  const kx = 111320 * Math.cos((lat * Math.PI) / 180), ky = 111320
+  let total = 0
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i], [x2, y2] = ring[(i + 1) % ring.length]
+    const dx = (x2 - x1) * kx
+    const dy = (y2 - y1) * ky
+    total += Math.hypot(dx, dy)
+  }
+  return total
+}
+
+export function parseCoordinate(input: string, axis: 'lat' | 'lon'): number | null {
+  const text = input.trim().toUpperCase().replace(/−/g, '-')
+  if (!text) return null
+  const direction = text.match(/[NSEW]/)?.[0]
+  if (direction && ((axis === 'lat' && !['N', 'S'].includes(direction)) || (axis === 'lon' && !['E', 'W'].includes(direction)))) return null
+  const values = text.match(/[+-]?\d+(?:\.\d+)?/g)?.map(Number)
+  if (!values?.length || values.length > 3 || values.some(value => !Number.isFinite(value))) return null
+  const [degrees, minutes = 0, seconds = 0] = values
+  if (minutes < 0 || minutes >= 60 || seconds < 0 || seconds >= 60) return null
+  const magnitude = Math.abs(degrees) + minutes / 60 + seconds / 3600
+  const negative = direction ? direction === 'S' || direction === 'W' : degrees < 0
+  const coordinate = negative ? -magnitude : magnitude
+  const limit = axis === 'lat' ? 90 : 180
+  return magnitude <= limit ? coordinate : null
+}
+
 export function orderRing(ring: Ring): Ring {
   const c = centroid(ring)
   return [...ring].sort((a, b) => Math.atan2(a[1] - c.lat, a[0] - c.lon) - Math.atan2(b[1] - c.lat, b[0] - c.lon))

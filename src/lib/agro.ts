@@ -163,194 +163,150 @@ export function textureClass(clay: number, sand: number, silt: number) {
 }
 
 export function ndviClass(v: number): { label: string; tone: Tone } {
-  if (v >= 0.6) return { label: 'Excellent', tone: 'good' }
-  if (v >= 0.5) return { label: 'Good', tone: 'good' }
-  if (v >= 0.35) return { label: 'Moderate', tone: 'warn' }
-  if (v >= 0.2) return { label: 'Stressed', tone: 'bad' }
-  return { label: 'Bare or severe stress', tone: 'bad' }
+  if (v >= 0.6) return { label: 'Strong green cover', tone: 'good' }
+  if (v >= 0.5) return { label: 'Steady green cover', tone: 'good' }
+  if (v >= 0.35) return { label: 'Cover building', tone: 'warn' }
+  if (v >= 0.2) return { label: 'Thin green cover', tone: 'warn' }
+  return { label: 'Little green cover', tone: 'bad' }
 }
 
 export function kidFriendlyIndicator(id: string, v: number, stressPct = 0): { label: string; note: string; tone: Tone } {
   switch (id) {
     case 'ndvi': {
       const cls = ndviClass(v)
-      const meaning = v >= 0.6 ? 'Super Green & Strong' : v >= 0.45 ? 'Healthy Active Crop' : v >= 0.3 ? 'Moderate / Young Crop' : 'Sparse / Stressed Crop'
+      const condition = v >= 0.6 ? 'Most of the field has strong green cover in this image.' : v >= 0.45 ? 'The field has a steady green-cover signal.' : v >= 0.3 ? 'Green cover is still building, or parts of the field are thinner.' : 'There is little green cover in this image; this can be normal after harvest or early planting.'
       return {
         label: 'Plant Health (NDVI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)} · ${stressPct.toFixed(0)}% weak pixels). Reason: Leaves absorb red sunlight and bounce near-infrared rays like mirrors. High score means lush, happy leaves.`,
+        note: `NDVI is ${v.toFixed(2)} (a 0–1 style score, not a percent). ${condition} About ${stressPct.toFixed(0)}% of clear field pixels fall below the app's low-cover flag. Walk those patches and compare with the crop's age; this image cannot tell the cause by itself.`,
         tone: cls.tone
       }
     }
     case 'evi': {
-      const meaning = v >= 0.45 ? 'Thick layered foliage' : v >= 0.3 ? 'Moderate canopy' : 'Light canopy'
+      const condition = v >= 0.45 ? 'The canopy looks full in this pass.' : v >= 0.3 ? 'The canopy is filling in.' : 'The image shows lighter plant cover.'
       return {
-        label: 'Thick Canopy Growth (EVI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Measures real green leaf volume without getting blinded by heavy leaf density or bright sun glare.`,
+        label: 'Canopy cover (EVI)',
+        note: `EVI is ${v.toFixed(2)}. ${condition} Compare with the same field over time, and check thin-looking patches in person; crop stage and weeds can change this reading.`,
         tone: v >= 0.4 ? 'good' : v >= 0.25 ? 'neutral' : 'warn'
       }
     }
     case 'savi': {
-      const meaning = v >= 0.4 ? 'Solid crop establishment' : 'Young sprouts / sparse cover'
+      const condition = v >= 0.4 ? 'Plants cover much of the soil in this image.' : 'Soil is still visible between plants, which can be expected early in the season.'
       return {
-        label: 'True Growth Past Soil (SAVI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Filters out soil brightness so you see real plant growth even when bare dirt is showing through.`,
+        label: 'Crop cover with soil showing (SAVI)',
+        note: `SAVI is ${v.toFixed(2)}. ${condition} Use it to follow crop cover as it closes over the rows; it does not measure yield.`,
         tone: v >= 0.35 ? 'good' : 'neutral'
       }
     }
     case 'msavi': {
-      const meaning = v >= 0.4 ? 'Strong vegetative canopy' : 'Early emergence stage'
       return {
-        label: 'Auto-Cleaned Crop Score (MSAVI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Self-adjusts for soil color to measure exact baby or young crop leaves without false alarms.`,
+        label: 'Young crop cover (MSAVI)',
+        note: `MSAVI is ${v.toFixed(2)}. It helps track sparse cover where soil is visible. A low value can simply mean the crop has not filled the rows yet; check planting date and field edges.`,
         tone: v >= 0.35 ? 'good' : 'neutral'
       }
     }
     case 'gndvi': {
-      const meaning = v >= 0.6 ? 'Well-fed with nitrogen' : v >= 0.4 ? 'Moderate nitrogen' : 'Hungry leaves (needs food)'
       return {
-        label: 'Leaf Food & Nitrogen (GNDVI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Green light reflection shows how well plants are eating their nitrogen meals.`,
+        label: 'Leaf greenness signal (GNDVI)',
+        note: `GNDVI is ${v.toFixed(2)}. It gives another view of leaf greenness, but it cannot confirm a nitrogen shortage. If a patch looks pale, compare crop age and ask for a soil or leaf test before changing fertilizer.`,
         tone: v >= 0.5 ? 'good' : v >= 0.35 ? 'neutral' : 'warn'
       }
     }
     case 'ndre': {
-      const meaning = v >= 0.4 ? 'Deep canopy is rich green' : 'Early nitrogen hunger alert'
       return {
-        label: 'Deep Canopy Health (NDRE)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Peeks deep into mature crops to catch nitrogen hunger days before human eyes see yellowing.`,
+        label: 'Mature canopy greenness (NDRE)',
+        note: `NDRE is ${v.toFixed(2)}. It can help compare dense crop areas that look alike from above. A low patch is a reason to inspect, not proof of nitrogen hunger or an early diagnosis.`,
         tone: v >= 0.35 ? 'good' : 'warn'
       }
     }
     case 'cire': {
-      const meaning = v >= 1.5 ? 'High chlorophyll reserves' : 'Moderate green pigment'
       return {
-        label: 'Chlorophyll Fuel Gauge (CIre)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Directly counts green chlorophyll solar cells that turn sunlight into crop sugars.`,
+        label: 'Leaf colour signal (CIre)',
+        note: `CIre is ${v.toFixed(2)}. Higher readings often go with greener leaves in this image. Compare the same crop and growth stage; this is not a direct leaf test or fertilizer recommendation.`,
         tone: v >= 1.2 ? 'good' : 'neutral'
       }
     }
     case 'nbr': {
-      const meaning = v >= 0.35 ? 'Intact, living crop' : 'Dry stubble or damaged patch'
       return {
-        label: 'Crop Surface Health (NBR)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Detects undamaged living crop; drops near zero if burned, scorched, or storm-damaged.`,
+        label: 'Crop cover change signal (NBR)',
+        note: `NBR is ${v.toFixed(2)}. Use the map to spot areas that look different from the rest, then check for harvest, dry residue, fire, or crop damage on the ground. The score alone cannot identify what happened.`,
         tone: v >= 0.3 ? 'good' : 'warn'
       }
     }
     case 'ndwi': {
-      const meaning = v < 0 ? 'Dry surface (no flood puddles)' : 'Standing water / puddle risk'
       return {
-        label: 'Standing Water & Flooding (NDWI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Water absorbs infrared light. Negative score proves plants, not a standing flood pond.`,
+        label: 'Surface water signal (NDWI)',
+        note: `NDWI is ${v.toFixed(2)}. A higher signal can mark open water or very wet surfaces. Check low spots after rain; this satellite score alone cannot confirm flooding or drainage.`,
         tone: v > 0.1 ? 'bad' : 'good'
       }
     }
     case 'mndwi': {
-      const meaning = v < 0 ? 'No surface puddles' : 'Wet surface / waterlogged'
       return {
-        label: 'Clean Water Puddles (MNDWI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Confirms dry surface soil without muddy standing flood water.`,
+        label: 'Open-water check (MNDWI)',
+        note: `MNDWI is ${v.toFixed(2)}. Use bright patches as places to check for standing water, wet soil, or a non-field surface. Confirm in person before changing drainage.`,
         tone: v > 0 ? 'warn' : 'good'
       }
     }
     case 'ndmi': {
-      const meaning = v >= 0.2 ? 'Juicy, well-hydrated leaves' : v >= 0.05 ? 'Adequate leaf moisture' : 'Thirsty, wilting leaves'
+      const condition = v >= 0.2 ? 'The canopy has a stronger moisture signal in this pass.' : v >= 0.05 ? 'The canopy moisture signal is in the middle range.' : 'The canopy moisture signal is low.'
       return {
-        label: 'Leaf Water Juice (NDMI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Shows leaves have plenty of water inside and aren't drying out or wilting under sun.`,
+        label: 'Canopy moisture signal (NDMI)',
+        note: `NDMI is ${v.toFixed(2)}. ${condition} Check soil near the roots and compare with recent rain before deciding to irrigate; this is not a soil moisture reading.`,
         tone: v >= 0.15 ? 'good' : v >= 0 ? 'neutral' : 'bad'
       }
     }
     case 'msi': {
-      const meaning = v <= 0.8 ? 'Low thirst (plants drink happily)' : 'High thirst (irrigate soon)'
       return {
-        label: 'Crop Thirst Alarm (MSI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Lower score is better; shows how easily water is evaporating from leaf pores.`,
+        label: 'Canopy dryness signal (MSI)',
+        note: `MSI is ${v.toFixed(2)}. Higher values can point to a drier-looking canopy. Check the affected rows and soil moisture before planning irrigation.`,
         tone: v <= 0.9 ? 'good' : 'warn'
       }
     }
     case 'ndbi': {
-      const meaning = v < 0 ? 'Living vegetated farm ground' : 'Hard packed soil / road'
       return {
-        label: 'Living Ground Check (NDBI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Negative score confirms healthy living farm land rather than bare stone or road.`,
+        label: 'Bare or built surface signal (NDBI)',
+        note: `NDBI is ${v.toFixed(2)}. Use the map to find exposed or built-looking patches; dry soil, roads, roofs, and crop residue can look similar from space.`,
         tone: v < 0 ? 'good' : 'neutral'
       }
     }
     case 'bsi': {
-      const meaning = v < 0 ? 'Crop covers the ground' : 'Exposed bare soil visible'
       return {
-        label: 'Exposed Bare Dirt (BSI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Negative means green crop canopy shields the soil; positive means tilled open dirt.`,
+        label: 'Exposed soil signal (BSI)',
+        note: `BSI is ${v.toFixed(2)}. Brighter areas may have more soil showing between rows. Check whether this is expected for the crop stage or a patch where plants failed to establish.`,
         tone: v < 0 ? 'good' : 'neutral'
       }
     }
     case 'stress': {
-      const meaning = v <= 0.15 ? 'Safe (no hidden sickness)' : 'Early stress detected'
       return {
-        label: 'Early Stress Radar',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Combines red-edge chlorophyll drop and water deficit to warn you 5 days before visible yellowing.`,
+        label: 'Combined stress flag',
+        note: `The app's stress flag is ${Math.round(v * 100)} out of 100. It combines several satellite signals to highlight a patch for a closer look; it does not identify a cause or promise advance warning.`,
         tone: v <= 0.2 ? 'good' : 'bad'
       }
     }
     case 'reip': {
-      const meaning = v >= 712 ? 'High nitrogen, young vigor' : 'Crop heading towards maturity'
       return {
-        label: 'Peak Green Wave (REIP)',
-        note: `Meaning: ${meaning} (${v.toFixed(1)} nm). Reason: Above 712 nm means leaves are loaded with nitrogen food and growing energetically.`,
+        label: 'Canopy colour point (REIP)',
+        note: `REIP is ${v.toFixed(1)} nm. It tracks a change in the crop's colour response. Compare like-for-like crop stages; it is not a direct nitrogen or maturity test.`,
         tone: v >= 710 ? 'good' : 'neutral'
       }
     }
     case 'lai': {
       return {
-        label: 'Leaf Blanket Layers (LAI)',
-        note: `Meaning: ${v.toFixed(1)} m² leaf area per m² ground. Reason: Tells you how many layers of green leaves cover your soil for biomass growth.`,
+        label: 'Estimated leaf cover (LAI)',
+        note: `The model estimates ${v.toFixed(1)} m² of leaf area per m² of ground. Treat this as a rough canopy-cover guide, not a leaf count or a harvest estimate.`,
         tone: v >= 2 ? 'good' : 'neutral'
       }
     }
     case 'chla': {
-      const meaning = v >= 3 ? 'High green pigment reserves' : 'Moderate green pigment'
       return {
-        label: 'Krishi Leaf Greening (CIgreen)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: High green pigment means strong photosynthesis and fat grains/fruits forming.`,
+        label: 'Leaf greenness estimate (CIgreen)',
+        note: `CIgreen is ${v.toFixed(2)}. It is a satellite estimate related to leaf greenness, not a measurement of chlorophyll in a leaf sample or a prediction of grain or fruit size.`,
         tone: v >= 2.5 ? 'good' : 'neutral'
-      }
-    }
-    case 'tvdi': {
-      const meaning = v <= 0.35 ? 'Cool & hydrated (no drought)' : 'Warm canopy under heat stress'
-      return {
-        label: 'Heat & Drought Pressure (TVDI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Cool plant temperature proves roots are drinking soil water to sweat and cool down.`,
-        tone: v <= 0.4 ? 'good' : 'warn'
-      }
-    }
-    case 'cwsi': {
-      const meaning = v <= 0.3 ? 'Happy sweating crop' : 'Thirsty plant closing pores'
-      return {
-        label: 'Plant Sweat Index (CWSI)',
-        note: `Meaning: ${meaning} (${v.toFixed(2)}). Reason: Near zero means leaf breathing pores are wide open, sweating, and happy.`,
-        tone: v <= 0.3 ? 'good' : 'warn'
-      }
-    }
-    case 'sar_wet': {
-      const meaning = v >= 20 && v <= 55 ? 'Comfortable root moisture' : v > 70 ? 'Waterlogged roots' : 'Dry root bed'
-      return {
-        label: 'Root-Zone Water Balance (SAR)',
-        note: `Meaning: ${meaning} (${v.toFixed(1)}%). Reason: Simulates radar echo and terrain drainage to check if roots have air or are drowning.`,
-        tone: v > 70 ? 'warn' : 'good'
-      }
-    }
-    case 'lst': {
-      return {
-        label: 'Ground Surface Temp (LST)',
-        note: `Meaning: ${v.toFixed(1)} °C. Reason: Plant leaf canopy shades the soil from harsh sun heat, keeping roots cool.`,
-        tone: v <= 35 ? 'good' : 'warn'
       }
     }
     default:
       return {
         label: id.toUpperCase(),
-        note: `Meaning: Measured score ${v.toFixed(2)}. Reason: Farm satellite telemetry calculated for your field.`,
+        note: `${id.toUpperCase()} is ${v.toFixed(2)} in this image. Use the coloured map to find areas to inspect, and confirm important decisions in the field.`,
         tone: 'neutral'
       }
   }
@@ -363,19 +319,19 @@ export function weatherParams(w: Weather): Param[] {
   const heat = w.tmaxNext7 >= 38, frost = w.tminNext7 <= 2
   const disease = w.rh >= 85 && w.temp >= 18 && w.temp <= 30
   return [
-    { label: 'Air temperature', value: `${f(w.temp)} °C`, note: `Meaning: Today ${f(w.tminToday, 0)} to ${f(w.tmaxToday, 0)} °C. Reason: ${heat ? 'Heat risk; crops transpire rapidly.' : frost ? 'Frost alert; protect tender crops.' : 'Ideal warmth for plant enzymes to make sugars fast.'}`, tone: heat ? 'bad' : frost ? 'bad' : 'neutral' },
-    { label: 'Humidity', value: `${f(w.rh, 0)} %`, note: `Meaning: ${w.rh >= 80 ? 'High air moisture' : 'Comfortable air moisture'}. Reason: ${disease ? 'Warm & humid air; inspect leaf undersides for fungal spots.' : 'Comfortable air keeps leaves crisp without mold risk.'}`, tone: disease ? 'warn' : 'neutral' },
-    { label: 'Vapour pressure deficit', value: `${f(w.vpd, 2)} kPa`, note: `Meaning: ${w.vpd > 2 ? 'Air is very thirsty' : w.vpd < 0.4 ? 'Air is very damp' : 'Comfortable air breathing'}. Reason: ${w.vpd > 2 ? 'Air pulls water fast; plants close breathing pores.' : w.vpd < 0.4 ? 'Soggy air slows natural crop sweating.' : 'Sweet spot for plants to breathe and sweat naturally.'}`, tone: w.vpd > 2 ? 'bad' : 'neutral' },
-    { label: 'Wind', value: `${f(w.wind)} km/h`, note: `Meaning: ${w.wind > 20 ? 'Breezy wind' : 'Gentle breeze'}. Reason: ${w.wind > 20 ? 'Hold off spraying sprays to avoid drifting onto neighbor plots.' : 'Calm breeze is safe for spraying foliar nutrition.'}`, tone: w.wind > 25 ? 'warn' : 'good' },
-    { label: 'UV index', value: f(w.uv, 1), note: `Meaning: Daily max ${f(w.uvMax, 1)}. Reason: ${w.uvMax >= 8 ? 'Intense solar radiation; mulch bare soil to stop rapid drying.' : 'Mild sunlight without solar leaf scorch risk.'}`, tone: w.uvMax >= 8 ? 'warn' : 'neutral' },
-    { label: 'Solar radiation', value: `${f(w.radToday)} MJ/m²`, note: `Meaning: Daylight solar energy. Reason: Powers daily crop photosynthesis and grain development.`, tone: 'neutral' },
-    { label: 'Rain, last 7 days', value: `${f(w.rain7)} mm`, note: `Meaning: Last 30 days ${f(w.rain30, 0)} mm. Reason: Showers kept surface soil damp and washed dust off foliage.`, tone: 'neutral' },
-    { label: 'Rain, next 7 days', value: `${f(w.rainNext7)} mm`, note: `Meaning: ${w.rainNext7 >= 15 ? 'Good showers coming' : 'Dry week ahead'}. Reason: ${w.rainNext7 >= 15 ? 'Natural rainfall will replenish soil moisture.' : 'Little rain expected; rely on pump/drip irrigation.'}`, tone: 'neutral' },
-    { label: 'Evapotranspiration (ET0)', value: `${f(w.et0Past7)} mm`, note: `Meaning: Water evaporated into sky. Reason: Sun and breeze lifted ~${f(w.et0Past7, 0)} mm of moisture from your soil and crop.`, tone: 'neutral' },
-    { label: 'Water balance, past 7 d', value: `${bal >= 0 ? '+' : ''}${f(bal)} mm`, note: `Meaning: ${bal < -15 ? 'Water deficit (needs irrigation)' : 'Adequate moisture'}. Reason: ${bal < -15 ? 'Plants drank more than rain gave; irrigate to maintain growth.' : 'Rainfall kept pace with crop water demand.'}`, tone: bal < -15 ? 'bad' : bal < 0 ? 'warn' : 'good' },
-    { label: 'Water balance, next 7 d', value: `${balNext >= 0 ? '+' : ''}${f(balNext)} mm`, note: `Meaning: ${balNext < -20 ? 'Expect ~' + f(-balNext, 0) + ' mm deficit' : 'Balanced outlook'}. Reason: ${balNext < -20 ? 'Plan to apply ~20–25 mm irrigation over coming days.' : 'No major moisture shortage predicted.'}`, tone: balNext < -20 ? 'warn' : 'good' },
-    { label: 'Growing degree days', value: `${f(w.gdd30, 0)} °C·d`, note: `Meaning: Heat points stored. Reason: Crop biological clock is ticking right on schedule towards maturity.`, tone: 'neutral' },
-    { label: 'Heat / frost outlook', value: heat ? 'Heat risk' : frost ? 'Frost risk' : 'None', note: `Meaning: 7-day range ${f(w.tminNext7, 0)} to ${f(w.tmaxNext7, 0)} °C. Reason: No thermal shock; plants stay comfortable day and night.`, tone: heat || frost ? 'bad' : 'good' },
+    { label: 'Air temperature', value: `${f(w.temp)} °C`, note: `Today is forecast at ${f(w.tminToday, 0)}–${f(w.tmaxToday, 0)} °C. The coming week reaches ${f(w.tmaxNext7, 0)} °C high and ${f(w.tminNext7, 0)} °C low; check local conditions if heat or cold is forecast.`, tone: heat || frost ? 'warn' : 'neutral' },
+    { label: 'Humidity', value: `${f(w.rh, 0)} %`, note: `${w.rh >= 80 ? 'Air is humid.' : 'Air is not especially humid.'} When it is warm and humid, check leaves for disease symptoms; weather alone cannot tell whether a crop is infected.`, tone: disease ? 'warn' : 'neutral' },
+    { label: 'Air dryness for crops (VPD)', value: `${f(w.vpd, 2)} kPa`, note: `${w.vpd > 2 ? 'The air may draw water from leaves quickly.' : w.vpd < 0.4 ? 'The air is very damp.' : 'The air is in a moderate dryness range.'} Check the crop and soil together; this is a weather estimate, not a plant reading.`, tone: w.vpd > 2 ? 'warn' : 'neutral' },
+    { label: 'Wind', value: `${f(w.wind)} km/h`, note: `${w.wind > 20 ? 'Wind may carry spray off target.' : 'Winds are lighter in this forecast.'} Check the product label and wind at the field before spraying.`, tone: w.wind > 20 ? 'warn' : 'neutral' },
+    { label: 'UV index', value: f(w.uv, 1), note: `Forecast daily peak is ${f(w.uvMax, 1)}. This describes sun exposure; it does not predict crop damage or soil drying by itself.`, tone: w.uvMax >= 8 ? 'warn' : 'neutral' },
+    { label: 'Solar energy today', value: `${f(w.radToday)} MJ/m²`, note: 'A weather estimate of sunlight reaching the ground today. Cloud and shade across the field can differ from the regional model.', tone: 'neutral' },
+    { label: 'Rain, last 7 days', value: `${f(w.rain7)} mm`, note: `${f(w.rain30, 0)} mm is estimated for the last 30 days. Compare this with your rain gauge; nearby storms can miss a field.`, tone: 'neutral' },
+    { label: 'Rain forecast, next 7 days', value: `${f(w.rainNext7)} mm`, note: `${w.rainNext7 >= 15 ? 'Rain is in the forecast.' : 'Only a little rain is forecast.'} Check the local forecast again before irrigation or field work.`, tone: 'neutral' },
+    { label: 'Reference water demand (ET₀)', value: `${f(w.et0Past7)} mm`, note: 'This estimates water demand from a standard reference surface over the past week. Your crop may use more or less depending on its stage and local conditions.', tone: 'neutral' },
+    { label: 'Rain minus reference demand, past 7 days', value: `${bal >= 0 ? '+' : ''}${f(bal)} mm`, note: `${bal < -15 ? 'Reference demand was greater than recorded rain.' : bal < 0 ? 'Rain was a little below reference demand.' : 'Recorded rain met or exceeded reference demand.'} This is a rough weather balance, not a direct measurement of water in your root zone.`, tone: bal < -15 ? 'warn' : bal < 0 ? 'neutral' : 'good' },
+    { label: 'Rain minus reference demand, next 7 days', value: `${balNext >= 0 ? '+' : ''}${f(balNext)} mm`, note: `${balNext < -20 ? 'The forecast points to a dry week.' : balNext < 0 ? 'Some water demand may exceed forecast rain.' : 'Forecast rain may meet reference demand.'} Check soil near the crop before deciding how much to irrigate.`, tone: balNext < -20 ? 'warn' : 'neutral' },
+    { label: 'Accumulated warmth (GDD)', value: `${f(w.gdd30, 0)} °C·d`, note: 'A running temperature total used to compare crop development. It only helps when paired with the right crop, planting date, and growth stage.', tone: 'neutral' },
+    { label: 'Heat / frost outlook', value: heat ? 'Heat may occur' : frost ? 'Cold may occur' : 'No strong alert', note: `Forecast range for the next week is ${f(w.tminNext7, 0)}–${f(w.tmaxNext7, 0)} °C. Check a local forecast and the crop's sensitivity before taking action.`, tone: heat || frost ? 'warn' : 'good' },
   ]
 }
 
@@ -383,29 +339,28 @@ export function soilWaterParams(w: Weather): Param[] {
   const pct = (v: number) => `${f(v * 100, 0)} %`
   const root = w.soilM.d9_27
   return [
-    { label: 'Soil moisture 0-1 cm', value: pct(w.soilM.d0_1), note: `Meaning: Surface skin dampness. Reason: Changes fast with sunshine; good for seeds just planted to sprout.`, tone: 'neutral' },
-    { label: 'Soil moisture 3-9 cm', value: pct(w.soilM.d3_9), note: `Meaning: Seedling drinking zone. Reason: Moist zone where young roots pull easy water without drying out.`, tone: w.soilM.d3_9 < 0.12 ? 'warn' : 'neutral' },
-    { label: 'Soil moisture 9-27 cm', value: pct(root), note: `Meaning: Active root zone water. Reason: Where 80% of mature feeding roots live; maintains rapid leaf growth.`, tone: root < 0.12 ? 'bad' : root < 0.2 ? 'warn' : 'good' },
-    { label: 'Soil moisture 27-81 cm', value: pct(w.soilM.d27_81), note: `Meaning: Deep subsoil safety reserve. Reason: Acts as a backup tank that deep roots tap during dry weeks.`, tone: 'neutral' },
-    { label: 'Soil temperature 0 cm', value: `${f(w.soilT.d0)} °C`, note: `Meaning: Surface ground warmth. Reason: Warms the plant base nicely without baking the crown.`, tone: 'neutral' },
-    { label: 'Soil temperature 6 cm', value: `${f(w.soilT.d6)} °C`, note: `Meaning: Sprouting depth warmth. Reason: ${w.soilT.d6 < 10 ? 'Too cold for seeds to sprout.' : w.soilT.d6 > 35 ? 'Hot soil; shade or irrigate.' : 'Ideal warm bed for seeds to wake up and germinate fast.'}`, tone: w.soilT.d6 < 10 || w.soilT.d6 > 35 ? 'warn' : 'good' },
-    { label: 'Soil temperature 18 cm', value: `${f(w.soilT.d18)} °C`, note: `Meaning: Active root bed warmth. Reason: Warm microbes busily digest fertilizers into ready plant food.`, tone: 'neutral' },
-    { label: 'Soil temperature 54 cm', value: `${f(w.soilT.d54)} °C`, note: `Meaning: Deep earth temperature. Reason: Steady thermal buffer protecting the lower root system day and night.`, tone: 'neutral' },
+    { label: 'Soil moisture 0–1 cm', value: pct(w.soilM.d0_1), note: 'Estimated moisture in the top skin of soil. It can change quickly after sun or rain; check the seed bed by hand.', tone: 'neutral' },
+    { label: 'Soil moisture 3–9 cm', value: pct(w.soilM.d3_9), note: 'A model estimate around shallow roots. If seedlings look limp, feel the soil at their root depth before watering.', tone: w.soilM.d3_9 < 0.12 ? 'warn' : 'neutral' },
+    { label: 'Soil moisture 9–27 cm', value: pct(root), note: 'Estimated moisture below the surface. Check soil in the crop’s active root zone; this broad-area model is not a field sensor.', tone: root < 0.12 ? 'warn' : root < 0.2 ? 'neutral' : 'good' },
+    { label: 'Soil moisture 27–81 cm', value: pct(w.soilM.d27_81), note: 'A deeper-layer estimate. Whether roots can reach this water depends on the crop and soil layers.', tone: 'neutral' },
+    { label: 'Soil temperature at surface', value: `${f(w.soilT.d0)} °C`, note: 'Modelled ground temperature at the surface; use a thermometer in the field for seed or planting decisions.', tone: 'neutral' },
+    { label: 'Soil temperature at 6 cm', value: `${f(w.soilT.d6)} °C`, note: `${w.soilT.d6 < 10 ? 'This model is showing cool soil.' : w.soilT.d6 > 35 ? 'This model is showing hot soil.' : 'This model is showing moderate soil warmth.'} Check the actual seed depth before planting or re-sowing.`, tone: w.soilT.d6 < 10 || w.soilT.d6 > 35 ? 'warn' : 'neutral' },
+    { label: 'Soil temperature at 18 cm', value: `${f(w.soilT.d18)} °C`, note: 'A model estimate below the surface. Local shade, moisture, and soil cover can change the temperature in your field.', tone: 'neutral' },
+    { label: 'Soil temperature at 54 cm', value: `${f(w.soilT.d54)} °C`, note: 'A broad-area estimate of deeper soil temperature, not a direct reading from the farm.', tone: 'neutral' },
   ]
 }
 
 export function soilParams(s: Soil): Param[] {
   const top = (k: string) => s[k]?.depths[0], mid = (k: string) => s[k]?.depths[1]
   const clay = top('clay'), sand = top('sand'), silt = top('silt'), ph = top('phh2o'), soc = top('soc'), n = top('nitrogen'), cec = top('cec'), bd = top('bdod')
-  const phMeaning = ph < 5.5 ? 'Acidic soil' : ph > 8 ? 'Alkaline soil' : 'Ideal sweet soil'
-  const phReason = ph < 5.5 ? 'Liming or wood ash helps unlock phosphorus.' : ph > 8 ? 'Add gypsum or organic compost to free micronutrients.' : 'Neutral sweetness allows roots to drink all fertilizers without blockages.'
+  const phMeaning = ph < 5.5 ? 'on the acidic side' : ph > 8 ? 'on the alkaline side' : 'within a broad middle range'
   return [
-    { label: 'Texture', value: textureClass(clay, sand, silt), note: `Meaning: Clay ${f(clay, 0)}% · silt ${f(silt, 0)}% · sand ${f(sand, 0)}%. Reason: Ideal balanced dirt; holds water like a sponge but still drains excess.`, tone: 'neutral' },
-    { label: 'Soil pH', value: f(ph, 1), note: `Meaning: ${phMeaning} (${f(ph, 1)}). Reason: ${phReason}`, tone: ph < 5.5 || ph > 8 ? 'warn' : 'good' },
-    { label: 'Organic carbon', value: `${f(soc)} g/kg`, note: `Meaning: Humus / Organic matter. Reason: ${soc < 10 ? 'Low humus; adding cow dung, compost or green manure will boost fertility.' : 'Good humus holding nutrients naturally.'}`, tone: soc < 10 ? 'warn' : 'good' },
-    { label: 'Total nitrogen', value: `${f(n, 2)} g/kg`, note: `Meaning: Native soil nitrogen. Reason: ${n < 1 ? 'Moderate native nitrogen; feed crops with split doses during vegetative growth.' : 'Rich natural nitrogen supply in topsoil.'}`, tone: n < 1 ? 'warn' : 'good' },
-    { label: 'Cation exchange (CEC)', value: `${f(cec)} cmol/kg`, note: `Meaning: Nutrient holding sponge. Reason: ${cec < 10 ? 'Low holding capacity; apply fertilizers in smaller frequent doses.' : 'Good holding capacity; holds onto fertilizer so heavy rain doesn\'t wash it away.'}`, tone: cec < 10 ? 'warn' : 'neutral' },
-    { label: 'Bulk density', value: `${f(bd, 2)} kg/dm³`, note: `Meaning: Soil softness / looseness. Reason: ${bd > 1.6 ? 'Compacted ground; deep tilling will loosen soil.' : 'Soft and airy; roots can push down and breathe oxygen easily.'}`, tone: bd > 1.6 ? 'warn' : 'neutral' },
-    { label: 'Clay at 5-15 cm', value: `${f(mid('clay'), 0)} %`, note: `Meaning: Subsurface clay layer. Reason: Catches sinking water so moisture stays within root reach.`, tone: 'neutral' },
+    { label: 'Soil texture', value: textureClass(clay, sand, silt), note: `Model estimate: ${f(sand, 0)}% sand, ${f(silt, 0)}% silt, and ${f(clay, 0)}% clay near the surface. Sandy soil often drains faster; more clay can hold water longer. Check a handful of soil to confirm.`, tone: 'neutral' },
+    { label: 'Soil pH', value: f(ph, 1), note: `The model places this soil ${phMeaning}. pH can affect how available nutrients are, but this is a regional estimate. Get a soil test before adding lime, gypsum, ash, or fertilizer.`, tone: ph < 5.5 || ph > 8 ? 'warn' : 'neutral' },
+    { label: 'Organic carbon', value: `${f(soc)} g/kg`, note: `Estimated carbon in the topsoil: ${f(soc)} g/kg. Carbon is part of soil organic matter, which helps soil hold structure and nutrients. Confirm with a soil test before changing inputs.`, tone: soc < 10 ? 'warn' : 'neutral' },
+    { label: 'Total nitrogen', value: `${f(n, 2)} g/kg`, note: `Estimated total nitrogen in the topsoil. It is not the same as nitrogen immediately available to this crop; use a soil test and crop advice to plan fertilizer.`, tone: n < 1 ? 'warn' : 'neutral' },
+    { label: 'Nutrient-holding capacity (CEC)', value: `${f(cec)} cmol/kg`, note: `CEC estimates how well soil can hold some nutrients. Lower values can mean nutrients wash through more easily, but fertilizer timing should follow a field test and crop plan.`, tone: cec < 10 ? 'warn' : 'neutral' },
+    { label: 'Bulk density', value: `${f(bd, 2)} kg/dm³`, note: `This model estimates how tightly packed the soil is. If roots struggle or water ponds, check the soil with a spade; do not till deeply from this number alone.`, tone: bd > 1.6 ? 'warn' : 'neutral' },
+    { label: 'Clay at 5–15 cm', value: `${f(mid('clay'), 0)} %`, note: 'Regional estimate of clay just below the surface. Compare it with a soil pit; a local layer can affect how quickly water moves down.', tone: 'neutral' },
   ]
 }

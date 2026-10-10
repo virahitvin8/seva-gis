@@ -49,7 +49,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   async function enter(w: Who) {
     sessionStorage.removeItem('seva-bye')
-    await openWorkspace(w.id)
+    await openWorkspace(w.id, { name: w.name, email: w.email })
     if (rememberMe) {
       setSession(w.id)
       localStorage.setItem('seva-remember-me', 'true')

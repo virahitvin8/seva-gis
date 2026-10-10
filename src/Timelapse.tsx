@@ -36,7 +36,12 @@ export default function Timelapse({ farm }: { farm: FarmData & { id: string; nam
       const scenes = await searchScenes(farm, from, to, cloud, 12)
       if (scenes.length < 2) throw new Error('Fewer than two clear pictures in that range. Widen the dates or raise the cloud limit.')
       const res = await timelapse(farm, scenes, mode, (d, t) => setBusy(`Building frames ${d} of ${t}…`))
-      const loaded = await Promise.all(res.frames.map(fr => new Promise<HTMLImageElement>(ok => { const im = new Image(); im.onload = () => ok(im); im.src = fr.url })))
+      const loaded = await Promise.all(res.frames.map(fr => new Promise<HTMLImageElement>((ok, fail) => {
+        const im = new Image()
+        im.onload = () => ok(im)
+        im.onerror = () => fail(new Error(`Could not load the ${fr.scene.datetime.slice(0, 10)} image.`))
+        im.src = fr.url
+      })))
       setTl(res); setImgs(loaded); setI(0); setPlaying(true)
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not build the time-lapse.') }
     setBusy('')
@@ -50,7 +55,7 @@ export default function Timelapse({ farm }: { farm: FarmData & { id: string; nam
     const x = c.getContext('2d')!, fr = tl.frames[idx], im = imgs[idx]
     x.fillStyle = '#16221a'; x.fillRect(0, 0, W, H)
     const k = Math.min((W - 24) / im.width, (H - 24) / im.height), dw = im.width * k, dh = im.height * k
-    x.imageSmoothingEnabled = true
+    x.imageSmoothingEnabled = false
     x.drawImage(im, (W - dw) / 2, (H - dh) / 2, dw, dh)
     x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, 0, W, 34)
     x.fillStyle = '#fff'; x.font = '600 16px system-ui,sans-serif'; x.textBaseline = 'middle'
@@ -86,19 +91,38 @@ export default function Timelapse({ farm }: { farm: FarmData & { id: string; nam
     const c = cv.current
     if (!c || !tl || typeof MediaRecorder === 'undefined') { setError('This browser cannot record video. Try Chrome or Edge.'); return }
     setRec(true); setPlaying(false)
-    const stream = c.captureStream(10)
-    const mime = ['video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) ?? ''
-    const mr = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 3_000_000 } : undefined)
-    const parts: Blob[] = []
-    mr.ondataavailable = e => e.data.size && parts.push(e.data)
-    const stopped = new Promise<void>(ok => { mr.onstop = () => ok() })
-    mr.start()
-    for (let n = 0; n < tl.frames.length; n++) { setI(n); draw(n); await new Promise(r => setTimeout(r, 800)) }
-    mr.stop(); await stopped
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob(parts, { type: 'video/webm' }))
-    a.download = `${farm.name.replace(/\W+/g, '-')}-timelapse-${from}-${to}.webm`
-    a.click(); setRec(false)
+    let stream: MediaStream | undefined
+    let recorder: MediaRecorder | undefined
+    let videoUrl = ''
+    try {
+      stream = c.captureStream(10)
+      const mime = ['video/webm;codecs=vp9', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) ?? ''
+      recorder = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 3_000_000 } : undefined)
+      const parts: Blob[] = []
+      recorder.ondataavailable = event => { if (event.data.size) parts.push(event.data) }
+      const stopped = new Promise<void>(resolve => { recorder!.onstop = () => resolve() })
+      recorder.start()
+      for (let n = 0; n < tl.frames.length; n++) {
+        setI(n)
+        draw(n)
+        await new Promise(resolve => setTimeout(resolve, 800))
+      }
+      recorder.stop()
+      await stopped
+      videoUrl = URL.createObjectURL(new Blob(parts, { type: 'video/webm' }))
+      const a = document.createElement('a')
+      a.href = videoUrl
+      a.download = `${farm.name.replace(/\W+/g, '-')}-timelapse-${from}-${to}.webm`
+      a.click()
+      window.setTimeout(() => URL.revokeObjectURL(videoUrl), 1000)
+    } catch (e) {
+      setError(e instanceof Error ? `Could not record the time-lapse: ${e.message}` : 'Could not record the time-lapse.')
+      if (recorder && recorder.state !== 'inactive') recorder.stop()
+      if (videoUrl) URL.revokeObjectURL(videoUrl)
+    } finally {
+      stream?.getTracks().forEach(track => track.stop())
+      setRec(false)
+    }
   }
 
   return <>

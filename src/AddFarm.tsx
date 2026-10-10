@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
-import { areaHa, orderRing, parseBoundary, type Ring } from './lib/geo'
+import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, LocateFixed, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
+import { areaHa, orderRing, parseBoundary, parseCoordinate, type Ring } from './lib/geo'
 import CropSelector, { type CropSelection } from './CropSelector'
 import { matchCropSpec } from './lib/cropstages'
 
 export type NewFarm = { name: string; crop: string; ring: Ring }
-type Tab = 'draw' | 'walk' | 'corners' | 'file'
+type Tab = 'draw' | 'walk' | 'corners' | 'file' | 'point'
 const walkerIcon = L.divIcon({
   className: 'walker', iconSize: [44, 56], iconAnchor: [22, 52],
   html: `<div class="wk"><i class="wk-ring"></i><svg viewBox="0 0 44 56" width="44" height="56"><ellipse cx="22" cy="52" rx="11" ry="3" fill="#0004"/><g class="wk-body"><circle cx="22" cy="10" r="7.5" fill="#ffd9a8" stroke="#183e30" stroke-width="2"/><path d="M13.5 8.5c1-6 15-7 17 0-5-2-12-2-17 0z" fill="#183e30"/><circle cx="19.5" cy="10.5" r="1" fill="#183e30"/><circle cx="24.5" cy="10.5" r="1" fill="#183e30"/><path d="M19.5 13.5q2.5 2 5 0" stroke="#183e30" stroke-width="1.3" fill="none" stroke-linecap="round"/><rect x="14" y="18" width="16" height="17" rx="6" fill="#b6f36a" stroke="#183e30" stroke-width="2"/><g class="wk-arm l"><path d="M14 21l-5 10" stroke="#183e30" stroke-width="3.5" stroke-linecap="round"/></g><g class="wk-arm r"><path d="M30 21l5 10" stroke="#183e30" stroke-width="3.5" stroke-linecap="round"/></g><g class="wk-leg l"><path d="M18.5 34l-1 14" stroke="#183e30" stroke-width="4" stroke-linecap="round"/></g><g class="wk-leg r"><path d="M25.5 34l1 14" stroke="#183e30" stroke-width="4" stroke-linecap="round"/></g></g></svg></div>`,
@@ -18,6 +18,9 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
   const [drawn, setDrawn] = useState<Ring>([])
   const [uploaded, setUploaded] = useState<Ring>([])
   const [walked, setWalked] = useState<Ring>([])
+  const [pointed, setPointed] = useState<Ring>([])
+  const [pointLat, setPointLat] = useState('')
+  const [pointLon, setPointLon] = useState('')
   const [gps, setGps] = useState<{ lat: number; lon: number; acc: number } | null>(null)
   const [gpsMsg, setGpsMsg] = useState('')
   const watchId = useRef<number | null>(null)
@@ -39,10 +42,10 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
   tabRef.current = tab
 
   const cornerRing = useMemo<Ring>(() => {
-    const pts = corners.map(c => [Number(c.lon), Number(c.lat)] as [number, number]).filter((p, i) => corners[i].lat !== '' && corners[i].lon !== '' && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[1]) <= 90 && Math.abs(p[0]) <= 180)
+    const pts = corners.map(c => [parseCoordinate(c.lon, 'lon'), parseCoordinate(c.lat, 'lat')] as const).filter((p): p is [number, number] => p[0] !== null && p[1] !== null).map(p => [p[0], p[1]] as [number, number])
     return pts.length === 4 ? orderRing(pts) : pts
   }, [corners])
-  const ring = tab === 'draw' ? drawn : tab === 'walk' ? walked : tab === 'corners' ? cornerRing : uploaded
+  const ring = tab === 'draw' ? drawn : tab === 'walk' ? walked : tab === 'corners' ? cornerRing : tab === 'point' ? pointed : uploaded
   const hectares = areaHa(ring)
 
   useEffect(() => {
@@ -100,6 +103,26 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
     setFinished(false); setWalked(c => [...c, [gps.lon, gps.lat]])
   }
 
+  function useCurrentLocation() {
+    if (!navigator.geolocation) { setGpsMsg('This device does not provide GPS. Search for a place or enter coordinates instead.'); return }
+    setGpsMsg('Getting your location…')
+    navigator.geolocation.getCurrentPosition(position => {
+      const { latitude: lat, longitude: lon, accuracy } = position.coords
+      setGps({ lat, lon, acc: accuracy })
+      setPointed([[lon, lat]])
+      setGpsMsg(`GPS pin ready · accuracy ±${Math.round(accuracy)} m`)
+      map.current?.setView([lat, lon], 17)
+    }, error => setGpsMsg(error.code === 1 ? 'Location access is blocked. Allow it in your browser, then try again.' : 'Could not get GPS. Search for a place or enter coordinates instead.'), { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 })
+  }
+
+  function useEnteredPoint() {
+    const lat = parseCoordinate(pointLat, 'lat'), lon = parseCoordinate(pointLon, 'lon')
+    if (lat === null || lon === null) { setGpsMsg('Enter a valid latitude and longitude in decimal degrees or DMS.'); return }
+    setPointed([[lon, lat]])
+    setGpsMsg('Coordinate pin placed · area not measured')
+    map.current?.setView([lat, lon], 17)
+  }
+
   async function findPlace() {
     if (!place.trim()) return
     try {
@@ -127,22 +150,24 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
   }
 
   const setCorner = (index: number, key: 'lat' | 'lon', value: string) => setCorners(current => current.map((c, i) => i === index ? { ...c, [key]: value } : c))
-  const tabs: [Tab, string, typeof Pencil][] = [['draw', 'Draw on map', Pencil], ['walk', 'Walk the boundary', Footprints], ['corners', '4 corners', MapPinned], ['file', 'Upload file', FileUp]]
+  const tabs: [Tab, string, typeof Pencil][] = [['draw', 'Draw outline', Pencil], ['corners', 'Enter coordinates', MapPinned], ['file', 'Upload boundary', FileUp], ['point', 'Use GPS point', LocateFixed], ['walk', 'Optional GPS boundary', Footprints]]
 
   return <form onSubmit={submit} className="add-farm">
-    <label>Farm name<input required maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. My village paddy field"/></label>
+    <label>Field name<input required maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. North paddy field"/></label>
+    <p className="add-remote-note">Add a boundary for a field you want to review from home. SEVA·GIS uses public satellite imagery to show visible patterns; the outline is not an official parcel record.</p>
     <div className="add-tabs" role="tablist">{tabs.map(([key, text, Icon]) => <button type="button" role="tab" aria-selected={tab === key} key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}><Icon size={14}/>{text}</button>)}</div>
     <div className="add-search"><Search size={14}/><input value={place} onChange={event => setPlace(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findPlace() } }} placeholder="Find a village or town on the map"/><button type="button" onClick={findPlace}>Go</button></div>
     <div ref={box} className="add-map"/>
     {tab === 'draw' && <div className="add-help"><span>Click the map to outline your farm, one point per corner. Zoom in for accuracy.</span><button type="button" onClick={() => setDrawn(c => c.slice(0, -1))}><Undo2 size={13}/>Undo</button><button type="button" onClick={() => setDrawn([])}><Eraser size={13}/>Clear</button></div>}
+    {tab === 'point' && <div className="add-gps"><small>Paste a decimal or degrees/minutes/seconds coordinate to inspect a location remotely, or use this device’s GPS. A pin helps centre the imagery; draw or upload the field outline to measure its area.</small><div className="corner-grid point-grid"><div><span>Latitude</span><input type="text" inputMode="decimal" maxLength={32} placeholder="23.241 or 23° 14′ 28″ N" value={pointLat} onChange={event => setPointLat(event.target.value)}/><span>Longitude</span><input type="text" inputMode="decimal" maxLength={32} placeholder="78.164 or 78° 9′ 50″ E" value={pointLon} onChange={event => setPointLon(event.target.value)}/></div></div><div className="fix">{gpsMsg || (pointed.length ? `Pin: ${pointed[0][1].toFixed(6)}, ${pointed[0][0].toFixed(6)} · area not measured` : 'No location has been selected.')}</div><div className="row"><button type="button" className="go" onClick={useEnteredPoint}><MapPinned size={14}/>Show coordinate</button><button type="button" className="go" onClick={useCurrentLocation}><LocateFixed size={14}/>Use device GPS</button></div></div>}
     {tab === 'walk' && <div className="add-gps">
       <small>Stand at one corner of your farm and press <b>Add waypoint</b>. Walk along the boundary and add a waypoint at every corner. We join them into your farm shape. Stand still for a few seconds first so the GPS settles.</small>
       <div className="fix">{finished ? `Boundary closed with ${walked.length} corners · ${hectares.toFixed(2)} ha. Name your farm below and save it.` : gpsMsg || (gps ? `Your position: ${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)} · accuracy ±${Math.round(gps.acc)} m ${gps.acc <= 10 ? '(good)' : gps.acc <= 30 ? '(okay)' : '(weak, wait a little)'}` : '')}</div>
       <div className="row"><button type="button" className="go" disabled={!gps} onClick={addWaypoint}><Plus size={14}/>Add waypoint ({walked.length})</button><button type="button" className="go fin" disabled={walked.length < 3 || finished} onClick={() => setFinished(true)}><Flag size={14}/>Finish boundary</button><button type="button" onClick={() => { setFinished(false); setWalked(c => c.slice(0, -1)) }}><Undo2 size={13}/>Undo</button><button type="button" onClick={() => { setFinished(false); setWalked([]) }}><Eraser size={13}/>Clear</button></div>
     </div>}
-    {tab === 'corners' && <div className="corner-grid">{corners.map((c, i) => <div key={i}><span>Corner {i + 1}</span><input type="number" step="any" min="-90" max="90" placeholder="Latitude" value={c.lat} onChange={event => setCorner(i, 'lat', event.target.value)}/><input type="number" step="any" min="-180" max="180" placeholder="Longitude" value={c.lon} onChange={event => setCorner(i, 'lon', event.target.value)}/></div>)}<small>Any order works; corners are joined automatically. Tip: in Google Maps, right-click a point to copy its coordinates.</small></div>}
+    {tab === 'corners' && <div className="corner-grid">{corners.map((c, i) => <div key={i}><span>Corner {i + 1}</span><input type="text" inputMode="decimal" maxLength={32} placeholder="Latitude: 23.24 or 23° 14′ 24″ N" value={c.lat} onChange={event => setCorner(i, 'lat', event.target.value)}/><input type="text" inputMode="decimal" maxLength={32} placeholder="Longitude: 78.16 or 78° 9′ 36″ E" value={c.lon} onChange={event => setCorner(i, 'lon', event.target.value)}/></div>)}<small>Enter decimal degrees or degrees/minutes/seconds with N/S/E/W. All four corners are needed to calculate the field area.</small></div>}
     {tab === 'file' && <div className="add-help file"><label className="file-pick"><FileUp size={16}/>Choose shapefile (.zip), GeoJSON, KML, GPX, CSV or WKT<input type="file" accept=".geojson,.json,.kml,.gpx,.csv,.txt,.tsv,.wkt,.zip,.shp" onChange={event => { onFile(event.target.files?.[0]); event.target.value = '' }}/></label><small>{fileNote || 'Works with QGIS, ArcGIS, Google Earth and the Copernicus or USGS download tools. For a shapefile, zip the .shp, .dbf, .shx and .prj together. The first polygon is used.'}</small></div>}
-    <div className="add-summary"><b>{ring.length >= 3 ? `${hectares.toFixed(1)} ha` : ring.length === 1 ? 'Point only' : '—'}</b><span>{ring.length} point{ring.length === 1 ? '' : 's'} · analysed from live Sentinel-2</span></div>
+    <div className="add-summary"><b>{ring.length >= 3 ? `${hectares.toFixed(2)} ha · ${(hectares * 2.47105381).toFixed(2)} acres` : ring.length === 1 ? 'Area not measured' : '—'}</b><span>{ring.length === 1 ? 'Location pin only · draw/upload a boundary for measured hectares and acres' : `${ring.length} point${ring.length === 1 ? '' : 's'} · area calculated from the outline`}</span></div>
     <div className="add-crop-section" style={{ display: 'grid', gap: 8, marginTop: 4 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 11, color: '#5a6e4d', fontWeight: 600 }}>Crop / Land classification</span>
@@ -262,6 +287,6 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
       )}
     </div>
     <div className="privacy-note"><ShieldCheck size={16}/>Saved on this device only. No account or key needed.</div>
-    <button className="primary" type="submit"><Plus size={17}/>Add farm & analyse</button>
+    <button className="primary" type="submit"><Plus size={17}/>Add field &amp; review imagery</button>
   </form>
 }

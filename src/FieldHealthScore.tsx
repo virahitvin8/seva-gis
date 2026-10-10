@@ -11,8 +11,8 @@ type Props = {
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function FieldHealthScore({ farm }: Props) {
-  const currentNdvi = farm.analysis?.ndvi.mean ?? 0.65
-  const currentNdmi = farm.analysis?.ndmi.mean ?? 0.22
+  const currentNdvi = farm.analysis?.ndvi.mean ?? 0
+  const currentNdmi = farm.analysis?.ndmi.mean ?? 0
 
   const [cropId, setCropId] = useState(() => {
     return matchCropSpec(farm.crop || '').id
@@ -61,11 +61,13 @@ export default function FieldHealthScore({ farm }: Props) {
   const benchmarkPath = chartPoints.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p.expected)}`).join(' ')
   const currentStageIndex = ['sowing', 'vegetative', 'flowering', 'grain_fill', 'maturity'].indexOf(stage)
 
+  if (!farm.analysis) return <section className="ag-card" style={{ padding: 16, marginBottom: 20 }}><h3>Crop check</h3><p style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>Waiting for a clear satellite reading. Once it arrives, this card will compare the field’s green-cover signal with a general crop guide.</p></section>
+
   return (
     <div className="ag-card" style={{ padding: 16, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card-bg, #fff)', marginBottom: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* 0-100 Single Health Score Badge */}
+          {/* Show the actual NDVI reading instead of converting it to a percentage. */}
           <div style={{
             width: 58, height: 58, borderRadius: '50%',
             background: verdict.tone === 'good' ? '#dcfce7' : verdict.tone === 'warn' ? '#fef3c7' : '#fee2e2',
@@ -73,18 +75,18 @@ export default function FieldHealthScore({ farm }: Props) {
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
           }}>
             <b style={{ fontSize: 18, lineHeight: 1, color: verdict.tone === 'good' ? '#15803d' : verdict.tone === 'warn' ? '#b45309' : '#b91c1c' }}>
-              {verdict.healthScore}
+              {f(currentNdvi, 2)}
             </b>
-            <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)' }}>/ 100</span>
+            <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--muted)' }}>NDVI</span>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--muted)', textTransform: 'uppercase' }}>
-                FIELD HEALTH INDEX
+                CROP CHECK
               </span>
               {isAuto && (
                 <span style={{ fontSize: 10, background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                  <Sparkles size={10} /> Auto-Stage
+                  <Sparkles size={10} /> Suggested stage
                 </span>
               )}
             </div>
@@ -92,7 +94,7 @@ export default function FieldHealthScore({ farm }: Props) {
               {verdict.status}
             </h3>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-              Actual NDVI {f(currentNdvi, 2)} vs {cropDef.name} {stageDef.name} benchmark ({f(cropDef.stages[stage]?.ndviExpected ?? 0.7, 2)})
+              General green-cover guide for {cropDef.name} at {stageDef.name.toLowerCase()}: {f(cropDef.stages[stage]?.ndviExpected ?? 0.7, 2)}
             </span>
           </div>
         </div>
@@ -130,14 +132,14 @@ export default function FieldHealthScore({ farm }: Props) {
       </div>
 
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: '#475569', lineHeight: 1.4 }}>
-        {verdict.note} {stageDef.advisory}
+        {verdict.note} {stageDef.advisory} {isAuto && 'The stage is only a guess from the satellite signal; choose the stage you see in the field if you know it.'}
       </p>
 
       {/* Season NDVI Trend vs Crop-Peak Benchmark Curve */}
       <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>
-          <span><b>Season NDVI trajectory</b> vs regional crop-peak curve</span>
-          <span><i style={{ display: 'inline-block', width: 8, height: 8, background: '#16a34a', borderRadius: '50%', marginRight: 4 }} />Actual pass · <i style={{ display: 'inline-block', width: 14, height: 2, background: '#64748b', marginRight: 4 }} />Benchmark</span>
+          <span><b>Green-cover signal by crop stage</b> · general guide</span>
+          <span><i style={{ display: 'inline-block', width: 8, height: 8, background: '#16a34a', borderRadius: '50%', marginRight: 4 }} />This field · <i style={{ display: 'inline-block', width: 14, height: 2, background: '#64748b', marginRight: 4 }} />Guide</span>
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
           {/* Grid lines */}
@@ -175,6 +177,7 @@ export default function FieldHealthScore({ farm }: Props) {
           ))}
         </svg>
       </div>
+      <p style={{ margin: '8px 2px 0', color: 'var(--muted)', fontSize: 10, lineHeight: 1.5 }}>NDVI is an image score, not a percentage, yield, or lab measurement. Crop variety, planting date, and local conditions can shift these guide values; check the field before acting.</p>
     </div>
   )
 }

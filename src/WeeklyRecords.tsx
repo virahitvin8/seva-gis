@@ -37,9 +37,9 @@ function compare(farm: WFarm, p: Period) {
 function verdict(now: number | undefined, last: WeekRec | undefined, unit: string) {
   if (now === undefined || !last) return { text: 'Not enough saved readings yet to compare.', up: true }
   const d = now - last.ndvi
-  if (d <= -0.08) return { text: `Crop health fell ${Math.abs(d).toFixed(2)} NDVI since the ${unit}. Inspect the field for water, pest or nutrient stress.`, up: false }
-  if (d >= 0.05) return { text: `Crop health improved ${d.toFixed(2)} NDVI since the ${unit}. Growth is on track.`, up: true }
-  return { text: `Crop health is steady compared with the ${unit}.`, up: true }
+  if (d <= -0.08) return { text: `The green-cover reading fell ${Math.abs(d).toFixed(2)} since the ${unit}. Walk the field; harvest, crop stage, cloud, or a crop problem can all change this score.`, up: false }
+  if (d >= 0.05) return { text: `The green-cover reading rose ${d.toFixed(2)} since the ${unit}. Compare with the crop stage and what you see in the rows.`, up: true }
+  return { text: `The green-cover reading is close to the ${unit}.`, up: true }
 }
 
 function Delta({ now, then, name }: { now?: number; then?: number; name: string }) {
@@ -73,7 +73,7 @@ export default function WeeklyRecords({ farms, farm, onSelect }: { farms: WFarm[
     const a = document.createElement('a'); a.href = url; a.download = `seva-crop-health-${period}.csv`; a.click(); URL.revokeObjectURL(url)
   }
   return <section className="weekly">
-    <div className="intelligence-heading"><h2>Crop health history <span>Sentinel-2 passes saved on this device · up to 12 months</span></h2>
+    <div className="intelligence-heading"><h2>Crop cover history <span>Sentinel-2 passes saved on this device · up to 12 months</span></h2>
       <div className="wk-seg" role="tablist" aria-label="Timeframe">{PERIODS.map(p => <button key={p.id} role="tab" aria-selected={period === p.id} className={period === p.id ? 'on' : ''} onClick={() => setPeriod(p.id)}>{p.short}</button>)}</div>
       <button onClick={exportCsv}><ArrowDownToLine size={15}/>Export CSV</button></div>
     <div className="wk-grid">

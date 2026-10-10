@@ -1,5 +1,5 @@
 import { INDICATORS, byId, makeGrid, terrainBands, type Bands, type Grid } from './indicators'
-import { hydroBands, resample } from './hydro'
+import { hydroBands } from './hydro'
 import { insideMask, parseNpy, rasterSize, statsOf, type Bbox, type Raster, type Ring, type Stat } from './raster'
 
 export type { Bbox, Stat }
@@ -40,11 +40,19 @@ const NET = 'Could not reach the satellite service. Check your internet connecti
 async function guarded(url: string) {
   let last: unknown
   for (let k = 0; k < 2; k++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 20000)
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, { signal: controller.signal })
       if (!response.ok) throw new Error(`Planetary Computer returned ${response.status}`)
       return response
-    } catch (e) { last = e; if (e instanceof Error && /returned 4/.test(e.message)) break; await new Promise(r => setTimeout(r, 600)) }
+    } catch (e) {
+      last = e instanceof Error && e.name === 'AbortError' ? new Error('The satellite service timed out. Check your connection and try again.') : e
+      if (last instanceof Error && /returned 4/.test(last.message)) break
+      if (k === 0) await new Promise(r => setTimeout(r, 600))
+    } finally {
+      clearTimeout(timer)
+    }
   }
   throw last instanceof TypeError ? new Error(NET) : last
 }
@@ -52,12 +60,22 @@ async function getJson(url: string) { return (await guarded(url)).json() }
 async function getNpy(url: string) { return parseNpy(await (await guarded(url)).arrayBuffer()) }
 
 const cache = new Map<string, Promise<unknown>>()
+const MAX_GRID_CACHE_ENTRIES = 3
 function memo<T>(key: string, make: () => Promise<T>): Promise<T> {
   let p = cache.get(key) as Promise<T> | undefined
-  if (!p) { p = make().catch(e => { cache.delete(key); throw e }); cache.set(key, p) }
+  if (p) {
+    cache.delete(key)
+    cache.set(key, p)
+    return p
+  }
+  p = make().catch(e => { cache.delete(key); throw e })
+  cache.set(key, p)
+  while (cache.size > MAX_GRID_CACHE_ENTRIES) cache.delete(cache.keys().next().value!)
   return p
 }
-const geoKey = (farm: FarmGeo) => farmBBox(farm).map(v => v.toFixed(6)).join(',') + (farm.polygon ? `:${farm.polygon.length}` : '')
+const geoKey = (farm: FarmGeo) => farm.polygon && farm.polygon.length >= 3
+  ? farm.polygon.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(';')
+  : `${farm.lon.toFixed(7)},${farm.lat.toFixed(7)},${farm.area.toFixed(4)}`
 const stamp = (d: Date) => d.toISOString().replace(/\.\d+Z$/, 'Z')
 
 type Item = { id: string; day: string; datetime: string; cloud: number }
@@ -101,7 +119,7 @@ const offsetFor = (datetime: string) => (datetime >= '2022-01-25' ? 1000 : 0)
 const CLEAR = new Set([4, 5, 6, 7])
 
 async function fetchBands(id: string, bbox: Bbox, w: number, h: number, expr: string, collection = COLLECTION) {
-  return getNpy(`${DATA}/item/bbox/${bbox.join(',')}/${w}x${h}.npy?collection=${collection}&item=${encodeURIComponent(id)}&asset_as_band=true&expression=${encodeURIComponent(expr)}`)
+  return getNpy(`${DATA}/item/bbox/${bbox.join(',')}/${w}x${h}.npy?collection=${collection}&item=${encodeURIComponent(id)}&asset_as_band=true&reproject=nearest&resampling=nearest&expression=${encodeURIComponent(expr)}`)
 }
 
 function mergeInto(acc: Raster | null, r: Raster, good: Uint8Array, isGood: (r: Raster, i: number) => boolean): Raster {
@@ -125,8 +143,11 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   let acc: Raster | null = null, errors: unknown[] = [], done = 0
   const covered = () => { let c = 0; for (let i = 0; i < good.length; i++) if (good[i] && inside[i]) c++; return total ? c / total : 1 }
   const take = async (ids: string[]) => {
-    const rs = await Promise.allSettled(ids.map(id => fetchBands(id, bbox, w, h, expr)))
-    rs.forEach(r => { if (r.status === 'fulfilled') { acc = mergeInto(acc, r.value, good, isGood); done++ } else errors.push(r.reason) })
+    for (let start = 0; start < ids.length; start += 2) {
+      const batch = ids.slice(start, start + 2)
+      const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, expr)))
+      rs.forEach(r => { if (r.status === 'fulfilled') { acc = mergeInto(acc, r.value, good, isGood); done++ } else errors.push(r.reason) })
+    }
   }
   await take([scene.id, ...(scene.ids ?? [])])
   if (allowFill && scene.fill?.length) {
@@ -134,12 +155,12 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   }
   if (!acc) throw (errors[0] instanceof Error ? errors[0] : new Error(NET))
   const raster: Raster = acc, offset = offsetFor(scene.datetime), n = raster.w * raster.h, b: Bands = {}, ok = new Uint8Array(n)
-  names.forEach((name, k) => { const src = raster.bands[k], out = new Float64Array(n); for (let i = 0; i < n; i++) out[i] = (src[i] - offset) / 10000; b[name] = out })
+  names.forEach((name, k) => { const src = raster.bands[k], out = new Float32Array(n); for (let i = 0; i < n; i++) out[i] = (src[i] - offset) / 10000; b[name] = out })
   for (let i = 0; i < n; i++) ok[i] = good[i]
   return makeGrid(raster.w, raster.h, bbox, wm, hm, b, ok, ring)
 }
 
-export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 1200))
+export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, S2_BANDS, 10, 900))
 const loadLight = (scene: Scene, farm: FarmGeo) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, () => s2Grid(scene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false))
 
 export const loadDem = (farm: FarmGeo) => memo(`dem3:${geoKey(farm)}`, async () => {
@@ -151,23 +172,24 @@ export const loadDem = (farm: FarmGeo) => memo(`dem3:${geoKey(farm)}`, async () 
   const ids: string[] = (found.features ?? []).map((f: { id: string }) => f.id)
   if (!ids.length) throw new Error('No elevation tile covers this location.')
   const { w, h, wm, hm } = rasterSize(bbox, 30, 500)
-  const rs = await Promise.allSettled(ids.map(id => fetchBands(id, bbox, w, h, 'data', 'cop-dem-glo-30')))
   let acc: Raster | null = null
   const good = new Uint8Array(w * h)
-  rs.forEach(r => { if (r.status === 'fulfilled') acc = mergeInto(acc, r.value, good, () => true) })
+  for (let start = 0; start < ids.length; start += 2) {
+    const batch = ids.slice(start, start + 2)
+    const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, 'data', 'cop-dem-glo-30')))
+    rs.forEach(r => { if (r.status === 'fulfilled') acc = mergeInto(acc, r.value, good, () => true) })
+  }
   if (!acc) throw new Error(NET)
   const raster: Raster = acc
   const dx = wm / raster.w, dy = hm / raster.h
   const t = terrainBands(raster.bands[0], raster.w, raster.h, dx, dy)
   const hy = hydroBands(raster.bands[0], t.slope, raster.w, raster.h, dx, dy)
-  const src: Bands = { ...t, ...hy }, out = rasterSize(fb, 10, 300)
-  const b: Bands = {}
-  for (const k of Object.keys(src)) b[k] = resample(src[k], raster.w, raster.h, bbox, out.w, out.h, fb, k === 'aspect')
-  return makeGrid(out.w, out.h, fb, out.wm, out.hm, b, new Uint8Array(out.w * out.h).fill(1), farmRing(farm))
+  const b: Bands = { ...t, ...hy }
+  return makeGrid(raster.w, raster.h, bbox, wm, hm, b, raster.valid, farmRing(farm))
 })
 
 export function indexStat(g: Grid, id: string): Stat | null {
-  const ind = byId(id), values = new Float64Array(g.w * g.h)
+  const ind = byId(id), values = new Float32Array(g.w * g.h)
   for (let i = 0; i < values.length; i++) values[i] = ind.value!(g.b, i)
   return statsOf(values, i => !!g.inside[i] && !!g.ok[i], ind.valid ?? [-1, 1])
 }
@@ -185,16 +207,22 @@ function stressShare(g: Grid) {
 }
 
 const statsCache = new Map<string, { ndvi: Stat; ndmi: Stat; stressPct: number }>()
+const MAX_STATS_CACHE_ENTRIES = 16
 
 async function sceneStats(scene: Scene, farm: FarmGeo) {
   const cacheKey = `${scene.id}:${geoKey(farm)}`
   const cached = statsCache.get(cacheKey)
-  if (cached) return cached
+  if (cached) {
+    statsCache.delete(cacheKey)
+    statsCache.set(cacheKey, cached)
+    return cached
+  }
   const g = await loadLight(scene, farm)
   const ndvi = indexStat(g, 'ndvi'), ndmi = indexStat(g, 'ndmi')
   if (!ndvi || !ndmi) throw new Error('No valid pixels inside the farm (cloud or edge of scene).')
   const res = { ndvi, ndmi, stressPct: stressShare(g) }
   statsCache.set(cacheKey, res)
+  while (statsCache.size > MAX_STATS_CACHE_ENTRIES) statsCache.delete(statsCache.keys().next().value!)
   return res
 }
 
@@ -263,10 +291,10 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
 }
 
 export function classify(ndvi?: number) {
-  if (ndvi === undefined || Number.isNaN(ndvi)) return { label: 'No valid pixel', level: 'neutral' as const, advice: 'This pixel is masked (cloud, shadow, or outside the scene). Try a neighbouring spot.' }
-  if (ndvi < 0.3) return { label: 'Severe stress or bare soil', level: 'bad' as const, advice: 'Very low vegetation vigour. Inspect on the ground for water shortage, pests, nutrient problems, or simply bare or harvested soil.' }
-  if (ndvi < 0.5) return { label: 'Moderate stress', level: 'warn' as const, advice: 'Vigour is below healthy range. Check soil moisture and irrigation here; it may also be an early growth stage.' }
-  return { label: 'Healthy vegetation', level: 'good' as const, advice: 'Dense, vigorous canopy. No action suggested from satellite data alone.' }
+  if (ndvi === undefined || Number.isNaN(ndvi)) return { label: 'No reading here', level: 'neutral' as const, advice: 'Cloud, shadow, or missing imagery covered this spot. Check a nearby clear area or wait for another pass.' }
+  if (ndvi < 0.3) return { label: 'Little green cover', level: 'bad' as const, advice: 'This spot has little green cover in the image. It may be bare, newly planted, harvested, or struggling; visit it and check the crop before deciding what to do.' }
+  if (ndvi < 0.5) return { label: 'Thinner green cover', level: 'warn' as const, advice: 'This spot is less green than a dense canopy. Check crop age, soil moisture, and nearby rows to see whether the difference is expected.' }
+  return { label: 'Strong green cover', level: 'good' as const, advice: 'The image shows strong green cover here. Keep an eye on changes between passes and use a field check for any important decision.' }
 }
 
 export function farmNeedsAttention(farm: FarmData) {
@@ -284,33 +312,34 @@ const fmt = (v: number, d = 2) => v.toFixed(d)
 
 export function irrigationAdvice(farm: FarmData): Advice {
   const a = farm.analysis
-  if (!a) return { level: 'neutral', chip: 'Awaiting data', title: 'Satellite analysis not available yet', bullets: ['Press Refresh to fetch the latest Sentinel-2 scene for this farm.'] }
+  if (!a) return { level: 'neutral', chip: 'Waiting for data', title: 'No clear satellite reading yet.', bullets: ['Refresh to look for a clear Sentinel-2 image covering this farm.'] }
   const dry = a.ndmi.mean < 0.1 || (farm.moisture !== undefined && farm.moisture < 15)
   const rainy = (farm.rain ?? 0) >= 15
   const bullets = [
-    `Canopy moisture index (NDMI) averages ${fmt(a.ndmi.mean)}; ${a.stressPct.toFixed(0)}% of pixels show NDVI below 0.3.`,
-    `Forecast rain, next 7 days: ${farm.rain !== undefined ? `${farm.rain.toFixed(1)} mm` : 'not fetched'}${farm.moisture !== undefined ? `. Modelled surface soil moisture ${farm.moisture}%.` : '.'}`,
+    `The canopy moisture signal averages ${fmt(a.ndmi.mean)}. About ${a.stressPct.toFixed(0)}% of clear pixels have little green cover in this image.`,
+    `Rain forecast for the next 7 days: ${farm.rain !== undefined ? `${farm.rain.toFixed(1)} mm` : 'not available'}${farm.moisture !== undefined ? `. The model estimates ${farm.moisture}% moisture in the top 1 cm of soil; that surface layer can dry quickly.` : '.'}`,
   ]
   let out: Pick<Advice, 'level' | 'chip' | 'title'>, why = ''
-  if (a.stressPct >= 25 && dry && !rainy) { out = { level: 'bad', chip: 'Irrigate soon', title: 'Dry and stressed: plan irrigation within days.' }; why = 'A quarter or more of the farm looks stressed, the leaves and soil read dry, and little rain is coming.'; bullets.push('Start with the red zones on the map, and check channels and pumps for blockages.') }
-  else if (dry && rainy) { out = { level: 'warn', chip: 'Hold, rain due', title: 'Soil looks dry, but meaningful rain is forecast.' }; why = 'It reads dry now, but 15 mm or more of rain is forecast in the next 7 days.'; bullets.push('Consider waiting for the forecast rain before irrigating, then re-check after the next satellite pass.') }
-  else if (a.stressPct >= 25) { out = { level: 'warn', chip: 'Inspect zones', title: 'Stress is present without clear dryness.' }; why = 'Many pixels look weak, but the moisture readings are not low, so water may not be the cause.'; bullets.push('Moisture is not the obvious cause. Check for pests, nutrient deficiency, waterlogging, or recent harvest.') }
-  else { out = { level: 'good', chip: 'No action now', title: 'Crop vigour and moisture look adequate.' }; why = 'Less than a quarter of the farm looks stressed and moisture is not low.'; bullets.push('Re-check after the next clear Sentinel-2 pass (about every 5 days).') }
-  bullets.push('Indicative only. Crop stage, soil type and root depth are not modelled.')
+  if (a.stressPct >= 25 && dry && !rainy) { out = { level: 'warn', chip: 'Check the weak patches', title: 'Some areas look weak and the water signals are low.' }; why = 'A sizeable part of the field has little green cover, and the canopy or surface-soil estimate is low. Neither reading confirms that irrigation is the cause.'; bullets.push('Walk the low-colour patches and feel the soil near the crop roots. If it is dry, use your crop stage and local irrigation schedule to decide what the field needs.') }
+  else if (dry && rainy) { out = { level: 'warn', chip: 'Check after the rain', title: 'A dry signal is showing, with rain in the forecast.' }; why = 'The current surface or canopy signal looks dry, while the forecast includes at least 15 mm of rain.'; bullets.push('Check whether the rain reaches your field, then feel the root-zone soil before irrigating.') }
+  else if (a.stressPct >= 25) { out = { level: 'warn', chip: 'Walk these patches', title: 'Some parts of the field have thinner green cover.' }; why = 'At least a quarter of clear pixels fall below the app’s low-cover flag, but the moisture readings do not point clearly to water shortage.'; bullets.push('Visit the highlighted patches and check crop stage, weeds, pests, drainage, and soil before choosing a response.') }
+  else if (dry) { out = { level: 'warn', chip: 'Check soil first', title: 'Most of the field looks green, but a water signal is low.' }; why = 'Few pixels have low green cover, while the canopy or topsoil estimate is low. The surface model does not tell us how much water is around the roots.'; bullets.push('Feel the soil near the roots and check the crop before irrigating; surface moisture changes quickly.') }
+  else { out = { level: 'good', chip: 'No urgent action', title: 'The field looks steady in this satellite pass.' }; why = 'Most clear pixels show green cover and the current canopy moisture signal is not low.'; bullets.push('Keep to your normal field checks and compare again after the next clear satellite pass, usually about every 5 days.') }
+  bullets.push('Use this as a check-in, not an irrigation order. Crop stage, soil type, and root depth are not included.')
   return { ...out, bullets, why }
 }
 
 export function constructionSuitability(farm: FarmData): Advice {
   const slope = farm.analysis?.slopePct
-  if (slope === undefined || farm.elevation === undefined) return { level: 'neutral', chip: 'Awaiting data', title: 'Terrain data not available yet', bullets: ['Press Refresh to fetch elevation and slope for this location.'] }
-  const bullets = [`Elevation ${Math.round(farm.elevation)} m; estimated local slope ${slope.toFixed(1)}% (about 100 m sample).`]
+  if (slope === undefined || farm.elevation === undefined) return { level: 'neutral', chip: 'Waiting for data', title: 'Terrain details are not ready yet.', bullets: ['Refresh to load the elevation and slope estimate for this area.'] }
+  const bullets = [`The model estimates this area at ${Math.round(farm.elevation)} m elevation and ${slope.toFixed(1)}% slope, averaged over roughly 100 m.`]
   let out: Pick<Advice, 'level' | 'chip' | 'title'>, why = ''
-  if (slope > 15) { out = { level: 'bad', chip: 'Challenging', title: 'Steep ground: heavy earthworks and erosion risk.' }; why = `The ground rises ${slope.toFixed(1)} m for every 100 m, which is above 15%.`; bullets.push('Slopes above 15% usually need terracing or retaining structures.') }
-  else if (slope > 8) { out = { level: 'warn', chip: 'Possible with care', title: 'Moderate slope: manage runoff and erosion.' }; why = `The slope is ${slope.toFixed(1)}%, between 8% and 15%.`; bullets.push('Good drainage, but plan cut-and-fill and surface water control.') }
-  else if (slope < 1 || farm.elevation < 5) { out = { level: 'warn', chip: 'Check drainage', title: 'Very flat or low-lying: ponding and flood risk.' }; why = 'The slope is under 1% or the land is under 5 m above sea level, so water drains slowly.'; bullets.push('Water may stand after heavy rain. Verify local flood maps and groundwater level.') }
-  else { out = { level: 'good', chip: 'Favourable', title: 'Gentle slope with natural drainage.' }; why = `The slope is ${slope.toFixed(1)}%, in the 1 to 8% range that usually drains well.`; bullets.push('Slope of 1–8% generally drains well without major earthworks.') }
-  if ((farm.rain ?? 0) >= 40) bullets.push(`Heavy rain forecast (${farm.rain!.toFixed(0)} mm in 7 days); avoid ground works until it passes.`)
-  bullets.push('Screening only. Not an engineering, soil-bearing, or flood assessment; a site survey is required.')
+  if (slope > 15) { out = { level: 'bad', chip: 'Needs a site check', title: 'Steep ground: plan for runoff and erosion.' }; why = `At ${slope.toFixed(1)}%, the land rises or falls about ${slope.toFixed(1)} m over 100 m.`; bullets.push('Before building, have a local engineer check the exact slope, soil strength, drainage route, and any retaining work.') }
+  else if (slope > 8) { out = { level: 'warn', chip: 'Possible with care', title: 'A moderate slope needs a runoff plan.' }; why = `The estimated slope is ${slope.toFixed(1)}%, between 8% and 15%. Water can run downhill and carry soil during heavy rain.`; bullets.push('Walk the site after rain and get local advice on grading, drainage, and cut-and-fill before construction.') }
+  else if (slope < 1 || farm.elevation < 5) { out = { level: 'warn', chip: 'Check water levels', title: 'Very flat or low ground may hold water.' }; why = 'The broad terrain estimate is very flat or low. Small drains, raised areas, and nearby water levels can change the real site conditions.'; bullets.push('Look for standing water after rain and check local flood information before building.') }
+  else { out = { level: 'good', chip: 'Gentle terrain', title: 'The broad terrain estimate shows a gentle slope.' }; why = `The estimated slope is ${slope.toFixed(1)}%, which is within the app’s gentle range.`; bullets.push('Check the exact plot and drainage on site before setting building levels or excavation plans.') }
+  if ((farm.rain ?? 0) >= 40) bullets.push(`${farm.rain!.toFixed(0)} mm of rain is forecast in 7 days; check the local forecast before moving soil.`)
+  bullets.push('This is an early screening only, not a structural, soil-bearing, or flood assessment. A site survey is needed before construction.')
   return { ...out, bullets, why }
 }
 
@@ -333,4 +362,4 @@ export async function searchScenes(farm: FarmGeo, from: string, to: string, maxC
   return list.map(([, its]) => ({ id: its[0].id, ids: its.slice(1, 6).map(i => i.id), datetime: its[0].datetime, cloud: Math.round(its.reduce((a, b) => a + b.cloud, 0) / its.length) }))
 }
 
-export const loadFrame = (scene: Scene, farm: FarmGeo) => s2Grid(scene, farm, ['B02', 'B03', 'B04', 'B08'], 10, 480, false)
+export const loadFrame = (scene: Scene, farm: FarmGeo) => s2Grid(scene, farm, ['B02', 'B03', 'B04', 'B08'], 10, 720, false)

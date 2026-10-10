@@ -4,12 +4,7 @@ const KEY = 'seva-greet'
 
 function pool(n: string, h: number): Greeting[] {
   const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 17 ? 'afternoon' : h < 21 ? 'evening' : 'night'
-  const line = {
-    morning: 'A fresh day on your land. Here is how your farms look right now.',
-    afternoon: 'Check the heat and moisture before the day moves on.',
-    evening: 'Wrap up the day with a quick look at what needs attention tomorrow.',
-    night: 'One last look at your farms before you rest. The satellite keeps watching.',
-  }[part]
+  const line = 'Review a field from home: see the latest clear satellite picture, compare earlier passes, and spot areas that changed.'
   const list: Greeting[] = [
     { text: `Good ${part}, ${n}`, line, dot: true },
     { text: `Welcome back, ${n}`, line, dot: true },
@@ -19,7 +14,7 @@ function pool(n: string, h: number): Greeting[] {
     { text: `Hi ${n}, what's up?`, line, dot: false },
     { text: `Yo ${n}!`, line, dot: false },
     { text: `How's it going, ${n}?`, line, dot: false },
-    { text: `What are we building today, ${n}?`, line: 'Pick a farm, refresh the satellite view, or open the GeoAI studio.', dot: false },
+    { text: `What are we building today, ${n}?`, line: 'Choose a field, compare satellite passes, or open the GeoAI studio for a closer remote review.', dot: false },
     { text: `Namaste, ${n} 🙏`, line, dot: false },
     { text: `Namaskaram, ${n}`, line, dot: true },
     { text: `Hola, ${n}`, line, dot: true },

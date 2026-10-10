@@ -1,6 +1,8 @@
 import type { Ind } from './indicators'
 import type { FarmData, SceneOpts } from './seva'
 
+const PROD_BACKEND_URL = 'https://seva-gis-backend-419602015618.us-central1.run.app'
+
 export function getEarthEngineEndpoint(): string {
   if (typeof window === 'undefined') return ''
   const envUrl = import.meta.env.VITE_EE_API_URL?.replace(/\/$/, '')
@@ -10,7 +12,7 @@ export function getEarthEngineEndpoint(): string {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return 'http://localhost:8080'
   }
-  return ''
+  return PROD_BACKEND_URL
 }
 
 export const isEarthEngineConfigured = Boolean(getEarthEngineEndpoint())

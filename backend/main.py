@@ -20,7 +20,14 @@ CACHE_TTL: int = int(os.environ.get("EE_CACHE_TTL", "600"))
 MAX_BODY: int = 128 * 1024
 
 app = FastAPI(title="SEVA GIS Earth Engine Proxy v2", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc")
-app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET","POST","DELETE","OPTIONS"], allow_headers=["Content-Type","X-Farm-ID"], expose_headers=["X-Cache","X-Render-Ms"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-Cache", "X-Render-Ms"]
+)
 
 _ee_ready = False
 _ee_lock = asyncio.Lock()

@@ -2723,3 +2723,212 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   opacity: 0.9;
 }
 
+/* Detachable & Movable Floating Map Panels */
+.ix-win-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.ix-win-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+}
+.ix-data.detached {
+  position: fixed !important;
+  top: auto;
+  right: auto;
+  z-index: 1100 !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+  border: 1.5px solid #059669;
+}
+.ix-data.minimized {
+  max-height: 44px !important;
+  overflow: hidden !important;
+  width: auto !important;
+  min-width: 220px;
+  padding: 8px 12px;
+}
+.ix-data-head.draggable {
+  cursor: grab !important;
+  user-select: none;
+}
+.ix-data-head.draggable:active {
+  cursor: grabbing !important;
+}
+
+.ix-cadastre-hud.detached {
+  position: fixed !important;
+  top: auto;
+  right: auto;
+  z-index: 1100 !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  border: 2px solid #059669;
+}
+.ix-cadastre-hud.minimized {
+  max-height: 52px !important;
+  overflow: hidden !important;
+  width: auto !important;
+  min-width: 280px;
+  border-radius: 12px;
+}
+.ix-cadastre-head.draggable {
+  cursor: grab !important;
+  user-select: none;
+}
+.ix-cadastre-head.draggable:active {
+  cursor: grabbing !important;
+}
+
+/* Inline RoR Cadastre Editor */
+.ix-cad-edit-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-cad-edit-toggle-btn:hover {
+  background: #059669;
+  color: #ffffff;
+}
+.ix-cad-edit-form {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ix-cad-input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ix-cad-input-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ix-cad-input-row label span {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #334155;
+}
+.ix-cad-input-row input {
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0f172a;
+}
+.ix-cad-input-row input:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+}
+.ix-cad-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #059669;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.ix-cad-save-btn:hover {
+  background: #047857;
+}
+.ix-cad-cancel-btn {
+  font-size: 11px;
+  color: #64748b;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.ix-cad-cancel-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Ancestral & Family Landholdings Ledger */
+.ix-cad-family-ledger {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+}
+.ix-cad-family-map-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-cad-family-map-toggle.active {
+  background: #ecfdf5;
+  border-color: #059669;
+  color: #059669;
+}
+.ix-cad-family-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+.ix-family-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-family-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.ix-family-item.current {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+.ix-family-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+

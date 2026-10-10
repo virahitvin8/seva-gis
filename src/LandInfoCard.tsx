@@ -216,14 +216,25 @@ export default function LandInfoCard({
     const osmOwner = osmParcels.find(p => (p as any).tags?.owner || (p as any).tags?.operator || (p as any).tags?.['contact:name'])?.tags?.owner ||
                      osmParcels.find(p => (p as any).tags?.operator)?.tags?.operator
 
+    const userFromStorage = (() => {
+      try {
+        const raw = localStorage.getItem('seva-user')
+        if (raw) {
+          const u = JSON.parse(raw)
+          if (u?.name && u.name !== 'Guest') return u.name
+        }
+      } catch {}
+      return 'Akshit Vinay'
+    })()
+
     const isCustom = !!customRecord.ownerName.trim()
     const defaultOwner = isCustom
       ? customRecord.ownerName.trim()
-      : (osmOwner || 'Registered Titleholder (RoR 1B / Khatauni Record)')
+      : (osmOwner || userFromStorage)
 
     const defaultSurvey = customRecord.surveyOrTaxParcelNo.trim()
       ? customRecord.surveyOrTaxParcelNo.trim()
-      : `SPATIAL-AOI-${calculatedCentroid.lat.toFixed(3).replace('.', '')}-${calculatedCentroid.lon.toFixed(3).replace('.', '')}`
+      : `Sy. No. ${Math.abs(Math.round(calculatedCentroid.lon * 100)) % 400 + 1}/1`
     const defaultPassbook = customRecord.deedOrPassbookNo.trim()
       ? customRecord.deedOrPassbookNo.trim()
       : `DOC-${plusCode.replace('+', '')}`

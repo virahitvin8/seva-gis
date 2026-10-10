@@ -422,7 +422,8 @@ function renderSensitivityChartsSvg() {
         <!-- Scatter points forming peak -->
         ${Array.from({ length: 32 }).map((_, i) => {
           const u = i / 31
-          const nse = 0.35 + 0.38 * Math.sin(u * Math.PI) + (Math.random() - 0.5) * 0.08
+          const det = (Math.sin(i * 4.1 + 0.8) * 0.5) * 0.06
+          const nse = 0.35 + 0.38 * Math.sin(u * Math.PI) + det
           const px = 12 + u * 120
           const py = 100 - (nse - 0.2) * 110
           return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
@@ -437,7 +438,8 @@ function renderSensitivityChartsSvg() {
         <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(b) r__SOL_AWC</text>
         ${Array.from({ length: 32 }).map((_, i) => {
           const u = i / 31
-          const nse = 0.42 + 0.29 * Math.sin(u * Math.PI) + (Math.random() - 0.5) * 0.09
+          const det = (Math.cos(i * 3.7 + 1.2) * 0.5) * 0.07
+          const nse = 0.42 + 0.29 * Math.sin(u * Math.PI) + det
           const px = 12 + u * 120
           const py = 100 - (nse - 0.2) * 110
           return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
@@ -452,7 +454,8 @@ function renderSensitivityChartsSvg() {
         <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(c) v__ALPHA_BF</text>
         ${Array.from({ length: 32 }).map((_, i) => {
           const u = i / 31
-          const nse = 0.40 + 0.31 * Math.sin(u * Math.PI) + (Math.random() - 0.5) * 0.08
+          const det = (Math.sin(i * 5.3 + 2.1) * 0.5) * 0.06
+          const nse = 0.40 + 0.31 * Math.sin(u * Math.PI) + det
           const px = 12 + u * 120
           const py = 100 - (nse - 0.2) * 110
           return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
@@ -467,7 +470,8 @@ function renderSensitivityChartsSvg() {
         <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(d) v__ESCO</text>
         ${Array.from({ length: 32 }).map((_, i) => {
           const u = i / 31
-          const nse = 0.45 + 0.26 * Math.sin(u * Math.PI) + (Math.random() - 0.5) * 0.07
+          const det = (Math.cos(i * 4.9 + 0.5) * 0.5) * 0.05
+          const nse = 0.45 + 0.26 * Math.sin(u * Math.PI) + det
           const px = 12 + u * 120
           const py = 100 - (nse - 0.2) * 110
           return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`

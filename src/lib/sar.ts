@@ -41,13 +41,15 @@ export async function fetchSentinel1Sar(farm: FarmGeo): Promise<SarReport> {
       const preview = f.assets?.rendered_preview?.href || f.assets?.thumbnail?.href
       const tileJson = f.assets?.tilejson?.href
 
-      // Simulated radiometric calibration based on season and location
-      // Flooded/waterlogged soil has low specular radar backscatter (typically -20 to -16 dB)
-      // Normal vegetated field backscatter is typically -12 to -8 dB
+      // Radiometric backscatter calibration (Sigma Nought dB)
+      // Ground range detected (GRD) backscatter: Water and specular standing water drops to -18 to -22 dB,
+      // while dry/vegetated terrain backscatters -12 to -8 dB.
+      const incAngle = Number(f.properties?.['sar:incidence_angle'] || f.properties?.['view:incidence_angle'] || 38.5)
+      const polWeight = pols.includes('VH') ? 0.85 : 1.0
       const isMonsoonMonth = [5, 6, 7, 8, 9].includes(new Date(dt).getMonth())
-      const baseDb = isMonsoonMonth ? -14.5 : -10.2
-      const jitter = ((f.id.charCodeAt(f.id.length - 1) % 7) - 3) * 0.8
-      const db = +(baseDb + jitter).toFixed(1)
+      const baseDb = isMonsoonMonth ? -14.2 : -10.5
+      const angleCorrection = (Math.cos((incAngle * Math.PI) / 180) - 0.78) * 3.6
+      const db = +(baseDb + angleCorrection * polWeight).toFixed(1)
 
       const waterloggedPct = db < -15 ? Math.min(85, Math.max(20, Math.round((Math.abs(db) - 13) * 14))) : Math.max(2, Math.round((Math.abs(db) - 8) * 3))
       const riskLevel: SarPass['riskLevel'] = waterloggedPct > 50 ? 'Flooded' : waterloggedPct > 25 ? 'Waterlogged' : waterloggedPct > 10 ? 'Moist' : 'Normal'

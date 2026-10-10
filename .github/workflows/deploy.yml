@@ -68,17 +68,18 @@ jobs:
           VITE_EE_API_URL: https://seva-gis-backend-419602015618.us-central1.run.app
         run: npm run build
 
-      - name: Deploy to Firebase Hosting
+      - name: Deploy to Firebase Hosting (Action)
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SEVA_GIS_BACKEND_E724A != '' || secrets.FIREBASE_SERVICE_ACCOUNT != '' || secrets.GCP_SA_KEY != '' }}
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SEVA_GIS_BACKEND_E724A }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SEVA_GIS_BACKEND_E724A || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GCP_SA_KEY }}'
           projectId: seva-gis-backend-e724a
           channelId: live
         continue-on-error: true
 
-      - name: Fallback Firebase CLI Deploy (if Token provided)
-        if: env.FIREBASE_TOKEN != ''
+      - name: Deploy to Firebase Hosting (CLI Token)
+        if: ${{ secrets.FIREBASE_TOKEN != '' }}
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |

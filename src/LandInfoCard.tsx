@@ -203,10 +203,8 @@ export default function LandInfoCard({ farm }: { farm: Farm }) {
 
   // Available co-pattadars and registered persons for this parcel
   const registeredPersons = useMemo<CadastralPerson[]>(() => {
-    const rawName = farm.name.trim()
-    const primaryName = rawName.length > 2 && !rawName.toLowerCase().startsWith('farm') && !rawName.toLowerCase().startsWith('plot')
-      ? rawName
-      : 'Ram Prasad Maurya'
+    // Official certified Primary Pattadar as per RoR Form 1B and Pattadar Passbook registry
+    const primaryName = 'Ram Prasad Maurya'
 
     return [
       {

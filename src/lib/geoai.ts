@@ -226,7 +226,7 @@ export function autoClassify(g: Grid, ring: Ring, k = 4): Auto | null {
   const pickName = (r: number) => Math.round((r / Math.max(k - 1, 1)) * 4)
   const ha = (g.dx * g.dy) / 10000
   const clusters: Cluster[] = order.map((o, r) => ({ id: `c${r}`, name: NAMES[pickName(r)], color: COLORS[pickName(r)], ndvi: o.nd, moist: o.mo, pct: (o.n / idx.length) * 100, ha: o.n * ha }))
-  return { labels, clusters, url: paintClipped(g.w, g.h, g.bbox, ring, i => (labels[i] >= 0 ? hex(clusters[labels[i]].color) : null), false) }
+  return { labels, clusters, url: paintClipped(g.w, g.h, g.bbox, ring, i => (labels[i] >= 0 ? hex(clusters[labels[i]].color) : null), true, 0.25) }
 }
 
 // Rule-based land cover labels (same thresholds as the Analysis lab map) for vector export.

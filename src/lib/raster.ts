@@ -147,8 +147,8 @@ export function paintClipped(
   bbox: Bbox,
   ring: Ring,
   paint: Painter,
-  smooth = false,
-  sharpen = 0
+  smooth = true,
+  sharpen = 0.25
 ): string {
   const srcCanvas = document.createElement('canvas')
   srcCanvas.width = w

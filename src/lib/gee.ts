@@ -22,7 +22,7 @@ function tally(g: Grid, ring: Ring, defs: { id: string; name: string; color: str
     if (k < 0) continue
     cls[i] = k; counts[k]++; total++
   }
-  const url = paintClipped(g.w, g.h, g.bbox, ring, i => (cls[i] >= 0 ? hex(defs[cls[i]].color) : null), false)
+  const url = paintClipped(g.w, g.h, g.bbox, ring, i => (cls[i] >= 0 ? hex(defs[cls[i]].color) : null), true, 0.25)
   const ha = cellHa(g)
   return { url, validHa: total * ha, rows: defs.map((d, k) => ({ ...d, pct: total ? (counts[k] / total) * 100 : 0, ha: counts[k] * ha })) }
 }

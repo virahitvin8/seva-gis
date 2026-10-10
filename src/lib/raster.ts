@@ -1,6 +1,6 @@
 export type Ring = [number, number][]
 export type Bbox = [number, number, number, number]
-export type Raster = { w: number; h: number; bands: Float64Array[]; valid: Uint8Array }
+export type Raster = { w: number; h: number; bands: Float32Array[]; valid: Uint8Array }
 
 export function parseNpy(buf: ArrayBuffer): Raster {
   const view = new DataView(buf)
@@ -27,9 +27,9 @@ export function parseNpy(buf: ArrayBuffer): Raster {
     }
   }
   const start = headerStart + headerLen, n = w * h
-  const bands: Float64Array[] = []
+  const bands: Float32Array[] = []
   for (let b = 0; b < nb; b++) {
-    const arr = new Float64Array(n)
+    const arr = new Float32Array(n)
     for (let i = 0; i < n; i++) arr[i] = read(start + (b * n + i) * bytes)
     bands.push(arr)
   }
@@ -95,8 +95,8 @@ export function rampColor(ramp: string[], t: number): [number, number, number] {
 }
 
 export type Stat = { mean: number; min: number; max: number; p10: number; p50: number; p90: number; n: number }
-export function statsOf(values: Float64Array, ok: (i: number) => boolean, range: [number, number]): Stat | null {
-  const xs = new Float64Array(values.length)
+export function statsOf(values: Float32Array | Float64Array, ok: (i: number) => boolean, range: [number, number]): Stat | null {
+  const xs = new Float32Array(values.length)
   let n = 0, sum = 0, min = Infinity, max = -Infinity
   for (let i = 0; i < values.length; i++) {
     const v = values[i]
@@ -112,94 +112,152 @@ export function statsOf(values: Float64Array, ok: (i: number) => boolean, range:
   return { mean: sum / n, min, max, p10: q(0.1), p50: q(0.5), p90: q(0.9), n }
 }
 
+function applyUnsharp(ctx: CanvasRenderingContext2D, W: number, H: number, amount: number) {
+  if (amount <= 0 || W < 3 || H < 3) return
+  const imgData = ctx.getImageData(0, 0, W, H)
+  const d = imgData.data
+  const copy = new Uint8ClampedArray(d)
+  const k = Math.min(1.0, Math.max(0.1, amount))
+  for (let y = 1; y < H - 1; y++) {
+    const row = y * W * 4
+    const rowAbove = (y - 1) * W * 4
+    const rowBelow = (y + 1) * W * 4
+    for (let x = 1; x < W - 1; x++) {
+      const idx = row + x * 4
+      if (copy[idx + 3] === 0) continue
+      for (let c = 0; c < 3; c++) {
+        const val = copy[idx + c]
+        const lap = 4 * val - copy[rowAbove + x * 4 + c] - copy[rowBelow + x * 4 + c] - copy[row + (x - 1) * 4 + c] - copy[row + (x + 1) * 4 + c]
+        d[idx + c] = Math.min(255, Math.max(0, val + k * lap))
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0)
+}
+
 export type Painter = (i: number) => [number, number, number] | null
 
-export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint: Painter, smooth = false, sharpen = 0): string {
-  const small = document.createElement('canvas')
-  small.width = w; small.height = h
-  const sctx = small.getContext('2d')!
-  const img = sctx.createImageData(w, h)
+/**
+ * Renders AOI clipped raster image with subpixel vector boundary anti-aliasing
+ * and high-DPI scaling (1024px minimum dimension, matching Earth Engine / QGIS quality).
+ */
+export function paintClipped(
+  w: number,
+  h: number,
+  bbox: Bbox,
+  ring: Ring,
+  paint: Painter,
+  smooth = false,
+  sharpen = 0
+): string {
+  const srcCanvas = document.createElement('canvas')
+  srcCanvas.width = w
+  srcCanvas.height = h
+  const srcCtx = srcCanvas.getContext('2d')!
+  const srcImg = srcCtx.createImageData(w, h)
   for (let i = 0; i < w * h; i++) {
     const c = paint(i)
-    if (c) { img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255 }
+    if (c) {
+      srcImg.data[i * 4] = c[0]
+      srcImg.data[i * 4 + 1] = c[1]
+      srcImg.data[i * 4 + 2] = c[2]
+      srcImg.data[i * 4 + 3] = 255
+    }
   }
-  sctx.putImageData(img, 0, 0)
+  srcCtx.putImageData(srcImg, 0, 0)
 
-  // Render at optimal DPI (up to 512px) for crisp raster clarity while preventing GPU memory exhaustion
-  const maxDim = 512
-  const scale = Math.max(1, Math.floor(maxDim / Math.max(w, h)))
-  const big = document.createElement('canvas')
-  big.width = w * scale
-  big.height = h * scale
-  const ctx = big.getContext('2d')!
-  const [west, south, east, north] = bbox
-  ctx.beginPath()
-  ring.forEach(([lon, lat], i) => { const x = ((lon - west) / (east - west)) * big.width, y = ((north - lat) / (north - south)) * big.height; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y) })
-  ctx.closePath(); ctx.clip()
+  // Target high-resolution canvas to avoid browser thumbnail stretching and pixel blur
+  const targetDim = 1024
+  const scale = Math.max(1, Math.min(16, Math.ceil(targetDim / Math.max(w, h))))
+  const W = w * scale
+  const H = h * scale
+
+  const outCanvas = document.createElement('canvas')
+  outCanvas.width = W
+  outCanvas.height = H
+  const ctx = outCanvas.getContext('2d')!
+
   ctx.imageSmoothingEnabled = smooth
-  if (smooth) ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(small, 0, 0, big.width, big.height)
-  if (sharpen > 0 && big.width <= 512) unsharp(ctx, big.width, big.height, Math.min(2, Math.max(1, Math.round(scale / 2))), Math.min(sharpen, 1.0))
-  return big.toDataURL('image/png')
+  if (smooth) {
+    ctx.imageSmoothingQuality = 'high'
+  }
+  ctx.drawImage(srcCanvas, 0, 0, W, H)
+
+  if (smooth && sharpen > 0) {
+    applyUnsharp(ctx, W, H, sharpen)
+  }
+
+  // Exact subpixel vector clipping using canvas hardware anti-aliasing
+  const [west, south, east, north] = bbox
+  ctx.save()
+  ctx.globalCompositeOperation = 'destination-in'
+  ctx.beginPath()
+  ring.forEach(([lon, lat], i) => {
+    const px = ((lon - west) / (east - west)) * W
+    const py = ((north - lat) / (north - south)) * H
+    if (i === 0) ctx.moveTo(px, py)
+    else ctx.lineTo(px, py)
+  })
+  ctx.closePath()
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+  ctx.restore()
+
+  return outCanvas.toDataURL('image/png')
 }
 
 /**
  * Renders raw unclipped Sentinel-2 satellite scene tile on a solid black background
- * A raw Sentinel-2 scene render. Its appearance depends on the selected bands and stretch.
+ * at high-DPI resolution with optional smooth filtering and contrast sharpening.
  */
-export function paintRaw(w: number, h: number, bbox: Bbox, paint: Painter, smooth = false): string {
-  const small = document.createElement('canvas')
-  small.width = w; small.height = h
-  const sctx = small.getContext('2d')!
-  // Start with black background
-  sctx.fillStyle = '#000000'
-  sctx.fillRect(0, 0, w, h)
-  const img = sctx.getImageData(0, 0, w, h)
+export function paintRaw(
+  w: number,
+  h: number,
+  _bbox: Bbox,
+  paint: Painter,
+  smooth = false,
+  sharpen = 0
+): string {
+  const srcCanvas = document.createElement('canvas')
+  srcCanvas.width = w
+  srcCanvas.height = h
+  const srcCtx = srcCanvas.getContext('2d')!
+  const srcImg = srcCtx.createImageData(w, h)
   for (let i = 0; i < w * h; i++) {
     const c = paint(i)
     if (c) {
-      img.data[i * 4] = c[0]
-      img.data[i * 4 + 1] = c[1]
-      img.data[i * 4 + 2] = c[2]
-      img.data[i * 4 + 3] = 255
+      srcImg.data[i * 4] = c[0]
+      srcImg.data[i * 4 + 1] = c[1]
+      srcImg.data[i * 4 + 2] = c[2]
+      srcImg.data[i * 4 + 3] = 255
     } else {
-      // Black background tile outside scene or masked pixels
-      img.data[i * 4] = 0
-      img.data[i * 4 + 1] = 0
-      img.data[i * 4 + 2] = 0
-      img.data[i * 4 + 3] = 255
+      srcImg.data[i * 4] = 0
+      srcImg.data[i * 4 + 1] = 0
+      srcImg.data[i * 4 + 2] = 0
+      srcImg.data[i * 4 + 3] = 255
     }
   }
-  sctx.putImageData(img, 0, 0)
+  srcCtx.putImageData(srcImg, 0, 0)
 
-  const maxDim = 512
-  const scale = Math.max(1, Math.floor(maxDim / Math.max(w, h)))
-  const big = document.createElement('canvas')
-  big.width = w * scale
-  big.height = h * scale
-  const ctx = big.getContext('2d')!
-  // Solid black background frame for tile
+  const targetDim = 1024
+  const scale = Math.max(1, Math.min(16, Math.ceil(targetDim / Math.max(w, h))))
+  const W = w * scale
+  const H = h * scale
+
+  const outCanvas = document.createElement('canvas')
+  outCanvas.width = W
+  outCanvas.height = H
+  const ctx = outCanvas.getContext('2d')!
   ctx.fillStyle = '#000000'
-  ctx.fillRect(0, 0, big.width, big.height)
+  ctx.fillRect(0, 0, W, H)
+
   ctx.imageSmoothingEnabled = smooth
   if (smooth) ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(small, 0, 0, big.width, big.height)
-  return big.toDataURL('image/png')
-}
+  ctx.drawImage(srcCanvas, 0, 0, W, H)
 
-function unsharp(ctx: CanvasRenderingContext2D, W: number, H: number, r: number, amount: number) {
-  const im = ctx.getImageData(0, 0, W, H), d = im.data, src = new Uint8ClampedArray(d)
-  const tmp = new Float32Array(W * H * 3), blur = new Float32Array(W * H * 3), n = 2 * r + 1
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) for (let c = 0; c < 3; c++) {
-    let a = 0
-    for (let k = -r; k <= r; k++) a += src[(y * W + Math.min(W - 1, Math.max(0, x + k))) * 4 + c]
-    tmp[(y * W + x) * 3 + c] = a / n
+  if (smooth && sharpen > 0) {
+    applyUnsharp(ctx, W, H, sharpen)
   }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) for (let c = 0; c < 3; c++) {
-    let a = 0
-    for (let k = -r; k <= r; k++) a += tmp[(Math.min(H - 1, Math.max(0, y + k)) * W + x) * 3 + c]
-    blur[(y * W + x) * 3 + c] = a / n
-  }
-  for (let i = 0; i < W * H; i++) { if (!src[i * 4 + 3]) continue; for (let c = 0; c < 3; c++) d[i * 4 + c] = src[i * 4 + c] + amount * (src[i * 4 + c] - blur[i * 3 + c]) }
-  ctx.putImageData(im, 0, 0)
+
+  return outCanvas.toDataURL('image/png')
 }

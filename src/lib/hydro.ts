@@ -21,7 +21,7 @@ const pop = (h: Heap) => {
 
 const N8: [number, number][] = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
 
-export function hydroBands(elev: Float64Array, slope: Float64Array, w: number, h: number, dx: number, dy: number) {
+export function hydroBands(elev: Float32Array | Float64Array, slope: Float64Array, w: number, h: number, dx: number, dy: number) {
   const n = w * h, filled = new Float64Array(elev), seen = new Uint8Array(n), heap: Heap = { k: [], v: [] }
   const edge = (x: number, y: number) => x === 0 || y === 0 || x === w - 1 || y === h - 1
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (edge(x, y)) { seen[y * w + x] = 1; push(heap, filled[y * w + x], y * w + x) }
@@ -61,7 +61,7 @@ export function hydroBands(elev: Float64Array, slope: Float64Array, w: number, h
   return { twi, flow, sink, bw }
 }
 
-export function resample(src: Float64Array, sw: number, sh: number, sb: Bbox, dw: number, dh: number, db: Bbox, nearest = false) {
+export function resample(src: Float32Array | Float64Array, sw: number, sh: number, sb: Bbox, dw: number, dh: number, db: Bbox, nearest = false) {
   const out = new Float64Array(dw * dh)
   for (let y = 0; y < dh; y++) for (let x = 0; x < dw; x++) {
     const lon = db[0] + ((x + 0.5) / dw) * (db[2] - db[0]), lat = db[3] - ((y + 0.5) / dh) * (db[3] - db[1])

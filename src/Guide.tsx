@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { HelpCircle, X } from 'lucide-react'
 
 const STEPS = [
-  ['1', 'Pick your farm', 'Choose a farm from the list, or press "Add a farm" and draw it on the map.'],
-  ['2', 'Look at the map', 'Press "Parameters" on the map and tick what you want to see, such as Crop greenness or Soil moisture.'],
-  ['3', 'Read the colours', 'The panel beside the map tells you what each colour means. Green is usually good, red needs a look.'],
+  ['1', 'Choose a field to review', 'Select a saved field, or draw or upload the outline of another field you want to inspect remotely.'],
+  ['2', 'Open the latest clear picture', 'Check its date and cloud cover, then switch between crop cover, moisture signals, terrain, and true-colour layers.'],
+  ['3', 'Compare earlier passes', 'Use Crop journal or Analysis lab to spot where the field changed over time and focus your remote review there.'],
 ]
 
 const WORDS: [string, string][] = [

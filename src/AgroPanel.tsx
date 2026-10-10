@@ -45,18 +45,20 @@ export default function AgroPanel({ farm }: Props) {
     {
       label: 'Elevation above sea level',
       value: `${a.elevMean?.toFixed(0)} m`,
-      note: `Meaning: Farm sits ${a.elevMean?.toFixed(0)} m above sea level. Reason: Higher fields get cooler air; low hollows can trap chilly frost pockets. (Copernicus DEM)`,
+      note: `The terrain model places this field about ${a.elevMean?.toFixed(0)} m above sea level. Check local low spots and a nearby thermometer for frost or drainage decisions.`,
       tone: 'neutral'
     },
     {
       label: 'Field slope / tilt',
       value: `${a.slopeDeg.toFixed(1)}° (${a.slopePct?.toFixed(1)}%)`,
-      note: a.slopeDeg > 8
-        ? `Meaning: Steep land (${a.slopeDeg.toFixed(1)}°). Reason: Heavy monsoon rains wash away fertile topsoil fast; build contour bunds or terraces.`
-        : a.slopeDeg < 0.5
-        ? `Meaning: Table-flat field (${a.slopeDeg.toFixed(1)}°). Reason: Rainwater drains slowly; clear drainage furrows to prevent muddy stagnant puddles.`
-        : `Meaning: Gentle natural grade (${a.slopeDeg.toFixed(1)}°). Reason: The sweet spot; water flows smoothly without pooling or washing away soil.`,
-      tone: a.slopeDeg > 8 ? 'warn' : 'good'
+      note: (a.slopePct ?? 0) > 15
+        ? `Water may run downhill quickly on this estimated ${a.slopePct?.toFixed(1)}% grade. Check for rills after rain and ask a local adviser before earthworks.`
+        : (a.slopePct ?? 0) > 8
+        ? `The estimated ${a.slopePct?.toFixed(1)}% grade can move water and soil during heavy rain. Walk the field after rain and note where runoff travels.`
+        : (a.slopePct ?? 0) < 1
+        ? `This area is nearly level in the terrain model. Look for low spots and standing water after rain before planning drains.`
+        : `The terrain model shows a gentle grade. Check actual water movement and field outlets after rain.`,
+      tone: (a.slopePct ?? 0) > 8 || (a.slopePct ?? 0) < 1 ? 'warn' : 'neutral'
     },
   ] : undefined
 
@@ -73,8 +75,8 @@ export default function AgroPanel({ farm }: Props) {
       <Section title="Soil properties" sub={s?.data ? 'SoilGrids 250 m, 0-5 cm' : 'SoilGrids regional baseline (0-5 cm)'} icon={Shovel} items={soilParams(sData)} empty="Loading soil data…" src={['soil']} onRefresh={refreshSoil}/>
       <Section title="Terrain" sub="Farm DEM statistics" icon={Mountain} items={terrain} empty="Elevation loads with the satellite analysis." src={['dem']} onRefresh={refreshDem}/>
     </div>
-    <details className="sc-guide" open><summary>How to read the spectral indices</summary><div className="sc-grid">{spectralIds.map(id => <ScaleBox key={id} id={id} compact/>)}</div></details>
+    <details className="sc-guide" open><summary>What to look for on your farm</summary><div className="sc-grid">{spectralIds.map(id => <ScaleBox key={id} id={id} compact/>)}</div></details>
     <div className="ag-key"><span><i className="good"/>Favourable</span><span><i className="warn"/>Watch</span><span><i className="bad"/>Act or risk</span><span><i/>Information only</span> Card edge colour shows the status of each value.</div>
-    <small className="ag-note">Soil moisture, weather and SoilGrids are modelled at coarse resolution, not field sensors. Satellite indices use clear-sky pixels only.</small>
+    <small className="ag-note">Weather, soil water, and soil properties are broad-area estimates, not readings from your field. Satellite maps use clear pixels; check unusual patches on the ground.</small>
   </section>
 }

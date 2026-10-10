@@ -21,6 +21,8 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const [customBands, setCustomBands] = useState<[string, string, string]>(['B04', 'B03', 'B02'])
   const [symbologySpinning, setSymbologySpinning] = useState(false)
   const [showCustom, setShowCustom] = useState(false)
+  const [stretchMode, setStretchMode] = useState<'gee_percentile' | 'calibrated_boa'>('gee_percentile')
+  const [clarityMode, setClarityMode] = useState<'smooth' | 'crisp'>('smooth')
 
   useEffect(() => {
     if (!scene) return
@@ -35,6 +37,8 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     setSelectedCombo('natural')
     setCustomBands(['B04', 'B03', 'B02'])
     setShowCustom(false)
+    setStretchMode('gee_percentile')
+    setClarityMode('smooth')
   }, [scene?.id, farm.id])
 
   const ring = useMemo(() => farmRing(farm), [farm.id, farm.lat, farm.lon, farm.area, farm.polygon])
@@ -62,18 +66,25 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     if (!g) return ''
     try {
       const isRaw = picMode === 'raw'
-      return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2], isRaw)
+      return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2], isRaw, {
+        stretchMode,
+        smooth: clarityMode === 'smooth',
+        sharpen: clarityMode === 'smooth' ? 0.35 : 0,
+        gamma: 1.25,
+      })
     } catch (e) {
       console.warn('[GeoAI Studio] Composite error:', e)
       return ''
     }
-  }, [g, ring, activeBands, picMode])
+  }, [g, ring, activeBands, picMode, stretchMode, clarityMode])
 
   const resetToDefaultSymbology = () => {
     setSymbologySpinning(true)
     setSelectedCombo('natural')
     setCustomBands(['B04', 'B03', 'B02'])
     setShowCustom(false)
+    setStretchMode('gee_percentile')
+    setClarityMode('smooth')
     setTimeout(() => {
       setSymbologySpinning(false)
     }, 600)
@@ -113,6 +124,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
           note={picMode === '4k' ? 'Esri basemap imagery clipped to the farm. Its capture date and resolution vary by location; it is separate from the selected Sentinel-2 scene.' : picMode === 'raw' ? 'Sentinel-2 band composite outside the farm boundary on a black background.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
           caption={picMode === '4k' ? 'Esri World Imagery · capture date varies' : picMode === 'raw' ? `Sentinel-2 scene tile (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 (${activeBands.join('·')})`}
           highlightAoi={false}
+          crisp={clarityMode === 'crisp'}
         />
         <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -159,7 +171,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
                 border: '1px solid #a7f3d0',
                 cursor: 'pointer'
               }}
-              title="Refresh and reset to Default Symbology (Natural True Colour B04·B03·B02)"
+              title="Refresh and reset to natural true-colour display with a local 2%–98% stretch"
               onClick={resetToDefaultSymbology}
             >
               <RefreshCw size={13} className={symbologySpinning ? 'spinning' : ''} />
@@ -167,6 +179,83 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             </button>
           )}
         </div>
+
+        {/* Local radiometric and resampling controls */}
+        {picMode !== '4k' && (
+          <div style={{ marginTop: 8, padding: '7px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Radiometric stretch</span>
+              <button
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 5,
+                  fontWeight: 600,
+                  background: stretchMode === 'gee_percentile' ? '#15803d' : '#ffffff',
+                  color: stretchMode === 'gee_percentile' ? '#ffffff' : '#334155',
+                  border: stretchMode === 'gee_percentile' ? '1px solid #15803d' : '1px solid #cbd5e1',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setStretchMode('gee_percentile')}
+                title="Local 2%–98% percentile stretch with 1.25 gamma"
+              >
+                2%–98% percentile (local)
+              </button>
+              <button
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 5,
+                  fontWeight: 600,
+                  background: stretchMode === 'calibrated_boa' ? '#15803d' : '#ffffff',
+                  color: stretchMode === 'calibrated_boa' ? '#ffffff' : '#334155',
+                  border: stretchMode === 'calibrated_boa' ? '1px solid #15803d' : '1px solid #cbd5e1',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setStretchMode('calibrated_boa')}
+                title="Calibrated Sentinel-2 BOA Surface Reflectance bounds"
+              >
+                Calibrated BOA (Physical)
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Clarity filter</span>
+              <button
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 5,
+                  fontWeight: 600,
+                  background: clarityMode === 'smooth' ? '#0284c7' : '#ffffff',
+                  color: clarityMode === 'smooth' ? '#ffffff' : '#334155',
+                  border: clarityMode === 'smooth' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setClarityMode('smooth')}
+                title="Smooth high-DPI bicubic resampling with unsharp mask sharpening"
+              >
+                Smooth + Sharp
+              </button>
+              <button
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 5,
+                  fontWeight: 600,
+                  background: clarityMode === 'crisp' ? '#0284c7' : '#ffffff',
+                  color: clarityMode === 'crisp' ? '#ffffff' : '#334155',
+                  border: clarityMode === 'crisp' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setClarityMode('crisp')}
+                title="Native Sentinel-2 10m grid cell inspection without blending"
+              >
+                Crisp 10m cells
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Live Multispectral Band Symbology Control Panel */}
         <div
@@ -398,8 +487,8 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             </b>
             <span>
               {selectedCombo === 'custom'
-                ? `Mapped channels: Red=${customBands[0]}, Green=${customBands[1]}, Blue=${customBands[2]}. Sigmoid dynamic reflectance stretching.`
-                : activeCombo?.desc}
+                ? `Mapped channels: Red=${customBands[0]}, Green=${customBands[1]}, Blue=${customBands[2]}. ${stretchMode === 'gee_percentile' ? 'Local 2%–98% percentile stretch with 1.25 gamma.' : 'Calibrated physical BOA reflectance stretch.'}`
+                : `${activeCombo?.desc} (${stretchMode === 'gee_percentile' ? 'local 2%–98% percentile stretch' : 'calibrated BOA'}).`}
             </span>
           </div>
         </div>
@@ -422,7 +511,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     </div>
     {auto && <div className="sc-box compact ge-legend"><div className="sc-title"><b>What the groups show</b><span>average NDVI · share · area</span></div>
       <ul>{auto.clusters.map(c => <li key={c.id}><i style={{ background: c.color }}/><span>{c.name}</span><code>NDVI {f(c.ndvi, 2)} · {f(c.pct, 0)}% · {f(c.ha, 2)} ha</code></li>)}</ul>
-      <small>Groups with the lowest greenness are the first places to walk and check.</small></div>}
+      <small>Groups with the lowest greenness are the first zones to compare across clear satellite dates.</small></div>}
 
     {/* Yield Forecasting Card with Crystal-Clear Visual Display */}
     <div className="yield-forecast-box">

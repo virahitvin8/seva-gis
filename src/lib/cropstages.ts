@@ -18,7 +18,7 @@ export const GROWTH_STAGES: CropStageDef[] = [
     healthyNdviRange: [0.18, 0.35],
     optimalNdmi: 0.05,
     waterSensitivity: 'moderate',
-    advisory: 'Early stand establishment. Keep topsoil moist for germination, but avoid standing water or crusting.',
+    advisory: 'Check whether the rows have emerged evenly. Feel the seed bed and look for crusting or ponded water.',
   },
   {
     id: 'vegetative',
@@ -27,7 +27,7 @@ export const GROWTH_STAGES: CropStageDef[] = [
     healthyNdviRange: [0.45, 0.72],
     optimalNdmi: 0.22,
     waterSensitivity: 'moderate',
-    advisory: 'Rapid leaf canopy and root expansion. Nutrient uptake and vegetative vigor are high.',
+    advisory: 'The crop is building leaves and roots. Compare thin and dense patches, then check the soil and plants in person.',
   },
   {
     id: 'flowering',
@@ -36,7 +36,7 @@ export const GROWTH_STAGES: CropStageDef[] = [
     healthyNdviRange: [0.72, 0.88],
     optimalNdmi: 0.35,
     waterSensitivity: 'critical',
-    advisory: 'Critical reproductive window! Moisture stress now causes flower drop or sterile spikelets. Priority irrigation.',
+    advisory: 'During flowering, visit the crop regularly. If plants wilt or the root zone is dry, follow local crop advice before watering.',
   },
   {
     id: 'grain_fill',
@@ -45,7 +45,7 @@ export const GROWTH_STAGES: CropStageDef[] = [
     healthyNdviRange: [0.58, 0.78],
     optimalNdmi: 0.25,
     waterSensitivity: 'moderate',
-    advisory: 'Photosynthate translocation into seeds/fruit. Adequate moisture prevents shriveled grain.',
+    advisory: 'As grain or pods fill, check whether the crop is staying even across the field and watch for dry patches.',
   },
   {
     id: 'maturity',
@@ -54,7 +54,7 @@ export const GROWTH_STAGES: CropStageDef[] = [
     healthyNdviRange: [0.35, 0.55],
     optimalNdmi: 0.10,
     waterSensitivity: 'low',
-    advisory: 'Physiological senescence. Greenness decline is normal ripening, not crop stress. Withhold water 10-15 days before harvest.',
+    advisory: 'Greenness can fade as the crop ripens. Check the crop and harvest timing before deciding whether a change is normal.',
   },
 ]
 
@@ -297,9 +297,9 @@ export function computeStageAdjustedVerdict(
   if (crop.id === 'uncultivated') {
     return {
       healthScore: 85,
-      status: 'Bare Soil / Fallow Baseline',
+      status: 'Bare or fallow ground',
       tone: 'good' as const,
-      note: `NDVI ${currentNdvi.toFixed(2)} is a standard baseline for bare, tilled, or uncultivated land. No abnormal vegetative stress.`,
+      note: `NDVI is ${currentNdvi.toFixed(2)}. Little green cover may be expected if this field is fallow; check the image against what is planted on the ground.`,
       isSenescence: false,
     }
   }
@@ -311,9 +311,9 @@ export function computeStageAdjustedVerdict(
     if (currentNdvi <= 0.55 && currentNdvi >= 0.25) {
       return {
         healthScore: Math.round(85 + (0.55 - currentNdvi) * 20),
-        status: 'Normal Ripening',
+        status: 'Greenness may be fading with ripening',
         tone: 'good' as const,
-        note: `NDVI ${currentNdvi.toFixed(2)} reflects healthy senescence prior to harvest.`,
+        note: `NDVI is ${currentNdvi.toFixed(2)}. Lower green cover can be normal near harvest, but confirm the crop stage in the field.`,
         isSenescence: true,
       }
     }
@@ -325,33 +325,33 @@ export function computeStageAdjustedVerdict(
   if (delta >= 0.05) {
     return {
       healthScore,
-      status: 'Above Stage Benchmark',
+      status: 'Greener than the general guide',
       tone: 'good' as const,
-      note: `NDVI ${currentNdvi.toFixed(2)} exceeds normal ${stage.name} benchmark (${expected.toFixed(2)}). Vigorous growth.`,
+      note: `NDVI is ${currentNdvi.toFixed(2)}, above the general ${stage.name.toLowerCase()} guide of ${expected.toFixed(2)}. Compare with the last pass and the crop you see in the field.`,
       isSenescence: false,
     }
   } else if (delta >= -0.10) {
     return {
       healthScore,
-      status: 'Normal Stage Health',
+      status: 'Close to the general guide',
       tone: 'good' as const,
-      note: `NDVI ${currentNdvi.toFixed(2)} is on track with typical ${stage.name} benchmarks (${expected.toFixed(2)}).`,
+      note: `NDVI is ${currentNdvi.toFixed(2)}, near the general ${stage.name.toLowerCase()} guide of ${expected.toFixed(2)}. This is a comparison, not a crop-health certificate.`,
       isSenescence: false,
     }
   } else if (delta >= -0.22) {
     return {
       healthScore,
-      status: 'Moderate Canopy Deficit',
+      status: 'Below the general guide',
       tone: 'warn' as const,
-      note: `NDVI ${currentNdvi.toFixed(2)} lags behind expected ${stage.name} level (${expected.toFixed(2)}). Check nutrition or irrigation.`,
+      note: `NDVI is ${currentNdvi.toFixed(2)}, below the general ${stage.name.toLowerCase()} guide of ${expected.toFixed(2)}. Check planting date and compare recent clear imagery, the planting date, and the crop stage before changing water or fertilizer.`,
       isSenescence: false,
     }
   } else {
     return {
       healthScore,
-      status: 'Significant Stand Stress',
+      status: 'Well below the general guide',
       tone: 'bad' as const,
-      note: `NDVI ${currentNdvi.toFixed(2)} is substantially lower than expected ${stage.name} (${expected.toFixed(2)}). Immediate inspection needed.`,
+      note: `NDVI is ${currentNdvi.toFixed(2)}, well below the general ${stage.name.toLowerCase()} guide of ${expected.toFixed(2)}. Confirm the crop and stage, then inspect the field for gaps or visible problems.`,
       isSenescence: false,
     }
   }

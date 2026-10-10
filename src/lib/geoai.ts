@@ -36,50 +36,104 @@ export const SENTINEL_BANDS: { id: string; name: string; nm: string; role: strin
   { id: 'B12', name: 'Band 12 · SWIR-2', nm: '2190 nm', role: 'Moisture stress, geology' },
 ]
 
+export const CALIBRATED_BAND_SPECS: Record<string, { min: number; max: number; name: string }> = {
+  B02: { min: 0.015, max: 0.22, name: 'Blue (490 nm)' },
+  B03: { min: 0.020, max: 0.24, name: 'Green (560 nm)' },
+  B04: { min: 0.015, max: 0.26, name: 'Red (665 nm)' },
+  B05: { min: 0.020, max: 0.30, name: 'Red Edge 1 (705 nm)' },
+  B06: { min: 0.035, max: 0.45, name: 'Red Edge 2 (740 nm)' },
+  B07: { min: 0.045, max: 0.52, name: 'Red Edge 3 (783 nm)' },
+  B08: { min: 0.050, max: 0.58, name: 'NIR (842 nm)' },
+  B11: { min: 0.020, max: 0.42, name: 'SWIR-1 (1610 nm)' },
+  B12: { min: 0.015, max: 0.36, name: 'SWIR-2 (2190 nm)' },
+}
+
+export type BandStretchMode = 'gee_percentile' | 'calibrated_boa'
+
+export type CompositeOptions = {
+  stretchMode?: BandStretchMode
+  smooth?: boolean
+  sharpen?: number
+  gamma?: number
+}
+
+function bandPercentiles(
+  arr: Float32Array | Float64Array,
+  filter: (i: number) => boolean,
+  defaultMin = 0.02,
+  defaultMax = 0.30,
+  pLow = 0.02,
+  pHigh = 0.98
+): [number, number] {
+  const vals: number[] = []
+  const step = Math.max(1, Math.floor(arr.length / 4000))
+  for (let i = 0; i < arr.length; i += step) {
+    if (filter(i)) {
+      const v = arr[i]
+      if (Number.isFinite(v) && v > -0.2 && v < 2.0) vals.push(v)
+    }
+  }
+  if (vals.length < 8) return [defaultMin, defaultMax]
+  vals.sort((a, b) => a - b)
+  const lo = vals[Math.min(vals.length - 1, Math.max(0, Math.floor(pLow * vals.length)))]
+  const hi = vals[Math.min(vals.length - 1, Math.max(0, Math.floor(pHigh * vals.length)))]
+  if (hi - lo < 0.02) return [defaultMin, defaultMax]
+  return [lo, hi]
+}
+
 export function renderBandComposite(
   g: Grid,
   ring: Ring,
   redBand: string = 'B04',
   greenBand: string = 'B03',
   blueBand: string = 'B02',
-  raw: boolean = false
+  raw: boolean = false,
+  options: CompositeOptions = {}
 ): string {
+  const { stretchMode = 'gee_percentile', smooth = true, sharpen = 0.35, gamma = 1.25 } = options
   const b = g.b as Record<string, Float64Array | Float32Array>
   const rArr = b[redBand] || b['B04'] || b['B02']
   const gArr = b[greenBand] || b['B03'] || b['B02']
   const bArr = b[blueBand] || b['B02'] || b['B03']
 
-  const stretch = (val: number, isInfra: boolean) => {
+  const rSpec = CALIBRATED_BAND_SPECS[redBand] ?? { min: 0.02, max: 0.30 }
+  const gSpec = CALIBRATED_BAND_SPECS[greenBand] ?? { min: 0.02, max: 0.30 }
+  const bSpec = CALIBRATED_BAND_SPECS[blueBand] ?? { min: 0.02, max: 0.30 }
+
+  const pixelFilter = (i: number) => (raw ? !!g.ok[i] : usable(g, i))
+
+  const [rMin, rMax] = stretchMode === 'gee_percentile'
+    ? bandPercentiles(rArr, pixelFilter, rSpec.min, rSpec.max)
+    : [rSpec.min, rSpec.max]
+
+  const [gMin, gMax] = stretchMode === 'gee_percentile'
+    ? bandPercentiles(gArr, pixelFilter, gSpec.min, gSpec.max)
+    : [gSpec.min, gSpec.max]
+
+  const [bMin, bMax] = stretchMode === 'gee_percentile'
+    ? bandPercentiles(bArr, pixelFilter, bSpec.min, bSpec.max)
+    : [bSpec.min, bSpec.max]
+
+  const stretchCh = (val: number, min: number, max: number) => {
     if (!Number.isFinite(val)) return 0
-    const maxV = isInfra ? 0.45 : 0.30
-    const norm = Math.min(1, Math.max(0, val / maxV))
-    const curved = 1 / (1 + Math.exp(-6 * (Math.pow(norm, 0.7) - 0.45)))
-    return Math.min(255, Math.max(0, Math.round(255 * ((curved - 0.063) / 0.874))))
+    const norm = Math.min(1, Math.max(0, (val - min) / (max - min)))
+    return Math.round(255 * Math.pow(norm, 1 / gamma))
   }
 
-  const isRInfra = redBand === 'B08' || redBand === 'B11' || redBand === 'B12'
-  const isGInfra = greenBand === 'B08' || greenBand === 'B11' || greenBand === 'B12'
-  const isBInfra = blueBand === 'B08' || blueBand === 'B11' || blueBand === 'B12'
+  const painter = (i: number): [number, number, number] | null => {
+    if (!pixelFilter(i)) return null
+    return [
+      stretchCh(rArr[i], rMin, rMax),
+      stretchCh(gArr[i], gMin, gMax),
+      stretchCh(bArr[i], bMin, bMax)
+    ]
+  }
 
   if (raw) {
-    return paintRaw(
-      g.w,
-      g.h,
-      g.bbox,
-      i => (usable(g, i) ? [stretch(rArr[i], isRInfra), stretch(gArr[i], isGInfra), stretch(bArr[i], isBInfra)] : null),
-      false // Nearest-neighbor raster clarity matching Earth Engine & QGIS
-    )
+    return paintRaw(g.w, g.h, g.bbox, painter, smooth, sharpen)
   }
 
-  return paintClipped(
-    g.w,
-    g.h,
-    g.bbox,
-    ring,
-    i => (usable(g, i) ? [stretch(rArr[i], isRInfra), stretch(gArr[i], isGInfra), stretch(bArr[i], isBInfra)] : null),
-    true,
-    0
-  )
+  return paintClipped(g.w, g.h, g.bbox, ring, painter, smooth, sharpen)
 }
 
 export function trueColour(g: Grid, ring: Ring) {

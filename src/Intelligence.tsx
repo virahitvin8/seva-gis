@@ -60,7 +60,7 @@ function Legend({ title, unit, rows }: { title: string; unit: string; rows: (Cla
 
 function Img({ res, caption, farm, scene, how }: { res?: MapResult; caption: string; farm: Props['farm']; scene?: Scene; how: string }) {
   if (!res?.url) return <figure className="ge-fig"><div className="ge-wait">Computing…</div><figcaption>{caption}</figcaption></figure>
-  return <MapFrame farm={farm} scene={scene} overlay={res.url} title={caption.split(' · ')[0]} note={how} caption={caption} legend={res.rows.map(r => ({ color: r.color, label: r.name }))}/>
+  return <MapFrame farm={farm} scene={scene} overlay={res.url} title={caption.split(' · ')[0]} note={how} caption={caption} legend={res.rows.map(r => ({ color: r.color, label: r.name }))} crisp={true}/>
 }
 
 const Note = ({ children, src = ['s2'] }: { children: React.ReactNode; src?: SourceKey[] }) => <><p className="ge-note">{children}</p><SourceNote of={src}/></>
@@ -75,12 +75,12 @@ function MapTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
   return <>
     <Status error={grid.error} loading={grid.loading} text="Loading Sentinel-2 bands…"/>
     {lc && zones && <div className="ge-cols">
-      <div><Img farm={farm} scene={scene} res={lc} caption={`Land cover · Sentinel-2 ${scene.datetime.slice(0, 10)}`} how="Each colour is one kind of ground, worked out from the light the satellite measured: water, thick crop, thin crop, bare soil or buildings. Dark green means dense healthy plants; brown means bare soil."/><Legend title="Land-cover class" unit="share of clear pixels · area in ha" rows={lc.rows}/></div>
-      <div><Img farm={farm} scene={scene} res={zones} caption="Management zones · k-means on NDVI, NDMI, NDRE" how="The computer splits your farm into zones that behave alike. Weaker zones may need more water, food for the soil, or a closer look. Treat each zone separately."/><Legend title="Vigour zone" unit="share of field · area in ha" rows={zones.rows}/>
+      <div><Img farm={farm} scene={scene} res={lc} caption={`Land cover · Sentinel-2 ${scene.datetime.slice(0, 10)}`} how="Each colour is one kind of ground, estimated from the satellite picture: water, thick crop, thin crop, bare soil or buildings. Dark green usually means more green cover; brown can be exposed soil or residue. Compare the same area across clear dates before deciding whether it needs a closer look."/><Legend title="Land-cover class" unit="share of clear pixels · area in ha" rows={lc.rows}/></div>
+      <div><Img farm={farm} scene={scene} res={zones} caption="Management zones · k-means on NDVI, NDMI, NDRE" how="The computer groups areas that look similar in this satellite image. Compare the coloured zones across dates to see whether a pattern stays in the same place. The groups do not identify a cause or prescribe an input."/><Legend title="Vigour zone" unit="share of field · area in ha" rows={zones.rows}/>
         <div className="ge-zmean">{zones.means.map((m, i) => <span key={i}>Z{i + 1}: NDVI {f(m.ndvi, 2)}, NDMI {f(m.ndmi, 2)}</span>)}</div></div>
     </div>}
     <div className="sc-grid"><ScaleBox id="ndvi" compact/><ScaleBox id="ndre" compact/></div>
-    <Note>Land cover uses transparent index thresholds (NDVI, MNDWI, NDBI) on one clear scene, the same rule-based approach used in Earth Engine code-editor scripts. Zones are unsupervised clusters: use them to sample soil or scout, then apply variable-rate inputs per zone. For crop-type names, label the zones on the ground once.</Note>
+    <Note>Land cover uses visible index thresholds (NDVI, MNDWI, NDBI) on one clear scene. Zones are unsupervised groups of pixels that look similar; compare them across dates and review the source image before drawing conclusions. They do not identify a cause or prescribe inputs.</Note>
   </>
 }
 
@@ -103,7 +103,7 @@ function PlanTab({ farm }: { farm: Props['farm'] }) {
       <div className="ge-bar"><label><input type="checkbox" checked={irrigated} onChange={e => setIrrigated(e.target.checked)}/> Irrigation available</label>
         <small>Soil pH {f(sp.ph ?? NaN)} · clay {f(sp.clay ?? NaN, 0)}% · slope {farm.analysis?.slopePct !== undefined ? `${f(farm.analysis.slopePct)}%` : 'unknown'} · {climate.data.years}-year mean rainfall {f(climate.data.annualRain, 0)} mm/yr</small></div>
       <div className="ge-plan">
-        <div className={`wt-verdict ${top.score >= 60 ? 'good' : 'warn'}`}><Sprout size={18}/><div><b>Best fit here: {top.crop.name}, {top.score}/100 ({suitBand(top.score).label})</b><br/>Sow in {MONTHS[top.bestMonth]}, harvest around {MONTHS[top.harvest]}. Seasonal crop water need ≈ {f(top.waterNeed, 0)} mm, rain covers ≈ {f(top.rainSeason, 0)} mm, so plan about {f(top.irrigation, 0)} mm of irrigation{ha ? ` (${f(top.irrigation * ha * 10, 0)} m³ for ${f(ha)} ha)` : ''}. {rotationAdvice(top.crop)}</div></div>
+        <div className={`wt-verdict ${top.score >= 60 ? 'good' : 'warn'}`}><Sprout size={18}/><div><b>Climate and soil screen: {top.crop.name}, {top.score}/100 ({suitBand(top.score).label})</b><br/>Sow in {MONTHS[top.bestMonth]}, harvest around {MONTHS[top.harvest]}. Seasonal crop water need ≈ {f(top.waterNeed, 0)} mm, rain covers ≈ {f(top.rainSeason, 0)} mm, so plan about {f(top.irrigation, 0)} mm of irrigation{ha ? ` (${f(top.irrigation * ha * 10, 0)} m³ for ${f(ha)} ha)` : ''}. {rotationAdvice(top.crop)}</div></div>
         {current && <div className="wt-verdict"><Sprout size={18}/><div><b>Your current crop ({current.crop.name}): {current.score}/100, {suitBand(current.score).label}</b><br/>Limiting factor: {current.limiting}. Best sowing month for it here is {MONTHS[current.bestMonth]}.</div></div>}
       </div>
       <div className="ge-cal"><div className="ge-cal-head"><span>Crop</span>{MONTHS.map(m => <span key={m}>{m[0]}</span>)}<span>Best</span></div>
@@ -111,7 +111,7 @@ function PlanTab({ farm }: { farm: Props['farm'] }) {
           {r.monthScores.map((s, m) => <i key={m} className={m === r.bestMonth ? 'best' : ''} style={{ background: suitBand(s).color, opacity: 0.35 + s / 160 }} title={`Sow ${MONTHS[m]}: ${s}/100`}/>)}
           <b style={{ color: suitBand(r.score).color === '#fdae61' ? '#a55a00' : undefined }}>{r.score}</b></div>)}</div>
       <div className="ge-cols">
-        <Legend title="Suitability score" unit="0 to 100, weakest of temperature, water, soil, terrain" rows={SUIT_BANDS.map((b, i) => ({ id: b.label, name: b.label, color: b.color, note: ['below 40', '40 to 60', '60 to 80', '80 and above'][i] }))}/>
+        <Legend title="Crop planning score" unit="rough 0–100 screen · not yield or a guarantee" rows={SUIT_BANDS.map((b, i) => ({ id: b.label, name: b.label, color: b.color, note: ['below 40', '40 to 60', '60 to 80', '80 and above'][i] }))}/>
         <ClimateChart c={climate.data}/>
       </div>
       <Note src={['weather', 'soil', 'dem', 'model']}>Method: FAO EcoCrop style limiting-factor scoring. Each cell is the score if you sow that month; the outlined cell is the best month. Temperature uses monthly means across the crop cycle, soil uses SoilGrids pH and clay, terrain uses the DEM slope. Variety, salinity and market are not modelled.</Note>
@@ -171,7 +171,7 @@ function ChangeTab({ farm }: { farm: Props['farm'] }) {
           {change.data && <><Img farm={farm} scene={rows[B].scene} how="Red means the crop got weaker between the two dates, green means it got stronger. A drop right after harvest is normal." res={change.data} caption={`ΔNDVI ${change.data.a.datetime.slice(0, 10)} → ${change.data.b.datetime.slice(0, 10)}`}/>
             <div className="ge-delta">Mean ΔNDVI <b className={change.data.mean < -0.05 ? 'bad' : change.data.mean > 0.05 ? 'good' : ''}>{change.data.mean >= 0 ? '+' : ''}{f(change.data.mean, 3)}</b> · mean ΔNDMI <b>{change.data.meanMoisture >= 0 ? '+' : ''}{f(change.data.meanMoisture, 3)}</b></div>
             <Legend title="Change class" unit="share of pixels clear on both dates" rows={change.data.rows}/></>}</>}</div>
-        <div>{frame.data ? <MapFrame farm={farm} scene={rows[T].scene} overlay={frame.data.url} title={`Greenness on ${rows[T].scene.datetime.slice(0, 10)}`} note="Slide through the dates to watch your crop grow. Dark green is thick healthy crop, yellow is thin, red is bare or stressed." legend={[{ color: '#a50026', label: 'Bare / stressed' }, { color: '#fdae61', label: 'Thin' }, { color: '#a6d96a', label: 'Growing' }, { color: '#006837', label: 'Dense and healthy' }]} caption={`Time slider · NDVI on ${rows[T].scene.datetime.slice(0, 10)}`}/> : <div className="ge-wait">{frame.error ?? 'Loading…'}</div>}
+        <div>{frame.data ? <MapFrame farm={farm} scene={rows[T].scene} overlay={frame.data.url} title={`Greenness on ${rows[T].scene.datetime.slice(0, 10)}`} note="Slide through the dates to watch your crop grow. Darker green shows more green cover in the image; yellow shows thinner cover; red shows little cover. Visit patches to check why." legend={[{ color: '#a50026', label: 'Little green cover' }, { color: '#fdae61', label: 'Thin' }, { color: '#a6d96a', label: 'Growing' }, { color: '#006837', label: 'Strong green-cover signal' }]} caption={`Time slider · NDVI on ${rows[T].scene.datetime.slice(0, 10)}`}/> : <div className="ge-wait">{frame.error ?? 'Loading…'}</div>}
           <input type="range" min={0} max={rows.length - 1} value={T} onChange={e => setTi(+e.target.value)} className="ge-slider" aria-label="Date"/>
           <div className="ge-slider-ends"><span>{rows[0].scene.datetime.slice(0, 10)}</span><span>{rows[rows.length - 1].scene.datetime.slice(0, 10)}</span></div>
           {frame.data && <div className="sc-box compact"><div className="sc-title"><b>NDVI colour</b><span>{f(frame.data.range?.[0] ?? -0.2, 1)} to {f(frame.data.range?.[1] ?? 1, 1)}</span></div><div className="sc-bar" style={{ height: 10, background: 'linear-gradient(90deg,#a50026,#fdae61,#fee08b,#a6d96a,#006837)' }}/><div className="ge-slider-ends"><span>bare / stressed</span><span>dense, healthy</span></div></div>}</div>
@@ -194,21 +194,21 @@ function PestTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
       <div><h4 className="ge-h">Weather-driven risk, next 7 days</h4>
         <Status error={weather.error} loading={weather.loading} text="Loading live weather…"/>
         {risks.map(r => { const b = riskBand(r.score); return <div key={r.id} className="ge-risk"><div><b>{r.name}</b><small>{r.targets}</small></div><div className="ge-risk-bar"><i style={{ width: `${r.score}%`, background: b.color }}/></div><span style={{ color: b.color === '#fee08b' ? '#8a6d00' : b.color }}>{r.score} · {b.label}</span><small className="ge-why">{r.why}</small></div> })}
-        <Legend title="Risk score" unit="0 to 100, rule-of-thumb weather suitability" rows={RISK_BANDS.map((b, i) => ({ id: b.label, name: b.label, color: b.color, note: ['below 25', '25 to 50', '50 to 75', '75 and above'][i] }))}/>
-        {maxRisk.score >= 50 && <div className="wt-verdict warn"><Bug size={18}/><div><b>Scout for {maxRisk.name.toLowerCase()} this week.</b> {maxRisk.why}. Check the underside of leaves in the satellite hotspots on the right first.</div></div>}</div>
+        <Legend title="Risk score" unit="weather check-in score · not disease probability" rows={RISK_BANDS.map((b, i) => ({ id: b.label, name: b.label, color: b.color, note: ['below 25', '25 to 50', '50 to 75', '75 and above'][i] }))}/>
+        {maxRisk.score >= 50 && <div className="wt-verdict warn"><Bug size={18}/><div><b>Weather may favour {maxRisk.name.toLowerCase()}.</b> {maxRisk.why}. Look for visible signs in the field; this score does not predict an outbreak.</div></div>}</div>
       <div><h4 className="ge-h">Satellite stress hotspots</h4>
         {!scene && <div className="ag-empty">Run the satellite analysis first.</div>}
         <Status error={grid.error} loading={grid.loading} text="Loading Sentinel-2 bands…"/>
         {grid.data && !hs && <div className="ag-empty">Too few clear vegetated pixels to detect hotspots on this date.</div>}
         {hs && <><Img farm={farm} scene={scene} how="Darker orange or red patches are weaker than the rest of your field. Satellites cannot name a pest, they show where to look." res={hs} caption={`Weak spots vs field average · ${scene!.datetime.slice(0, 10)}`}/>
           <Legend title="Hotspot level" unit="share of vegetated pixels · area in ha" rows={hs.rows}/>
-          <div className="ge-delta">{f(hs.healthyPct, 0)}% of the field is at or above average. Weak spots are {hs.clustered ? <b className="bad">clustered in patches: typical of pests or disease spreading from foci</b> : <b>scattered: more typical of soil, water or seed variability</b>}.</div></>}</div>
+          <div className="ge-delta">{f(hs.healthyPct, 0)}% of the field is at or above average. Weak spots are {hs.clustered ? <b className="bad">clustered in patches: compare these zones with earlier clear images and the crop stage</b> : <b>scattered: compare recent imagery, planting date, and crop stage across the field</b>}.</div></>}</div>
     </div>
     {hs && hs.patches.length > 0 && <div className="ge-patches"><h4 className="ge-h">Scouting targets</h4><table><thead><tr><th>#</th><th>Where</th><th>Size</th><th>Mean z</th><th>Weakest signal</th><th>From farm centre</th></tr></thead>
       <tbody>{hs.patches.map((p, i) => <tr key={i}><td>{i + 1}</td><td>{p.lat.toFixed(5)}°, {p.lon.toFixed(5)}°</td><td>{f(p.ha, 2)} ha</td><td>{f(p.z, 1)}</td><td>{p.signature}</td><td>{f(p.distM, 0)} m {p.bearing}</td></tr>)}</tbody></table>
       <div className="ge-stats">{hs.signatures.map(s => <div key={s.name}><span>Weakest signal</span><b>{f(s.pct, 0)}%</b><small>{s.name}</small></div>)}</div></div>}
     <div className="sc-grid"><ScaleBox id="ndre" compact/><ScaleBox id="ndmi" compact/></div>
-    <Note src={['s2', 'weather']}>Satellites cannot name a pest or disease. They show where the canopy is weaker than the rest of this field in density (NDVI), chlorophyll (NDRE) or water (NDMI); z is the number of standard deviations below the field average. Chlorophyll loss with normal water points to disease or nutrient problems, low water to irrigation faults, low density to feeding damage or poor stand. Visit the listed spots and confirm. Weather risk scores are suitability rules, not calibrated forecasts.</Note>
+    <Note src={['s2', 'weather']}>Satellites cannot name a pest or disease. They show where the canopy is weaker than the rest of this field in density (NDVI), chlorophyll (NDRE) or water (NDMI); z is the number of standard deviations below the field average. Differences in greenness or moisture can have many causes, including crop stage, soil, weeds, pests, or water. Visit the marked spots and confirm what you see before acting. Visit the listed spots and confirm. Weather risk scores are suitability rules, not calibrated forecasts.</Note>
   </>
 }
 
@@ -236,7 +236,7 @@ export default function Intelligence({ farm }: Props) {
 
   return <section className="ag-wrap ge-wrap">
     <div className="intelligence-heading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <h2>Analysis lab <span>Satellite trends · field zones · planning</span></h2>
+      <h2>Remote field review <span>Latest imagery · changes over time · field zones</span></h2>
       <button
         className={`box-refresh-btn ${spinning ? 'spinning' : ''}`}
         title="Refresh Analysis lab"

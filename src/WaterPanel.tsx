@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
 import { CircleDot, Droplets, RefreshCw, Route, Trash2, Waves } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
-import { fetchSoil, fetchWeather, regionalSoilFallback, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
+import { fetchSoil, fetchWeather, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { CROPS, METHODS, pipeHydraulics, pumpKw, soilHydraulics } from './lib/hydro'
 import { removeBorewell, removePipeline, updateBorewell, updatePipeline, lengthM, useAssets, type Pipeline } from './lib/assets'
 import { bandFor, sampleAt, type Grid } from './lib/indicators'
@@ -18,7 +18,7 @@ const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 const DIAS = [40, 50, 63, 75, 90, 110, 125, 160, 200]
 
-function Card({ title, sub, icon: Icon, items, src = ['weather', 'model'], onRefresh }: { src?: SourceKey[]; title: string; sub: string; icon: typeof Droplets; items?: Param[]; onRefresh?: () => void }) {
+function Card({ title, sub, icon: Icon, items, empty = 'Waiting for enough data to show this estimate.', src = ['weather', 'model'], onRefresh }: { src?: SourceKey[]; title: string; sub: string; icon: typeof Droplets; items?: Param[]; empty?: string; onRefresh?: () => void }) {
   const [spinning, setSpinning] = useState(false)
   const handleRefresh = () => {
     setSpinning(true)
@@ -28,7 +28,7 @@ function Card({ title, sub, icon: Icon, items, src = ['weather', 'model'], onRef
   return <section className="ag-card"><div className="ag-head"><Icon size={17}/><h3>{title}</h3><small>{sub}</small>
     {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={handleRefresh}><RefreshCw size={13}/></button>}
   </div>
-    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`}><span>{p.label}</span><b>{p.value}</b><small>{p.note}</small></div>)}</div> : <div className="ag-empty"><LogoLoader text="Loading…"/></div>}<SourceNote of={src}/></section>
+    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`}><span>{p.label}</span><b>{p.value}</b><small>{p.note}</small></div>)}</div> : <div className="ag-empty">{/^Loading|^Waiting/i.test(empty) ? <LogoLoader text={empty}/> : empty}</div>}<SourceNote of={src}/></section>
 }
 
 function Guide({ title, unit, rows }: { title: string; unit: string; rows: [string, string, string][] }) {
@@ -67,27 +67,16 @@ export default function WaterPanel({ farm }: Props) {
   const crop = CROPS.find(c => c.id === cfg.crop)!, method = METHODS.find(m => m.id === cfg.method)!
 
   const hyd = useMemo(() => {
-    const sEff = s || regionalSoilFallback(farm.lat, farm.lon)
-    const avg = (k: string) => { const v = (sEff[k]?.depths ?? []).slice(0, 3).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN }
+    if (!s) return null
+    const avg = (k: string) => { const v = (s[k]?.depths ?? []).slice(0, 3).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : NaN }
     const sand = avg('sand'), clay = avg('clay'), silt = avg('silt'), soc = avg('soc')
-    if (![sand, clay, silt, soc].every(Number.isFinite)) {
-      const fb = regionalSoilFallback(farm.lat, farm.lon)
-      const clayFb = fb.clay.depths[0], sandFb = fb.sand.depths[0], siltFb = fb.silt.depths[0], socFb = fb.soc.depths[0]
-      return { sand: sandFb, clay: clayFb, silt: siltFb, texture: textureClass(clayFb, sandFb, siltFb), ...soilHydraulics(sandFb, clayFb, (socFb * 1.724) / 10), ph: fb.phh2o.depths[0], bd: fb.bdod.depths[0] }
-    }
+    if (![sand, clay, silt, soc].every(Number.isFinite)) return null
     return { sand, clay, silt, texture: textureClass(clay, sand, silt), ...soilHydraulics(sand, clay, (soc * 1.724) / 10), ph: avg('phh2o'), bd: avg('bdod') }
-  }, [s, farm.lat, farm.lon])
+  }, [s])
 
   const water = useMemo(() => {
-    if (!hyd) return null
-    const wEff = w || {
-      time: '', temp: 26, rh: 55, vpd: 1.2, wind: 10, uv: 6, cloud: 20,
-      soilT: { d0: 25, d6: 24, d18: 23, d54: 22 },
-      soilM: { d0_1: 0.22, d1_3: 0.24, d3_9: 0.26, d9_27: 0.25, d27_81: 0.28 },
-      rain30: farm.rain ?? 35, rain7: 8, rainNext7: Math.round((farm.rain ?? 10) * 0.4), et0Past7: 32, et0Next7: 35,
-      gdd30: 320, gddNext7: 80, tmaxToday: 32, tminToday: 18, radToday: 20, uvMax: 7,
-      tminNext7: 17, tmaxNext7: 33
-    }
+    if (!hyd || !w) return null
+    const wEff = w
     const area = farm.area || 0
     const etc7 = crop.kc * wEff.et0Next7, effRain = 0.75 * wEff.rainNext7, theta = wEff.soilM.d9_27
     const frac = clamp((theta - hyd.pwp) / (hyd.fc - hyd.pwp), 0, 1), taw = (hyd.fc - hyd.pwp) * crop.root * 1000
@@ -97,7 +86,7 @@ export default function WaterPanel({ farm }: Props) {
     const demandDay = (dailyEtc / method.eff) * area * 10
     const daysToMad = (frac - 0.5) * taw / Math.max(dailyEtc - effRain / 7, 0.1)
     return { etc7, effRain, frac, taw, refill, need7, netNow, dailyEtc, gross, volume: gross * area * 10, demandDay, interval: (taw * 0.5) / Math.max(dailyEtc, 0.1), daysToMad, area }
-  }, [w, hyd, crop, method, farm.area, farm.rain])
+  }, [w, hyd, crop, method, farm.area])
 
   const terrain = useMemo(() => {
     if (!g) return null
@@ -107,43 +96,43 @@ export default function WaterPanel({ farm }: Props) {
   }, [g])
 
   const verdict: { tone: Tone; text: string } | null = water && (water.frac < 0.5
-    ? { tone: 'bad', text: `Irrigate now. Root zone holds ${f(water.frac * 100, 0)}% of its available water. Apply ${f(water.refill, 0)} mm net (${f(water.gross, 0)} mm gross${water.area ? `, about ${f(water.volume, 0)} m³ for ${f(water.area, 1)} ha` : ''}).` }
+    ? { tone: 'warn', text: `The model shows about ${f(water.frac * 100, 0)}% of estimated root-zone water available. Check soil near the roots before watering; the model's rough refill estimate is ${f(water.refill, 0)} mm net (${f(water.gross, 0)} mm through the selected method${water.area ? `, about ${f(water.volume, 0)} m³ over ${f(water.area, 1)} ha` : ''}).` }
     : water.need7 > 5
-      ? { tone: 'warn', text: `Irrigate within about ${f(Math.max(water.daysToMad, 0), 0)} days. Crop use over the next 7 days exceeds forecast rain by ${f(water.need7, 0)} mm net.` }
-      : { tone: 'good', text: `No irrigation needed this week. Soil water and forecast rain cover the crop's ${f(water.etc7, 0)} mm of demand.` })
+      ? { tone: 'warn', text: `The model estimates crop water demand may exceed forecast rain by ${f(water.need7, 0)} mm over the next 7 days. Check soil near the roots and update the plan if local rain differs.` }
+      : { tone: 'good', text: `The current model shows no large shortfall for the week (${f(water.etc7, 0)} mm estimated crop demand). Confirm with field soil and local rain before changing irrigation.` })
 
   const budget: Param[] | undefined = water ? [
-    { label: 'Rain, last 30 days', value: `${f(w?.rain30 ?? farm.rain ?? 35, 0)} mm`, note: `Last 7 days ${f(w?.rain7 ?? 8)} mm`, tone: 'neutral' },
-    { label: 'Crop water use (ETc), next 7 d', value: `${f(water.etc7, 0)} mm`, note: `${crop.name}: Kc ${crop.kc} × ET0 ${f(w?.et0Next7 ?? 35, 0)} mm`, tone: 'neutral' },
-    { label: 'Effective rain, next 7 d', value: `${f(water.effRain, 0)} mm`, note: `75% of the ${f(w?.rainNext7 ?? 10, 0)} mm forecast reaches the roots`, tone: 'neutral' },
-    { label: 'Root-zone water available', value: `${f(water.frac * 100, 0)} %`, note: `${f(water.frac * water.taw, 0)} of ${f(water.taw, 0)} mm in ${crop.root} m of soil`, tone: water.frac < 0.5 ? 'bad' : water.frac < 0.65 ? 'warn' : 'good' },
-    { label: 'Irrigation needed now', value: `${f(water.refill, 0)} mm`, note: water.refill ? 'Refill to field capacity' : 'Above the 50% trigger, none yet', tone: water.refill ? 'bad' : 'good' },
-    { label: 'Irrigation, next 7 d (net)', value: `${f(water.need7, 0)} mm`, note: `Gross ${f(water.need7 / method.eff, 0)} mm at ${Math.round(method.eff * 100)}% ${method.name.toLowerCase()} efficiency`, tone: water.need7 > 20 ? 'warn' : 'neutral' },
-    { label: 'Daily crop demand', value: water.area ? `${f(water.demandDay, 0)} m³/day` : `${f(water.dailyEtc / method.eff, 1)} mm/day`, note: water.area ? `${f(water.area, 1)} ha, ${f(water.dailyEtc, 1)} mm/day crop use` : 'Add farm area for volumes', tone: 'neutral' },
-    { label: 'Irrigation interval', value: `${f(water.interval, 0)} days`, note: 'Time to use half the available water', tone: 'neutral' },
+    { label: 'Rain, last 30 days', value: `${f(w!.rain30, 0)} mm`, note: `Last 7 days: ${f(w!.rain7)} mm from the weather model`, tone: 'neutral' },
+    { label: 'Estimated crop water demand, next 7 days', value: `${f(water.etc7, 0)} mm`, note: `Based on ${crop.name} and this model's weather estimate; crop stage changes demand.`, tone: 'neutral' },
+    { label: 'Rain expected to reach the soil', value: `${f(water.effRain, 0)} mm`, note: `Planning estimate from ${f(w!.rainNext7, 0)} mm forecast rain; actual field rain and runoff may differ.`, tone: 'neutral' },
+    { label: 'Estimated water in crop root zone', value: `${f(water.frac * 100, 0)} %`, note: `About ${f(water.frac * water.taw, 0)} of ${f(water.taw, 0)} mm estimated for ${crop.root} m of soil. This is a model, not a soil probe.`, tone: water.frac < 0.5 ? 'warn' : water.frac < 0.65 ? 'neutral' : 'good' },
+    { label: 'Possible refill amount', value: `${f(water.refill, 0)} mm`, note: water.refill ? 'Model estimate only; check soil at root depth before applying.' : 'No refill amount is flagged by this model right now.', tone: water.refill ? 'warn' : 'neutral' },
+    { label: 'Possible irrigation gap, next 7 days', value: `${f(water.need7, 0)} mm`, note: `Gross amount would be higher after method losses; this estimate uses ${Math.round(method.eff * 100)}% ${method.name.toLowerCase()} efficiency.`, tone: water.need7 > 20 ? 'warn' : 'neutral' },
+    { label: 'Estimated daily crop demand', value: water.area ? `${f(water.demandDay, 0)} m³/day` : `${f(water.dailyEtc / method.eff, 1)} mm/day`, note: water.area ? `${f(water.area, 1)} ha and the selected crop/method assumptions` : 'Add a mapped farm area for a field volume', tone: 'neutral' },
+    { label: 'Estimated time to use half the water reserve', value: `${f(water.interval, 0)} days`, note: 'A planning guide only; crop stage, rainfall, and actual soil moisture can change this.', tone: 'neutral' },
   ] : undefined
 
   const soilItems: Param[] | undefined = hyd ? [
-    { label: 'Soil type', value: hyd.texture, note: `Sand ${f(hyd.sand, 0)} · silt ${f(hyd.silt, 0)} · clay ${f(hyd.clay, 0)} % (0-30 cm)`, tone: 'neutral' },
-    { label: 'Field capacity', value: `${f(hyd.fc * 100, 0)} %`, note: 'Water held after drainage, by volume', tone: 'neutral' },
-    { label: 'Wilting point', value: `${f(hyd.pwp * 100, 0)} %`, note: 'Below this plants cannot extract water', tone: 'neutral' },
-    { label: 'Plant-available water', value: `${f(hyd.awc, 0)} mm/m`, note: hyd.awc < 100 ? 'Low: irrigate lightly and often' : hyd.awc > 160 ? 'High: can irrigate less often' : 'Moderate holding capacity', tone: hyd.awc < 100 ? 'warn' : 'good' },
-    { label: 'Infiltration (Ks)', value: `${f(hyd.ks, hyd.ks < 10 ? 1 : 0)} mm/h`, note: hyd.ks > 60 ? 'Very fast: water drains below roots' : hyd.ks > 20 ? 'Well drained' : hyd.ks > 5 ? 'Moderate' : hyd.ks > 1 ? 'Slow: runoff and ponding risk' : 'Very slow: waterlogging likely', tone: hyd.ks > 60 || hyd.ks < 5 ? 'warn' : 'good' },
-    { label: 'Soil pH', value: f(hyd.ph, 1), note: hyd.ph < 5.5 ? 'Acidic' : hyd.ph > 8 ? 'Alkaline' : 'Suitable', tone: hyd.ph < 5.5 || hyd.ph > 8 ? 'warn' : 'good' },
+    { label: 'Estimated soil type', value: hyd.texture, note: `Modelled topsoil: ${f(hyd.sand, 0)}% sand, ${f(hyd.silt, 0)}% silt, ${f(hyd.clay, 0)}% clay. Check a soil sample to confirm.`, tone: 'neutral' },
+    { label: 'Moisture after excess water drains', value: `${f(hyd.fc * 100, 0)} %`, note: 'Model estimate of how much water this soil may hold after free drainage.', tone: 'neutral' },
+    { label: 'Very dry soil estimate', value: `${f(hyd.pwp * 100, 0)} %`, note: 'Below this modelled moisture level, many crops struggle to draw water. Confirm with the soil and crop.', tone: 'neutral' },
+    { label: 'Water the soil may hold for plants', value: `${f(hyd.awc, 0)} mm/m`, note: 'Estimated water available per metre of soil; actual storage depends on field layers and rooting depth.', tone: 'neutral' },
+    { label: 'Estimated water entry into soil', value: `${f(hyd.ks, hyd.ks < 10 ? 1 : 0)} mm/h`, note: hyd.ks > 60 ? 'Model suggests fast entry; check whether water moves below the roots.' : hyd.ks > 20 ? 'Model suggests fairly fast entry; check the field after irrigation.' : hyd.ks > 5 ? 'Middle range in the soil model; watch how water spreads.' : 'Model suggests slow entry; look for ponding or runoff after rain.', tone: hyd.ks > 60 || hyd.ks < 5 ? 'warn' : 'neutral' },
+    { label: 'Soil pH estimate', value: f(hyd.ph, 1), note: `${hyd.ph < 5.5 ? 'Acidic range' : hyd.ph > 8 ? 'Alkaline range' : 'Middle range'} in the regional model. Get a soil test before applying amendments.`, tone: 'neutral' },
   ] : undefined
 
-  const poorDrain = !!hyd && (hyd.ks < 5 || (terrain?.wet ?? 0) > 25 || (terrain?.pond ?? 0) > 10)
-  const drainItems: Param[] | undefined = hyd ? [
-    { label: 'Soil drainage', value: hyd.ks > 60 ? 'Excessive' : hyd.ks > 20 ? 'Good' : hyd.ks > 5 ? 'Moderate' : hyd.ks > 1 ? 'Poor' : 'Very poor', note: `Saturated conductivity ${f(hyd.ks, 1)} mm/h`, tone: hyd.ks < 5 ? 'bad' : hyd.ks > 60 ? 'warn' : 'good' },
-    { label: 'Mean wetness index', value: f(terrain?.twi?.mean ?? 8.5, 1), note: bandFor('twi', terrain?.twi?.mean ?? 8.5)?.label ?? 'Well-drained slope', tone: (terrain?.twi?.mean ?? 8.5) >= 12 ? 'bad' : 'neutral' },
-    { label: 'Waterlogging-prone area', value: `${f(terrain?.wet ?? 2, 0)} %`, note: 'Wetness index 12 or more', tone: (terrain?.wet ?? 0) > 25 ? 'bad' : (terrain?.wet ?? 0) > 10 ? 'warn' : 'good' },
-    { label: 'Ponding area', value: `${f(terrain?.pond ?? 0, 0)} %`, note: 'Hollows that hold 10 cm or more', tone: (terrain?.pond ?? 0) > 10 ? 'bad' : (terrain?.pond ?? 0) > 3 ? 'warn' : 'good' },
-    { label: 'Largest drainage inflow', value: `${f(terrain?.flow?.max ?? 2.4, 1)} ha`, note: 'Upslope area reaching the farm at its wettest point', tone: (terrain?.flow?.max ?? 0) > 50 ? 'warn' : 'neutral' },
-    { label: 'Mean slope', value: `${f(terrain?.slope?.mean ?? 1.2, 1)}°`, note: (terrain?.slope?.mean ?? 1.2) < 0.5 ? 'Very flat: needs field drains' : (terrain?.slope?.mean ?? 1.2) > 8 ? 'Steep: runoff and erosion' : 'Natural fall helps drainage', tone: (terrain?.slope?.mean ?? 1.2) < 0.5 || (terrain?.slope?.mean ?? 1.2) > 8 ? 'warn' : 'good' },
+  const poorDrain = !!hyd && !!terrain && (hyd.ks < 5 || terrain.wet > 25 || terrain.pond > 10)
+  const drainItems: Param[] | undefined = hyd && terrain ? [
+    { label: 'Estimated water movement through soil', value: hyd.ks > 60 ? 'Fast' : hyd.ks > 20 ? 'Fairly fast' : hyd.ks > 5 ? 'Middle range' : 'Slow', note: `${f(hyd.ks, 1)} mm/h from a soil model. Look for ponding or quick drainage in the field.`, tone: hyd.ks < 5 || hyd.ks > 60 ? 'warn' : 'neutral' },
+    { label: 'Ground where water may collect', value: f(terrain.twi?.mean ?? NaN, 1), note: bandFor('twi', terrain.twi?.mean ?? NaN)?.label ?? 'Map estimate; check low spots after rain.', tone: (terrain.twi?.mean ?? 0) >= 12 ? 'warn' : 'neutral' },
+    { label: 'Area with a wetness signal', value: `${f(terrain.wet, 0)} %`, note: 'Terrain model flags this share for closer checking; it does not confirm waterlogging.', tone: terrain.wet > 25 ? 'warn' : 'neutral' },
+    { label: 'Modelled hollows', value: `${f(terrain.pond, 0)} %`, note: 'Parts of the terrain model with a low spot. Check whether water actually stands there.', tone: terrain.pond > 10 ? 'warn' : 'neutral' },
+    { label: 'Largest upstream area', value: `${f(terrain.flow?.max ?? NaN, 1)} ha`, note: 'Land that may drain toward this point in the terrain model. Follow the path after rain.', tone: (terrain.flow?.max ?? 0) > 50 ? 'warn' : 'neutral' },
+    { label: 'Average slope', value: `${f(terrain.slope?.mean ?? NaN, 1)}°`, note: (terrain.slope?.mean ?? 0) < 0.5 ? 'Nearly level here; look for pooling after rain.' : (terrain.slope?.mean ?? 0) > 8 ? 'Steeper ground; check where runoff concentrates.' : 'Gentle grade in the model; confirm the actual flow path on site.', tone: (terrain.slope?.mean ?? 0) < 0.5 || (terrain.slope?.mean ?? 0) > 8 ? 'warn' : 'neutral' },
   ] : undefined
-  const drainAdvice = !hyd ? '' : poorDrain
-    ? `Plan surface drains along the wettest lines (see Drainage paths and Wetness index on the map)${hyd.ks < 5 ? '; heavy soil may need subsurface tile drains or raised beds' : ''}.`
-    : (terrain?.slope?.mean ?? 0) > 8 ? 'Drainage is fast. Protect against erosion with contour bunds, grass strips or terraces.' : 'Natural drainage looks adequate. Keep field outlets clear before the rains.'
+  const drainAdvice = !hyd || !terrain ? '' : poorDrain
+    ? 'Several model signals point to places worth checking. Walk the low spots and runoff paths after rain; get local advice before adding drains or earthworks.'
+    : (terrain.slope?.mean ?? 0) > 8 ? 'The terrain is relatively steep in this model. Check for fast runoff or soil movement after rain.' : 'The broad model shows no strong drainage warning. Check field outlets and observe the field after heavy rain.'
 
   const sampleDem = (lon: number, lat: number) => (g ? sampleAt(g, lon, lat) : null)
   const profile = (p: Pipeline) => {
@@ -170,22 +159,21 @@ export default function WaterPanel({ farm }: Props) {
       <div className="wt-pick"><label>Crop<select value={cfg.crop} onChange={e => setCfg({ crop: e.target.value })}>{CROPS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label>Irrigation<select value={cfg.method} onChange={e => setCfg({ method: e.target.value })}>{METHODS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label></div></div>
     
-    <IrrigationDecisionCard
+    {w && farm.analysis ? <IrrigationDecisionCard
       farmAreaHa={farm.area}
       cropName={crop.name}
-      ndmi={farm.analysis?.ndmi.mean ?? 0.24}
-      et0Next7={w?.et0Next7 ?? 35}
-      rainNext7={w?.rainNext7 ?? 10}
-      rain30={w?.rain30 ?? 40}
-      soilMoisturePct={w?.soilM ? Math.round(w.soilM.d0_1 * 100) : 25}
-    />
+      ndmi={farm.analysis.ndmi.mean}
+      et0Next7={w.et0Next7}
+      rainNext7={w.rainNext7}
+      soilMoisturePct={Math.round(w.soilM.d9_27 * 100)}
+    /> : <div className="ag-empty">Waiting for live weather and a clear satellite reading. Irrigation amounts are hidden until both are available.</div>}
 
     {verdict && <div className={`wt-verdict ${verdict.tone}`}><Droplets size={18}/>{verdict.text}</div>}
     {(weather.key === key && weather.error) && <div className="ag-empty">Weather unavailable: {weather.error}</div>}
     <div className="ag-cols">
-      <Card title="Water budget" sub={`${crop.name} · ${method.name}`} icon={Droplets} items={budget} onRefresh={() => { refreshWeather(); refreshSoil() }}/>
-      <Card title="Soil type & water holding" sub="SoilGrids + Saxton-Rawls model" icon={Waves} items={soilItems} src={['soil', 'model']} onRefresh={refreshSoil}/>
-      <Card title="Drainage" sub="Soil conductivity + terrain flow" icon={Waves} items={drainItems} src={['soil', 'dem', 'model']} onRefresh={() => { refreshSoil(); refreshDem() }}/>
+      <Card title="Water budget" sub={`${crop.name} · ${method.name}`} icon={Droplets} items={budget} empty={weather.error ? `Weather estimate unavailable: ${weather.error}` : 'Loading weather estimates…'} onRefresh={() => { refreshWeather(); refreshSoil() }}/>
+      <Card title="Soil type & water holding" sub="Regional soil model" icon={Waves} items={soilItems} empty={soil.error ? `Soil data unavailable: ${soil.error}` : 'Loading soil estimates…'} src={['soil', 'model']} onRefresh={refreshSoil}/>
+      <Card title="Drainage" sub="Soil and terrain model" icon={Waves} items={drainItems} empty={!g ? 'Loading terrain model…' : soil.error ? `Soil data unavailable: ${soil.error}` : 'Loading soil estimates…'} src={['soil', 'dem', 'model']} onRefresh={() => { refreshSoil(); refreshDem() }}/>
     </div>
     {drainAdvice && <div className={`wt-verdict ${poorDrain ? 'warn' : 'good'}`}><Waves size={18}/>{drainAdvice}</div>}
 

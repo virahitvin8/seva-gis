@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { farmBBox, farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { hotspots, type Patch } from './lib/gee'
+import { useGlobalZoom } from './lib/zoomSync'
 
 type Farm = FarmData & { id: string; name: string }
 export type LegendRow = { color: string; label: string }
@@ -10,12 +11,15 @@ const ESRI_EXPORT = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_
 // Real vulnerable spots: the weakest connected patches of this field on the latest clear Sentinel-2 pass.
 export function useWeakSpots(farm: Farm, scene?: Scene) {
   const [spots, setSpots] = useState<Patch[]>([])
+  const geometryKey = farm.polygon && farm.polygon.length >= 3
+    ? farm.polygon.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(';')
+    : `${farm.lon},${farm.lat},${farm.area}`
   useEffect(() => {
     if (!scene) { setSpots([]); return }
     let dead = false
     loadScene(scene, farm).then(g => { if (!dead) setSpots(hotspots(g, farmRing(farm), farm)?.patches.slice(0, 5) ?? []) }).catch(() => { if (!dead) setSpots([]) })
     return () => { dead = true }
-  }, [scene?.id, farm.id, farm.area, farm.polygon?.length])
+  }, [scene?.id, farm.id, geometryKey])
   return spots
 }
 
@@ -24,10 +28,12 @@ function niceScale(widthM: number) {
   return m * p
 }
 
-export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption, highlightAoi = false }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean }) {
+export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption, highlightAoi = false, crisp = false }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean; crisp?: boolean }) {
+  const { zoom: syncedZoom, padFactor } = useGlobalZoom(15)
   const spots = useWeakSpots(farm, scene), weak = marks ?? spots
   const [w, s, e, n] = farmBBox(farm)
-  const pad = 0.45, dw = (e - w) * pad, dh = (n - s) * pad
+  // Dynamic pad factor directly synchronized with main map zoom level
+  const pad = padFactor, dw = (e - w) * pad, dh = (n - s) * pad
   const bb = [w - dw, s - dh, e + dw, n + dh], cos = Math.cos(((s + n) / 2) * Math.PI / 180)
   const wm = (bb[2] - bb[0]) * 111320 * cos, hm = (bb[3] - bb[1]) * 111320
   const W = 1024, H = Math.min(1280, Math.round(W * (hm / wm)))
@@ -40,7 +46,10 @@ export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 
   return <figure className="ge-fig lab-map">
     <div className="lab-stage" style={{ aspectRatio: `${W} / ${H}` }}>
       <CtxImage url={ctx} bb={bb} W={W} H={H}/>
-      {overlay && <img className="lab-over" src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
+      <div className="lab-zoom-indicator" title={`Synchronized from main map zoom (${syncedZoom.toFixed(1)}x)`}>
+        Zoom {syncedZoom.toFixed(1)}x · Synced
+      </div>
+      {overlay && <img className={`lab-over ${crisp ? 'crisp' : ''}`} src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="lab-svg">
         <defs>
           <mask id={maskId}>
@@ -103,8 +112,13 @@ function CtxImage({ url, bb, W, H }: { url: string; bb: number[]; W: number; H: 
       const img = new Image(); img.crossOrigin = 'anonymous'
       img.onload = () => {
         const x0 = ((lonOf(x, z) - w) / (e - w)) * W, x1 = ((lonOf(x + 1, z) - w) / (e - w)) * W
-        const y0 = ((n - latOf(y, z)) / (n - s)) * H, y1 = ((n - latOf(y + 1, z)) / (n - s)) * H
-        ctx.drawImage(img, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+        const slices = 64
+        for (let row = 0; row < slices; row++) {
+          const lat0 = latOf(y + row / slices, z), lat1 = latOf(y + (row + 1) / slices, z)
+          const y0 = ((n - lat0) / (n - s)) * H, y1 = ((n - lat1) / (n - s)) * H
+          const sourceY = (row / slices) * img.naturalHeight
+          ctx.drawImage(img, 0, sourceY, img.naturalWidth, img.naturalHeight / slices, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
+        }
       }
       img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
     }

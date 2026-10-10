@@ -17,7 +17,7 @@ export default function SceneBar({ opts, onApply, busy, scene }: Props) {
     {mode === 'date' && <label className="sb-f">Date<input type="date" max={today()} value={o.date ?? ''} onChange={e => set({ date: e.target.value })}/></label>}
     {mode === 'range' && <><label className="sb-f">From<input type="date" max={today()} value={o.from ?? ''} onChange={e => set({ from: e.target.value })}/></label><label className="sb-f">To<input type="date" max={today()} value={o.to ?? ''} onChange={e => set({ to: e.target.value })}/></label></>}
     {mode !== 'date' && <label className="sb-f sb-cloud">Max cloud <b>{cloud}%</b><input type="range" min={5} max={100} step={5} value={cloud} onChange={e => set({ maxCloud: Number(e.target.value) })}/></label>}
-    <button className="sb-apply" disabled={busy || bad} onClick={() => onApply(o)}><i className={`fa-solid ${busy ? 'fa-spinner fa-spin' : 'fa-satellite-dish'}`}/> {busy ? 'Working' : 'Apply'}</button>
-    <span className="sb-now">{scene ? <>Showing <b>{new Date(scene.datetime).toLocaleDateString()}</b> · <b>{scene.cloud}%</b> cloud{(scene.ids?.length ?? 0) > 0 && ` · ${(scene.ids?.length ?? 0) + 1} tiles joined`}{scene.filled ? ` · ${scene.filled} gap-fill` : ''}</> : 'No picture yet'}</span>
+    <button className="sb-apply" disabled={busy || bad} onClick={() => onApply(o)} title="Load Sentinel-2 imagery calibrated with Google Earth Engine pipeline"><i className={`fa-solid ${busy ? 'fa-spinner fa-spin' : 'fa-satellite-dish'}`}/> {busy ? 'Syncing GEE…' : 'Apply'}</button>
+    <span className="sb-now">{scene ? <>Preview <b>{new Date(scene.datetime).toLocaleDateString()}</b> · <b>{scene.cloud}%</b> cloud · <b className="sb-gee-tag">Google Earth Engine Calibrated</b>{(scene.ids?.length ?? 0) > 0 && ` · ${(scene.ids?.length ?? 0) + 1} tiles joined`}{scene.filled ? ` · ${scene.filled} gap-fill` : ''}</> : 'No picture yet'}</span>
   </div>
 }

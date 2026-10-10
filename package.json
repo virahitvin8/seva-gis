@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js",
+    "deploy:firebase": "npm run build && npx firebase-tools deploy --only hosting",
     "format": "oxfmt"
   },
   "dependencies": {

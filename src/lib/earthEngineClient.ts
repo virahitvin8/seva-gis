@@ -1,5 +1,5 @@
 import type { Ind } from './indicators'
-import type { FarmData, SceneOpts } from './seva'
+import { farmRing, type FarmData, type SceneOpts } from './seva'
 
 const PROD_BACKEND_URL = 'https://seva-gis-backend-419602015618.us-central1.run.app'
 
@@ -38,16 +38,17 @@ export async function createEarthEngineMap(
   signal?: AbortSignal
 ): Promise<EarthEngineMapResponse> {
   const endpoint = getEarthEngineEndpoint()
-  if (!endpoint) throw new Error('Earth Engine endpoint is not set. Set VITE_EE_API_URL or run the backend proxy locally on port 8080.')
-  if (!farm.polygon || farm.polygon.length < 3) throw new Error('Draw or upload a field boundary before requesting Earth Engine tiles.')
+  if (!endpoint) throw new Error('Earth Engine endpoint is not set. Set VITE_EE_API_URL or run the backend proxy.')
+  const coordinates = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
+  if (!coordinates || coordinates.length < 3) throw new Error('Draw or upload a field boundary before requesting Earth Engine tiles.')
 
-  const fetchSignal = signal || AbortSignal.timeout(8000)
+  const fetchSignal = signal || AbortSignal.timeout(15000)
   const response = await fetch(`${endpoint}/api/earth-engine/map`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     signal: fetchSignal,
     body: JSON.stringify({
-      coordinates: farm.polygon,
+      coordinates,
       mode: sceneOpts.mode ?? 'latest',
       date: sceneOpts.date,
       start_date: sceneOpts.from,
@@ -149,7 +150,7 @@ export async function getEarthEngineStats(
   const res = await fetch(`${endpoint}/api/earth-engine/stats`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    signal: signal || AbortSignal.timeout(8000),
+    signal: signal || AbortSignal.timeout(15000),
     body: JSON.stringify({ coordinates, indicators }),
   })
   if (!res.ok) throw new Error(`Stats request failed (${res.status})`)
@@ -185,7 +186,7 @@ export async function getEarthEngineTimeseries(
   const res = await fetch(`${endpoint}/api/earth-engine/timeseries`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    signal: signal || AbortSignal.timeout(8000),
+    signal: signal || AbortSignal.timeout(15000),
     body: JSON.stringify({
       coordinates,
       indicator_id: indicatorId,

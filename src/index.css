@@ -1203,96 +1203,59 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 }
 
 /* =========================================================================
-   25% Outer Neatline Cartographic Adornments (outside the 75% central AOI)
+   Unified Professional Map HUD Bar (Clean, Non-Redundant, Modern Glass)
    ========================================================================= */
-.ix-neatline-title {
-  position: absolute;
-  top: 12px;
-  left: 14px;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 8px 14px;
-  background: rgba(11, 23, 18, 0.92);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  pointer-events: auto;
-}
-.ix-neatline-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 10px #10b981;
-  flex-shrink: 0;
-}
-.ix-neatline-title strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #f0fdf4;
-  line-height: 1.2;
-}
-.ix-neatline-title small {
-  display: block;
-  font-size: 10px;
-  color: #a7f3d0;
-  margin-top: 1px;
-}
-
-.ix-neatline-north {
+.ix-map-hud-bar {
   position: absolute;
   top: 12px;
   right: 14px;
   z-index: 1000;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 6px 10px 4px;
-  background: rgba(11, 23, 18, 0.92);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 10px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  gap: 8px;
   pointer-events: auto;
-}
-.ix-neatline-north b {
-  font-size: 10px;
-  font-weight: 800;
-  color: #34d399;
-  letter-spacing: 0.05em;
-  line-height: 1;
-  margin-top: 2px;
 }
 
-.ix-neatline-coords {
-  position: absolute;
-  bottom: 12px;
-  left: 14px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  padding: 6px 12px;
-  background: rgba(11, 23, 18, 0.92);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  pointer-events: auto;
-}
-.ix-neatline-coords span {
+.ix-hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: rgba(11, 23, 18, 0.88);
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   font-size: 11px;
-  font-weight: 700;
-  color: #f0fdf4;
-  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  color: #eaf3df;
 }
-.ix-neatline-coords small {
-  font-size: 9px;
-  color: #a7f3d0;
-  margin-top: 1px;
+
+.ix-hud-pill.is-live {
+  border-color: rgba(74, 222, 128, 0.5);
+  background: rgba(8, 28, 20, 0.92);
+  color: #86efac;
+}
+
+.ix-hud-pill b {
+  color: #86efac;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.ix-hud-compass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 9px;
+  background: rgba(11, 23, 18, 0.88);
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 11px;
+  font-weight: 800;
+  color: #34d399;
 }
 
 /* =========================================================================

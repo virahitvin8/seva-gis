@@ -269,7 +269,7 @@ export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<C
         startDate,
         today,
         Math.max(12, Math.round(lookback / Math.max(max, 6))),
-        AbortSignal.timeout(6500)
+        AbortSignal.timeout(15000)
       )
       const validPoints = (eeData.points || []).filter(p => typeof p.value === 'number' && Number.isFinite(p.value))
       if (validPoints.length >= 2) {
@@ -357,7 +357,7 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
       const stats = await getEarthEngineStats(
         ringCoords,
         ['ndvi', 'evi', 'ndmi', 'ndwi', 'bsi', 'savi', 'gndvi', 'lai'],
-        AbortSignal.timeout(6500)
+        AbortSignal.timeout(15000)
       )
       if (stats?.indicators?.ndvi?.mean !== undefined) {
         const ind = stats.indicators

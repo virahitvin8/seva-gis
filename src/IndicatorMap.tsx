@@ -96,7 +96,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [cadastreOpen, setCadastreOpen] = useState(false)
   const [showAllGlobalParcels, setShowAllGlobalParcels] = useState(false)
   const cadastreLayerRef = useRef<L.LayerGroup | null>(null)
-  const [base, setBase] = useState(() => localStorage.getItem(BASE_STORE) || 'sat')
+  const [base, setBase] = useState(() => {
+    const saved = localStorage.getItem(BASE_STORE)
+    return (saved && saved !== 'streets') ? saved : 'sat'
+  })
   const baseLayers = useRef<L.TileLayer[]>([])
   const [tools, setTools] = useState(false)
   const [aoiOnly, setAoiOnly] = useState(false)
@@ -166,7 +169,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   useEffect(() => { localStorage.setItem('seva-stretch-dra', stretchDra ? '1' : '0') }, [stretchDra])
 
   // Dedicated Layers Box (Table of Contents / Symbology manager)
-  const [layersBoxOpen, setLayersBoxOpen] = useState(() => localStorage.getItem('seva-lb-open-v2') === '1')
+  const [layersBoxOpen, setLayersBoxOpen] = useState(false)
   useEffect(() => { localStorage.setItem('seva-lb-open-v2', layersBoxOpen ? '1' : '0') }, [layersBoxOpen])
   const [panelDetached, setPanelDetached] = useState(false)
   const [panelPosition, setPanelPosition] = useState({ x: 24, y: 96 })
@@ -438,9 +441,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         add(ESRI('Reference/World_Boundaries_and_Places'), 'Esri')
       }
     } else if (base === 'streets') {
-      add(ESRI('World_Street_Map'), 'Tiles © Esri, HERE, Garmin, OpenStreetMap contributors', { maxNativeZoom: 19 })
+      add('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', { maxNativeZoom: 19 })
     } else if (base === 'terrain') {
-      add(ESRI('World_Topo_Map'), 'Tiles © Esri, USGS, NOAA', { maxNativeZoom: 17 })
+      add(ESRI('World_Topo_Map'), 'Tiles © Esri, USGS, NOAA', { maxNativeZoom: 16 })
     } else if (base === 'light') {
       add(ESRI('Canvas/World_Light_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
     } else if (base === 'dark') {
@@ -694,9 +697,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
       return
     }
-    if (!farm.polygon || farm.polygon.length < 3 || !layer) {
+    const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
+    if (!ringCoords || ringCoords.length < 3 || !layer) {
       setEarthEngineOverlay(null)
-      setEarthEngineStatus('Draw a field boundary to request Earth Engine primary tiles.')
+      setEarthEngineStatus('Set a field location to request Earth Engine primary tiles.')
       return
     }
 
@@ -734,15 +738,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       zIndex: 700,
       opacity: opacity[earthEngineOverlay.layerId] ?? 1,
       crossOrigin: true,
-    })
-    let eeErrors = 0
-    eeLayer.on('tileerror', () => {
-      eeErrors++
-      if (eeErrors >= 4) {
-        console.info('Earth Engine tiles returned repeated error/404, auto-falling back to Planetary Computer raster')
-        setEarthEngineOverlay(null)
-        setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
-      }
     })
     eeLayer.addTo(instance)
     earthEngineTiles.current = eeLayer
@@ -819,7 +814,19 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       <div className="ix-main-toolbar" role="toolbar" aria-label="Map Tools and Layers">
         <button
           className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'active' ? 'on' : ''}`}
-          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('active'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
+          onClick={() => {
+            if (layersBoxOpen && layersBoxTab === 'active') {
+              setLayersBoxOpen(false)
+            } else {
+              setLayersBoxOpen(true)
+              setLayersBoxTab('active')
+              setPanel(false)
+              setTools(false)
+              setBaseOpen(false)
+              setNearOpen(false)
+              setRulerOpen(false)
+            }
+          }}
           title="Open GIS Section Layer: Active parameters, opacity & blending"
         >
           <Layers size={15}/>
@@ -829,7 +836,19 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         <button
           className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'symbology' ? 'on' : ''}`}
-          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('symbology'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
+          onClick={() => {
+            if (layersBoxOpen && layersBoxTab === 'symbology') {
+              setLayersBoxOpen(false)
+            } else {
+              setLayersBoxOpen(true)
+              setLayersBoxTab('symbology')
+              setPanel(false)
+              setTools(false)
+              setBaseOpen(false)
+              setNearOpen(false)
+              setRulerOpen(false)
+            }
+          }}
           title="Multispectral Band Symbology: True colour, False colour NIR, Agriculture & Moisture"
         >
           <Tag size={15}/>
@@ -839,7 +858,18 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         <button
           className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'display' ? 'on' : ''}`}
-          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('display'); setPanel(false); setTools(false); setNearOpen(false); setRulerOpen(false) }}
+          onClick={() => {
+            if (layersBoxOpen && layersBoxTab === 'display') {
+              setLayersBoxOpen(false)
+            } else {
+              setLayersBoxOpen(true)
+              setLayersBoxTab('display')
+              setPanel(false)
+              setTools(false)
+              setNearOpen(false)
+              setRulerOpen(false)
+            }
+          }}
           title="Select Basemap Imagery in Section Layer"
         >
           <MapIcon size={15}/>
@@ -869,7 +899,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         <button
           className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'tools' ? 'on' : ''}`}
-          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('tools'); setPanel(false); setRulerOpen(false) }}
+          onClick={() => {
+            if (layersBoxOpen && layersBoxTab === 'tools') {
+              setLayersBoxOpen(false)
+            } else {
+              setLayersBoxOpen(true)
+              setLayersBoxTab('tools')
+              setPanel(false)
+              setRulerOpen(false)
+            }
+          }}
           title="Field Tools & Adjustments (Ruler, Hotspots, Borewells, Contours, Swath Robotics)"
         >
           <Wrench size={15}/>
@@ -918,40 +957,24 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       <div className="ix-wrap">
         <div ref={element} className={`field-map${locked ? ' is-locked' : ''}`} />
 
-        {/* 25% Outer Neatline Cartographic Adornments (strictly outside the 75% central AOI) */}
-        {/* Top-Left Margin: Field Title & Area Dossier */}
-        <div className="ix-neatline-title" title={`${farm.name} · ${farm.location}`}>
-          <div className="ix-neatline-dot" />
-          <div>
-            <strong>{farm.name}</strong>
-            <small>{areaHa(farmRing(farm)).toFixed(2)} ha · {farm.crop || 'Field'} · 75% AOI</small>
+        {/* Clean, Non-Redundant Map HUD Bar */}
+        <div className="ix-map-hud-bar" role="status" aria-label="Map status and orientation">
+          <div className={`ix-hud-pill${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`} title={earthEngineStatus}>
+            <span className="gee-dot" />
+            <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'GEE Live · S2 L2A' : 'Sentinel-2 L2A'}</span>
           </div>
-        </div>
 
-        {/* Top-Right Margin: True North Arrow Compass */}
-        <div className="ix-neatline-north" aria-label="North Arrow" title="Grid North: True Geodetic Azimuth 0.0°">
-          <svg viewBox="0 0 32 42" width="24" height="32">
-            <polygon points="16,2 26,34 16,27 6,34" fill="#34d399" stroke="#064e3b" strokeWidth="1.5" strokeLinejoin="round" />
-            <polygon points="16,2 26,34 16,27" fill="#059669" />
-          </svg>
-          <b>N</b>
-        </div>
+          <div className="ix-hud-pill" title={`Live map zoom ${mapZoom.toFixed(1)}x · Synchronized across dashboard`}>
+            <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
+            {locked && <span className="zoom-synced-pill">75% LOCKED</span>}
+          </div>
 
-        {/* Bottom-Left Margin: Geodetic Coordinates & Constant Scale */}
-        <div className="ix-neatline-coords" title={`Centroid: ${farm.lat.toFixed(6)}° N, ${farm.lon.toFixed(6)}° E`}>
-          <span>{farm.lat.toFixed(5)}° N, {farm.lon.toFixed(5)}° E</span>
-          <small>WGS84 EPSG:4326 · Constant Scale ≥75%</small>
-        </div>
-
-        <div className={`ix-gee-badge${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`} title={earthEngineStatus}>
-          <span className="gee-dot" />
-          <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'Google Earth Engine · Sentinel-2 L2A' : 'Planetary Computer · Sentinel-2'}</span>
-        </div>
-
-        <div className="ix-zoom-sync-badge" title={`Live map zoom ${mapZoom.toFixed(1)}x synchronizes all GeoAI analysis maps across the dashboard`}>
-          <span className="zoom-pulse-dot" />
-          <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
-          <span className="zoom-synced-pill">75% LOCKED</span>
+          <div className="ix-hud-compass" title="True Geodetic North (0.0° Azimuth)">
+            <svg viewBox="0 0 20 20" width="13" height="13" style={{ transform: 'rotate(0deg)' }}>
+              <polygon points="10,2 14,16 10,12 6,16" fill="#34d399" stroke="#065f46" strokeWidth="1" />
+            </svg>
+            <span>N</span>
+          </div>
         </div>
 
         {/* The Layers & Symbology Box: cleanly docked over map when open, or portaled to body when detached */}

@@ -1,0 +1,116 @@
+name: Deploy Frontend & Backend to Cloud
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  # =============================================================
+  # JOB 1: Test & Validate Frontend and Backend Code Quality
+  # =============================================================
+  validate:
+    name: Validate Build & Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify Backend Python Syntax
+        run: |
+          python -m py_compile backend/main.py
+          echo "Backend Python syntax check passed successfully."
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Frontend Dependencies
+        run: npm install
+
+      - name: Build Frontend Bundle
+        env:
+          VITE_EE_API_URL: https://seva-gis-backend-419602015618.us-central1.run.app
+        run: npm run build
+
+  # =============================================================
+  # JOB 2: Deploy Frontend to Firebase Hosting
+  # =============================================================
+  deploy-frontend:
+    name: Deploy Frontend to Firebase Hosting
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Production Frontend
+        env:
+          VITE_EE_API_URL: https://seva-gis-backend-419602015618.us-central1.run.app
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SEVA_GIS_BACKEND_E724A }}'
+          projectId: seva-gis-backend-e724a
+          channelId: live
+        continue-on-error: true
+
+      - name: Fallback Firebase CLI Deploy (if Token provided)
+        if: env.FIREBASE_TOKEN != ''
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          npx firebase-tools deploy --only hosting --project seva-gis-backend-e724a --token "$FIREBASE_TOKEN"
+
+  # =============================================================
+  # JOB 3: Deploy Backend to Google Cloud Run (if GCP Key exists)
+  # =============================================================
+  deploy-backend:
+    name: Deploy Backend to Google Cloud Run
+    needs: validate
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && contains(github.event.commits.*.modified, 'backend/') }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        if: env.GCP_SA_KEY != ''
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run
+        if: env.GCP_SA_KEY != ''
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          gcloud run deploy seva-gis-backend \
+            --source backend \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --project seva-gis-backend

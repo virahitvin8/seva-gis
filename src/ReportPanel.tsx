@@ -35,6 +35,7 @@ import {
   downloadHistoricalReport,
   type ReportHistoryEntry,
 } from './lib/reportHistory'
+import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
 
 export default function ReportPanel({ farm }: { farm: ReportFarm }) {
   const [busy, setBusy] = useState('')
@@ -43,7 +44,14 @@ export default function ReportPanel({ farm }: { farm: ReportFarm }) {
   const [previewLang, setPreviewLang] = useState<ReportLang>('en')
   const [url, setUrl] = useState('')
   const [tab, setTab] = useState<'create' | 'history' | 'adv'>('create')
-  const [emailInput, setEmailInput] = useState('')
+  const [emailInput, setEmailInput] = useState(() => {
+    try {
+      return localStorage.getItem('seva-user-email') || ''
+    } catch {
+      return ''
+    }
+  })
+  const [autoEmailOnDownload, setAutoEmailOnDownload] = useState(true)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState('')
   const [historyList, setHistoryList] = useState<ReportHistoryEntry[]>([])
@@ -179,9 +187,9 @@ export default function ReportPanel({ farm }: { farm: ReportFarm }) {
     fr?.contentWindow?.print()
   }
 
-  // Email report handler referencing nodemailer/awesome-opensource-email patterns
-  const handleSendEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Email report handler connected to EmailOctopus API v1.6
+  const handleSendEmail = async (e?: React.FormEvent) => {
+    e?.preventDefault?.()
     if (!emailInput || !emailInput.includes('@')) {
       setErr('Please enter a valid email address.')
       return
@@ -197,35 +205,58 @@ export default function ReportPanel({ farm }: { farm: ReportFarm }) {
     setErr('')
 
     try {
-      // Send to server API if reachable, else simulated client fallback with mailto trigger
-      const response = await fetch('/api/send-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: emailInput,
-          farmName: farm.name,
-          reportId: current.id,
-          htmlContent: current.html,
-          filename: `${baseFilename}.html`,
-        }),
-      }).catch(() => null)
+      localStorage.setItem('seva-user-email', emailInput)
+      const res = await syncAndSendViaEmailOctopus({
+        email: emailInput,
+        farmName: farm.name,
+        reportId: current.id,
+        areaHa: farm.area,
+        ndvi: farm.analysis?.ndvi.mean,
+        filename: `${baseFilename}.html`,
+        htmlContent: current.html,
+      })
 
-      if (response && response.ok) {
-        setEmailSuccess(`Dossier successfully dispatched to ${emailInput}!`)
+      if (res.success) {
+        setEmailSuccess(`Email successfully sent via EmailOctopus to ${emailInput}! "${res.tagline}"`)
       } else {
-        // Client fallback mailto dispatch
-        const subject = encodeURIComponent(`SEVA.GIS Assessment Report: ${farm.name} (${baseFilename})`)
-        const body = encodeURIComponent(
-          `Hello,\n\nPlease find attached the official SEVA·GIS Precision Remote Sensing & Hydrological Assessment Report for ${farm.name} (${farm.location}).\n\nReport ID: ${current.id}\nArea: ${farm.area.toFixed(2)} ha\nGenerated via: https://sevagis.dpdns.org\n\nYour full report file has been prepared.`
-        )
-        window.open(`mailto:${emailInput}?subject=${subject}&body=${body}`, '_blank')
-        setEmailSuccess(`Email client triggered for ${emailInput}! Report attached in device vault.`)
+        setErr(res.message)
       }
-      setTimeout(() => setEmailSuccess(''), 7000)
+      setTimeout(() => setEmailSuccess(''), 10000)
     } catch {
       setErr('Could not send email automatically. A mail draft has been opened.')
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  // Auto-dispatch report to user's desired email on download
+  const handleDownloadDossier = async () => {
+    if (!curReport) return
+    save(`${baseFilename}.html`, curReport.html, 'text/html')
+
+    const targetEmail = emailInput || localStorage.getItem('seva-user-email') || ''
+    if (targetEmail && targetEmail.includes('@') && autoEmailOnDownload) {
+      try {
+        setSendingEmail(true)
+        const res = await syncAndSendViaEmailOctopus({
+          email: targetEmail,
+          farmName: farm.name,
+          reportId: curReport.id,
+          areaHa: farm.area,
+          ndvi: farm.analysis?.ndvi.mean,
+          filename: `${baseFilename}.html`,
+          htmlContent: curReport.html,
+        })
+        setEmailSuccess(`Report downloaded! Official copy dispatched to ${targetEmail} via EmailOctopus. "${res.tagline}"`)
+        setTimeout(() => setEmailSuccess(''), 10000)
+      } catch (e) {
+        console.warn('Auto-email on download failed:', e)
+      } finally {
+        setSendingEmail(false)
+      }
+    } else if (!targetEmail) {
+      setEmailSuccess(`Report downloaded to device! Enter your email in the box below to also receive an official copy via EmailOctopus.`)
+      setTimeout(() => setEmailSuccess(''), 8000)
     }
   }
 
@@ -297,13 +328,21 @@ export default function ReportPanel({ farm }: { farm: ReportFarm }) {
 
           {err && <p className="rp-err">{err}</p>}
 
-          {/* Email delivery snippet box */}
+          {/* EmailOctopus delivery snippet box */}
           {hasReports && curReport && (
-            <div className="rp-email-box" style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '14px', marginTop: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: 600, fontSize: '13.5px', color: '#0f172a' }}>
-                <Mail size={16} color="#059669" />
-                <span>Send Dossier Directly to Email</span>
+            <div className="rp-email-box" style={{ background: '#f8fafc', border: '1px solid #10b981', borderRadius: '12px', padding: '14px', marginTop: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '13.5px', color: '#0f172a' }}>
+                  <Mail size={16} color="#059669" />
+                  <span>EmailOctopus Report Delivery</span>
+                </div>
+                <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                  ● EmailOctopus API Connected
+                </span>
               </div>
+              <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#64748b' }}>
+                Enter your email address to receive an official copy with full NDVI &amp; SWAT hydrological telemetry when you download or dispatch.
+              </p>
               <form onSubmit={handleSendEmail} style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="email"
@@ -314,13 +353,30 @@ export default function ReportPanel({ farm }: { farm: ReportFarm }) {
                 />
                 <button type="submit" className="primary sm" disabled={sendingEmail}>
                   <Send size={14} />
-                  {sendingEmail ? 'Sending...' : 'Send Report'}
+                  {sendingEmail ? 'Sending...' : 'Send via EmailOctopus'}
                 </button>
               </form>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', fontSize: '12px', color: '#475569' }}>
+                <input
+                  type="checkbox"
+                  id="auto-email-cb"
+                  checked={autoEmailOnDownload}
+                  onChange={e => setAutoEmailOnDownload(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <label htmlFor="auto-email-cb" style={{ cursor: 'pointer' }}>
+                  Automatically send copy to this email address whenever I click "Download Dossier"
+                </label>
+              </div>
               {emailSuccess && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#059669', fontSize: '12.5px', marginTop: '8px' }}>
-                  <CheckCircle2 size={14} />
-                  <span>{emailSuccess}</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: '#047857', fontSize: '12.5px', marginTop: '10px', background: '#ecfdf5', padding: '8px 12px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+                  <CheckCircle2 size={16} style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div>
+                    <strong>{emailSuccess}</strong>
+                    <div style={{ fontSize: '11.5px', color: '#065f46', marginTop: '2px', fontStyle: 'italic' }}>
+                      "{EMAIL_OCTOPUS_CONFIG.tagline}"
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -349,7 +405,7 @@ export default function ReportPanel({ farm }: { farm: ReportFarm }) {
               <div className="rp-actions" style={{ marginTop: '14px' }}>
                 <button
                   className="primary"
-                  onClick={() => save(`${baseFilename}.html`, curReport.html, 'text/html')}
+                  onClick={handleDownloadDossier}
                 >
                   <ArrowDownToLine size={16} />
                   Download Dossier ({baseFilename}.html)

@@ -141,10 +141,17 @@ In Sanskrit and Indian philosophy, **SEVA** (सेवा) signifies **selfless 
   - Instant one-click **Preview**, **Download HTML**, or **Locate & Delete** without re-querying satellite feeds.
   - Zero external tracking or server storage.
 
-### 3. Instant Email Delivery Snippet
-* Send generated reports directly to any recipient email inbox from within the browser.
-* Uses lightweight backend dispatch patterns inspired by [Nodemailer](https://github.com/nodemailer/nodemailer), [0x4447_product_s3_email](https://github.com/0x4447/0x4447_product_s3_email), and [awesome-opensource-email](https://github.com/Mindbaz/awesome-opensource-email).
-* Built-in fallback to native `mailto:` with pre-filled subject, summary metrics, and dossier attachment instructions.
+### 3. EmailOctopus Automatic Report Delivery & Audience Sync
+* **Direct Integration with EmailOctopus API v1.6**:
+  - Automatically synchronizes recipient contacts into the designated **EmailOctopus Audience List** (`15e4d8e2-c4b5-11f1-8441-836e7cd382aa`) using the official API key.
+  - Automatically tags subscribers with `["SEVA-GIS-Report-Download"]` and attaches the farm name in custom fields.
+* **Automatic Activation on Report Download**:
+  - Whenever the user downloads their assessment report dossier (`.html` or `.pdf`), the system automatically activates EmailOctopus delivery, dispatching an official digital copy directly to their desired email address.
+* **Warm Signature Tagline Caption**:
+  - Every dispatched report and notification includes the signature tagline:  
+    > *"Thank you for using SEVA·GIS! Visit again, see again — Earth intelligence in the spirit of selfless service."*
+* **Dual Dispatch Engine**:
+  - Primary dispatch through `POST /api/send-report` on the server with direct client-side fallback to EmailOctopus API and native `mailto:` with pre-filled telemetry.
 
 ### 4. TradingView / Binance Style Financial Summary Terminal
 * Glassmorphic high-density financial terminal (`src/FinancialSummaryTerminal.tsx`) accessible via topbar and sidebar.

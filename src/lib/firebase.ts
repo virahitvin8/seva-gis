@@ -18,9 +18,9 @@ export interface FirebaseConfig {
 
 export const firebaseConfig: FirebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'seva-gis-backend.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'seva-gis-backend',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'seva-gis-backend.appspot.com',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'seva-gis-backend-e724a.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'seva-gis-backend-e724a',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'seva-gis-backend-e724a.appspot.com',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || '',

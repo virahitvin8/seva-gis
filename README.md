@@ -12,6 +12,15 @@
 > **Earth intelligence in the spirit of selfless service.**  
 > SEVA·GIS is an open-source, full-stack geospatial AI and precision agriculture platform. It empowers agricultural stewards, agronomists, farmers, and researchers to inspect, analyze, and monitor agricultural land parcels from anywhere in the world with zero remote lag, sub-meter radiometric precision, and verified government land records.
 
+### 🌐 Live Production Deployments (24/7 Cloud)
+| Service | Environment | Live URL | Status |
+| :--- | :--- | :--- | :--- |
+| **SEVA·GIS Web App** | Firebase Hosting (Global CDN) | [seva-gis-backend-e724a.web.app](https://seva-gis-backend-e724a.web.app) | ![Status](https://img.shields.io/badge/status-active-brightgreen) |
+| **Frontend CDN Mirror** | Firebase App Mirror | [seva-gis-backend-e724a.firebaseapp.com](https://seva-gis-backend-e724a.firebaseapp.com) | ![Status](https://img.shields.io/badge/status-active-brightgreen) |
+| **Earth Engine Backend** | Google Cloud Run (`us-central1`) | [seva-gis-backend-419602015618.us-central1.run.app](https://seva-gis-backend-419602015618.us-central1.run.app) | ![Status](https://img.shields.io/badge/status-active-brightgreen) |
+| **Interactive API Docs** | FastAPI Swagger UI | [seva-gis-backend-419602015618.us-central1.run.app/api/docs](https://seva-gis-backend-419602015618.us-central1.run.app/api/docs) | ![Swagger](https://img.shields.io/badge/docs-OpenAPI_3.0-teal) |
+| **Backend Health Check** | Cloud Run Liveness Probe | [seva-gis-backend-419602015618.us-central1.run.app/health](https://seva-gis-backend-419602015618.us-central1.run.app/health) | ![Health](https://img.shields.io/badge/health-200_OK-blue) |
+
 ---
 
 ## 🏛️ System Architecture
@@ -202,12 +211,12 @@ gcloud run deploy seva-gis-backend \
   --project seva-gis-backend \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars EE_PROJECT_ID=seva-gis-backend,EE_ALLOWED_ORIGINS="http://localhost:8443,https://seva-gis.web.app"
+  --set-env-vars EE_PROJECT_ID=seva-gis-backend,EE_ALLOWED_ORIGINS="http://localhost:8443,https://seva-gis-backend-e724a.web.app,https://seva-gis-backend-e724a.firebaseapp.com"
 ```
 
-Then point `VITE_EE_API_URL` in your frontend `.env` to your deployed Cloud Run URL:
+Live Earth Engine Backend URL:
 ```env
-VITE_EE_API_URL=https://seva-gis-backend-xxxxx.a.run.app
+VITE_EE_API_URL=https://seva-gis-backend-419602015618.us-central1.run.app
 ```
 
 ---
@@ -216,6 +225,10 @@ VITE_EE_API_URL=https://seva-gis-backend-xxxxx.a.run.app
 
 | Platform / Resource | URL | Description |
 | :--- | :--- | :--- |
+| **🚀 SEVA·GIS Live Production Web App** | [seva-gis-backend-e724a.web.app](https://seva-gis-backend-e724a.web.app) | Live global production portal on Firebase CDN |
+| **🌐 Firebase Mirror Domain** | [seva-gis-backend-e724a.firebaseapp.com](https://seva-gis-backend-e724a.firebaseapp.com) | Redundant secondary CDN mirror |
+| **⚡ Live Earth Engine Cloud Run Backend** | [seva-gis-backend-419602015618.us-central1.run.app](https://seva-gis-backend-419602015618.us-central1.run.app) | 24/7 GEE L2A & DEM serverless microservice |
+| **📖 Interactive API Documentation** | [seva-gis-backend-419602015618.us-central1.run.app/api/docs](https://seva-gis-backend-419602015618.us-central1.run.app/api/docs) | Swagger UI for Earth Engine endpoints |
 | **Official GitHub Repository** | [github.com/virahitvin8/seva-gis](https://github.com/virahitvin8/seva-gis) | Core source repository |
 | **Issue Tracker & Feature Requests** | [github.com/virahitvin8/seva-gis/issues](https://github.com/virahitvin8/seva-gis/issues) | Bug reports and engineering tasks |
 | **Discussions & Product Roadmap** | [github.com/virahitvin8/seva-gis/discussions](https://github.com/virahitvin8/seva-gis/discussions) | Community forum & architecture discussions |

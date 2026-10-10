@@ -206,11 +206,50 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         console.warn('Leaflet lock handler toggle:', err)
       }
     })
-    // Immediately force Leaflet to recalculate container geometry and keep all tile layers redrawn
+    // Immediately force Leaflet to recalculate container geometry and keep all tile layers redrawn without black artifacts
+    m.invalidateSize({ pan: false })
     window.requestAnimationFrame(() => {
       m.invalidateSize({ pan: false })
+      baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
+      if (earthEngineTiles.current) { try { earthEngineTiles.current.redraw() } catch {} }
     })
+    const t = setTimeout(() => {
+      m.invalidateSize({ pan: false })
+    }, 120)
+    return () => clearTimeout(t)
   }, [locked, mapObj])
+
+  // Automatic wake/unlock recovery: restores map whenever device, phone, or browser tab is locked and unlocked
+  useEffect(() => {
+    const m = mapObj
+    if (!m) return
+    const handleWakeAndVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        m.invalidateSize({ pan: false })
+        baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
+        if (earthEngineTiles.current) { try { earthEngineTiles.current.redraw() } catch {} }
+        setTimeout(() => {
+          m.invalidateSize({ pan: false })
+          baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
+          if (earthEngineTiles.current) { try { earthEngineTiles.current.redraw() } catch {} }
+        }, 150)
+        setTimeout(() => {
+          m.invalidateSize({ pan: false })
+        }, 500)
+      }
+    }
+    document.addEventListener('visibilitychange', handleWakeAndVisibility)
+    window.addEventListener('focus', handleWakeAndVisibility)
+    window.addEventListener('pageshow', handleWakeAndVisibility)
+    window.addEventListener('resize', handleWakeAndVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', handleWakeAndVisibility)
+      window.removeEventListener('focus', handleWakeAndVisibility)
+      window.removeEventListener('pageshow', handleWakeAndVisibility)
+      window.removeEventListener('resize', handleWakeAndVisibility)
+    }
+  }, [mapObj])
+
 
   useEffect(() => {
     if (!element.current) return
@@ -336,11 +375,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     if (element.current) {
       if (bgMode === 'black') element.current.style.backgroundColor = '#000000'
       else if (bgMode === 'white') element.current.style.backgroundColor = '#ffffff'
-      else element.current.style.backgroundColor = '#0b1a13'
+      else element.current.style.backgroundColor = '#15291f'
     }
 
     if (bgMode === 'black') {
-      // Solid Black background outside farm boundary (Google Earth Engine style)
+      // Solid Black background outside farm boundary (Google Earth Engine dark canvas mode)
       L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
         stroke: false,
         fillColor: '#000000',
@@ -358,12 +397,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       }).addTo(group)
       L.polygon(ring, { color: '#15803d', weight: 2.8, fill: false, interactive: false }).addTo(group)
     } else {
-      // Standard view with surroundings
-      if (dim || aoiOnly) {
+      // Standard view with surroundings: gently dim surroundings only when explicitly requested
+      if (dim) {
         L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ring], {
           stroke: false,
           fillColor: '#07110c',
-          fillOpacity: aoiOnly ? 0.95 : 0.62,
+          fillOpacity: 0.45,
           interactive: false
         }).addTo(group)
       }
@@ -617,40 +656,33 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const layer = primaryId ? byId(primaryId) : null
     if (!isEarthEngineConfigured) {
       setEarthEngineOverlay(null)
-      setEarthEngineStatus('Earth Engine service not connected · preview imagery comes from Microsoft Planetary Computer.')
+      setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
       return
     }
-    if (!scene || !farm.polygon || farm.polygon.length < 3 || !layer) {
+    if (!farm.polygon || farm.polygon.length < 3 || !layer) {
       setEarthEngineOverlay(null)
-      setEarthEngineStatus('Add a field boundary and a Sentinel-2 layer to request Earth Engine tiles.')
-      return
-    }
-    if (stretchDra) {
-      setEarthEngineOverlay(null)
-      setEarthEngineStatus('Local contrast adjustment is active · switch it off to request Earth Engine rendered tiles.')
-      return
-    }
-    if (!layer.rgb && !supportsEarthEngineIndicator(layer.id)) {
-      setEarthEngineOverlay(null)
-      setEarthEngineStatus(`${layer.name} is rendered by the local analysis pipeline; Earth Engine tiles are available for spectral indices and band combinations.`)
+      setEarthEngineStatus('Draw a field boundary to request Earth Engine primary tiles.')
       return
     }
 
     const controller = new AbortController()
     setEarthEngineOverlay(null)
-    setEarthEngineStatus('Requesting selected scene and map style from Earth Engine…')
+    setEarthEngineStatus('Requesting primary Sentinel-2 layer from Google Earth Engine…')
     createEarthEngineMap({
       farm,
       sceneOpts: sceneOpts ?? {},
       layer,
       bandCombination: layer.rgb ? activeBandCombo : undefined,
+      percentileStretch: stretchDra,
     }, controller.signal).then(result => {
       if (controller.signal.aborted) return
-      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: result.sceneCount })
-      setEarthEngineStatus(`Earth Engine map tiles · ${result.sceneCount} matching Sentinel-2 scene${result.sceneCount === '1' ? '' : 's'}`)
+      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
+      setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
     }).catch(error => {
       if (controller.signal.aborted) return
-      setEarthEngineStatus(`${error instanceof Error ? error.message : 'Earth Engine request failed'} Local preview remains available.`)
+      setEarthEngineOverlay(null)
+      setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
+      console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', error)
     })
     return () => controller.abort()
   }, [active.join(), hidden.join(), geo, sceneKey, stretchDra, activeBandCombo, JSON.stringify(sceneOpts)])
@@ -744,7 +776,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         <div className={`ix-gee-badge${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`} title={earthEngineStatus}>
           <span className="gee-dot" />
-          <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'Earth Engine tiles · Sentinel-2 L2A' : isEarthEngineConfigured ? 'Earth Engine connection pending' : 'Satellite preview · public data'}</span>
+          <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'Google Earth Engine · Sentinel-2 L2A (Primary)' : 'Planetary Computer · Sentinel-2 (Auto Fallback)'}</span>
         </div>
 
         <div className="ix-zoom-sync-badge" title={`Live map zoom ${mapZoom.toFixed(1)}x synchronizes all GeoAI analysis maps across the dashboard`}>

@@ -445,7 +445,7 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .ix-wrap{background:radial-gradient(circle at 30% 20%,#14382a,#07110c)}
 .ix-tools{overflow:auto}
 .leaflet-control-scale{margin-bottom:14px!important}
-.field-map.leaflet-container{background:#0b1a13}
+.field-map.leaflet-container{background:#15291f}
 
 /* Credits: handwritten signature */
 .cr{position:relative;text-align:center;margin:8px 0 22px;padding:46px 20px 38px;border-radius:26px;background:#fbf8ef;background-image:repeating-linear-gradient(transparent 0 31px,#cfe0d4 31px 32px);color:#10231b;overflow:hidden;box-shadow:inset 0 0 0 1px #e5dfc9}

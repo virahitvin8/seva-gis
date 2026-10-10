@@ -6,6 +6,7 @@ import { METHODS } from './lib/hydro'
 type Props = {
   farmAreaHa: number
   cropName: string
+  ndvi?: number
   ndmi: number
   et0Next7: number
   rainNext7: number
@@ -17,6 +18,7 @@ const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 export default function IrrigationDecisionCard({
   farmAreaHa,
   cropName,
+  ndvi,
   ndmi,
   et0Next7,
   rainNext7,
@@ -28,18 +30,30 @@ export default function IrrigationDecisionCard({
   })
   const isBare = selectedCrop === 'uncultivated'
 
-  const [selectedStage, setSelectedStage] = useState<string>(() => {
-    const norm = (cropName || '').toLowerCase()
-    return norm.includes('bare') || norm.includes('uncultivated') || norm.includes('fallow') ? 'fallow' : ''
-  })
+  // Automatic crop stage detection from Sentinel-2 NDVI & NDMI satellite signals
+  const autoStage = useMemo<string>(() => {
+    if (isBare) return 'fallow'
+    const vi = ndvi ?? 0.52
+    const mi = ndmi ?? 0.24
+    if (vi < 0.25) return 'sowing'
+    if (vi < 0.58) return 'vegetative'
+    if (vi >= 0.58 && mi >= 0.22) return 'flowering'
+    if (vi >= 0.45 && mi < 0.18) return 'grain_fill'
+    return 'maturity'
+  }, [isBare, ndvi, ndmi])
+
+  const [userSelectedStage, setUserSelectedStage] = useState<string>('')
+  const selectedStage = userSelectedStage || autoStage
+  const isAutoStage = !userSelectedStage
+
   useEffect(() => {
     const norm = (cropName || '').toLowerCase()
     setSelectedCrop(EXTENDED_CROPS.find(c => norm.includes(c.id))?.id || (norm.includes('bare') || norm.includes('uncultivated') || norm.includes('fallow') ? 'uncultivated' : 'paddy'))
-    setSelectedStage(norm.includes('bare') || norm.includes('uncultivated') || norm.includes('fallow') ? 'fallow' : '')
+    setUserSelectedStage('')
   }, [cropName])
   const [irrMethod, setIrrMethod] = useState('furrow')
 
-  const stageDef = GROWTH_STAGES.find(s => s.id === selectedStage) || GROWTH_STAGES[1]
+  const stageDef = GROWTH_STAGES.find(s => s.id === selectedStage) || (isBare ? GROWTH_STAGES[0] : GROWTH_STAGES[1])
   const methodDef = METHODS.find(m => m.id === irrMethod) || METHODS[1]
 
   const calculation = useMemo(() => {
@@ -169,11 +183,16 @@ export default function IrrigationDecisionCard({
             {calculation.urgency === 'immediate' ? <Droplets size={24} /> : calculation.urgency === 'soon' ? <Clock size={24} /> : <CheckCircle2 size={24} />}
           </div>
           <div>
-            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--muted)' }}>
-              WATER PLAN · MODEL ESTIMATE
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--muted)' }}>
+              <span>WATER PLAN · MODEL ESTIMATE</span>
+              {isAutoStage && (
+                <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: 6, fontSize: 10, textTransform: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <Sparkles size={11} /> Auto-detected ({stageDef.name})
+                </span>
+              )}
             </div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: calculation.urgency === 'immediate' ? '#b91c1c' : calculation.urgency === 'soon' ? '#b45309' : '#15803d' }}>
-              {selectedStage ? calculation.decisionHeadline : 'Choose the crop’s current stage to see a planning estimate'}
+              {calculation.decisionHeadline}
             </h2>
           </div>
         </div>
@@ -185,11 +204,7 @@ export default function IrrigationDecisionCard({
             onChange={e => {
               const nextCrop = e.target.value
               setSelectedCrop(nextCrop)
-              if (nextCrop === 'uncultivated') {
-                setSelectedStage('fallow')
-              } else {
-                setSelectedStage('')
-              }
+              setUserSelectedStage(nextCrop === 'uncultivated' ? 'fallow' : '')
             }}
             style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600 }}
           >
@@ -201,7 +216,7 @@ export default function IrrigationDecisionCard({
           {isBare ? (
             <select
               value={selectedStage === 'paleva' ? 'paleva' : 'fallow'}
-              onChange={e => setSelectedStage(e.target.value)}
+              onChange={e => setUserSelectedStage(e.target.value)}
               style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600, color: '#0f172a' }}
             >
               <option value="fallow">Fallow / Bare Soil (No Crop · Resting)</option>
@@ -209,11 +224,11 @@ export default function IrrigationDecisionCard({
             </select>
           ) : (
             <select
-              value={selectedStage}
-              onChange={e => setSelectedStage(e.target.value)}
+              value={userSelectedStage}
+              onChange={e => setUserSelectedStage(e.target.value)}
               style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600 }}
             >
-              <option value="">Choose current crop stage</option>
+              <option value="">⚡ Auto-detected: {stageDef.name}</option>
               {GROWTH_STAGES.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -234,7 +249,7 @@ export default function IrrigationDecisionCard({
 
       {/* Rationale Banner */}
       <p style={{ margin: '12px 0', fontSize: 13, lineHeight: 1.5, color: '#334155' }}>
-        <b>Field check:</b> {selectedStage ? `${calculation.why} Planning estimate only: check soil near the roots and local rain before applying water.` : 'Choose the crop stage above; if you are unsure, check the crop in the field first.'}
+        <b>Field check:</b> {calculation.why} Planning estimate only: check soil near the roots and local rain before applying water.
       </p>
 
       {/* Quantity Specs */}

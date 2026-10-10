@@ -162,6 +162,7 @@ export default function WaterPanel({ farm }: Props) {
     {w && farm.analysis ? <IrrigationDecisionCard
       farmAreaHa={farm.area}
       cropName={crop.name}
+      ndvi={farm.analysis.ndvi?.mean}
       ndmi={farm.analysis.ndmi.mean}
       et0Next7={w.et0Next7}
       rainNext7={w.rainNext7}
@@ -214,7 +215,7 @@ export default function WaterPanel({ farm }: Props) {
       </section>
     </div>
 
-    <details className="sc-guide" open><summary>How to read the water numbers</summary><div className="sc-grid">
+    <details className="sc-guide"><summary>How to read the water numbers</summary><div className="sc-grid">
       <Guide title="Root-zone water available" unit="% of plant-available water" rows={[['#d73027', 'Irrigate now', '< 50 %'], ['#fee08b', 'Watch', '50 to 65 %'], ['#80cdc1', 'Comfortable', '65 to 90 %'], ['#01665e', 'Full', '≥ 90 %']]}/>
       <Guide title="Infiltration (Ks)" unit="mm per hour" rows={[['#01665e', 'Very slow, waterlogs', '< 1'], ['#80cdc1', 'Slow', '1 to 5'], ['#fee08b', 'Moderate', '5 to 20'], ['#a6d96a', 'Good', '20 to 60'], ['#fdae61', 'Very fast, leaches', '≥ 60']]}/>
       <Guide title="Water speed in pipe" unit="metres per second" rows={[['#fdae61', 'Silt settles', '< 0.6'], ['#1a9850', 'Good', '0.6 to 2'], ['#fee08b', 'Fast', '2 to 3'], ['#d73027', 'Burst risk', '≥ 3']]}/>

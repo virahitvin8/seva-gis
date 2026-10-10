@@ -578,7 +578,7 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .lab-stage{position:relative;width:100%;background:#cfd8cc;overflow:hidden}
 .lab-map .lab-ctx{position:absolute;inset:0;width:100%;height:100%;max-height:none!important;object-fit:fill;background:none}
 .lab-map .lab-over{position:absolute;max-height:none!important;object-fit:fill!important;background:none!important;image-rendering:auto}
-.lab-map .lab-over.crisp{image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges}
+.lab-map .lab-over.crisp{image-rendering:auto;filter:contrast(1.06) saturate(1.04)}
 .lab-svg{position:absolute;inset:0;width:100%;height:100%}
 .lab-title{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(11,26,20,.82);color:#fff;font-size:12px;font-weight:600;padding:4px 12px;border-radius:999px;white-space:nowrap}
 .lab-north{position:absolute;top:8px;right:8px;width:28px;text-align:center;color:#fff;font-size:11px;text-shadow:0 1px 2px #000}
@@ -2302,3 +2302,230 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
     padding: 4px 8px;
   }
 }
+
+/* Digital India RoR Form 1B Cadastre & Passbook Map HUD */
+.ix-cadastre-hud {
+  position: absolute;
+  top: 56px;
+  right: 14px;
+  width: min(390px, 94vw);
+  max-height: calc(100% - 76px);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 2px solid #059669;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  z-index: 1000;
+  color: #0f172a;
+  animation: cadFadeIn 0.22s ease-out;
+}
+@keyframes cadFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ix-cadastre-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #ecfdf5;
+  border-bottom: 1.5px solid #a7f3d0;
+  border-radius: 10px 10px 0 0;
+}
+.ix-cadastre-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ix-cad-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.ix-cad-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ix-cad-grid span {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.ix-cad-grid strong {
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 700;
+}
+.ix-cad-grid small {
+  font-size: 10px;
+  color: #475569;
+}
+.ix-cad-grid code {
+  font-size: 11px;
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: #0369a1;
+  font-family: monospace;
+}
+.ix-cad-global-box {
+  background: #fdfefe;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px;
+}
+.ix-cad-global-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #059669;
+  background: #ffffff;
+  color: #059669;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ix-cad-global-btn.active, .ix-cad-global-btn:hover {
+  background: #059669;
+  color: #ffffff;
+}
+.ix-cad-parcel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ix-cad-parcel-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background 0.15s ease;
+}
+.ix-cad-parcel-item:hover {
+  background: #f1f5f9;
+}
+.ix-cad-parcel-item.current {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+.ix-cad-parcel-item b {
+  display: block;
+  font-size: 11px;
+  color: #1e293b;
+}
+.ix-cad-parcel-item small {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+}
+.ix-cad-parcel-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ix-cad-parcel-item .dot.current { background: #059669; }
+.ix-cad-parcel-item .dot.global { background: #8b5cf6; }
+.ix-tag-curr {
+  font-size: 9px;
+  font-weight: 700;
+  color: #047857;
+  background: #d1fae5;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.ix-cad-legend {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+}
+.ix-cad-legend .title {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.ix-cad-legend .items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: #334155;
+}
+.ix-cad-legend .items div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ix-cad-legend .items i {
+  width: 14px;
+  height: 6px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+/* Cadastral Badges rendered on Leaflet Map */
+.ix-cadastre-badge-wrap {
+  background: transparent;
+  border: none;
+}
+.cad-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  pointer-events: none;
+}
+.cad-badge.primary {
+  background: rgba(5, 150, 105, 0.95);
+  color: #ffffff;
+  border: 1.5px solid #ffffff;
+  font-weight: 700;
+}
+.cad-badge.primary span {
+  font-size: 9px;
+  opacity: 0.9;
+}
+.cad-badge.sub {
+  background: rgba(217, 119, 6, 0.92);
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  font-weight: 700;
+  font-size: 9px;
+  padding: 1px 4px;
+}
+.cad-badge.global {
+  background: rgba(139, 92, 246, 0.95);
+  color: #ffffff;
+  border: 1.5px solid #ffffff;
+  font-weight: 700;
+}
+.cad-badge.global span {
+  font-size: 8.5px;
+  opacity: 0.9;
+}
+

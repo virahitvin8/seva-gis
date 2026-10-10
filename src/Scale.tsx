@@ -20,7 +20,7 @@ const GUIDES: { title: string; unit: string; rows: Row[] }[] = [
 ]
 
 export function NumbersGuide({ ids = ['ndvi', 'ndmi'] }: { ids?: string[] }) {
-  return <details className="sc-guide" open><summary>What these readings suggest for remote review</summary>
+  return <details className="sc-guide"><summary>What these readings suggest for remote review (NDVI, EVI, SAVI, NDMI, etc.)</summary>
     <div className="sc-grid">
       {ids.map(id => <ScaleBox key={id} id={id}/>)}
       {GUIDES.map(g => <div className="sc-box" key={g.title}><div className="sc-title"><b>{g.title}</b><span>{g.unit}</span></div><div className="sc-bar">{g.rows.map(r => <i key={r[1]} style={{ background: r[0], flex: 1 }}/>)}</div><ul>{g.rows.map(r => <li key={r[1]}><i style={{ background: r[0] }}/><span>{r[1]}</span><code>{r[2]}</code></li>)}</ul></div>)}

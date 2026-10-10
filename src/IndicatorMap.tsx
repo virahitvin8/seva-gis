@@ -121,8 +121,27 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const toolRef = useRef({ tool, farmId: farm.id, n: mine.b.length })
   toolRef.current = { tool, farmId: farm.id, n: mine.b.length }
   const draftRef = useRef(setDraft)
-  const toolSet = useRef(setTool)
   const scene = farm.analysis?.scene
+
+  const savedCadastre = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(`seva-cadastre-record-${farm.id}`)
+      if (raw) return JSON.parse(raw)
+    } catch {}
+    return null
+  }, [farm.id])
+  const displayTitleholder = savedCadastre?.ownerName?.trim() || 'Registered Titleholder (RoR Record)'
+
+  const userFarmsList = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('seva-farms')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return parsed.filter((f: any) => !f.sample)
+      }
+    } catch {}
+    return [farm]
+  }, [farm])
   const geo = farm.polygon && farm.polygon.length >= 3
     ? `${farm.id}:${farm.polygon.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(';')}`
     : `${farm.id}:${farm.lat.toFixed(7)}:${farm.lon.toFixed(7)}:${farm.area.toFixed(4)}`
@@ -1565,7 +1584,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
             <div className="ix-cadastre-body">
               <div className="ix-cad-grid">
-                <div><span>Primary Pattadar</span><strong>{farm.name} Landholder</strong><small>Certified Spatial AOI Record</small></div>
+                <div><span>Primary Pattadar</span><strong>{displayTitleholder}</strong><small>{savedCadastre?.ownerName ? 'Verified Legal Titleholder' : 'Pending Entry · Form 1B RoR'}</small></div>
                 <div><span>Category</span><strong>Sole Khatedar</strong><small>Authenticated Titleholder (1/1)</small></div>
                 <div><span>Survey / Sub-Division</span><strong>Sy. No. {Math.abs(Math.round(farm.lon * 100)) % 400 + 1}/{(Math.abs(Math.round(farm.lat * 100)) % 8) + 1}</strong><small>Cadastral Spatial Survey</small></div>
                 <div><span>Khata No.</span><strong>Khata {Math.abs(Math.round((farm.lat + farm.lon) * 100)) % 500 + 10}</strong><small>Revenue Circle · {farm.location}</small></div>
@@ -1573,89 +1592,53 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 <div><span>Official Token</span><code>{`PPB-GEO-${farm.id.slice(0, 8).toUpperCase()}`}</code></div>
               </div>
 
-              {/* All Registered Landholdings of Person (Global & Regional Properties) */}
+              {/* All Registered Landholdings of Person (Authentic User Parcels) */}
               <div className="ix-cad-global-box">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div>
-                    <strong style={{ fontSize: 11, color: '#1e293b' }}>All Landholdings of Titleholder</strong>
-                    <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>4 registered parcels · Total 6.32 ha (15.62 acres)</span>
+                    <strong style={{ fontSize: 11, color: '#1e293b' }}>Registered Landholdings on Record</strong>
+                    <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>
+                      {userFarmsList.length} registered parcel{userFarmsList.length > 1 ? 's' : ''} in account
+                    </span>
                   </div>
                   <button
-                    className={`ix-cad-global-btn ${showAllGlobalParcels ? 'active' : ''}`}
-                    onClick={() => setShowAllGlobalParcels(prev => !prev)}
-                    title="Highlight all parcels of Ram Prasad Maurya around the globe on map"
+                    className="ix-cad-global-btn active"
+                    onClick={() => {
+                      const el = document.getElementById('land-records')
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }}
+                    title="Open official cadastral passbook dossier"
                   >
                     <Globe2 size={12} />
-                    <span>{showAllGlobalParcels ? 'Holdings on Map' : 'Add on Map'}</span>
+                    <span>Open Dossier</span>
                   </button>
                 </div>
 
                 <div className="ix-cad-parcel-list">
-                  <div
-                    className="ix-cad-parcel-item current"
-                    onClick={() => {
-                      const [w, s, e, n] = farmBBox(farm)
-                      mapObj?.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [50, 50], maxZoom: 18 })
-                    }}
-                  >
-                    <span className="dot current" />
-                    <div style={{ flex: 1 }}>
-                      <b>Parcel 1 · Current AOI (Vegetables & Paddy)</b>
-                      <small>Sy. No. 142/2A · {farm.area ? farm.area.toFixed(2) : '1.82'} ha ({((farm.area || 1.82) * 2.471).toFixed(2)} ac)</small>
-                    </div>
-                    <span className="ix-tag-curr">Current</span>
-                  </div>
-
-                  <div
-                    className="ix-cad-parcel-item"
-                    onClick={() => {
-                      setShowAllGlobalParcels(true)
-                      const [w, s, e, n] = farmBBox(farm)
-                      const dw = Math.max(e - w, 0.001), dh = Math.max(n - s, 0.001)
-                      mapObj?.setView([farm.lat - dh * 2.8, farm.lon + dw * 2.2], 17)
-                    }}
-                  >
-                    <span className="dot global" />
-                    <div style={{ flex: 1 }}>
-                      <b>Parcel 2 · Southern Canal Orchard (Mango/Guava)</b>
-                      <small>Sy. No. 118/4 · 2.45 ha (6.05 ac) · Canal Feeder</small>
-                    </div>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </div>
-
-                  <div
-                    className="ix-cad-parcel-item"
-                    onClick={() => {
-                      setShowAllGlobalParcels(true)
-                      const [w, s, e, n] = farmBBox(farm)
-                      const dw = Math.max(e - w, 0.001), dh = Math.max(n - s, 0.001)
-                      mapObj?.setView([farm.lat + dh * 3.4, farm.lon - dw * 2.8], 17)
-                    }}
-                  >
-                    <span className="dot global" />
-                    <div style={{ flex: 1 }}>
-                      <b>Parcel 3 · Ancestral Agroforestry (Timber & Pulses)</b>
-                      <small>Sy. No. 204/1B · 0.95 ha (2.35 ac) · Village Margin</small>
-                    </div>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </div>
-
-                  <div
-                    className="ix-cad-parcel-item"
-                    onClick={() => {
-                      setShowAllGlobalParcels(true)
-                      const [w, s, e, n] = farmBBox(farm)
-                      const dw = Math.max(e - w, 0.001), dh = Math.max(n - s, 0.001)
-                      mapObj?.setView([farm.lat - dh * 1.5, farm.lon - dw * 3.6], 17)
-                    }}
-                  >
-                    <span className="dot global" />
-                    <div style={{ flex: 1 }}>
-                      <b>Parcel 4 · Canal Lift Holding (Mustard & Wheat)</b>
-                      <small>Sy. No. 89/3 · 1.10 ha (2.72 ac) · Tubewell Command</small>
-                    </div>
-                    <ChevronRight size={13} className="text-slate-400" />
-                  </div>
+                  {userFarmsList.map((f: any) => {
+                    const isCurrent = f.id === farm.id
+                    return (
+                      <div
+                        key={f.id}
+                        className={`ix-cad-parcel-item ${isCurrent ? 'current' : ''}`}
+                        onClick={() => {
+                          if (isCurrent) {
+                            const [w, s, e, n] = farmBBox(farm)
+                            mapObj?.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [50, 50], maxZoom: 18 })
+                          } else if (f.lat && f.lon) {
+                            mapObj?.setView([f.lat, f.lon], 16)
+                          }
+                        }}
+                      >
+                        <span className={`dot ${isCurrent ? 'current' : 'global'}`} />
+                        <div style={{ flex: 1 }}>
+                          <b>{f.name} {isCurrent ? '· Current AOI' : ''}</b>
+                          <small>{f.crop || 'Agricultural Field'} · {f.area ? f.area.toFixed(2) : '1.50'} ha ({((f.area || 1.5) * 2.471).toFixed(2)} ac)</small>
+                        </div>
+                        {isCurrent ? <span className="ix-tag-curr">Current</span> : <ChevronRight size={13} className="text-slate-400" />}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 

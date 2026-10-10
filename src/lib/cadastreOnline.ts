@@ -129,7 +129,8 @@ export function resolveGlobalCadastreAuthority(
         regionalAreaUnit: { unitName: 'Bigha (Bihar standard)', factorFromHa: 3.9536, description: '1 Bigha = 20 Kathas = 27,225 sq ft (2529 m²)' }
       }
     }
-    if (s.includes('uttar pradesh') || s.includes('up')) {
+    const isUP = s.includes('uttar pradesh') || s.includes('uttarpradesh') || s === 'up' || s.startsWith('up ') || s.endsWith(' up')
+    if (isUP) {
       return {
         country: 'India',
         countryCode: 'IN',

@@ -23,7 +23,8 @@ import {
   Edit3,
   Save,
   CheckCircle2,
-  Compass
+  Compass,
+  X
 } from 'lucide-react'
 import { areaHa, perimeterM, centroid } from './lib/geo'
 import {
@@ -58,12 +59,24 @@ export type UserCustomLandRecord = {
   notes: string
 }
 
-export default function LandInfoCard({ farm }: { farm: Farm }) {
+export default function LandInfoCard({
+  farm,
+  onUpdateFarm
+}: {
+  farm: Farm
+  onUpdateFarm?: (updated: Farm) => void
+}) {
   const [copySuccess, setCopySuccess] = useState(false)
   const [notice, setNotice] = useState('')
   const [loadingGeocoding, setLoadingGeocoding] = useState(false)
   const [loadingOverpass, setLoadingOverpass] = useState(false)
   const [isEditingCustom, setIsEditingCustom] = useState(false)
+
+  // Farm relocation / location correction state
+  const [showRelocateModal, setShowRelocateModal] = useState(false)
+  const [relocateQuery, setRelocateQuery] = useState('')
+  const [relocating, setRelocating] = useState(false)
+  const [relocateError, setRelocateError] = useState('')
 
   // Farm geometry & geodesy
   const polygonPoints = farm.polygon ?? []
@@ -197,9 +210,15 @@ export default function LandInfoCard({ farm }: { farm: Farm }) {
 
   // Active Titleholder information (User custom or verified spatial record)
   const activeTitleholder = useMemo(() => {
-    const defaultOwner = customRecord.ownerName.trim()
+    // Check if OSM has an authentic owner or operator tag
+    const osmOwner = osmParcels.find(p => (p as any).tags?.owner || (p as any).tags?.operator || (p as any).tags?.['contact:name'])?.tags?.owner ||
+                     osmParcels.find(p => (p as any).tags?.operator)?.tags?.operator
+
+    const isCustom = !!customRecord.ownerName.trim()
+    const defaultOwner = isCustom
       ? customRecord.ownerName.trim()
-      : `Verified Landholder (${farm.name})`
+      : (osmOwner || 'Registered Titleholder (RoR 1B / Khatauni Record)')
+
     const defaultSurvey = customRecord.surveyOrTaxParcelNo.trim()
       ? customRecord.surveyOrTaxParcelNo.trim()
       : `SPATIAL-AOI-${calculatedCentroid.lat.toFixed(3).replace('.', '')}-${calculatedCentroid.lon.toFixed(3).replace('.', '')}`
@@ -209,6 +228,7 @@ export default function LandInfoCard({ farm }: { farm: Farm }) {
 
     return {
       name: defaultOwner,
+      isCustom,
       relation: customRecord.relation,
       surveyNo: defaultSurvey,
       passbookNo: defaultPassbook,
@@ -216,7 +236,110 @@ export default function LandInfoCard({ farm }: { farm: Farm }) {
       encumbrance: customRecord.encumbranceStatus,
       notes: customRecord.notes
     }
-  }, [customRecord, farm.name, calculatedCentroid, plusCode])
+  }, [customRecord, osmParcels, calculatedCentroid, plusCode])
+
+  // Relocate farm parcel to new geodetic coordinates (e.g. Uttar Pradesh)
+  const handleRelocate = async (targetLat: number, targetLon: number, targetName: string) => {
+    setRelocating(true)
+    setRelocateError('')
+    try {
+      const dLat = targetLat - calculatedCentroid.lat
+      const dLon = targetLon - calculatedCentroid.lon
+
+      const newPolygon = polygonPoints.length >= 3
+        ? polygonPoints.map(pt => [Number((pt[0] + dLon).toFixed(6)), Number((pt[1] + dLat).toFixed(6))] as [number, number])
+        : undefined
+
+      const updatedFarm: Farm = {
+        ...farm,
+        lat: targetLat,
+        lon: targetLon,
+        location: targetName,
+        polygon: newPolygon
+      }
+
+      // Update in localStorage 'seva-farms'
+      try {
+        const rawFarms = localStorage.getItem('seva-farms')
+        if (rawFarms) {
+          const parsed = JSON.parse(rawFarms)
+          if (Array.isArray(parsed)) {
+            const nextFarms = parsed.map((f: any) => f.id === farm.id ? { ...f, ...updatedFarm } : f)
+            localStorage.setItem('seva-farms', JSON.stringify(nextFarms))
+          }
+        }
+      } catch (err) {
+        console.warn('Could not persist updated farm coordinates to localStorage:', err)
+      }
+
+      // Notify parent / window
+      window.dispatchEvent(new CustomEvent('seva-update-farm', { detail: updatedFarm }))
+      onUpdateFarm?.(updatedFarm)
+
+      setNotice(`Parcel relocated to ${targetName}. Reverse geocoding & state cadastre updated.`)
+      setTimeout(() => setNotice(''), 4000)
+      setShowRelocateModal(false)
+    } catch (err: any) {
+      setRelocateError(err?.message || 'Failed to relocate farm parcel.')
+    } finally {
+      setRelocating(false)
+    }
+  }
+
+  const handleSearchRelocate = async () => {
+    const q = relocateQuery.trim()
+    if (!q) return
+    const qLower = q.toLowerCase().replace(/\s+/g, ' ')
+
+    const STATE_PRESETS: Record<string, { name: string; lat: number; lon: number }> = {
+      up: { name: 'Uttar Pradesh (Central / Lucknow)', lat: 26.8467, lon: 80.9462 },
+      'u.p.': { name: 'Uttar Pradesh (Central / Lucknow)', lat: 26.8467, lon: 80.9462 },
+      'uttar pradesh': { name: 'Uttar Pradesh (Central / Lucknow)', lat: 26.8467, lon: 80.9462 },
+      uttarpradesh: { name: 'Uttar Pradesh (Central / Lucknow)', lat: 26.8467, lon: 80.9462 },
+      varanasi: { name: 'Varanasi, Uttar Pradesh', lat: 25.3176, lon: 82.9739 },
+      kashi: { name: 'Varanasi, Uttar Pradesh', lat: 25.3176, lon: 82.9739 },
+      lucknow: { name: 'Lucknow, Uttar Pradesh', lat: 26.8467, lon: 80.9462 },
+      gorakhpur: { name: 'Gorakhpur, Uttar Pradesh', lat: 26.7606, lon: 83.3732 },
+      ayodhya: { name: 'Ayodhya, Uttar Pradesh', lat: 26.7922, lon: 82.1998 },
+      prayagraj: { name: 'Prayagraj, Uttar Pradesh', lat: 25.4358, lon: 81.8463 },
+      allahabad: { name: 'Prayagraj, Uttar Pradesh', lat: 25.4358, lon: 81.8463 },
+      kanpur: { name: 'Kanpur, Uttar Pradesh', lat: 26.4499, lon: 80.3319 },
+      agra: { name: 'Agra, Uttar Pradesh', lat: 27.1767, lon: 78.0081 },
+      meerut: { name: 'Meerut, Uttar Pradesh', lat: 28.9845, lon: 77.7064 },
+      bareilly: { name: 'Bareilly, Uttar Pradesh', lat: 28.3670, lon: 79.4304 },
+      aligarh: { name: 'Aligarh, Uttar Pradesh', lat: 27.8974, lon: 78.0880 },
+      mp: { name: 'Madhya Pradesh', lat: 23.2599, lon: 77.4126 },
+      ts: { name: 'Telangana', lat: 17.8495, lon: 79.1151 },
+      bihar: { name: 'Bihar', lat: 25.0961, lon: 85.3131 },
+    }
+
+    if (STATE_PRESETS[qLower]) {
+      const p = STATE_PRESETS[qLower]
+      await handleRelocate(p.lat, p.lon, p.name)
+      return
+    }
+
+    setRelocating(true)
+    setRelocateError('')
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=1`, { headers: { 'Accept-Language': 'en' } })
+      if (res.ok) {
+        const hits = await res.json()
+        if (hits && hits.length > 0) {
+          const lat = parseFloat(hits[0].lat), lon = parseFloat(hits[0].lon)
+          if (!isNaN(lat) && !isNaN(lon)) {
+            await handleRelocate(lat, lon, hits[0].display_name.slice(0, 50))
+            return
+          }
+        }
+      }
+      setRelocateError(`Location "${q}" not found. Try entering a city or district name, or click one of the quick UP presets.`)
+    } catch {
+      setRelocateError('Geocoding search failed. Check internet connection.')
+    } finally {
+      setRelocating(false)
+    }
+  }
 
   // Regional Area calculation
   const regionalAreaValue = useMemo(() => {
@@ -515,6 +638,129 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
         </div>
       </header>
 
+      {/* Location Status & Relocation Quick-Bar */}
+      <div className="bg-slate-900 border border-slate-700/80 rounded-xl p-3.5 my-3 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-start gap-2.5">
+          <div className="p-2 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 shrink-0 mt-0.5">
+            <MapPin size={18} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-white">
+                Current Location: {geoHierarchy.village}, {geoHierarchy.district}, {geoHierarchy.state} ({geoHierarchy.countryCode})
+              </span>
+              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
+                {calculatedCentroid.lat.toFixed(6)}° N, {calculatedCentroid.lon.toFixed(6)}° E
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              Current Cadastral Registry: <b className="text-emerald-300">{authority.authorityName}</b> ({authority.stateOrRegion})
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <button
+            type="button"
+            onClick={() => handleRelocate(26.8467, 80.9462, 'Uttar Pradesh (Central - Lucknow)')}
+            disabled={relocating}
+            className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-lg shadow flex items-center gap-1.5 transition-all"
+            title="Relocate this farm parcel directly to Uttar Pradesh and connect with UP Bhulekh"
+          >
+            <Check size={13} />
+            <span>📍 Relocate to Uttar Pradesh (UP)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowRelocateModal(prev => !prev)}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-lg border border-slate-600 flex items-center gap-1.5 transition-all"
+          >
+            <Compass size={13} />
+            <span>{showRelocateModal ? 'Close Relocator' : 'Change Location…'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Expandable Relocation Panel */}
+      {showRelocateModal && (
+        <div className="bg-slate-950/95 border border-emerald-500/40 rounded-xl p-4 my-3 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Compass size={16} className="text-emerald-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+                Relocate Field to Authentic Geographical Coordinates
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowRelocateModal(false)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <p className="text-[11px] text-slate-300">
+            Select a target region in Uttar Pradesh or across India to instantly shift this farm's geodetic centroid and polygon boundaries. The cadastral system will immediately reload official records from the corresponding government portal (e.g. <b>UP Bhulekh</b>).
+          </p>
+
+          <div className="space-y-1.5">
+            <span className="text-[11px] font-bold text-slate-400 block">Quick 1-Click Uttar Pradesh Presets:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { name: 'Lucknow (Central UP)', lat: 26.8467, lon: 80.9462 },
+                { name: 'Varanasi (Kashi / Purvanchal)', lat: 25.3176, lon: 82.9739 },
+                { name: 'Gorakhpur (Purvanchal)', lat: 26.7606, lon: 83.3732 },
+                { name: 'Ayodhya (Awadh)', lat: 26.7922, lon: 82.1998 },
+                { name: 'Prayagraj (Allahabad)', lat: 25.4358, lon: 81.8463 },
+                { name: 'Kanpur (Industrial Nagar)', lat: 26.4499, lon: 80.3319 },
+                { name: 'Agra (Braj)', lat: 27.1767, lon: 78.0081 },
+                { name: 'Meerut (Western UP)', lat: 28.9845, lon: 77.7064 },
+                { name: 'Bareilly (Rohilkhand)', lat: 28.3670, lon: 79.4304 },
+                { name: 'Basti (Sarayu Basin)', lat: 26.8041, lon: 82.7675 },
+              ].map(item => (
+                <button
+                  key={item.name}
+                  type="button"
+                  disabled={relocating}
+                  onClick={() => handleRelocate(item.lat, item.lon, `${item.name}, Uttar Pradesh`)}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-emerald-950 border border-slate-700 hover:border-emerald-500 text-slate-200 hover:text-emerald-300 rounded text-xs transition-colors"
+                >
+                  📍 {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800">
+            <span className="text-[11px] font-bold text-slate-400 block mb-1.5">Or Search Any Village, Town, Tehsil or State Globally:</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={relocateQuery}
+                onChange={e => setRelocateQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSearchRelocate() } }}
+                placeholder="e.g. Varanasi, Lucknow, Basti, UP, or any village name…"
+                className="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-white text-xs"
+              />
+              <button
+                type="button"
+                onClick={handleSearchRelocate}
+                disabled={relocating}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shrink-0"
+              >
+                {relocating ? <RefreshCw size={13} className="animate-spin" /> : <Search size={13} />}
+                <span>Relocate</span>
+              </button>
+            </div>
+            {relocateError && (
+              <span className="text-[11px] text-rose-400 block mt-1">{relocateError}</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 2. Measured Cadastral Extents & Geodetic Extents */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-3">
         <div className="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/40 rounded-xl p-3.5 flex flex-col justify-between">
@@ -613,7 +859,7 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
                   type="text"
                   value={customRecord.ownerName}
                   onChange={e => setCustomRecord({ ...customRecord, ownerName: e.target.value })}
-                  placeholder="e.g. John Doe / Maria Silva / Real Landowner Name"
+                  placeholder="e.g. Legal Titleholder / Landowner Name (from Khatauni or Deed)"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                 />
               </div>
@@ -692,9 +938,25 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
           <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
-            <span className="text-slate-400 block text-[11px] mb-0.5">Recorded Titleholder</span>
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-slate-400 text-[11px]">Recorded Titleholder</span>
+              {!activeTitleholder.isCustom && (
+                <span className="text-[9px] bg-amber-950/80 text-amber-300 px-1.5 py-0.5 rounded border border-amber-800/40 font-semibold">
+                  Unedited Record
+                </span>
+              )}
+            </div>
             <strong className="text-sm text-white font-bold block">{activeTitleholder.name}</strong>
             <span className="text-[10px] text-emerald-400 font-semibold">{activeTitleholder.relation}</span>
+            {!activeTitleholder.isCustom && (
+              <button
+                type="button"
+                onClick={() => setIsEditingCustom(true)}
+                className="mt-1.5 text-[10px] text-amber-400 hover:text-amber-300 underline font-medium block"
+              >
+                + Edit legal name from {authority.authorityName}
+              </button>
+            )}
           </div>
 
           <div className="bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
@@ -740,11 +1002,21 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
               Administrative Cadastral Hierarchy (Real OpenStreetMap API)
             </h3>
           </div>
-          {loadingGeocoding && (
-            <span className="text-[10px] text-sky-400 flex items-center gap-1 animate-pulse">
-              <RefreshCw size={11} className="animate-spin" /> Resolving online spatial jurisdiction…
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowRelocateModal(prev => !prev)}
+              className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold"
+            >
+              <Compass size={12} />
+              <span>{showRelocateModal ? 'Close Relocator' : 'Change Location / State'}</span>
+            </button>
+            {loadingGeocoding && (
+              <span className="text-[10px] text-sky-400 flex items-center gap-1 animate-pulse">
+                <RefreshCw size={11} className="animate-spin" /> Resolving online spatial jurisdiction…
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">

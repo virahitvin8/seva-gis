@@ -276,6 +276,22 @@ export default function App() {
     if (selected === target.id) setSelected(rest[0]?.id ?? '')
     setMessage(`Removed ${target.name}.`)
   }
+  function updateFarm(updated: Farm) {
+    setFarms(current => current.map(item => item.id === updated.id ? { ...item, ...updated } : item))
+    refresh(updated)
+    setMessage(`Updated parcel coordinates for "${updated.name}".`)
+  }
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail && e.detail.id) {
+        setFarms(current => current.map(item => item.id === e.detail.id ? { ...item, ...e.detail } : item))
+        refresh(e.detail)
+        setMessage(`Relocated parcel "${e.detail.name || ''}" to ${e.detail.location || 'new coordinates'}.`)
+      }
+    }
+    window.addEventListener('seva-update-farm', handleUpdate)
+    return () => window.removeEventListener('seva-update-farm', handleUpdate)
+  }, [])
   function addBoundary({ name, crop, ring }: NewFarm) {
     const isPolygon = ring.length >= 3
     const { lat, lon } = centroid(ring)
@@ -439,7 +455,7 @@ export default function App() {
             break
           case 'land-passbook':
           case 'land':
-            content = <Reveal><LandInfoCard farm={farm}/></Reveal>
+            content = <Reveal><LandInfoCard farm={farm} onUpdateFarm={updateFarm}/></Reveal>
             break
           case 'crop-library':
           case 'cropLib':

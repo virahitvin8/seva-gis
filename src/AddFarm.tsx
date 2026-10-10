@@ -123,14 +123,87 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
     map.current?.setView([lat, lon], 17)
   }
 
-  async function findPlace() {
-    if (!place.trim()) return
+  async function findPlace(customQuery?: string) {
+    const raw = (customQuery ?? place).trim()
+    if (!raw) return
+    const qLower = raw.toLowerCase().replace(/\s+/g, ' ')
+
+    const STATE_ALIASES: Record<string, { name: string; lat: number; lon: number; zoom: number }> = {
+      up: { name: 'Uttar Pradesh', lat: 26.8467, lon: 80.9462, zoom: 8 },
+      'u.p.': { name: 'Uttar Pradesh', lat: 26.8467, lon: 80.9462, zoom: 8 },
+      'u.p': { name: 'Uttar Pradesh', lat: 26.8467, lon: 80.9462, zoom: 8 },
+      'uttar pradesh': { name: 'Uttar Pradesh', lat: 26.8467, lon: 80.9462, zoom: 8 },
+      uttarpradesh: { name: 'Uttar Pradesh', lat: 26.8467, lon: 80.9462, zoom: 8 },
+      mp: { name: 'Madhya Pradesh', lat: 23.2599, lon: 77.4126, zoom: 8 },
+      'madhya pradesh': { name: 'Madhya Pradesh', lat: 23.2599, lon: 77.4126, zoom: 8 },
+      ts: { name: 'Telangana', lat: 17.8495, lon: 79.1151, zoom: 8 },
+      tg: { name: 'Telangana', lat: 17.8495, lon: 79.1151, zoom: 8 },
+      telangana: { name: 'Telangana', lat: 17.8495, lon: 79.1151, zoom: 8 },
+      ap: { name: 'Andhra Pradesh', lat: 15.9129, lon: 79.7400, zoom: 8 },
+      'andhra pradesh': { name: 'Andhra Pradesh', lat: 15.9129, lon: 79.7400, zoom: 8 },
+      mh: { name: 'Maharashtra', lat: 19.7515, lon: 75.7139, zoom: 8 },
+      maharashtra: { name: 'Maharashtra', lat: 19.7515, lon: 75.7139, zoom: 8 },
+      pb: { name: 'Punjab', lat: 31.1471, lon: 75.3412, zoom: 8 },
+      punjab: { name: 'Punjab', lat: 31.1471, lon: 75.3412, zoom: 8 },
+      hr: { name: 'Haryana', lat: 29.0588, lon: 76.0856, zoom: 8 },
+      haryana: { name: 'Haryana', lat: 29.0588, lon: 76.0856, zoom: 8 },
+      rj: { name: 'Rajasthan', lat: 27.0238, lon: 74.2179, zoom: 8 },
+      rajasthan: { name: 'Rajasthan', lat: 27.0238, lon: 74.2179, zoom: 8 },
+      gj: { name: 'Gujarat', lat: 22.2587, lon: 71.1924, zoom: 8 },
+      gujarat: { name: 'Gujarat', lat: 22.2587, lon: 71.1924, zoom: 8 },
+      br: { name: 'Bihar', lat: 25.0961, lon: 85.3131, zoom: 8 },
+      bihar: { name: 'Bihar', lat: 25.0961, lon: 85.3131, zoom: 8 },
+      wb: { name: 'West Bengal', lat: 22.9868, lon: 87.8550, zoom: 8 },
+      'west bengal': { name: 'West Bengal', lat: 22.9868, lon: 87.8550, zoom: 8 },
+      ka: { name: 'Karnataka', lat: 15.3173, lon: 75.7139, zoom: 8 },
+      karnataka: { name: 'Karnataka', lat: 15.3173, lon: 75.7139, zoom: 8 },
+      tn: { name: 'Tamil Nadu', lat: 11.1271, lon: 78.6569, zoom: 8 },
+      'tamil nadu': { name: 'Tamil Nadu', lat: 11.1271, lon: 78.6569, zoom: 8 },
+    }
+
+    if (STATE_ALIASES[qLower]) {
+      const st = STATE_ALIASES[qLower]
+      map.current?.setView([st.lat, st.lon], st.zoom)
+      setGpsMsg(`Centered on ${st.name}. Zoom in and click corners to outline your farm boundary.`)
+      return
+    }
+
+    setGpsMsg(`Locating "${raw}"…`)
     try {
-      const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1`)
+      const osmRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(raw)}&format=json&addressdetails=1&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      )
+      if (osmRes.ok) {
+        const hits = await osmRes.json()
+        if (hits && hits.length > 0) {
+          const hit = hits[0]
+          const lat = parseFloat(hit.lat), lon = parseFloat(hit.lon)
+          if (!isNaN(lat) && !isNaN(lon)) {
+            const isStateOrBoundary = hit.type === 'administrative' || hit.type === 'state' || hit.class === 'boundary'
+            map.current?.setView([lat, lon], isStateOrBoundary ? 8 : 14)
+            setGpsMsg(`Located: ${hit.display_name.slice(0, 60)}`)
+            return
+          }
+        }
+      }
+    } catch {
+      // Fall through to Open-Meteo
+    }
+
+    try {
+      const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(raw)}&count=1`)
       const hit = (await response.json()).results?.[0]
-      if (!hit) { onError('Place not found. Try a nearby town name.'); return }
-      map.current?.setView([hit.latitude, hit.longitude], 14)
-    } catch { onError('Place search is unavailable right now.') }
+      if (hit) {
+        map.current?.setView([hit.latitude, hit.longitude], 14)
+        setGpsMsg(`Located: ${hit.name}, ${hit.country || ''}`)
+        return
+      }
+    } catch {
+      // Fall through
+    }
+
+    onError(`Place "${raw}" not found. Try a nearby town or select a quick region below.`)
   }
 
   async function onFile(file?: File) {
@@ -156,7 +229,38 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
     <label>Field name<input required maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. North paddy field"/></label>
     <p className="add-remote-note">Add a boundary for a field you want to review from home. SEVA·GIS uses public satellite imagery to show visible patterns; the outline is not an official parcel record.</p>
     <div className="add-tabs" role="tablist">{tabs.map(([key, text, Icon]) => <button type="button" role="tab" aria-selected={tab === key} key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}><Icon size={14}/>{text}</button>)}</div>
-    <div className="add-search"><Search size={14}/><input value={place} onChange={event => setPlace(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findPlace() } }} placeholder="Find a village or town on the map"/><button type="button" onClick={findPlace}>Go</button></div>
+    <div className="add-search"><Search size={14}/><input value={place} onChange={event => setPlace(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findPlace() } }} placeholder="Find village, town or state (e.g. Uttar Pradesh, UP)"/><button type="button" onClick={() => findPlace()}>Go</button></div>
+    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, fontSize: 11, alignItems: 'center' }}>
+      <span style={{ color: '#64748b', fontSize: 11, fontWeight: 600 }}>Quick region:</span>
+      {[
+        { label: '📍 Uttar Pradesh (UP)', q: 'up' },
+        { label: '📍 Madhya Pradesh (MP)', q: 'mp' },
+        { label: '📍 Bihar', q: 'bihar' },
+        { label: '📍 Punjab', q: 'punjab' },
+        { label: '📍 Maharashtra', q: 'maharashtra' },
+        { label: '📍 Rajasthan', q: 'rajasthan' },
+        { label: '📍 Telangana', q: 'telangana' },
+        { label: '📍 Andhra Pradesh', q: 'andhra pradesh' },
+      ].map(item => (
+        <button
+          key={item.q}
+          type="button"
+          onClick={() => { setPlace(item.label.replace('📍 ', '')); findPlace(item.q) }}
+          style={{
+            background: '#f8fafc',
+            border: '1px solid #cbd5e1',
+            borderRadius: 12,
+            padding: '2px 8px',
+            cursor: 'pointer',
+            fontSize: 11,
+            color: '#1e293b',
+            fontWeight: 500
+          }}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
     <div ref={box} className="add-map"/>
     {tab === 'draw' && <div className="add-help"><span>Click the map to outline your farm, one point per corner. Zoom in for accuracy.</span><button type="button" onClick={() => setDrawn(c => c.slice(0, -1))}><Undo2 size={13}/>Undo</button><button type="button" onClick={() => setDrawn([])}><Eraser size={13}/>Clear</button></div>}
     {tab === 'point' && <div className="add-gps"><small>Paste a decimal or degrees/minutes/seconds coordinate to inspect a location remotely, or use this device’s GPS. A pin helps centre the imagery; draw or upload the field outline to measure its area.</small><div className="corner-grid point-grid"><div><span>Latitude</span><input type="text" inputMode="decimal" maxLength={32} placeholder="23.241 or 23° 14′ 28″ N" value={pointLat} onChange={event => setPointLat(event.target.value)}/><span>Longitude</span><input type="text" inputMode="decimal" maxLength={32} placeholder="78.164 or 78° 9′ 50″ E" value={pointLon} onChange={event => setPointLon(event.target.value)}/></div></div><div className="fix">{gpsMsg || (pointed.length ? `Pin: ${pointed[0][1].toFixed(6)}, ${pointed[0][0].toFixed(6)} · area not measured` : 'No location has been selected.')}</div><div className="row"><button type="button" className="go" onClick={useEnteredPoint}><MapPinned size={14}/>Show coordinate</button><button type="button" className="go" onClick={useCurrentLocation}><LocateFixed size={14}/>Use device GPS</button></div></div>}

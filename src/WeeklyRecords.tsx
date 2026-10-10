@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { ArrowDownToLine, CalendarClock, TrendingDown, TrendingUp } from 'lucide-react'
 import { ScaleBox } from './Scale'
 import { weekKey, type WeekRec } from './lib/seva'
+import AoiHealthScorePie from './AoiHealthScorePie'
 
-type WFarm = { id: string; name: string; passes?: WeekRec[]; analysis?: { ndvi: { mean: number }; ndmi: { mean: number }; stressPct: number; scene: { datetime: string } } }
+type WFarm = { id: string; name: string; crop?: string; area?: number; passes?: WeekRec[]; analysis?: { ndvi: { mean: number }; ndmi: { mean: number }; stressPct: number; scene: { datetime: string } } }
 type Period = 'day' | 'week' | 'month'
 
 const GOOD = '#3ca852', BAD = '#d64030', AMBER = '#f5ac28'
@@ -84,7 +85,9 @@ export default function WeeklyRecords({ farms, farm, onSelect }: { farms: WFarm[
         <div className="wk-deltas"><Delta name={cfg.prev} now={c.now} then={c.last?.ndvi}/><Delta name={cfg.back} now={c.now} then={c.back?.ndvi}/><Delta name="Season peak" now={c.now} then={c.peak}/></div></div>
       <div className="wk-card"><div className="wk-title">Field leaderboard<small>Change vs {cfg.unit}, worst first</small></div>
         <div className="wk-board">{board.map(({ f, d, now }, i) => <button key={f.id} className={f.id === farm.id ? 'on' : ''} onClick={() => onSelect(f.id)}><span className="rank">{i + 1}</span><span className="nm">{f.name}</span><b>{now !== undefined ? now.toFixed(2) : '—'}</b><em className={d === undefined ? '' : d >= 0 ? 'up' : 'down'}>{d === undefined ? 'no data' : `${d >= 0 ? '+' : ''}${d.toFixed(2)}`}</em></button>)}</div>
-        <small className="wk-note">Real live Sentinel-2 satellite data, not demo. The satellite passes every ~5 days, so the daily view shows one bar per clear pass (under 30% cloud); weekly and monthly views average the passes in each period. These are satellite estimates, not yet checked against measurements taken on your farm (soil samples or plant counts).</small></div>
+        <small className="wk-note">Real live Sentinel-2 satellite data, not demo. The satellite passes every ~5 days, so the daily view shows one bar per clear pass (under 30% cloud); weekly and monthly views average the passes in each period. These are satellite estimates, not yet checked against measurements taken on your farm (soil samples or plant counts).</small>
+        <AoiHealthScorePie farmName={farm.name} crop={farm.crop} areaHa={farm.area} analysis={farm.analysis} passes={farm.passes} />
+      </div>
     </div>
   </section>
 }

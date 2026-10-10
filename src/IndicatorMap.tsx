@@ -19,6 +19,7 @@ import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
 import RulerTape from './RulerTape'
 import { BAND_COMBINATIONS } from './lib/geoai'
+import { areaHa } from './lib/geo'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts } from './lib/seva'
 import { buildEarthEngineScript, supportsEarthEngineIndicator } from './lib/earthEngine'
 import { createEarthEngineMap, isEarthEngineConfigured } from './lib/earthEngineClient'
@@ -210,6 +211,34 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   pickedRef.current = setPicked
 
   useEffect(() => { localStorage.setItem(STORE, JSON.stringify(active)) }, [active])
+
+  // Strict 75% Box Ratio Auto Zoom & MinZoom Boundary
+  // Automatically resizes and fits the AOI so it fills 75% of the viewport container (12.5% padding on each margin).
+  // Constrains map.setMinZoom(aoi75Zoom) so the user can zoom IN to inspect crops,
+  // but CANNOT zoom OUT below 75%, preserving constant scale and permanently overcoming black-screen tile void glitches.
+  const fit75PercentAoi = (instance: L.Map, animate = false) => {
+    if (!instance) return
+    const [w, s, e, n] = farmBBox(farm)
+    const bounds = L.latLngBounds([s, w], [n, e])
+    const sz = instance.getSize()
+    if (!sz || sz.x <= 0 || sz.y <= 0) return
+
+    const padX = Math.max(30, Math.round(sz.x * 0.125))
+    const padY = Math.max(30, Math.round(sz.y * 0.125))
+    const aoi75Zoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, padY * 2))
+
+    instance.fitBounds(bounds, {
+      paddingTopLeft: [padX, padY],
+      paddingBottomRight: [padX, padY],
+      maxZoom: 19,
+      animate,
+    })
+
+    // Constant scale: only zoom in (> 75%), NEVER zoom out below 75%!
+    instance.setMinZoom(aoi75Zoom)
+    return aoi75Zoom
+  }
+
   useEffect(() => {
     localStorage.setItem('seva-map-lock', locked ? '1' : '0')
     const m = mapObj
@@ -226,13 +255,17 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         console.warn('Leaflet lock handler toggle:', err)
       }
     })
-    // Safely recalculate container geometry without clearing or purging tile layers
-    m.invalidateSize({ pan: false })
+
+    fit75PercentAoi(m, false)
+
+    requestAnimationFrame(() => {
+      m.invalidateSize({ pan: false })
+    })
     const t = setTimeout(() => {
       m.invalidateSize({ pan: false })
-    }, 60)
+    }, 80)
     return () => clearTimeout(t)
-  }, [locked, mapObj])
+  }, [locked, mapObj, geo])
 
   // Automatic wake/unlock recovery: restores map viewport whenever device, phone, or browser tab changes visibility
   useEffect(() => {
@@ -272,6 +305,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     map.current = instance
     setMapObj(instance)
     L.control.zoom({ position: 'bottomright' }).addTo(instance)
+
+    setTimeout(() => {
+      if (instance && instance.getContainer()) {
+        fit75PercentAoi(instance, false)
+        instance.invalidateSize({ pan: false })
+      }
+    }, 60)
 
     const onZoom = () => {
       const z = instance.getZoom()
@@ -445,11 +485,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       L.polygon(ring, { color: '#f4ffd0', weight: 2.5, fill: false, interactive: false }).addTo(group)
     }
 
-    if (aoiOnly) {
-      instance.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [10, 10], maxZoom: 19 })
-    } else {
-      instance.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [70, 70], maxZoom: 17 })
-    }
+    fit75PercentAoi(instance, false)
     return () => { group.remove(); frame.current = null }
   }, [geo, dim, bgMode, aoiOnly])
 
@@ -737,177 +773,143 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     setAoiOnly(false)
     const instance = map.current
     if (!instance) return
-    const [w, s, e, n] = farmBBox(farm)
-    instance.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [70, 70], maxZoom: 17, animate: true })
+    fit75PercentAoi(instance, true)
   }
 
 
   return (
     <div className="ix-outer">
+      {/* 1-Size Full-Window Control Toolbar Above Map */}
+      <div className="ix-main-toolbar" role="toolbar" aria-label="Map Tools and Layers">
+        <button
+          className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'active' ? 'on' : ''}`}
+          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('active'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
+          title="Open GIS Section Layer: Active parameters, opacity & blending"
+        >
+          <Layers size={15}/>
+          <span>Layers</span>
+          <b className="ix-btn-badge">{active.length}</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'symbology' ? 'on' : ''}`}
+          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('symbology'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
+          title="Multispectral Band Symbology: True colour, False colour NIR, Agriculture & Moisture"
+        >
+          <Tag size={15}/>
+          <span>Symbology</span>
+          <b className="ix-btn-badge">Bands</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'display' ? 'on' : ''}`}
+          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('display'); setPanel(false); setTools(false); setNearOpen(false); setRulerOpen(false) }}
+          title="Select Basemap Imagery in Section Layer"
+        >
+          <MapIcon size={15}/>
+          <span>Base map</span>
+          <b className="ix-btn-badge">{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${bgMode !== 'default' ? 'on' : ''}`}
+          onClick={() => { setBgMode(c => c === 'default' ? 'black' : c === 'black' ? 'white' : 'default') }}
+          title="Canvas Mode (Natural, Solid Black GEE, Solid White QGIS)"
+        >
+          <Globe2 size={15}/>
+          <span>Canvas</span>
+          <b className="ix-btn-badge">{bgMode === 'default' ? 'Natural' : bgMode === 'black' ? 'Black' : 'White'}</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${aoiOnly ? 'on' : ''}`}
+          onClick={() => setAoiOnly(!aoiOnly)}
+          title={aoiOnly ? "Disable AOI clipping: Show full surroundings" : "Clip AOI from boundary: Shapefile mask exclusively displaying all parameters upon farm boundary"}
+        >
+          <Scissors size={15}/>
+          <span>Clip AOI</span>
+          <b className="ix-btn-badge">{aoiOnly ? 'Mask ON' : 'Off'}</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'tools' ? 'on' : ''}`}
+          onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('tools'); setPanel(false); setRulerOpen(false) }}
+          title="Field Tools & Adjustments (Ruler, Hotspots, Borewells, Contours, Swath Robotics)"
+        >
+          <Wrench size={15}/>
+          <span>Tools</span>
+          <b className="ix-btn-badge">Adjust</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${cadastreOpen ? 'on' : ''}`}
+          onClick={() => setCadastreOpen(prev => !prev)}
+          title="Digital India Land Records · RoR Form 1B Cadastre & Certified Pattadar Passbook"
+        >
+          <FileCheck2 size={15}/>
+          <span>Cadastre</span>
+          <b className="ix-btn-badge">{cadastreOpen ? 'Passbook ON' : 'RoR 1B'}</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${locked ? 'on is-locked-btn' : ''}`}
+          onClick={() => setLocked(!locked)}
+          title={locked ? 'Map is locked at 75% scale. Click to unlock pan & zoom.' : 'Map is live. Click to lock at 75% scale.'}
+        >
+          {locked ? <Lock size={15}/> : <LockOpen size={15}/>}
+          <span>{locked ? 'Locked' : 'Unlocked'}</span>
+          <b className="ix-btn-badge">{locked ? '75% Locked' : 'Live'}</b>
+        </button>
+      </div>
+
       <div className="ix-wrap">
         <div ref={element} className={`field-map${locked ? ' is-locked' : ''}`} />
 
+        {/* 25% Outer Neatline Cartographic Adornments (strictly outside the 75% central AOI) */}
+        {/* Top-Left Margin: Field Title & Area Dossier */}
+        <div className="ix-neatline-title" title={`${farm.name} · ${farm.location}`}>
+          <div className="ix-neatline-dot" />
+          <div>
+            <strong>{farm.name}</strong>
+            <small>{areaHa(farmRing(farm)).toFixed(2)} ha · {farm.crop || 'Field'} · 75% AOI</small>
+          </div>
+        </div>
+
+        {/* Top-Right Margin: True North Arrow Compass */}
+        <div className="ix-neatline-north" aria-label="North Arrow" title="Grid North: True Geodetic Azimuth 0.0°">
+          <svg viewBox="0 0 32 42" width="24" height="32">
+            <polygon points="16,2 26,34 16,27 6,34" fill="#34d399" stroke="#064e3b" strokeWidth="1.5" strokeLinejoin="round" />
+            <polygon points="16,2 26,34 16,27" fill="#059669" />
+          </svg>
+          <b>N</b>
+        </div>
+
+        {/* Bottom-Left Margin: Geodetic Coordinates & Constant Scale */}
+        <div className="ix-neatline-coords" title={`Centroid: ${farm.lat.toFixed(6)}° N, ${farm.lon.toFixed(6)}° E`}>
+          <span>{farm.lat.toFixed(5)}° N, {farm.lon.toFixed(5)}° E</span>
+          <small>WGS84 EPSG:4326 · Constant Scale ≥75%</small>
+        </div>
+
         <div className={`ix-gee-badge${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`} title={earthEngineStatus}>
           <span className="gee-dot" />
-          <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'Google Earth Engine · Sentinel-2 L2A (Primary)' : 'Planetary Computer · Sentinel-2 (Auto Fallback)'}</span>
+          <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'Google Earth Engine · Sentinel-2 L2A' : 'Planetary Computer · Sentinel-2'}</span>
         </div>
 
         <div className="ix-zoom-sync-badge" title={`Live map zoom ${mapZoom.toFixed(1)}x synchronizes all GeoAI analysis maps across the dashboard`}>
           <span className="zoom-pulse-dot" />
           <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
-          <span className="zoom-synced-pill">DASHBOARD SYNCED</span>
+          <span className="zoom-synced-pill">75% LOCKED</span>
         </div>
 
-        <button
-          className={`ix-lock${locked ? ' on' : ''}`}
-          aria-pressed={locked}
-          aria-label={locked ? 'Map locked. Click to unlock' : 'Map unlocked. Click to lock'}
-          title={locked ? 'Map is locked so it cannot move. Click to unlock and adjust.' : 'Map is unlocked. Move and zoom, then click to lock it again.'}
-          onClick={() => setLocked(!locked)}
-        >
-          {locked ? <Lock size={17}/> : <LockOpen size={17}/>}
-          <span>{locked ? 'Locked' : 'Unlocked'}</span>
-        </button>
-
-        {/* Top Control Toolbar */}
-        <div className="ix-top">
-          {/* 1. Dedicated GIS Layers Box Toggle */}
-          <button
-            className={`ix-add ix-lb-btn ${layersBoxOpen && layersBoxTab === 'active' ? 'on' : ''}`}
-            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('active'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
-            title="Open GIS Section Layer: Active parameters, opacity & blending"
-          >
-            <Layers size={16}/>
-            <span>Layers</span>
-            <b>{active.length}</b>
-          </button>
-
-          {/* 2. Multispectral Band Symbology Toggle */}
-          <button
-            className={`ix-add ${layersBoxOpen && layersBoxTab === 'symbology' ? 'on' : ''}`}
-            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('symbology'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
-            title="Multispectral Band Symbology: True colour, False colour NIR, Agriculture & Moisture"
-          >
-            <Tag size={15}/>
-            <span>Symbology</span>
-            <b>Bands</b>
-          </button>
-
-          {/* 3. Farm Background Selector */}
-          <div className="ix-bg-bar" role="group" aria-label="Farm Background Mode">
-            <span className="ix-bg-lbl">Canvas:</span>
-            <button
-              className={`ix-bg-btn btn-blk ${bgMode === 'black' ? 'on' : ''}`}
-              onClick={() => { setBgMode('black'); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
-              title="Solid Black background (Google Earth Engine dark canvas mode)"
+        {/* The Layers & Symbology Box: cleanly docked over map when open, or portaled to body when detached */}
+        {layersBoxOpen && (() => {
+          const boxContent = (
+            <div
+              className={`ix-layers-box ${panelDetached ? 'detached' : 'docked-map'}`}
+              style={panelDetached ? { left: panelPosition.x, top: panelPosition.y } : undefined}
+              role="dialog"
+              aria-label="GIS Layers & Symbology Box"
             >
-              <span className="dot-blk" />
-              <span>Black</span>
-            </button>
-            <button
-              className={`ix-bg-btn btn-wht ${bgMode === 'white' ? 'on' : ''}`}
-              onClick={() => { setBgMode('white'); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
-              title="Solid White background (QGIS & ArcMap layout view mode)"
-            >
-              <span className="dot-wht" />
-              <span>White</span>
-            </button>
-            <button
-              className={`ix-bg-btn ${bgMode === 'default' ? 'on' : ''}`}
-              onClick={() => { setBgMode('default'); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
-              title="Standard basemap (Satellite, Streets or Terrain)"
-            >
-              <Globe2 size={13} />
-              <span>Map</span>
-            </button>
-          </div>
-
-          {/* 4. Zoom Stretch Farm View */}
-          <button
-            className={`ix-add ix-stretch-btn ${aoiOnly ? 'on' : ''}`}
-            onClick={() => { (aoiOnly ? handleResetView() : handleZoomStretch()); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
-            title={aoiOnly ? "Reset view: Show surroundings with standard padding" : "Zoom Stretch: Fit 100% of farm boundary tightly to canvas"}
-          >
-            <Maximize2 size={14} />
-            <span>{aoiOnly ? "Fit Area" : "Zoom Stretch"}</span>
-          </button>
-
-          {/* 4b. Clip AOI from boundary with Shapefile Mask */}
-          <button
-            className={`ix-add ${aoiOnly ? 'on' : ''}`}
-            onClick={() => setAoiOnly(!aoiOnly)}
-            title={aoiOnly ? "Disable AOI clipping: Show full surroundings" : "Clip AOI from boundary: Shapefile mask exclusively displaying all parameters upon farm boundary"}
-            style={aoiOnly ? { background: '#064e3b', borderColor: '#10b981', color: '#ecfdf5', fontWeight: 650 } : {}}
-          >
-            <Scissors size={14} />
-            <span>{aoiOnly ? "Clipped AOI" : "Clip AOI"}</span>
-            <b>{aoiOnly ? "Mask ON" : "Shapefile"}</b>
-          </button>
-
-          {/* 5. Base map picker */}
-          <button
-            className={`ix-add ${layersBoxOpen && layersBoxTab === 'display' ? 'on' : ''}`}
-            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('display'); setPanel(false); setTools(false); setNearOpen(false); setRulerOpen(false); }}
-            title="Select Basemap Imagery in Section Layer"
-          >
-            <MapIcon size={15}/>
-            <span>Base map</span>
-            <b>{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b>
-          </button>
-
-          {/* 6. Field Tools & Adjustments */}
-          <button
-            className={`ix-add ix-tools-btn ${layersBoxOpen && layersBoxTab === 'tools' ? 'on' : ''}`}
-            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('tools'); setPanel(false); setRulerOpen(false); }}
-            title="Field Tools & Adjustments (Ruler, Hotspots, Borewells, Contours, Swath Robotics)"
-          >
-            <Wrench size={15}/>
-            <span>Tools</span>
-            <b>Adjust</b>
-          </button>
-
-          {/* 7. Ruler / Tape Measure */}
-          <button
-            className={`ix-add ${rulerOpen ? 'on' : ''}`}
-            style={rulerOpen ? { background: '#fef08a', borderColor: '#eab308', color: '#854d0e', fontWeight: 650 } : {}}
-            onClick={() => {
-              setRulerOpen(!rulerOpen)
-              setLayersBoxOpen(true)
-              setLayersBoxTab('tools')
-              setPanel(false)
-              setTools(false)
-              setBaseOpen(false)
-              setNearOpen(false)
-            }}
-            title="Precision Ruler & Metered Tape Measure — Adjust in Section Layer"
-          >
-            <Ruler size={15}/>
-            <span>Ruler</span>
-            <b>{rulerActive ? 'Measuring' : 'Tape'}</b>
-          </button>
-
-          {/* 8. Digital India Land Records · Cadastre & Passbook */}
-          <button
-            className={`ix-add ${cadastreOpen ? 'on' : ''}`}
-            style={cadastreOpen ? { background: '#ecfdf5', borderColor: '#059669', color: '#065f46', fontWeight: 650 } : {}}
-            onClick={() => setCadastreOpen(prev => !prev)}
-            title="Digital India Land Records · RoR Form 1B Cadastre & Certified Pattadar Passbook"
-          >
-            <FileCheck2 size={15}/>
-            <span>Cadastre</span>
-            <b>{cadastreOpen ? 'Passbook ON' : 'RoR 1B'}</b>
-          </button>
-
-        </div>
-
-        {/* The panel lives beside the map, or floats outside it when detached. */}
-        {layersBoxOpen && (panelDetached || panelTarget) && createPortal(
-          <div
-            className={`ix-layers-box${panelDetached ? ' detached' : ''}`}
-            style={panelDetached ? { left: panelPosition.x, top: panelPosition.y } : undefined}
-            role="dialog"
-            aria-label="GIS Layers & Symbology Box"
-          >
             <div className={`ix-lb-header${panelDetached ? ' draggable' : ''}`} onPointerDown={event => {
               if (!panelDetached || (event.target as HTMLElement).closest('button')) return
               dragOffset.current = { x: event.clientX - panelPosition.x, y: event.clientY - panelPosition.y }
@@ -1414,9 +1416,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 {earthEngineOverlay?.sceneKey === sceneKey ? `EARTH ENGINE · ${date.toUpperCase()} · ${earthEngineOverlay.sceneCount} MATCHING SCENES` : scene ? `PREVIEW · SENTINEL-2 L2A · ${date.toUpperCase()} · ${scene.cloud}% CLOUD` : loading ? 'LOADING SATELLITE PREVIEW…' : 'AWAITING SATELLITE PASS'}
               </span>
             </div>
-          </div>,
-          panelDetached ? document.body : panelTarget!
-        )}
+          </div>
+        )
+        return panelDetached ? createPortal(boxContent, document.body) : boxContent
+      })()}
 
         <NearbyLayer map={mapObj} farm={farm} open={nearOpen} onClose={() => setNearOpen(false)} mine={{ b: mine.b, p: mine.p }}/>
         <MapKit map={mapObj} farm={farm} kit={kit} farmOnly={aoiOnly}/>

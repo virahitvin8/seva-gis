@@ -30,6 +30,7 @@ import { areaHa, perimeterM, centroid } from './lib/geo'
 import {
   calculateUTMZone,
   calculatePlusCode,
+  calculateDigipin,
   resolveGlobalCadastreAuthority,
   fetchOverpassCadastre,
   type RealCadastralAuthority,
@@ -102,6 +103,7 @@ export default function LandInfoCard({
 
   const utmZone = useMemo(() => calculateUTMZone(calculatedCentroid.lat, calculatedCentroid.lon), [calculatedCentroid])
   const plusCode = useMemo(() => calculatePlusCode(calculatedCentroid.lat, calculatedCentroid.lon), [calculatedCentroid])
+  const digipin = useMemo(() => calculateDigipin(calculatedCentroid.lat, calculatedCentroid.lon), [calculatedCentroid])
 
   // Geocoded administrative hierarchy state (dynamically fetched)
   const [geoHierarchy, setGeoHierarchy] = useState({
@@ -813,15 +815,24 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
 
         <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between text-sky-300 text-xs font-semibold">
-            <span>Global Geodetic Grid</span>
+            <span>Global Geodetic &amp; DIGIPIN</span>
             <Compass size={15} className="text-sky-400" />
           </div>
-          <div className="my-1.5">
-            <span className="text-lg font-black tracking-tight text-sky-300 font-mono">
-              {plusCode}
-            </span>
+          <div className="my-1.5 space-y-1">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[10px] text-slate-400">Plus Code:</span>
+              <span className="text-sm font-black tracking-tight text-sky-300 font-mono">
+                {plusCode}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between border-t border-slate-800/60 pt-1">
+              <span className="text-[10px] text-emerald-400 font-bold">DIGIPIN (India Post):</span>
+              <span className="text-xs font-black tracking-tight text-emerald-300 font-mono">
+                {digipin}
+              </span>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-400 truncate" title={utmZone}>
+          <span className="text-[10px] text-slate-400 truncate" title={utmZone}>
             {utmZone}
           </span>
         </div>

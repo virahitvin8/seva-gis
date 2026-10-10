@@ -109,14 +109,9 @@ export default function MapKit({ map, farm, kit, farmOnly }: { map: L.Map | null
     if (!map) return
     const pane = map.getPane('mapPane')!
     const apply = () => { pane.style.clipPath = farmOnly ? `polygon(${ring.map(([lon, lat]) => { const p = map.latLngToLayerPoint([lat, lon]); return `${p.x}px ${p.y}px` }).join(',')})` : '' }
-    const fb = farmBBox(farm)
-    map.fitBounds(L.latLngBounds([fb[1], fb[0]], [fb[3], fb[2]]), { padding: farmOnly ? [24, 24] : [70, 70], maxZoom: 18, animate: false })
-    if (!farmOnly) { apply(); return }
-    const fit = L.latLngBounds([fb[1], fb[0]], [fb[3], fb[2]])
-    map.setMaxBounds(fit.pad(0.08)); map.options.maxBoundsViscosity = 1
-    map.setMinZoom(map.getBoundsZoom(fit.pad(0.08)) - 0.5); map.setMaxZoom(22)
-    apply(); map.on('zoomend viewreset resize', apply)
-    return () => { map.off('zoomend viewreset resize', apply); pane.style.clipPath = ''; map.setMaxBounds(undefined as unknown as L.LatLngBounds); map.setMinZoom(0) }
+    apply()
+    map.on('zoomend viewreset resize', apply)
+    return () => { map.off('zoomend viewreset resize', apply); pane.style.clipPath = '' }
   }, [map, farmOnly, ring])
 
   useEffect(() => {

@@ -1083,6 +1083,202 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   color: #ffffff;
 }
 
+.map-wrap {
+  position: relative;
+  height: 520px;
+  min-height: 480px;
+  background: #11251b;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+.ix-outer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+.ix-wrap {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* =========================================================================
+   Unified 1-Size Full-Window Map Control Toolbar (.ix-main-toolbar)
+   ========================================================================= */
+.ix-main-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #0f241a;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+  width: 100%;
+  box-sizing: border-box;
+}
+.ix-main-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.ix-tb-btn {
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.ix-tb-btn:hover {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #f0fdf4;
+  transform: translateY(-1px);
+}
+.ix-tb-btn.on {
+  background: #10b981;
+  border-color: #059669;
+  color: #022c22;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+.ix-tb-btn.on .ix-btn-badge {
+  background: #047857;
+  color: #ecfdf5;
+}
+.ix-tb-btn.is-locked-btn {
+  background: #e11d48;
+  border-color: #be123c;
+  color: #ffffff;
+}
+.ix-tb-btn.is-locked-btn .ix-btn-badge {
+  background: #9f1239;
+  color: #ffe4e6;
+}
+
+.ix-btn-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.12);
+  color: #a7f3d0;
+  margin-left: 2px;
+}
+
+/* =========================================================================
+   25% Outer Neatline Cartographic Adornments (outside the 75% central AOI)
+   ========================================================================= */
+.ix-neatline-title {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  background: rgba(11, 23, 18, 0.92);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+.ix-neatline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  flex-shrink: 0;
+}
+.ix-neatline-title strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #f0fdf4;
+  line-height: 1.2;
+}
+.ix-neatline-title small {
+  display: block;
+  font-size: 10px;
+  color: #a7f3d0;
+  margin-top: 1px;
+}
+
+.ix-neatline-north {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px 4px;
+  background: rgba(11, 23, 18, 0.92);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+.ix-neatline-north b {
+  font-size: 10px;
+  font-weight: 800;
+  color: #34d399;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.ix-neatline-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 12px;
+  background: rgba(11, 23, 18, 0.92);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+.ix-neatline-coords span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f0fdf4;
+  font-family: ui-monospace, monospace;
+}
+.ix-neatline-coords small {
+  font-size: 9px;
+  color: #a7f3d0;
+  margin-top: 1px;
+}
+
 /* =========================================================================
    GIS Layers & Symbology Panel (.ix-layers-box)
    ========================================================================= */
@@ -1097,11 +1293,30 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   border: 1px solid rgba(52, 211, 153, 0.25);
   border-radius: 14px;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.65);
-  z-index: 550;
+  z-index: 2500;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   backdrop-filter: blur(14px);
+  color: #f0fdf4;
+}
+
+.ix-layers-box.docked-map {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  bottom: 12px;
+  width: 410px;
+  max-width: calc(100% - 24px);
+  z-index: 2500;
+  background: rgba(11, 23, 18, 0.96);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   color: #f0fdf4;
 }
 

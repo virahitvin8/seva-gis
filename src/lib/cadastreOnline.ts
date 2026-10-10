@@ -94,6 +94,50 @@ export function calculatePlusCode(lat: number, lon: number): string {
 }
 
 /**
+ * India Post Official DIGIPIN (Digital Postal Index Number)
+ * 10-character alphanumeric geocode dividing the Indian subcontinent into recursive 4x4 grids.
+ * Reference: CEPT-VZG/digipin & INDIAPOST-gov/digipin
+ */
+export function calculateDigipin(lat: number, lon: number): string {
+  // Bounding box of India postal territory
+  const MIN_LAT = 2.5, MAX_LAT = 38.5
+  const MIN_LON = 66.5, MAX_LON = 100.5
+  const DIGIPIN_CHARS = '23456789CFGHJMPX'
+
+  if (lat < MIN_LAT || lat > MAX_LAT || lon < MIN_LON || lon > MAX_LON) {
+    return calculatePlusCode(lat, lon)
+  }
+
+  let minLat = MIN_LAT, maxLat = MAX_LAT
+  let minLon = MIN_LON, maxLon = MAX_LON
+  let pin = ''
+
+  for (let i = 0; i < 10; i++) {
+    const latSpan = (maxLat - minLat) / 4
+    const lonSpan = (maxLon - minLon) / 4
+
+    let r = Math.min(3, Math.floor((lat - minLat) / latSpan))
+    let c = Math.min(3, Math.floor((lon - minLon) / lonSpan))
+
+    // Invert row index so row 3 is top / north
+    const row = 3 - r
+    const col = c
+
+    const charIndex = row * 4 + col
+    pin += DIGIPIN_CHARS[charIndex] || '2'
+
+    minLat = minLat + r * latSpan
+    maxLat = minLat + latSpan
+    minLon = minLon + c * lonSpan
+    maxLon = minLon + lonSpan
+
+    if (i === 3 || i === 7) pin += '-'
+  }
+
+  return pin
+}
+
+/**
  * Resolve authentic national and regional land registry authority based on coordinates and admin hierarchy.
  */
 export function resolveGlobalCadastreAuthority(
@@ -236,6 +280,139 @@ export function resolveGlobalCadastreAuthority(
         portalUrl: s.includes('punjab') ? 'https://plrs.org.in' : 'https://jamabandi.nic.in',
         verificationMethod: 'Search Jamabandi Nakal by Khewat / Khasra Number',
         regionalAreaUnit: { unitName: 'Kanal / Marla', factorFromHa: 19.768, description: '1 Acre = 8 Kanals = 160 Marlas' }
+      }
+    }
+
+    if (s.includes('madhya') || s.includes('mp')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Madhya Pradesh',
+        authorityName: 'Department of Revenue MP (MP Bhulekh / BhuNaksha)',
+        systemType: 'Khasra / Khatauni Form B-1 & Cadastral Plot Map',
+        portalUrl: 'https://mpbhulekh.gov.in',
+        verificationMethod: 'Online Search by Khasra Number or Landholder ID',
+        regionalAreaUnit: { unitName: 'Bigha (MP)', factorFromHa: 3.9536, description: '1 Bigha = 20 Biswa = 2,529.3 m²' }
+      }
+    }
+    if (s.includes('odisha') || s.includes('orissa')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Odisha',
+        authorityName: 'Directorate of Land Records and Survey (Bhulekh Odisha)',
+        systemType: 'Record of Rights (RoR) & Tahasil Cadastral Map',
+        portalUrl: 'https://bhulekh.ori.nic.in',
+        verificationMethod: 'Search RoR by District, Tahasil, Village & Khatiyan Number',
+        regionalAreaUnit: { unitName: 'Guntha / Acre', factorFromHa: 2.47105, description: '1 Acre = 25 Gunthas = 40.48 R' }
+      }
+    }
+    if (s.includes('kerala')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Kerala',
+        authorityName: 'Department of Survey and Land Records (E-Rekhakal)',
+        systemType: 'Resurvey Sketch, FMB & Thandaper Account',
+        portalUrl: 'https://erekhakal.kerala.gov.in',
+        verificationMethod: 'Search Survey Sketch & Field Measurement Book by Survey / Re-Survey No.',
+        regionalAreaUnit: { unitName: 'Cents', factorFromHa: 247.105, description: '1 Acre = 100 Cents = 40.47 m²' }
+      }
+    }
+    if (s.includes('assam')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Assam',
+        authorityName: 'Revenue & Disaster Management (Dharitree ILRMS)',
+        systemType: 'Jamabandi RoR & Village Chitha',
+        portalUrl: 'https://revenueassam.nic.in',
+        verificationMethod: 'View Digital Jamabandi Copy by Dag Number or Pattadar Name',
+        regionalAreaUnit: { unitName: 'Bigha / Katha / Lessa', factorFromHa: 7.4749, description: '1 Bigha = 5 Kathas = 100 Lessas' }
+      }
+    }
+    if (s.includes('chhattisgarh')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Chhattisgarh',
+        authorityName: 'Department of Revenue CG (Bhuiyan Portal)',
+        systemType: 'Khasra P-II & Khatauni B-I Digital RoR',
+        portalUrl: 'https://bhuiyan.cg.nic.in',
+        verificationMethod: 'Online Search by Khasra Number or Village Code',
+        regionalAreaUnit: { unitName: 'Bigha (Standard)', factorFromHa: 3.9536, description: '1 Bigha = 20 Biswa' }
+      }
+    }
+    if (s.includes('jharkhand')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Jharkhand',
+        authorityName: 'Department of Revenue, Registration & Land Reforms (Jharbhoomi)',
+        systemType: 'Khatiyan & Register II (Jamabandi)',
+        portalUrl: 'https://jharbhoomi.jharkhand.gov.in',
+        verificationMethod: 'View Khatian / Register II by Account No. or Plot No.',
+        regionalAreaUnit: { unitName: 'Bigha / Katha', factorFromHa: 3.9536, description: '1 Bigha = 20 Kathas' }
+      }
+    }
+    if (s.includes('uttarakhand')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Uttarakhand',
+        authorityName: 'Board of Revenue Uttarakhand (Devbhoomi / UK Bhulekh)',
+        systemType: 'RoR Khatauni & Cadastral Map',
+        portalUrl: 'https://bhulekh.uk.gov.in',
+        verificationMethod: 'Search Khatauni Copy by Khasra / Gata Number',
+        regionalAreaUnit: { unitName: 'Nali / Bigha', factorFromHa: 49.42, description: '1 Acre = 20 Nalis (1 Nali = 200.6 m²)' }
+      }
+    }
+    if (s.includes('himachal')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Himachal Pradesh',
+        authorityName: 'Department of Revenue HP (Himbhoomi Portal)',
+        systemType: 'Jamabandi RoR & Shajra Aks (Cadastral Map)',
+        portalUrl: 'https://himachal.nic.in/revenue',
+        verificationMethod: 'Search Jamabandi by Khewat / Khatoni / Khasra Number',
+        regionalAreaUnit: { unitName: 'Bigha / Biswa', factorFromHa: 12.355, description: '1 Bigha = 20 Biswas = 809.4 m²' }
+      }
+    }
+    if (s.includes('jammu') || s.includes('kashmir') || s.includes('jk') || s.includes('ladakh')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Jammu & Kashmir / Ladakh',
+        authorityName: 'Revenue Department J&K (Aapki Zameen Aapki Nigrani)',
+        systemType: 'Jamabandi Record & Girdawari Map',
+        portalUrl: 'https://landrecords.jk.gov.in',
+        verificationMethod: 'Search Digital Jamabandi by Khasra Number',
+        regionalAreaUnit: { unitName: 'Kanal / Marla', factorFromHa: 19.768, description: '1 Acre = 8 Kanals = 160 Marlas' }
+      }
+    }
+    if (s.includes('goa')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Goa',
+        authorityName: 'Directorate of Settlement & Land Records (DSLR Goa)',
+        systemType: 'Form I & XIV (Survey Records & Title Holdings)',
+        portalUrl: 'https://dslr.goa.gov.in',
+        verificationMethod: 'View Digital Form I & XIV by Village, Survey No. and Sub-Division No.',
+        regionalAreaUnit: { unitName: 'Sq Metres', factorFromHa: 10000, description: 'Metric standard (1 Ha = 10,000 m²)' }
+      }
+    }
+    if (s.includes('delhi')) {
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        stateOrRegion: 'Delhi (NCT)',
+        authorityName: 'Revenue Department Delhi (Delhi Bhulekh / DLRC)',
+        systemType: 'Khasra Khatauni & ROR Record',
+        portalUrl: 'https://dlrc.delhigovt.nic.in',
+        verificationMethod: 'Search Digital Khatauni by Khasra Number',
+        regionalAreaUnit: { unitName: 'Bigha / Biswa', factorFromHa: 10.038, description: '1 Bigha = 20 Biswa = 996 m²' }
       }
     }
 

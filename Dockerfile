@@ -4,27 +4,36 @@
 FROM node:22-alpine AS builder
 
 WORKDIR /app
-RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# Copy dependency manifests
+COPY package.json pnpm-lock.yaml* package-lock.json* ./
 
+# Install dependencies
+RUN npm install
+
+# Copy application source code
 COPY . .
 
 # Set live Cloud Run Earth Engine Backend URL for production build
 ENV VITE_EE_API_URL=https://seva-gis-backend-419602015618.us-central1.run.app
 
-RUN pnpm build
+# Build optimized production bundle
+RUN npm run build
 
 # ==========================================
-# Stage 2: Ultra-lightweight Nginx Web Server
+# Stage 2: Ultra-lightweight Node Production Runner
 # ==========================================
-FROM nginx:alpine
+FROM node:22-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/dist /usr/share/nginx/html
+WORKDIR /app
 
+COPY package.json ./
+COPY --from=builder /app/dist ./dist
+COPY server.js ./
+
+# Cloud Run defaults to port 8080
+ENV PORT=8080
 EXPOSE 8080
 
-# Cloud Run injects $PORT (default 8080); dynamically substitute in nginx config and start immediately
-CMD ["sh", "-c", "sed -i 's/listen [0-9]*;/listen '\"${PORT:-8080}\"';/g' /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
+# Cloud Run container startup command
+CMD ["node", "server.js"]

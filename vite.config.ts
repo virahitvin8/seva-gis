@@ -17,6 +17,18 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/three')) return 'vendor-three'
+            if (id.includes('node_modules/maplibre-gl')) return 'vendor-maplibre'
+            if (id.includes('node_modules/leaflet')) return 'vendor-leaflet'
+            if (id.includes('node_modules/lucide-react')) return 'vendor-icons'
+            if (id.includes('node_modules/geolib')) return 'vendor-geo'
+          },
+        },
+      },
     },
     plugins: [
 react(),

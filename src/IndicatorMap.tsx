@@ -192,8 +192,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const m = mapObj
     if (!m) return
     // Allow smooth scroll wheel zoom on the map when unlocked, while preventing outer page scrolling
-    const hs = [m.dragging, m.doubleClickZoom, m.touchZoom, m.boxZoom, m.keyboard, m.scrollWheelZoom] as { enable: () => void; disable: () => void }[]
-    hs.forEach(h => (locked ? h.disable() : h.enable()))
+    const hs = [m.dragging, m.doubleClickZoom, m.touchZoom, m.boxZoom, m.keyboard, m.scrollWheelZoom]
+    hs.forEach(h => {
+      try {
+        if (h && typeof (h as any).enable === 'function' && typeof (h as any).disable === 'function') {
+          if (locked) (h as any).disable()
+          else (h as any).enable()
+        }
+      } catch (err) {
+        console.warn('Leaflet lock handler toggle:', err)
+      }
+    })
+    // Immediately force Leaflet to recalculate container geometry and keep all tile layers redrawn
+    window.requestAnimationFrame(() => {
+      m.invalidateSize({ pan: false })
+    })
   }, [locked, mapObj])
 
   useEffect(() => {
@@ -202,7 +215,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const instance = L.map(element.current, {
       zoomControl: false,
       attributionControl: true,
-      scrollWheelZoom: !locked,
+      scrollWheelZoom: true, // Always instantiate handler so it can be safely toggled by lock/unlock
       wheelPxPerZoomLevel: 100,
       wheelDebounceTime: 40,
     }).setView([farm.lat, farm.lon], initialZoom)
@@ -266,26 +279,26 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
 
     const add = (url: string, attribution: string, o: L.TileLayerOptions = {}) => {
-      const l = L.tileLayer(url, { attribution, maxZoom: 20, maxNativeZoom: 16, zIndex: baseLayers.current.length + 1, ...o }).addTo(instance)
+      const l = L.tileLayer(url, { attribution, maxZoom: 21, maxNativeZoom: 18, zIndex: 10 + baseLayers.current.length, ...o }).addTo(instance)
       baseLayers.current.push(l)
       let tileErrors = 0
       let fallbackAdded = false
       l.on('tileerror', () => {
         tileErrors++
-        if (fallbackAdded || tileErrors < 3) return
+        if (fallbackAdded || tileErrors < 4) return
         fallbackAdded = true
         const fallback = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 19,
+          maxZoom: 20,
           maxNativeZoom: 19,
-          zIndex: 30,
+          zIndex: 9,
         }).addTo(instance)
         baseLayers.current.push(fallback)
       })
     }
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
     if (base === 'sat' || base === 'hybrid') {
-      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 17, errorTileUrl: '' })
+      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 18 })
       if (base === 'hybrid') {
         add(ESRI('Reference/World_Transportation'), 'Esri')
         add(ESRI('Reference/World_Boundaries_and_Places'), 'Esri')

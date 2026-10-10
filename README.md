@@ -13,6 +13,14 @@
 
 <br/>
 
+**stop guessing and ask the satellite 🌱 free, no login → [sevagis.dpdns.org](https://sevagis.dpdns.org)**
+
+<br/>
+
+[![🌾 Open the App](https://img.shields.io/badge/🌾%20Open%20the%20App-sevagis.dpdns.org-2f8f4e?style=for-the-badge&labelColor=1a1a2e)](https://sevagis.dpdns.org)
+
+<br/>
+
 [![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/virahitvin8/seva-gis)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![React 19](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://react.dev/)
@@ -62,12 +70,6 @@
 ## 🔄 Methodology
 
 <div align="center">
-
-<a href="https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=picture">
-  <img src="docs/architecture-diagram.png" alt="Architecture diagram of virahitvin8/seva-gis" width="850"/>
-</a>
-
-<br/><br/>
 
 [![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=badge)
 

@@ -23,6 +23,7 @@ import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts }
 import { buildEarthEngineScript, supportsEarthEngineIndicator } from './lib/earthEngine'
 import { createEarthEngineMap, isEarthEngineConfigured } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
+import { fetchOverpassCadastre, type OverpassParcel } from './lib/cadastreOnline'
 
 type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
@@ -206,36 +207,24 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         console.warn('Leaflet lock handler toggle:', err)
       }
     })
-    // Immediately force Leaflet to recalculate container geometry and keep all tile layers redrawn without black artifacts
+    // Safely recalculate container geometry without clearing or purging tile layers
     m.invalidateSize({ pan: false })
-    window.requestAnimationFrame(() => {
-      m.invalidateSize({ pan: false })
-      baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
-      if (earthEngineTiles.current) { try { earthEngineTiles.current.redraw() } catch {} }
-    })
     const t = setTimeout(() => {
       m.invalidateSize({ pan: false })
-    }, 120)
+    }, 60)
     return () => clearTimeout(t)
   }, [locked, mapObj])
 
-  // Automatic wake/unlock recovery: restores map whenever device, phone, or browser tab is locked and unlocked
+  // Automatic wake/unlock recovery: restores map viewport whenever device, phone, or browser tab changes visibility
   useEffect(() => {
     const m = mapObj
     if (!m) return
     const handleWakeAndVisibility = () => {
       if (document.visibilityState === 'visible') {
         m.invalidateSize({ pan: false })
-        baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
-        if (earthEngineTiles.current) { try { earthEngineTiles.current.redraw() } catch {} }
         setTimeout(() => {
           m.invalidateSize({ pan: false })
-          baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
-          if (earthEngineTiles.current) { try { earthEngineTiles.current.redraw() } catch {} }
-        }, 150)
-        setTimeout(() => {
-          m.invalidateSize({ pan: false })
-        }, 500)
+        }, 120)
       }
     }
     document.addEventListener('visibilitychange', handleWakeAndVisibility)
@@ -436,8 +425,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const dw = Math.max(e - w, 0.001)
     const dh = Math.max(n - s, 0.001)
     const ring = farmRing(farm).map(p => [p[1], p[0]] as L.LatLngTuple)
+    const parcelArea = areaHa(farmRing(farm))
 
-    // 1. Primary Certified AOI Parcel (Sy. No. 142/2A)
+    // 1. Primary Certified AOI Parcel
     L.polygon(ring, {
       color: '#059669',
       weight: 3.5,
@@ -445,7 +435,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       fill: true,
       fillColor: '#10b981',
       fillOpacity: 0.18,
-    }).bindTooltip('Certified Parcel · Sy. No. 142/2A (Ram Prasad Maurya)', { permanent: false, direction: 'top' }).addTo(cGroup)
+    }).bindTooltip(`Certified Spatial Parcel · ${farm.name} (${parcelArea.toFixed(2)} ha)`, { permanent: false, direction: 'top' }).addTo(cGroup)
 
     // Survey boundary stone markers
     ring.forEach(([lat, lng], idx) => {
@@ -455,139 +445,65 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         weight: 2,
         fillColor: '#059669',
         fillOpacity: 1,
-      }).bindTooltip(`Survey Boundary Mark #${idx + 1}`, { direction: 'top' }).addTo(cGroup)
+      }).bindTooltip(`Boundary Monument #${idx + 1} (${lat.toFixed(5)}°, ${lng.toFixed(5)}°)`, { direction: 'top' }).addTo(cGroup)
     })
 
     // Centroid Badge for Primary Parcel
     L.marker([farm.lat, farm.lon], {
       icon: L.divIcon({
         className: 'ix-cadastre-badge-wrap',
-        html: '<div class="cad-badge primary"><b>Sy. 142/2A</b><span>Ram Prasad Maurya</span></div>',
+        html: `<div class="cad-badge primary"><b>${farm.name}</b><span>${parcelArea.toFixed(2)} ha · ${farm.crop || 'Field'}</span></div>`,
         iconSize: [120, 32],
         iconAnchor: [60, 16],
       })
     }).addTo(cGroup)
 
-    // 2. Adjoining Cadastral Subdivisions
-    // North: Sy. No. 142/1
-    const northRing: L.LatLngTuple[] = [
-      [n, w], [n + dh * 0.75, w + dw * 0.1], [n + dh * 0.8, e - dw * 0.1], [n, e]
-    ]
-    L.polygon(northRing, { color: '#d97706', weight: 2, dashArray: '4, 4', fill: true, fillColor: '#fef3c7', fillOpacity: 0.15 })
-      .bindTooltip('Sy. No. 142/1 (North Sub-division · 1.40 ha)', { sticky: true }).addTo(cGroup)
-    L.marker([n + dh * 0.38, (w + e) / 2], {
-      icon: L.divIcon({ className: 'ix-cadastre-badge-wrap', html: '<div class="cad-badge sub">Sy. 142/1</div>', iconSize: [60, 20], iconAnchor: [30, 10] })
-    }).addTo(cGroup)
+    // 2. Fetch authentic cadastral & farmland boundaries from OpenStreetMap via Overpass API
+    let abortCadastre = false
+    fetchOverpassCadastre(farm.lat, farm.lon, 1000).then(parcels => {
+      if (abortCadastre || !cadastreLayerRef.current) return
+      if (parcels.length > 0) {
+        parcels.forEach((p, idx) => {
+          if (p.coordinates.length < 3) return
+          const pRing = p.coordinates as L.LatLngTuple[]
+          const title = p.name || p.ref || `Cadastral Parcel #${p.id}`
+          const pLayer = L.polygon(pRing, {
+            color: '#d97706',
+            weight: 2,
+            dashArray: '4, 4',
+            fill: true,
+            fillColor: '#fef3c7',
+            fillOpacity: 0.15
+          }).bindTooltip(`${title} (${p.landuse || 'Farmland'} · OSM ${p.id})`, { sticky: true }).addTo(cGroup)
 
-    // East: Sy. No. 142/2B
-    const eastRing: L.LatLngTuple[] = [
-      [n, e], [n - dh * 0.1, e + dw * 0.65], [s + dh * 0.1, e + dw * 0.7], [s, e]
-    ]
-    L.polygon(eastRing, { color: '#d97706', weight: 2, dashArray: '4, 4', fill: true, fillColor: '#fef3c7', fillOpacity: 0.15 })
-      .bindTooltip('Sy. No. 142/2B (East Sub-division · 0.85 ha)', { sticky: true }).addTo(cGroup)
-    L.marker([(n + s) / 2, e + dw * 0.35], {
-      icon: L.divIcon({ className: 'ix-cadastre-badge-wrap', html: '<div class="cad-badge sub">Sy. 142/2B</div>', iconSize: [60, 20], iconAnchor: [30, 10] })
-    }).addTo(cGroup)
-
-    // South: Sy. No. 143
-    const southRing: L.LatLngTuple[] = [
-      [s, w], [s, e], [s - dh * 0.7, e - dw * 0.15], [s - dh * 0.75, w + dw * 0.1]
-    ]
-    L.polygon(southRing, { color: '#d97706', weight: 2, dashArray: '4, 4', fill: true, fillColor: '#fef3c7', fillOpacity: 0.15 })
-      .bindTooltip('Sy. No. 143 (South Plot · 2.10 ha)', { sticky: true }).addTo(cGroup)
-    L.marker([s - dh * 0.36, (w + e) / 2], {
-      icon: L.divIcon({ className: 'ix-cadastre-badge-wrap', html: '<div class="cad-badge sub">Sy. 143</div>', iconSize: [60, 20], iconAnchor: [30, 10] })
-    }).addTo(cGroup)
-
-    // West: Sy. No. 141
-    const westRing: L.LatLngTuple[] = [
-      [n, w], [s, w], [s + dh * 0.15, w - dw * 0.65], [n - dh * 0.1, w - dw * 0.6]
-    ]
-    L.polygon(westRing, { color: '#d97706', weight: 2, dashArray: '4, 4', fill: true, fillColor: '#fef3c7', fillOpacity: 0.15 })
-      .bindTooltip('Sy. No. 141 (West Plot · 1.75 ha)', { sticky: true }).addTo(cGroup)
-    L.marker([(n + s) / 2, w - dw * 0.32], {
-      icon: L.divIcon({ className: 'ix-cadastre-badge-wrap', html: '<div class="cad-badge sub">Sy. 141</div>', iconSize: [60, 20], iconAnchor: [30, 10] })
-    }).addTo(cGroup)
-
-    // Government Irrigation Canal Easement
-    const canalLine: L.LatLngTuple[] = [
-      [n + dh * 0.9, w - dw * 0.8],
-      [n + dh * 0.5, w - dw * 0.3],
-      [s - dh * 0.2, w - dw * 0.25],
-      [s - dh * 0.9, w - dw * 0.6]
-    ]
-    L.polyline(canalLine, { color: '#0284c7', weight: 3.5, dashArray: '8, 6' })
-      .bindTooltip('Govt Irrigation Canal Easement (Canal Feeder)', { sticky: true }).addTo(cGroup)
-
-    // 3. Global properties of Ram Prasad Maurya if toggled
-    if (showAllGlobalParcels) {
-      const globalParcels = [
-        {
-          title: 'Southern Canal Orchard (Mango & Guava)',
-          sy: 'Sy. No. 118/4',
-          area: '2.45 ha',
-          center: [farm.lat - dh * 2.8, farm.lon + dw * 2.2] as L.LatLngTuple,
-          ring: [
-            [farm.lat - dh * 2.5, farm.lon + dw * 1.8],
-            [farm.lat - dh * 2.5, farm.lon + dw * 2.6],
-            [farm.lat - dh * 3.1, farm.lon + dw * 2.6],
-            [farm.lat - dh * 3.1, farm.lon + dw * 1.8]
-          ] as L.LatLngTuple[]
-        },
-        {
-          title: 'Ancestral Agroforestry Plot (Timber & Pulses)',
-          sy: 'Sy. No. 204/1B',
-          area: '0.95 ha',
-          center: [farm.lat + dh * 3.4, farm.lon - dw * 2.8] as L.LatLngTuple,
-          ring: [
-            [farm.lat + dh * 3.7, farm.lon - dw * 3.2],
-            [farm.lat + dh * 3.7, farm.lon - dw * 2.4],
-            [farm.lat + dh * 3.1, farm.lon - dw * 2.4],
-            [farm.lat + dh * 3.1, farm.lon - dw * 3.2]
-          ] as L.LatLngTuple[]
-        },
-        {
-          title: 'Canal Lift Holding (Mustard & Wheat)',
-          sy: 'Sy. No. 89/3',
-          area: '1.10 ha',
-          center: [farm.lat - dh * 1.5, farm.lon - dw * 3.6] as L.LatLngTuple,
-          ring: [
-            [farm.lat - dh * 1.2, farm.lon - dw * 4.0],
-            [farm.lat - dh * 1.2, farm.lon - dw * 3.2],
-            [farm.lat - dh * 1.8, farm.lon - dw * 3.2],
-            [farm.lat - dh * 1.8, farm.lon - dw * 4.0]
-          ] as L.LatLngTuple[]
-        }
-      ]
-
-      const allBounds = L.latLngBounds([s, w], [n, e])
-
-      globalParcels.forEach(gp => {
-        L.polygon(gp.ring, {
-          color: '#8b5cf6',
-          weight: 2.8,
-          dashArray: '5, 5',
-          fill: true,
-          fillColor: '#c4b5fd',
-          fillOpacity: 0.22,
-        }).bindTooltip(`${gp.sy} · ${gp.title} (${gp.area})`, { permanent: false, direction: 'top' }).addTo(cGroup)
-
-        L.marker(gp.center, {
-          icon: L.divIcon({
-            className: 'ix-cadastre-badge-wrap',
-            html: `<div class="cad-badge global"><b>${gp.sy}</b><span>${gp.area}</span></div>`,
-            iconSize: [80, 24],
-            iconAnchor: [40, 12],
-          })
-        }).addTo(cGroup)
-
-        gp.ring.forEach(pt => allBounds.extend(pt))
-      })
-
-      instance.fitBounds(allBounds, { padding: [40, 40], maxZoom: 16 })
-    }
+          const cLat = pRing.reduce((sum, pt) => sum + pt[0], 0) / pRing.length
+          const cLon = pRing.reduce((sum, pt) => sum + pt[1], 0) / pRing.length
+          L.marker([cLat, cLon], {
+            icon: L.divIcon({
+              className: 'ix-cadastre-badge-wrap',
+              html: `<div class="cad-badge sub">${title.slice(0, 18)}</div>`,
+              iconSize: [70, 20],
+              iconAnchor: [35, 10]
+            })
+          }).addTo(cGroup)
+        })
+      } else {
+        // Fallback geodetic quadrant boundaries based on actual coordinate offsets
+        const quadrants = [
+          { name: `North Sector (${(n + dh * 0.4).toFixed(4)}°N)`, ring: [[n, w], [n + dh * 0.75, w + dw * 0.1], [n + dh * 0.8, e - dw * 0.1], [n, e]] as L.LatLngTuple[] },
+          { name: `East Sector (${(e + dw * 0.4).toFixed(4)}°E)`, ring: [[n, e], [n - dh * 0.1, e + dw * 0.65], [s + dh * 0.1, e + dw * 0.7], [s, e]] as L.LatLngTuple[] },
+          { name: `South Sector (${(s - dh * 0.4).toFixed(4)}°S)`, ring: [[s, w], [s, e], [s - dh * 0.7, e - dw * 0.15], [s - dh * 0.75, w + dw * 0.1]] as L.LatLngTuple[] },
+          { name: `West Sector (${(w - dw * 0.4).toFixed(4)}°W)`, ring: [[n, w], [s, w], [s + dh * 0.15, w - dw * 0.65], [n - dh * 0.1, w - dw * 0.6]] as L.LatLngTuple[] }
+        ]
+        quadrants.forEach(q => {
+          L.polygon(q.ring, { color: '#d97706', weight: 1.8, dashArray: '4, 4', fill: true, fillColor: '#fef3c7', fillOpacity: 0.12 })
+            .bindTooltip(`Adjoining ${q.name} · Spatial Survey Grid`, { sticky: true }).addTo(cGroup)
+        })
+      }
+    })
 
     return () => {
+      abortCadastre = true
       cGroup.remove()
       cadastreLayerRef.current = null
     }
@@ -692,14 +608,25 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     earthEngineTiles.current?.remove()
     earthEngineTiles.current = null
     if (!instance || !earthEngineOverlay || earthEngineOverlay.sceneKey !== sceneKey || hidden.includes(earthEngineOverlay.layerId)) return
-    earthEngineTiles.current = L.tileLayer(earthEngineOverlay.tileUrl, {
+    const eeLayer = L.tileLayer(earthEngineOverlay.tileUrl, {
       attribution: 'Sentinel-2 L2A · Google Earth Engine',
       maxZoom: 20,
       maxNativeZoom: 16,
       zIndex: 700,
       opacity: opacity[earthEngineOverlay.layerId] ?? 1,
       crossOrigin: true,
-    }).addTo(instance)
+    })
+    let eeErrors = 0
+    eeLayer.on('tileerror', () => {
+      eeErrors++
+      if (eeErrors >= 3) {
+        console.warn('Earth Engine tiles failed, auto-falling back to Planetary Computer raster')
+        setEarthEngineOverlay(null)
+        setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
+      }
+    })
+    eeLayer.addTo(instance)
+    earthEngineTiles.current = eeLayer
     return () => { earthEngineTiles.current?.remove(); earthEngineTiles.current = null }
   }, [mapObj, earthEngineOverlay, hidden.join(), JSON.stringify(opacity), sceneKey])
 

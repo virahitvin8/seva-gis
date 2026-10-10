@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
-import { ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2 } from 'lucide-react'
+import FinancialSummaryTerminal from './FinancialSummaryTerminal'
+import { ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save } from 'lucide-react'
 
 import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
@@ -52,7 +53,40 @@ import Lang from './Lang'
 import { MitraGuide, MitraAvatar } from './Mitra'
 import { pickGreeting, todayLabel } from './lib/greet'
 import { logoMark as brandLogo } from './assets/brand'
+const DEFAULT_SECTION_ORDER = [
+  'workspace',
+  'journal',
+  'health',
+  'intelligence',
+  'advice',
+  'panels',
+  'land',
+  'cropLib',
+  'village',
+  'gisExport',
+  'lab',
+  'geo',
+  'history',
+]
+
+const SECTION_TITLES: Record<string, string> = {
+  workspace: 'Field Map & Spatial Workspace',
+  journal: 'Crop Journal & Growth Cycles',
+  health: 'Field Health Score',
+  intelligence: 'Spectral Indices & Atmosphere',
+  advice: 'Irrigation & Drainage Advisory',
+  panels: 'Agro & Hydrology Panels',
+  land: 'Cadastral Land Registry (RoR 1B)',
+  cropLib: 'Crop Library & Agronomy Knowledge',
+  village: 'Village View & Multi-Plot Map',
+  gisExport: 'GIS Export & Shapefile Backup',
+  lab: 'GeoAI Analysis Lab',
+  geo: 'Precision Measurement & Robotics',
+  history: 'Multi-Temporal Satellite History',
+}
+
 function BrandLogo() { return <img className="brand-logo-image" src={brandLogo} alt="SEVA.GIS official logo" onError={(e) => { e.currentTarget.src = '/logo.png' }} /> }
+
 export default function App() {
   const { who, signOut } = useAccount()
   const [farms, setFarms] = useState<Farm[]>(() => { try { return (JSON.parse(localStorage.getItem('seva-farms') || 'null') || initialFarms).filter((x: Farm) => !x.sample) } catch { return initialFarms } })
@@ -61,6 +95,47 @@ export default function App() {
   const selectedRef = useRef(selected)
   selectedRef.current = selected
   const [modal, setModal] = useState('')
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [editLayout, setEditLayout] = useState(false)
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('seva-dashboard-layout')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length) {
+          const merged = parsed.filter((k: string) => DEFAULT_SECTION_ORDER.includes(k))
+          DEFAULT_SECTION_ORDER.forEach(k => {
+            if (!merged.includes(k)) merged.push(k)
+          })
+          return merged
+        }
+      }
+    } catch {}
+    return DEFAULT_SECTION_ORDER
+  })
+
+  const moveSection = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir
+    if (target < 0 || target >= sectionOrder.length) return
+    const next = [...sectionOrder]
+    const temp = next[idx]
+    next[idx] = next[target]
+    next[target] = temp
+    setSectionOrder(next)
+    localStorage.setItem('seva-dashboard-layout', JSON.stringify(next))
+  }
+
+  const resetLayout = () => {
+    setSectionOrder(DEFAULT_SECTION_ORDER)
+    localStorage.removeItem('seva-dashboard-layout')
+    setMessage('Dashboard layout reset to factory default.')
+  }
+
+  const saveLayout = () => {
+    localStorage.setItem('seva-dashboard-layout', JSON.stringify(sectionOrder))
+    setEditLayout(false)
+    setMessage('Dashboard layout saved successfully.')
+  }
 
   const [query, setQuery] = useState('')
   const [loadingFarmIds, setLoadingFarmIds] = useState<string[]>([])
@@ -199,6 +274,7 @@ export default function App() {
     setNav(text); setMenu(false)
     if (text === 'Alerts') return setModal('alerts')
     if (text === 'Reports') return setModal('reports')
+    if (text === 'Terminal') return setShowTerminal(true)
     if (text === 'Land registry') {
       requestAnimationFrame(() => document.getElementById('land-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
       return
@@ -234,31 +310,207 @@ export default function App() {
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>Personal · Free forever*</small></div><ChevronDown size={16}/></div>
       <div className="nav-label">WORKSPACE</div>
-      <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Land registry', icon: FileCheck2 }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
+      <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Terminal', icon: Activity }, { text: 'Land registry', icon: FileCheck2 }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>Built for the ground.<br/>Open to everyone.</h4><p>Earth intelligence, in the spirit of selfless service.</p><span>OPEN DATA. REAL PURPOSE. <ArrowUpRight size={14}/></span></div><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-terminal-btn notranslate" title="Financial Analytics & 6-Session Summary Terminal (TradingView Style)" onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '5px 11px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}><Activity size={14} color="#4ade80" /><span>Analytics Terminal</span></button><button className="top-layout-btn" title="Rearrange dashboard layout" onClick={() => setEditLayout(!editLayout)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: editLayout ? '#2d6a4f' : 'transparent', border: '1px solid #cbd5e1', color: editLayout ? '#fff' : '#475569', padding: '5px 9px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}><SlidersHorizontal size={13} /><span>{editLayout ? 'Done' : 'Layout'}</span></button><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Add an outline for any field you want to review from home. SEVA·GIS will show the latest available clear Sentinel-2 pass so you can compare dates, layers, and visible changes remotely.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
       <div className="summary-grid"><div className="summary-card"><span className="metric-icon"><MapPinned size={21}/></span><div><span>Total farms</span><strong>{farms.length}<small>Across {new Set(farms.map(item => item.location)).size} locations</small></strong></div></div><div className="summary-card"><span className="metric-icon"><Sprout size={21}/></span><div><span>Mapped boundary area</span><strong>{farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0).toFixed(1)} <em>ha</em><small>{(farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0) * 2.47105381).toFixed(1)} acres · outlines only</small></strong></div></div><div className="summary-card"><span className="metric-icon healthy"><Leaf size={21}/></span><div><span>Farms with strong green cover</span><strong>{farms.filter(item => item.status === 'Healthy').length}<small><i className="dot green"/>Strong green-cover signal</small></strong></div></div><div className="summary-card"><span className="metric-icon attention"><Droplets size={21}/></span><div><span>Fields to review</span><strong>{farms.filter(farmNeedsAttention).length}<small><i className="dot amber"/>Review flagged areas in the latest pass</small></strong></div><ArrowUpRight size={17}/></div></div>
       <div className={`farm-workspace ${mapFocus ? 'map-focus' : ''}`} id="my-farms"><section className="farm-list"><div className="section-top"><h2>My farms <span>{farms.length}</span></h2><button aria-label="Add farm" onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder="Find a farm..." value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => setSelected(item.id)}><div className="farm-thumb aoi" title="Satellite view of your farm boundary"><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.polygon && item.polygon.length >= 3 ? `${mappedBoundaryAreaHa(item).toFixed(2)} ha · ${(mappedBoundaryAreaHa(item) * 2.47105381).toFixed(2)} ac` : 'Location pin · area unknown'}<b>·</b>{item.crop}</span><div className="farm-badges-row"><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span><span role="button" tabIndex={0} className="farm-maps-btn" title={`View this field location in Google Maps: ${item.name} (${item.lat.toFixed(4)}°, ${item.lon.toFixed(4)}°)`} onClick={event => { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') } }}><Navigation size={11} className="maps-symbol-icon"/><span>View location</span></span></div></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>Add another farm</button><div ref={setLayersPanelTarget} className="ix-panel-dock" aria-label="Layers and symbology controls"/><div className="list-note"><ShieldCheck size={16}/><span>Your coordinates stay on this device.</span></div></section>
        <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact" title="Open Land Registry & Pattadar Passbook" onClick={() => document.getElementById('land-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><FileCheck2 size={13} color="#16a34a"/><span>Land passbook</span></button><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm.name} (${farm.lat.toFixed(4)}°, ${farm.lon.toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>View location</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">Loading the field map…</div>}><IndicatorMap farm={farm} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>About this data<ArrowUpRight size={13}/></button></div></section></div>
-       <Reveal defer><SectionBoundary name="Crop journal"><Suspense fallback={<div className="reveal-loading" role="status">Loading the satellite history…</div>}><CropJournal farms={farms as any} selected={farm.id} onSelect={setSelected} onRefresh={() => refresh()} loading={loading}/></Suspense></SectionBoundary></Reveal>
-      <FieldHealthScore farm={farm}/>
-      <div className="intelligence-heading"><h2>Field intelligence <span>{farm.analysis ? 'Live Sentinel-2 metrics' : 'Awaiting satellite analysis'}</span></h2><button onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>Create report</button></div>
-      <div className="intelligence-grid">{[{title:'Vegetation health',icon:Leaf,value:farm.analysis?.ndvi.mean.toFixed(2),unit:'NDVI',label:farm.analysis ? classify(farm.analysis.ndvi.mean).label : 'Awaiting analysis',note:farm.analysis ? `Range ${farm.analysis.ndvi.min.toFixed(2)} to ${farm.analysis.ndvi.max.toFixed(2)} · Sentinel-2` : 'Sentinel-2 · pending',color:'green',bars:true,stat:farm.analysis?.ndvi,lo:-0.2,hi:1},{title:'Surface soil moisture model',icon:Droplets,value:farm.moisture,unit:'%',label:'Estimate at 0–1 cm, not root zone',note:farm.analysis ? `Broad-area estimate · not a root-zone reading` : 'Broad-area estimate · not a soil sensor',color:'blue',bars:true,stat:farm.analysis?.ndmi,lo:-0.3,hi:0.5},{title:'Rainfall outlook',icon:CloudSun,value:farm.rain?.toFixed(1),unit:'mm',label:'Next 7 days',note:'Open-Meteo · refresh for live data',color:'blue',bars:false},{title:'Terrain & elevation',icon:Mountain,value:farm.elevation,unit:'m',label:'Above sea level',note:'Not a construction assessment',color:'brown',bars:false}].map(({title,icon:Icon,value,unit,label,note,color,bars,stat,lo,hi}: { title: string; icon: typeof Leaf; value?: string | number; unit: string; label: string; note: string; color: string; bars: boolean; stat?: Analysis['ndvi']; lo?: number; hi?: number }) => <div className={`intelligence-card ${color}`} key={title}><div className="intelligence-title"><span>{title}</span><div style={{display:'inline-flex',alignItems:'center',gap:'5px'}}><button className={`card-refresh-btn ${spinningCard === title ? 'spinning' : ''}`} title={`Refresh ${title}`} aria-label={`Refresh ${title}`} onClick={e => { e.stopPropagation(); refreshCard(title); }}><RefreshCw size={12}/></button><Icon size={18}/></div></div><div className="intelligence-value">{value ?? '—'}<small>{unit}</small>{title === 'Vegetation health' && farm.analysis && <span className="trend">{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}</div><div className="mini-chart">{bars ? (stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height,index) => <span key={index} className={`bar-height-${height}`}/>) : title === 'Rainfall outlook' ? <div className="weather-strip"><span><CloudSun size={18}/><small>7-day total</small></span></div> : <div className="weather-strip"><span><Mountain size={18}/><small>{farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}% slope` : 'Slope pending'}</small></span></div>}</div><div className="metric-description">{label}<span>{note}</span></div></div>)}</div>
-      <NumbersGuide/>
-      <div className="advice-grid">{([['Irrigation advisory', Droplets, irrigationAdvice(farm)], ['Construction suitability', Mountain, constructionSuitability(farm)]] as [string, typeof Droplets, Advice][]).map(([title, Icon, advice]) => <section className={`advice-card ${advice.level}`} key={title}><div className="advice-head"><span className="action-icon"><Icon size={22}/></span><div className="action-label">{title.toUpperCase()}</div><span className={`status ${advice.level === 'good' ? 'good' : advice.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{advice.chip}</span></div><h3>{advice.title}</h3><ul>{advice.bullets.map(text => <li key={text}>{text}</li>)}</ul>{advice.why && <p className="why"><b>Why?</b> {advice.why}</p>}</section>)}</div>
-      <Reveal defer><SectionBoundary name="Field panels"><Suspense fallback={<div className="reveal-loading" role="status">Loading field panels…</div>}><AgroPanel farm={farm}/><WaterPanel farm={farm}/></Suspense></SectionBoundary></Reveal>
-      <Reveal><LandInfoCard farm={farm}/></Reveal>
-      <Reveal defer><SectionBoundary name="Crop library"><Suspense fallback={<div className="reveal-loading" role="status">Loading crop library…</div>}><CropLibrary/></Suspense></SectionBoundary></Reveal>
-      <Reveal defer><SectionBoundary name="Map tools"><Suspense fallback={<div className="reveal-loading" role="status">Loading map tools…</div>}><VillageView farms={farms} selectedId={farm.id} onSelect={setSelected} onAddBatch={addBatchFarms}/></Suspense></SectionBoundary></Reveal>
-      <Reveal defer><SectionBoundary name="GIS export tools"><Suspense fallback={<div className="reveal-loading" role="status">Loading GIS export tools…</div>}><ProGisExport farm={farm} farms={farms} onImportBackup={restored => { setFarms(restored); if (restored[0]) { setSelected(restored[0].id); refresh(restored[0]); } }} /></Suspense></SectionBoundary></Reveal>
-      <Reveal defer><SectionBoundary name="Analysis lab"><Suspense fallback={<div className="reveal-loading" role="status">Loading analysis lab…</div>}><Intelligence farm={farm}/></Suspense></SectionBoundary></Reveal>
-      <Reveal defer><SectionBoundary name="Measurement tools"><Suspense fallback={<div className="reveal-loading" role="status">Loading measurement tools…</div>}><GeoTools farm={farm} farms={farms}/></Suspense></SectionBoundary></Reveal>
-      <Reveal defer><SectionBoundary name="Satellite history"><Suspense fallback={<div className="reveal-loading" role="status">Loading satellite history…</div>}><WeeklyRecords farms={farms} farm={farm} onSelect={setSelected}/></Suspense></SectionBoundary></Reveal>
+      {editLayout && (
+        <div style={{ background: '#064e3b', color: '#a7f3d0', border: '1px solid #10b981', borderRadius: '12px', padding: '12px 18px', margin: '15px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <strong style={{ display: 'block', fontSize: '14px', color: '#fff' }}>Dashboard Layout Customizer Active</strong>
+            <span style={{ fontSize: '12px' }}>Move modules up or down to personalize your workflow. Your layout is auto-saved locally on this device.</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={resetLayout} style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <RotateCcw size={13}/> Reset Default
+            </button>
+            <button onClick={saveLayout} style={{ background: '#10b981', border: 'none', color: '#022c22', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Save size={13}/> Save Layout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sectionOrder.map((secId, idx) => {
+        let content = null
+        switch (secId) {
+          case 'crop-journal':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Crop journal">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading the satellite history…</div>}>
+                    <CropJournal farms={farms as any} selected={farm.id} onSelect={setSelected} onRefresh={() => refresh()} loading={loading}/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'health-score':
+            content = <FieldHealthScore farm={farm}/>
+            break
+          case 'field-intelligence':
+            content = (
+              <>
+                <div className="intelligence-heading">
+                  <h2>Field intelligence <span>{farm.analysis ? 'Live Sentinel-2 metrics' : 'Awaiting satellite analysis'}</span></h2>
+                  <button onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>Create report</button>
+                </div>
+                <div className="intelligence-grid">
+                  {[{title:'Vegetation health',icon:Leaf,value:farm.analysis?.ndvi.mean.toFixed(2),unit:'NDVI',label:farm.analysis ? classify(farm.analysis.ndvi.mean).label : 'Awaiting analysis',note:farm.analysis ? `Range ${farm.analysis.ndvi.min.toFixed(2)} to ${farm.analysis.ndvi.max.toFixed(2)} · Sentinel-2` : 'Sentinel-2 · pending',color:'green',bars:true,stat:farm.analysis?.ndvi,lo:-0.2,hi:1},{title:'Surface soil moisture model',icon:Droplets,value:farm.moisture,unit:'%',label:'Estimate at 0–1 cm, not root zone',note:farm.analysis ? `Broad-area estimate · not a root-zone reading` : 'Broad-area estimate · not a soil sensor',color:'blue',bars:true,stat:farm.analysis?.ndmi,lo:-0.3,hi:0.5},{title:'Rainfall outlook',icon:CloudSun,value:farm.rain?.toFixed(1),unit:'mm',label:'Next 7 days',note:'Open-Meteo · refresh for live data',color:'blue',bars:false},{title:'Terrain & elevation',icon:Mountain,value:farm.elevation,unit:'m',label:'Above sea level',note:'Not a construction assessment',color:'brown',bars:false}].map(({title,icon:Icon,value,unit,label,note,color,bars,stat,lo,hi}: { title: string; icon: typeof Leaf; value?: string | number; unit: string; label: string; note: string; color: string; bars: boolean; stat?: Analysis['ndvi']; lo?: number; hi?: number }) => (
+                    <div className={`intelligence-card ${color}`} key={title}>
+                      <div className="intelligence-title">
+                        <span>{title}</span>
+                        <div style={{display:'inline-flex',alignItems:'center',gap:'5px'}}>
+                          <button className={`card-refresh-btn ${spinningCard === title ? 'spinning' : ''}`} title={`Refresh ${title}`} aria-label={`Refresh ${title}`} onClick={e => { e.stopPropagation(); refreshCard(title); }}><RefreshCw size={12}/></button>
+                          <Icon size={18}/>
+                        </div>
+                      </div>
+                      <div className="intelligence-value">
+                        {value ?? '—'}<small>{unit}</small>
+                        {title === 'Vegetation health' && farm.analysis && <span className="trend">{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}
+                      </div>
+                      <div className="mini-chart">
+                        {bars ? (stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height,index) => <span key={index} className={`bar-height-${height}`}/>) : title === 'Rainfall outlook' ? <div className="weather-strip"><span><CloudSun size={18}/><small>7-day total</small></span></div> : <div className="weather-strip"><span><Mountain size={18}/><small>{farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}% slope` : 'Slope pending'}</small></span></div>}
+                      </div>
+                      <div className="metric-description">{label}<span>{note}</span></div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )
+            break
+          case 'numbers-guide':
+            content = <NumbersGuide/>
+            break
+          case 'advice-grid':
+            content = (
+              <div className="advice-grid">
+                {([['Irrigation advisory', Droplets, irrigationAdvice(farm)], ['Construction suitability', Mountain, constructionSuitability(farm)]] as [string, typeof Droplets, Advice][]).map(([title, Icon, advice]) => (
+                  <section className={`advice-card ${advice.level}`} key={title}>
+                    <div className="advice-head">
+                      <span className="action-icon"><Icon size={22}/></span>
+                      <div className="action-label">{title.toUpperCase()}</div>
+                      <span className={`status ${advice.level === 'good' ? 'good' : advice.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{advice.chip}</span>
+                    </div>
+                    <h3>{advice.title}</h3>
+                    <ul>{advice.bullets.map(text => <li key={text}>{text}</li>)}</ul>
+                    {advice.why && <p className="why"><b>Why?</b> {advice.why}</p>}
+                  </section>
+                ))}
+              </div>
+            )
+            break
+          case 'agro-water':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Field panels">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading field panels…</div>}>
+                    <AgroPanel farm={farm}/>
+                    <WaterPanel farm={farm}/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'land-passbook':
+            content = <Reveal><LandInfoCard farm={farm}/></Reveal>
+            break
+          case 'crop-library':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Crop library">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading crop library…</div>}>
+                    <CropLibrary/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'village-view':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Map tools">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading map tools…</div>}>
+                    <VillageView farms={farms} selectedId={farm.id} onSelect={setSelected} onAddBatch={addBatchFarms}/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'gis-export':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="GIS export tools">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading GIS export tools…</div>}>
+                    <ProGisExport farm={farm} farms={farms} onImportBackup={restored => { setFarms(restored); if (restored[0]) { setSelected(restored[0].id); refresh(restored[0]); } }} />
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'intelligence-lab':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Analysis lab">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading analysis lab…</div>}>
+                    <Intelligence farm={farm}/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'measurement-tools':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Measurement tools">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading measurement tools…</div>}>
+                    <GeoTools farm={farm} farms={farms}/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          case 'weekly-records':
+            content = (
+              <Reveal defer>
+                <SectionBoundary name="Satellite history">
+                  <Suspense fallback={<div className="reveal-loading" role="status">Loading satellite history…</div>}>
+                    <WeeklyRecords farms={farms} farm={farm} onSelect={setSelected}/>
+                  </Suspense>
+                </SectionBoundary>
+              </Reveal>
+            )
+            break
+          default:
+            return null
+        }
+
+        return (
+          <div key={secId} className={`dashboard-section-wrapper ${editLayout ? 'layout-edit-mode' : ''}`} style={editLayout ? { border: '2px dashed #16a34a', borderRadius: '14px', padding: '12px', margin: '14px 0', background: 'rgba(22, 163, 74, 0.03)', position: 'relative' } : {}}>
+            {editLayout && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', color: '#f8fafc', padding: '8px 14px', borderRadius: '8px', marginBottom: '10px', fontSize: '13px', fontWeight: 600 }}>
+                <span>{SECTION_TITLES[secId] || secId}</span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button disabled={idx === 0} onClick={() => moveSection(idx, -1)} style={{ background: idx === 0 ? '#334155' : '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '4px', padding: '3px 8px', cursor: idx === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ArrowUp size={13}/> Move Up
+                  </button>
+                  <button disabled={idx === sectionOrder.length - 1} onClick={() => moveSection(idx, 1)} style={{ background: idx === sectionOrder.length - 1 ? '#334155' : '#1e293b', border: '1px solid #475569', color: '#fff', borderRadius: '4px', padding: '3px 8px', cursor: idx === sectionOrder.length - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ArrowDown size={13}/> Move Down
+                  </button>
+                </div>
+              </div>
+            )}
+            {content}
+          </div>
+        )
+      })}
       </>}
       <Contact/>
       <MitraGuide name={who.name} guest={who.name === 'Guest'}/>
@@ -273,6 +525,6 @@ export default function App() {
         return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Farm average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>What should I do?</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>Satellite values are not pixel cloud-masked and are not field-validated. Confirm on the ground before acting.</div></>
       })() : modal === 'sources' ? <><p>Each value is labelled as observed, modeled, or estimated where it appears. Satellite results can vary with scene coverage and cloud conditions.</p>{[['Satellite imagery','Sentinel-2 L2A preview from Microsoft Planetary Computer. Native band resolution varies.'],['Google Earth Engine tiles','Optional Cloud Run rendering for the selected spectral layer. Summary values and terrain models remain labelled by their own source until separately migrated and checked.'],['Vegetation indices','Calculated in the browser from available Sentinel-2 preview bands. Cloud and shadow masking uses the scene classification layer when available.'],['Weather & soil','Open-Meteo forecast data and SoilGrids estimates. Soil moisture is modeled at coarse resolution, not measured by a farm sensor.'],['Terrain','Copernicus GLO-30 digital elevation data for elevation, slope, aspect and hillshade. This is not an engineering survey.']].map(([title,description]) => <div className="source-item" key={title}><Check size={17}/><div><h3>{title}</h3><p>{description}</p></div></div>)}<a className="external-link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo documentation<ExternalLink size={15}/></a></> : modal === 'alerts' ? <>{farms.filter(farmNeedsAttention).map(item => <button className="alert-row" key={item.id} onClick={() => { setSelected(item.id); setZone(null); setModal('zone') }}><Droplets size={21}/><div><h3>{item.name}</h3><p>{item.status} · {item.analysis!.stressPct.toFixed(0)}% of pixels stressed</p></div><ChevronRight size={18}/></button>)}{!farms.some(farmNeedsAttention) && <p>No farms currently need attention based on their latest satellite scene.</p>}<p>Alerts reflect the last analysis on this device. Background monitoring and email notifications are not connected.</p></> : modal === 'reports' ? <Suspense fallback={<div className="reveal-loading">Preparing report…</div>}><ReportPanel farm={farm as any}/></Suspense> : modal === 'guide' ? <Suspense fallback={<div className="reveal-loading">Loading field guide…</div>}><Guide/></Suspense> : modal === 'settings' ? <><p>Farms are stored in this browser only, and are not synced across devices. Clearing browser storage removes them.</p><p>This build has no payment flow. External providers have their own terms and availability.</p><button className="outline" onClick={signOut}><LogOut size={16}/>Log out of {who.name}</button><button className="outline" onClick={() => { setModal(''); setMessage('Google login and cloud sync require a configured authentication project. No account connection is active.') }}>About Google sign-in<ArrowUpRight size={16}/></button></> : <><p>1. Add or select a field boundary.<br/>2. Check the date and cloud conditions of the latest clear satellite pass.<br/>3. Compare earlier passes and switch map layers to spot changes.<br/>4. Select a point or zone to review its available values.<br/>5. Save or share a report for someone else to review remotely.</p><div className="privacy-note"><ShieldCheck size={20}/>Satellite and model estimates should be checked on the ground before making decisions.</div></>}
     </section></div>}
-
+    <FinancialSummaryTerminal farm={farm} isOpen={showTerminal} onClose={() => setShowTerminal(false)} />
   </div>
 }

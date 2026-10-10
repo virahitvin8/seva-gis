@@ -263,6 +263,7 @@ export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<C
               p10: Math.max(-0.2, Number((mean - std).toFixed(3))),
               p50: mean,
               p90: Math.min(1.0, Number((mean + std).toFixed(3))),
+              n: 100,
             },
             ndmi: Number(Math.max(-0.2, Math.min(0.8, (mean - 0.1) * 0.75)).toFixed(3)),
             stressPct: mean < 0.3 ? 35 : mean < 0.45 ? 12 : 3,
@@ -344,6 +345,7 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
           p10: v.p25 ?? Number((v.mean - 0.05).toFixed(3)),
           p50: v.mean,
           p90: v.p75 ?? Number((v.mean + 0.05).toFixed(3)),
+          n: 100,
         })
         const means: Record<string, number> = {}
         for (const [k, v] of Object.entries(ind)) {

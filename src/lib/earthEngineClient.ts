@@ -101,11 +101,12 @@ export async function getEarthEngineSatelliteMap(
     desc: 'Sentinel-2 L2A high resolution RGB composite',
     source: 'S2' as const,
     rgb: true,
+    group: 'RGB' as any,
   }
   return createEarthEngineMap({
     farm,
     sceneOpts,
-    layer,
+    layer: layer as any as Ind,
     bandCombination,
     compositing: 'median',
     percentileStretch: true,

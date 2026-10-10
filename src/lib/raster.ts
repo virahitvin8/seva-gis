@@ -94,7 +94,7 @@ export function rampColor(ramp: string[], t: number): [number, number, number] {
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]
 }
 
-export type Stat = { mean: number; min: number; max: number; p10: number; p50: number; p90: number; n: number }
+export type Stat = { mean: number; min: number; max: number; p10: number; p50: number; p90: number; n: number; stdDev?: number }
 export function statsOf(values: Float32Array | Float64Array, ok: (i: number) => boolean, range: [number, number]): Stat | null {
   const xs = new Float32Array(values.length)
   let n = 0, sum = 0, min = Infinity, max = -Infinity

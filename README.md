@@ -52,9 +52,6 @@
 
 ## 🌟 Motive & Core Philosophy
 
-### What Does SEVA Mean?
-In Sanskrit and Indian philosophy, **SEVA** (सेवा) signifies **selfless service** performed without desire for personal gain. Smallholder farmers, rural landholders, and agrarian communities sustain the planet, yet they often lack access to expensive proprietary GIS software, subscription satellite feeds, and complex hydrological modeling tools.
-
 **SEVA·GIS** was created to bridge this technological divide by democratizing remote sensing science:
 * **Zero Cost**: Built entirely on open data (Copernicus Sentinel-2, Copernicus DEM, Open-Meteo, OpenStreetMap).
 * **Zero Telemetry**: All farm boundaries, notes, surveys, and downloaded reports remain securely stored on your personal device.

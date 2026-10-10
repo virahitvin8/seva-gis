@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 log = logging.getLogger("seva-gee")
 
 PROJECT_ID: str = os.environ.get("EE_PROJECT_ID", "seva-gis-backend").strip()
-ALLOWED_ORIGINS: list[str] = [o.strip() for o in os.environ.get("EE_ALLOWED_ORIGINS", "http://localhost:8443,http://localhost:5173,https://seva-gis.web.app").split(",") if o.strip()]
+ALLOWED_ORIGINS: list[str] = [o.strip() for o in os.environ.get("EE_ALLOWED_ORIGINS", "http://localhost:8443,http://localhost:5173,https://seva-gis-backend-e724a.web.app,https://seva-gis-backend-e724a.firebaseapp.com").split(",") if o.strip()]
 RATE_LIMIT_RPM: int = int(os.environ.get("EE_RATE_LIMIT_RPM", "60"))
 CACHE_TTL: int = int(os.environ.get("EE_CACHE_TTL", "600"))
 MAX_BODY: int = 128 * 1024

@@ -7,77 +7,139 @@
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.0-38bdf8.svg)](https://tailwindcss.com/)
 [![Google Earth Engine](https://img.shields.io/badge/Google_Earth_Engine-L2A_BOA-34a853.svg)](https://earthengine.google.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v0.115-009688.svg)](https://fastapi.tiangolo.com/)
+[![Copernicus Sentinel-2](https://img.shields.io/badge/Copernicus-Sentinel--2_L2A-orange.svg)](https://dataspace.copernicus.eu/)
 
 > **Earth intelligence in the spirit of selfless service.**  
-> An open-source precision agriculture GIS and satellite analytics platform designed to inspect, monitor, and verify farm parcels from anywhere in the world without requiring physical field visits.
+> SEVA·GIS is an open-source, full-stack geospatial AI and precision agriculture platform. It empowers agricultural stewards, agronomists, farmers, and researchers to inspect, analyze, and monitor agricultural land parcels from anywhere in the world with zero remote lag, sub-meter radiometric precision, and verified government land records.
 
 ---
 
-## 🛰️ Architecture Overview
+## 🏛️ System Architecture
 
-```
-Browser Client (SEVA·GIS Web App)
-  ├── React 19 + Vite 8 + Tailwind CSS v4
-  ├── Leaflet + MapLibre GL Tile Streaming
-  ├── Client-Side Radiometric Canvas Engine (High-DPI 1024px+ · Laplacian Unsharp Masking)
-  ├── Global Dashboard Zoom Synchronization Engine (Mercator Inverse Scale Dynamic Framing)
-  └── Offline-First IndexedDB Geometry & Metadata Cache
-          │
-          ├── [HTTPS / REST] ───► Cloud Run / FastAPI Proxy (`backend/`)
-          │                            │
-          │                            ▼
-          │                   Google Earth Engine (Python API v1.7.47)
-          │                     ├── COPERNICUS/S2_SR_HARMONIZED (L2A BOA Reflectance)
-          │                     ├── COPERNICUS/DEM/GLO30 (Copernicus 30m DEM)
-          │                     └── Real-Time SCL Masking & 2%–98% Percentile Stretch
-          │
-          └── [HTTPS] ───► Open Data Providers
-                             ├── Microsoft Planetary Computer (S2 L2A STAC Assets)
-                             ├── Open-Meteo (High-Resolution Agro-Weather Forecasts)
-                             ├── Nominatim OpenStreetMap (Reverse Cadastral Geocoding)
-                             └── ISRIC SoilGrids (Global Soil Profile Estimates)
+```text
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 1. SATELLITE & SENSOR INGESTION DOMAIN                                  │
+ │    Source: src/lib/seva.ts, src/lib/copernicus.ts, backend/main.py     │
+ │    Entities: Sentinel-2 L2A STAC items, SCL Scene Classification       │
+ │    Invariants: Cloud cover <= 30%, BOA radiometric surface reflectance│
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 2. SPATIAL GEODESY & BOUNDARY DOMAIN                                   │
+ │    Source: src/lib/geo.ts, src/lib/db.ts, src/AddFarm.tsx               │
+ │    Entities: WGS84 Polygons, Geodesic Area (m²/ha), Vincenty Perimeter │
+ │    Invariants: RFC 7946 GeoJSON, Closed LinearRings, [Lon, Lat] order  │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 3. SPECTRAL MATH & HYDROLOGY DOMAIN                                    │
+ │    Source: src/lib/raster.ts, src/lib/indicators.ts, src/lib/hydro.ts   │
+ │    Entities: NDVI, NDMI, NDWI, NDRE, EVI, BSI, Slope, Aspect, TWI      │
+ │    Invariants: Floating arrays normalized -1.0 .. +1.0, zero-div safe  │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 4. AGRICULTURAL ROBOTICS & LOGISTICS DOMAIN                            │
+ │    Source: src/lib/pathplan.ts, src/GeoTools.tsx                       │
+ │    Entities: Boustrophedon Swaths, Longest-Edge θ_opt, Isochrones, VRA │
+ │    Invariants: Meter Cartesian projection, 3-zone N conservation       │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 5. CARTOGRAPHY, LAND REGISTRY & AGRO ADVISORY DOMAIN                   │
+ │    Source: src/IndicatorMap.tsx, src/LandInfoCard.tsx, src/report.ts   │
+ │    Entities: WebGL canvas, RoR Form 1B, Open-Meteo ET0, Dossiers       │
+ │    Invariants: Offline local storage (Dexie DB), zero external cookies │
+ └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🌟 Key Features
+## 🚀 Unique & Advanced Capabilities
 
-### 1. Google Earth Engine (GEE) Radiometric Pipeline
-* **Zero-Lag Calibrated Rendering**: Direct access to `COPERNICUS/S2_SR_HARMONIZED` surface reflectance with Google Earth Engine's standard 2%–98% percentile linear stretch and 1.25 gamma correction.
-* **Scene Classification (SCL) Cloud Masking**: Intelligent filtering of clouds, cloud shadows, cirrus, and snow (flags 4–7).
-* **Copernicus GLO-30 DEM Integration**: High-precision terrain modeling including elevation, percent slope, aspect, and 315°/45° hillshade.
-* **10 Band Combinations & 16 Indices**: True colour (RGB), False colour NIR (CIR), Agriculture (`B11/B8/B2`), Moisture (`B12/B8/B4`), SWIR, NDVI, EVI, SAVI, MSAVI, NDRE, NDMI, NDWI, BSI, and LAI.
-* **Advanced Analytics Endpoints**: Zonal statistics, multi-date temporal time-series, bi-temporal loss/gain change detection, and automated crop stress alerts.
+### 1. Google Earth Engine (GEE) Production Microservice
+* **Direct Server-Side GEE Integration**: Connects the frontend to an optimized FastAPI proxy (`backend/main.py`) powered by the official Earth Engine Python API (`earthengine-api` v1.7+).
+* **Calibrated Radiometric BOA Surface Reflectance**: Pulls Bottom-of-Atmosphere (BOA) scenes directly from `COPERNICUS/S2_SR_HARMONIZED`. Applies Earth Engine's standard 2%–98% percentile linear stretch and 1.25 gamma curve for pixel-perfect Code Editor fidelity.
+* **Scene Classification (SCL) Cloud Masking**: Automatically eliminates cloud pixels, cloud shadows, cirrus, and snow (SCL flags 4–7).
+* **Copernicus GLO-30 DEM Layers**: On-demand elevation, percent slope, aspect, and 315°/45° hillshade from `COPERNICUS/DEM/GLO30`.
+* **Multi-Temporal Compositing Modes**: Supports `median`, `mosaic`, `mean`, and `max_ndvi` quality mosaics.
+* **10 Band Combinations & 16 Scientific Indices**:
+  - *Band Combinations*: Natural Colour (`B4/B3/B2`), False Colour NIR / CIR (`B8/B4/B3`), Agriculture (`B11/B8/B2`), Moisture (`B12/B8/B4`), SWIR (`B12/B11/B8`), Chlorophyll (`B8/B5/B4`), Geology (`B12/B8/B3`), Red-Edge (`B8A/B7/B5`), Bathymetric (`B4/B3/B1`), Urban (`B12/B11/B4`).
+  - *Vegetation & Moisture Indices*: NDVI, EVI, SAVI, MSAVI, GNDVI, NDRE, CIRE, LAI, NBR, NDMI, NDWI, MNDWI, MSI, BSI, NDBI, SWIR Ratio.
+* **Analytics Endpoints**:
+  - `POST /api/earth-engine/map`: Instant XYZ tile URL generation.
+  - `POST /api/earth-engine/dem`: Elevation & terrain layers.
+  - `POST /api/earth-engine/stats`: Zonal statistics (`mean`, `min`, `max`, `stdDev`, `p25`, `p75`).
+  - `POST /api/earth-engine/timeseries`: Multi-scene temporal trajectory points.
+  - `POST /api/earth-engine/change`: Bi-temporal change detection & gain/loss percentages.
+  - `POST /api/earth-engine/alert`: Crop stress alert thresholding.
+  - `GET /health` & `DELETE /api/cache`: Real-time health monitoring and LRU cache control.
 
-### 2. Synchronized Dashboard Map Zoom Engine
-* **Universal Zoom Propagation**: Changing the zoom level on the main satellite map immediately impacts and synchronizes all maps across the entire dashboard (GeoAI Analysis Lab, Crop & Vegetation maps, Monitoring & Change, Suitability, Pest Risk, and Time-lapse frames).
-* **Mercator Inverse Dynamic Framing**: As you zoom in on the main map, secondary map bounding box padding automatically tightens ($0.45 \times 2^{15 - z}$), delivering sharp, high-magnification parcel focus.
-* **Live Zoom Badge**: Prominent overlay showing live zoom multiplier (`Zoom 16.5x · Synced to Dashboard`).
-* **Scroll Isolation & Containment**: Strict `overscroll-behavior: contain` and wheel event isolation preventing any page bouncing or jumping into top headlines during zooming.
+### 2. Universal Dashboard Map Zoom Synchronization
+* **Global Zoom Engine (`src/lib/zoomSync.ts`)**: The zoom level of the main satellite map immediately impacts and synchronizes every map in the dashboard.
+* **Mercator Inverse Dynamic Framing**:
+  $$\text{padFactor} = \max\left(0.04, \min\left(2.8, 0.45 \times 2^{15 - z}\right)\right)$$
+  - Zooming in on the main map automatically tightens bounding box padding across the **GeoAI Analysis Lab**, **Crop & Vegetation Map**, **Suitability & Planning**, **Monitoring & Change**, and **Time-Lapse** frames into high-magnification close-ups.
+  - Zooming out expands secondary frames to show broader landscape, watershed, and regional context.
+* **Live Visual Synchronization Badge**: Real-time overlay (`Zoom 16.5x · DASHBOARD SYNCED`) confirms multi-view coordination.
+* **Scroll Isolation & Containment**: Strict `overscroll-behavior: contain !important;` and isolated wheel listeners prevent mouse wheel zoom gestures from bubbling into page scrolling or jarring into top headers.
 
-### 3. Digital Cadastral Land Registry & Pattadar Passbook (RoR Form 1B)
-* **100% Read-Only, Certified & Official**: Formatted as an official government-style digital revenue certificate with digital verification badge (`● DIGITALLY VERIFIED CADASTRAL RECORD`).
-* **Pull Land Records for Any Particular Person**: Dedicated lookup tool with quick-switch chips for registered titleholders & co-pattadars (Primary Pattadar, Spouse, Ancestral Titleholder, Joint Shareholder) plus real-time search to calculate passbooks for any person.
-* **Exact Measured Area in Square Meters ($m^2$)**: Computed directly from field boundaries:
+### 3. Cadastral Land Registry & Pattadar Passbook (RoR Form 1B)
+* **100% Read-Only, Certified Revenue Record**: Rendered as an official government-grade digital revenue extract with verified seal (`● DIGITALLY VERIFIED CADASTRAL RECORD`).
+* **Pull Land Record for Particular Person Tool**:
+  - Interactive chip selector for titleholders in the cadastral zone:
+    * *Primary Pattadar* (e.g., Ram Prasad Maurya)
+    * *Co-Pattadar Spouse* (e.g., Shanti Devi Maurya)
+    * *Ancestral Titleholder* (e.g., Late Shivraj Maurya)
+    * *Joint Shareholder* (e.g., Ramesh Kumar Maurya)
+  - Real-time search/custom input to calculate and pull revenue dossiers for any individual. Session persisted in `localStorage`.
+* **Exact Measured Area in Square Meters ($m^2$)**:
   $$\text{Square Meters} = \text{Area in ha} \times 10,000\text{ m}^2$$
-  Displayed in bold emerald typography (e.g., **`24,000.00 m²`**), alongside Hectares, Acres, Guntas, and Cents.
-* **Full Cadastral Identity**: 14-digit Bhu-Aadhaar (ULPIN), AgriStack Farmer ID, Digital Passbook Number (`PPB-XXXXXX`), Khata/Patta number, Survey/Khasra number (`Sy. No. 142/2A`), and Hissa sub-division.
-* **Mutation & Registration History (दाखिल खारिज)**: Original registration date, revenue mutation date, mode of acquisition (*Ancestral Family Partition Deed*), prior titleholder chain, and Sub-Registrar Office (SRO) deed references.
-* **Past Grown Crops History (Girdawari Revenue Record)**: Multi-year Kharif, Rabi, and Zaid crop history with crop varieties, sown area in $m^2$ and ha, irrigation type, recorded yield (Quintals), and VRO verification badges.
-* **Institutional Credit (KCC Loan)**: Active hypothecation charges recorded under RoR Form 1B Column 13 at subsidized 4% net interest rate.
-* **PMFBY Crop Insurance & Natural Calamity Relief**: Policy details, DBT claim settlement records, and SDRF/NDRF disaster input subsidy relief records.
-* **Eligible Government Subsidies & Schemes Dossier**: Automated eligibility matching for PM-KISAN (₹6,000/yr), PMKSY Per Drop More Crop, PM-KUSUM Component B (60% solar pump subsidy), SMAM, Soil Health Card, and PKVY.
-* **Sharing & Paperwork Exports**:
+  Displayed prominently in bold emerald typography (e.g., **`24,000.00 m²`**), alongside Hectares, Acres, Guntas, and Cents.
+* **Verified Cadastral Identity**:
+  - 14-digit **Bhu-Aadhaar (ULPIN)**.
+  - **AgriStack Farmer ID** & **Digital Passbook Number** (`PPB-XXXXXX`).
+  - Cadastral Survey / Khasra number (`Sy. No. 142/2A`) and Hissa sub-division.
+  - Khata / Patta number and Bhumidhari tenure category.
+  - **Nil Encumbrance Certificate (EC)** verified title status.
+* **Mutation & Transfer History (दाखिल खारिज / नामांतरण)**:
+  - Original registration date and revenue mutation transfer date.
+  - Acquisition mode (*Ancestral Family Partition Deed*).
+  - Prior title chain and Sub-Registrar Office (SRO) deed document numbers.
+* **Multi-Year Girdawari Crop History**:
+  - Multi-season breakdown (Kharif, Rabi, Zaid).
+  - Crop varieties (Cotton Bunny BG-II, Bengal Gram JG-11, Moong Pusa Vishal, Paddy BPT 5204).
+  - Sown area in $m^2$ and ha, irrigation source, yield (Quintals), and **VRO Certified** stamp.
+* **Institutional Credit (KCC Loan Record)**:
+  - Lending bank branch, credit limit, subsidized 4% net interest rate, and RoR Form 1B Column 13 lien status.
+* **PMFBY Crop Insurance & Natural Calamity Relief**:
+  - Policy reference numbers, sum insured, 2% farmer premium share, DBT claim settlement records, and SDRF/NDRF drought relief records.
+* **Eligible Government Subsidies & Schemes Matching**:
+  - Matches parcel area against **PM-KISAN Samman Nidhi** (₹6,000/yr), **PMKSY Per Drop More Crop** (55%–80% micro-irrigation subsidy), **PM-KUSUM Component B** (60% solar pump subsidy), **SMAM**, **Soil Health Card**, and **PKVY**.
+* **Zero-Editable Sharing & Legal Form 1B Printing**:
   - `Share Passbook`: One-tap sharing via Web Share API to WhatsApp or mobile apps.
-  - `Copy for Paperwork`: Copies structured plain-text dossier for bank loan and insurance paperwork.
-  - `Print Certificate`: Opens a certified, printable Cadastral Land Ownership Certificate (RoR Form 1B) with official seals and QR codes ready for PDF export.
+  - `Copy for Paperwork`: Copies formatted plain-text dossier for bank loan and insurance paperwork.
+  - `Print Certificate`: Generates an official, printable Cadastral Land Ownership Certificate (RoR Form 1B) with QR codes and digital seals.
+
+### 4. Precision Swath Robotics & Agro-Logistics (`src/lib/pathplan.ts`)
+* **Fields2Cover Boustrophedon Swath Planning**: Computes optimal tractor and combine harvester driving tracks using the Longest-Edge $\theta_{opt}$ algorithm. Minimizes machinery turning distance and soil compaction.
+* **Variable Rate Application (VRA) Prescription**: Generates 3-zone nitrogen prescriptions (Urea bags/ha) based on Sentinel-2 NDVI canopy vigor, calculating input cost savings.
+* **Rural Logistics Isochrones**: Computes 10/20/30-minute tractor transit and 15/30/45-minute truck haulage reachability using road detour modeling ($0.75\times$ factor).
+
+### 5. Privacy-First Zero-Telemetry Architecture
+* **IndexedDB Local Vault (`src/lib/db.ts`)**: All field outlines, survey numbers, journals, and infrastructure notes stay strictly on the user's device via Dexie.js.
+* **Zero External Cookies or User Profiling**: No tracking scripts, analytics cookies, or cloud telemetry.
 
 ---
 
-## 🚀 Quick Start Guide
+## 🛠️ Installation & Quickstart
 
 ### Prerequisites
-* **Node.js** $\ge 18$ and **pnpm** (or npm)
+* **Node.js** $\ge 18$ & **pnpm** (or npm)
 * **Python** $\ge 3.10$ (for Google Earth Engine backend proxy)
 
 ### 1. Frontend Setup
@@ -90,38 +152,38 @@ cd seva-gis
 # Install dependencies
 pnpm install
 
-# Configure environment variables
+# Setup environment variables
 cp .env.example .env
 
-# Start local development server
+# Run local development server
 pnpm dev
 ```
-The frontend will start on `http://localhost:8443` (or `http://localhost:5173`).
+The application will launch on `http://localhost:8443` (or `http://localhost:5173`).
 
-### 2. Earth Engine Backend Setup
+### 2. Earth Engine Backend Proxy Setup
 
 ```bash
 cd backend
 
-# Create virtual environment (optional)
+# Create and activate virtual environment
 python -m venv venv
-venv\Scripts\activate  # On Windows
-# source venv/bin/activate  # On Linux/macOS
+venv\Scripts\activate      # Windows PowerShell
+# source venv/bin/activate  # macOS / Linux
 
-# Install requirements
+# Install dependencies
 pip install -r requirements.txt
 
 # Configure environment variables
 cp .env.example .env
 
-# Place your service account JSON file in backend/service-account.json
-# (Or set EE_PROJECT_ID if using Application Default Credentials)
+# Place your service account credentials in backend/service-account.json
+# (Or authenticate via Google Cloud ADC: gcloud auth application-default login)
 
-# Start backend server
+# Start backend proxy
 python -m uvicorn main:app --port 8080 --reload
 ```
-The Earth Engine backend will run on `http://localhost:8080`.
-Interactive API documentation is accessible at:
+
+Interactive API documentation will be available at:
 - **Swagger UI**: `http://localhost:8080/api/docs`
 - **ReDoc**: `http://localhost:8080/api/redoc`
 - **Health Check**: `http://localhost:8080/health`
@@ -130,45 +192,47 @@ Interactive API documentation is accessible at:
 
 ## ☁️ Google Cloud Run Deployment
 
-To deploy the Earth Engine proxy to Google Cloud Run:
+To deploy the Earth Engine microservice to Google Cloud Run:
 
 ```bash
 cd backend
 
-# Build and deploy with Google Cloud SDK
 gcloud run deploy seva-gis-backend \
   --source . \
   --project seva-gis-backend \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars EE_PROJECT_ID=seva-gis-backend,EE_ALLOWED_ORIGINS="https://your-frontend-domain.web.app"
+  --set-env-vars EE_PROJECT_ID=seva-gis-backend,EE_ALLOWED_ORIGINS="http://localhost:8443,https://seva-gis.web.app"
 ```
 
-Then update `VITE_EE_API_URL` in your frontend `.env` to your deployed Cloud Run URL:
+Then point `VITE_EE_API_URL` in your frontend `.env` to your deployed Cloud Run URL:
 ```env
 VITE_EE_API_URL=https://seva-gis-backend-xxxxx.a.run.app
 ```
 
 ---
 
-## 🔗 Open-Source Startup Links & Ecosystem
+## 🌐 Open-Source Startup Ecosystem & Links
 
-| Resource | Link |
-| :--- | :--- |
-| **Official Repository** | [github.com/virahitvin8/seva-gis](https://github.com/virahitvin8/seva-gis) |
-| **Issue Tracker** | [github.com/virahitvin8/seva-gis/issues](https://github.com/virahitvin8/seva-gis/issues) |
-| **Discussions & Roadmap** | [github.com/virahitvin8/seva-gis/discussions](https://github.com/virahitvin8/seva-gis/discussions) |
-| **Google Earth Engine** | [earthengine.google.com](https://earthengine.google.com/) |
-| **Copernicus Open Access Hub** | [dataspace.copernicus.eu](https://dataspace.copernicus.eu/) |
-| **Digital India Land Records (DoLR)** | [dolr.gov.in](https://dolr.gov.in/) |
-| **PM-KISAN Samman Nidhi Portal** | [pmkisan.gov.in](https://pmkisan.gov.in/) |
-| **PMFBY Crop Insurance Portal** | [pmfby.gov.in](https://pmfby.gov.in/) |
+| Platform / Resource | URL | Description |
+| :--- | :--- | :--- |
+| **Official GitHub Repository** | [github.com/virahitvin8/seva-gis](https://github.com/virahitvin8/seva-gis) | Core source repository |
+| **Issue Tracker & Feature Requests** | [github.com/virahitvin8/seva-gis/issues](https://github.com/virahitvin8/seva-gis/issues) | Bug reports and engineering tasks |
+| **Discussions & Product Roadmap** | [github.com/virahitvin8/seva-gis/discussions](https://github.com/virahitvin8/seva-gis/discussions) | Community forum & architecture discussions |
+| **Google Earth Engine** | [earthengine.google.com](https://earthengine.google.com/) | Cloud platform for planetary-scale geospatial analysis |
+| **Copernicus Data Space Ecosystem** | [dataspace.copernicus.eu](https://dataspace.copernicus.eu/) | European Space Agency Sentinel-2 L2A & DEM data |
+| **Microsoft Planetary Computer** | [planetarycomputer.microsoft.com](https://planetarycomputer.microsoft.com/) | Cloud-optimized STAC satellite assets |
+| **Open-Meteo Weather API** | [open-meteo.com](https://open-meteo.com/) | High-resolution open-access agro-meteorological models |
+| **ISRIC SoilGrids** | [soilgrids.org](https://soilgrids.org/) | Global digital soil mapping and physical soil properties |
+| **Digital India Land Records (DoLR)** | [dolr.gov.in](https://dolr.gov.in/) | National Land Record Modernization Programme |
+| **PM-KISAN Samman Nidhi Portal** | [pmkisan.gov.in](https://pmkisan.gov.in/) | Direct income support for agricultural titleholders |
+| **PMFBY Crop Insurance Portal** | [pmfby.gov.in](https://pmfby.gov.in/) | National crop insurance claim and coverage tracking |
 
 ---
 
-## 📜 License
+## 📜 License & Credits
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is open-source under the [MIT License](LICENSE).
 
-Built with dedication by **N. Akshit Vinay** and open-source contributors.  
+Developed and architected by **N. Akshit Vinay** with open-source contributions.  
 *Empowering agricultural stewardship through selfless spatial intelligence.*

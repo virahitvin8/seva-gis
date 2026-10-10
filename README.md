@@ -71,6 +71,10 @@
 
 <div align="center">
 
+[![Architecture diagram of virahitvin8/seva-gis](https://gitdiagram.com/virahitvin8/seva-gis/diagram.png)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=picture)
+
+<br/><br/>
+
 [![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=badge)
 
 </div>

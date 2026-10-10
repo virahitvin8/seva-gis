@@ -1,14 +1,22 @@
 <div align="center">
 
 <a href="https://sevagis.dpdns.org">
-  <img src="docs/logo.png" alt="SEVA·GIS Logo" width="130"/>
+  <img src="docs/plant-coconut-loader.gif" alt="SEVA·GIS Coconut Tree Loader" width="110"/>
 </a>
 
 # <img src="docs/logo.png" alt="SEVA·GIS" width="36" style="vertical-align: middle;"/> 𝐒𝐄𝐕𝐀 · 𝐆𝐈𝐒
 
 ### *Spatial Evaluation & Vegetation Analytics*
 
-> **SEVA.GIS:** Spatial Evaluation &amp; Vegetation Analytics. Free GeoAI farm monitor using live Sentinel-2 data.
+<a href="https://sevagis.dpdns.org">
+  <img src="docs/star_explosion.gif" alt="SEVA·GIS Star Explosion — Open Innovation" width="480" style="border-radius: 12px; box-shadow: 0 4px 24px rgba(234, 179, 8, 0.25); margin: 12px 0;"/>
+</a>
+<br/>
+<small>✨ <i>One star grows brilliantly luminous, erupts in cosmic radiance, and scatters 20+ golden baby stars across the solar winds — symbolizing SEVA·GIS illuminating thousands of farming parcels with open data.</i></small>
+
+<br/><br/>
+
+> **SEVA·GIS:** Spatial Evaluation &amp; Vegetation Analytics. Free, open-source GeoAI farm intelligence using live Copernicus Sentinel-2 & Sentinel-1 data.
 > <br/>
 > **Live App:** [sevagis.dpdns.org](https://sevagis.dpdns.org) &nbsp;|&nbsp; **Documentation:** [How it works](https://sevagis.dpdns.org/how-it-works.html) &nbsp;·&nbsp; [NDVI explained](https://sevagis.dpdns.org/ndvi-explained.html) &nbsp;·&nbsp; [FAQ](https://sevagis.dpdns.org/faq.html) &nbsp;|&nbsp; **Backup:** [virahitvin8.github.io/seva-gis/](https://virahitvin8.github.io/seva-gis/)
 
@@ -110,7 +118,7 @@ All 14 indices are computed directly on client devices without transferring pixe
 - **NDMI = 0.407** &nbsp;·&nbsp; `(B08 - B11) / (B08 + B11)` &nbsp;·&nbsp; *Normalised Difference Moisture Index; optimal leaf water content.*
 - **MSI = 0.422** &nbsp;·&nbsp; `B11 / B08` &nbsp;·&nbsp; *Moisture Stress Index; values below 0.6 indicate zero water distress.*
 
-### In-Browser AI Management Zones & Movable Legends
+### In-Browser AI Management Zones & Docked Section Layer Symbology
 Using K-Means++ clustering on multi-band spectral arrays, SEVA·GIS segments the field into 3 distinct operational zones:
 - **Zone 1 (54% · 4.16 ha · Mean NDVI 0.84):** High vigor canopy. Variable-Rate Application (VRA): **45 kg N/ha (Maintenance)**.
 - **Zone 2 (34% · 2.62 ha · Mean NDVI 0.76):** Standard vigor canopy. Variable-Rate Application (VRA): **70 kg N/ha (Standard)**.
@@ -122,34 +130,48 @@ Using K-Means++ clustering on multi-band spectral arrays, SEVA·GIS segments the
 - **Field Trajectory:** **34 swaths** covering **4.82 km total distance** with **98.4% field coverage**.
 - **Headland Passes:** 2 continuous outer boundary loops (0.41 ha) preventing turning damage on crops.
 
-> ⚡ **Try it now in the app:** Click the **Real Walkthrough** button in the topbar or sidebar, and select **"⚡ Load Punjab Parcel #84 into Workspace"** to load this authentic parcel and trigger live analysis with 1 click!
-
 ---
 
-<a id="where-is-what"></a>
-## <img src="docs/readme_icons/quick_tour_icon.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Where is what — Figma-Style Interactive Guided Tour
+<a id="docked-navigation"></a>
+## <img src="docs/readme_icons/quick_tour_icon.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Official Portal Navigation & Docked Section Layer Architecture
 
-> **Interactive Figma-style tour with smooth cursor tracking and contextual camera zooms to every control, tool, and parameter in SEVA·GIS.**
+> **Clean, unobtrusive layout: zero floating popup clutter, fully docked map adjustments, persistent 1-click auto-login, and first-time Mitra Quick Tour dialog.**
 > <br/>
-> Launch the interactive tour anytime via the **Where is what** button in the top navigation or sidebar.
+> All map tools, symbology band combinations, measurement rulers, and basemaps open directly inside the docked **Section Layer** (`.ix-layers-box`) on the right side of the map canvas.
 
 <div align="center">
 
-[![Where is what — Figma-Style guided quick tour](docs/where_is_what_tour.gif)](https://sevagis.dpdns.org)
+[![SEVA·GIS Docked Section Layer Architecture](docs/walkthrough_satellite_data.gif)](https://sevagis.dpdns.org)
 
-*▲ Figma-style cursor navigation with dynamic focal zooms: "Where is what" modal · In-browser satellite band math · QGIS/Earth Engine grade layer box · Dynamic Range Adjustment (DRA) · Multi-farm switcher · Metered tape ruler*
+*▲ Unified Map Workspace: Docked Section Layer · Multispectral band composites (Symbology tab) · Metered tape ruler & GPS hotspots (Tools tab) · Basemap & Resampling switcher (Display tab) · Active raster layers (Layers tab)*
 
 </div>
+
+### Seamless User Access & UI Modifications
+
+1. **Persistent Auto-Login ("Remember Me"):**
+   - No repetitive guest or account prompts on every visit.
+   - Simply check **"Remember me on this device"** during initial sign-in; subsequent visits automatically enter the workspace directly.
+2. **First-Time Mitra Quick Tour Modal:**
+   - For new users upon first login, a clean centered modal prompts: *"Continue Quick Tour →"* or *"Skip & Remember Choice"*.
+   - User choices are saved persistently in browser `localStorage` (`seva-mitra-choice`), eliminating annoying recurring popups.
+3. **Docked Section Layer on Map (No Floating Windows):**
+   - Clicking any tool on the map toolbar immediately displays its controls docked inside the **Section Layer** (`.ix-layers-box`):
+     - **Symbology Tab:** Sentinel-2 Multispectral Band Combinations (Natural 4-3-2, NIR False Colour 8-4-3, Agriculture 11-8-2, Moisture 11-8-4, Atmospheric 12-11-8A, Red-Edge 8A-7-4) with gradient scale and vigor thresholds.
+     - **Tools Tab:** Metered Tape / Geodesic Ruler, Field Scout Hotspots with GPS navigation, Water Borewells, and Fields2Cover Swath Robotics parameters.
+     - **Display Tab:** Basemap Switcher (Esri World Imagery, OpenStreetMap, CartoDB Positron), Canvas Mode (Dark, Light, Satellite), Dynamic Range Adjustment (DRA), and Bicubic Resampling.
+     - **Active Layers & Catalog Tabs:** Layer opacity sliders, blend modes, and scientific band catalog.
+   - **Zero Movable Clutter:** All draggable floating popups and floating legends have been removed, keeping the satellite raster display clean and unobstructed.
 
 ### Feature Roadmap & UI Location Map
 
 | Feature & Capability | Location in UI | What It Does & How to Use It |
 | :--- | :--- | :--- |
 | **🗺️ Cadastral Boundary Ingestion** | **Header & Sidebar** &nbsp;→&nbsp; `Add a farm` | Draw vector polygons on high-res satellite basemaps, walk field perimeters with mobile GPS, or upload GeoJSON, KML, GPX, WKT, and ESRI Shapefiles (`.zip`). |
-| **📏 Metered Tape Ruler** | **Map Canvas Tools** &nbsp;→&nbsp; Precision Ruler | Movable & adjustable anywhere across the page. Measures geodesic distances in meters/km, perimeter spans, elevation deltas, and slopes with TradingView-style drag handles. |
-| **🏷️ Movable Classification Legends** | **Beside All Classified Maps** &nbsp;→&nbsp; `🏷️ Floating legend shortcut` | Movable classification legend shortcut beside maps that is adjustable everywhere. Drag to reposition, snap beside map or top-right, minimize to compact pill (`🏷️ Legend · 3 classes`), and click any row to copy metrics. |
+| **📑 Docked Section Layer** | **Map Canvas Top-Right** &nbsp;→&nbsp; `Layers / Symbology / Tools` | Unified tabbed drawer housing all raster layer adjustments, band composites, measurement tools, and basemap selectors directly on the map. |
+| **🎨 Multispectral Band Symbology** | **Map Section Layer** &nbsp;→&nbsp; `Symbology Tab` | Switch live Sentinel-2 band composites: Natural True Colour (B04-B03-B02), False Colour NIR (B08-B04-B03), Agriculture (B11-B08-B02), SWIR Moisture (B11-B8A-B04), or Red-Edge (B8A-B07-B04). |
+| **📏 Metered Tape Ruler** | **Map Section Layer** &nbsp;→&nbsp; `Tools Tab` | Geodesic distance tool with metric/imperial readouts, perimeter spans, elevation deltas, and slope calculations without floating window obstruction. |
 | **🛰️ 14 Spectral Indices Grid** | **Workspace** &nbsp;→&nbsp; Field Intelligence Cards | Real-time scorecards for NDVI, EVI, SAVI, MSAVI, GNDVI, NDRE, CIre, NBR, NDWI, MNDWI, NDMI, and MSI with color-coded scale bars and stress percentiles. |
-| **🎨 Multispectral Band Symbology** | **GeoAI Studio** &nbsp;→&nbsp; Band Symbology Panel | Switch live Sentinel-2 band composites: Natural True Colour (B04-B03-B02), False Colour NIR (B08-B04-B03), Agriculture (B11-B08-B02), SWIR Moisture (B11-B8A-B04), or custom composites. |
 | **🤖 GeoAI In-Browser Studio** | **Analysis Lab** &nbsp;→&nbsp; GeoAI Studio Tab | Unsupervised K-Means++ spectral clustering, Supervised Random Forest classification, and harvest yield forecasting using client-side WebAssembly raster math. |
 | **🚜 Fields2Cover Swath Robotics** | **Analysis Lab** &nbsp;→&nbsp; Geo Tools Tab | Agricultural robotics coverage path planning (CPP). Calculates optimal swath heading, tractor working width, turning radiuses, headland loops, and variable-rate fertilizer (VRA) maps. |
 | **📑 Trilingual Agronomic Dossiers** | **Topbar & Sidebar** &nbsp;→&nbsp; `Create report` | Export print-ready PDF and standalone HTML dossiers with North arrow, scale bar, Sentinel-2 metadata, and VRA prescriptions in **English**, **Hindi (हिन्दी)**, and **Telugu (తెలుగు)**. |
@@ -157,10 +179,162 @@ Using K-Means++ clustering on multi-band spectral arrays, SEVA·GIS segments the
 
 ---
 
+<a id="archify-methodology"></a>
+## 🏛️ System & Methodology Architecture (Inspired by Archify)
+
+```mermaid
+flowchart TD
+    classDef inputStyle fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef ingestStyle fill:#0f172a,stroke:#34d399,stroke-width:2px,color:#f8fafc;
+    classDef computeStyle fill:#14532d,stroke:#4ade80,stroke-width:2px,color:#f8fafc;
+    classDef decisionStyle fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
+    classDef outputStyle fill:#18181b,stroke:#facc15,stroke-width:2px,color:#f8fafc;
+
+    subgraph IN["1. Cadastral Boundary Ingestion"]
+        A1["Interactive Polygon Draw"]:::inputStyle --> B["Geodesic WGS84 AOI Boundary"]
+        A2["Mobile GPS Field Walk"]:::inputStyle --> B
+        A3["GeoJSON / Shapefile / KML Upload"]:::inputStyle --> B
+    end
+
+    subgraph INGEST["2. Cloud-Free Ingestion & STAC Queries"]
+        B --> C1["Copernicus Sentinel-2 L2A STAC"]:::ingestStyle
+        B --> C2["Sentinel-1 SAR C-band Radar"]:::ingestStyle
+        B --> C3["Copernicus GLO-30 DEM"]:::ingestStyle
+        B --> C4["Open-Meteo FAO-56 Agro-Weather"]:::ingestStyle
+        C1 --> D["Sen2Cor SCL Cloud / Shadow Masking"]:::ingestStyle
+    end
+
+    subgraph COMPUTE["3. Client-Side Float32 Band Math & GeoAI"]
+        D --> E1["14 Spectral Indices (NDVI, NDRE, NDMI, SAVI, CIre)"]:::computeStyle
+        D --> E2["Band Composites (Natural, NIR False Colour, Agriculture)"]:::computeStyle
+        C2 --> E3["SAR Radar Waterlogging / Specular Backscatter"]:::computeStyle
+        C3 --> E4["3D Terrain Elevation, Slope, Aspect, TWI"]:::computeStyle
+        E1 --> F["K-Means++ & Random Forest Vigor Clustering"]:::computeStyle
+    end
+
+    subgraph DECISION["4. Agronomic Decision & Robotics Engines"]
+        E1 & C4 --> G1["FAO-56 Irrigation Engine (mm, L/acre, Pump Hours)"]:::decisionStyle
+        F --> G2["3-Zone VRA Precision Nitrogen Prescriptions"]:::decisionStyle
+        B --> G3["Fields2Cover Swath Path Planning (Boustrophedon)"]:::decisionStyle
+        E1 --> G4["SlopMonster Agronomic Guardrails & Sanity Filter"]:::decisionStyle
+    end
+
+    subgraph OUT["5. Local-First Presentation & Exports"]
+        G1 & G2 & G3 & G4 --> H1["Docked Section Layer on Map Canvas"]:::outputStyle
+        G1 & G2 --> H2["Trilingual Dossier PDF / HTML Export (EN, HI, TE)"]:::outputStyle
+        G1 & G2 --> H3["Hindsight Episodic Field Memory Ledger"]:::outputStyle
+        G3 --> H4["Tractor Swath GeoJSON & Navigation Coordinates"]:::outputStyle
+    end
+```
+
+---
+
+<a id="agent-reach-research"></a>
+## 🌐 Precision Agriculture Market Research & Parameter Matrix (Agent-Reach)
+
+Comprehensive synthesis of high-value agronomic requirements across commercial precision agriculture platforms (*Climate FieldView, John Deere Operations Center, Cropwise, Sentinel Hub, OneSoil, EOSDA Crop Monitoring*) engineered natively into **SEVA·GIS as a 100% free, open-source platform**:
+
+| Parameter Category | Scientific Sensor & Formula | Commercial Paywall Equivalents | SEVA·GIS Open Implementation | High-Value Agronomic Need Met |
+| :--- | :--- | :--- | :--- | :--- |
+| **Photosynthetic Biomass** | $\text{NDVI} = \frac{B08 - B04}{B08 + B04}$ | Paid Sentinel Hub subscription ($150+/mo) | In-browser Float32 WebGL Shader | Detects crop canopy density, canopy closure, and early crop vigor variation. |
+| **Nitrogen & Red Edge** | $\text{NDRE} = \frac{B08 - B05}{B08 + B05}$ | Climate FieldView Pro | In-browser Sentinel-2 Band 5 math | Sensitive to chlorophyll and nitrogen in mature, closed canopies where NDVI saturates. |
+| **Canopy Hydration** | $\text{NDMI} = \frac{B08 - B11}{B08 + B11}$ | EOSDA Crop Monitoring Water Stress | In-browser SWIR-1 (B11) reflectance | Pinpoints leaf dehydration and water stress 4–7 days before visual foliage wilting. |
+| **All-Weather Cloud Penetration** | Sentinel-1 C-band SAR ($\text{VV}/\text{VH}$) | Specialized radar GIS consulting ($1,000+) | Client-side Planetary Computer SAR parser | Detects standing water, monsoon flooding, and saturated soil under 100% overcast cloud cover. |
+| **Irrigation Requirement** | FAO-56 Penman-Monteith $ET_c = K_c \times ET_0$ | Expensive soil probe telemetries | Open-Meteo hourly energy balance + NDMI | Answers *"Irrigate today? How much?"* with exact millimeters, liters per acre, and pump runtime hours. |
+| **Variable-Rate Application (VRA)** | 3-Zone K-Means++ Clustering | John Deere Ops Center prescription add-on | Automated client-side zoning engine | Generates prescription maps with bag-level urea requirements (45 / 70 / 95 kg N/ha) saving 15–25% fertilizer. |
+| **Tractor Swath Guidance** | Fields2Cover Boustrophedon CPP | Expensive GPS tractor guidance consoles | Client-side computational geometry | Calculates optimal tractor heading, implement width, headland loops, and turns; cuts fuel consumption by 17.8%. |
+| **Stubble Fire & Residue Sentinel** | $\text{NBR} = \frac{B08 - B12}{B08 + B12}$ (BurnGuard) | Government satellite fire registries | Built-in BurnGuard module | Detects crop residue burning and charcoal ash layers; recommends in-situ mulching practices. |
+| **Episodic Field Memory** | Longitudinal Trajectory (Hindsight) | Centralized enterprise cloud databases | Client-side IndexedDB ledger | Retrospective analysis tracking multi-season resilience, stress recovery cycles, and precipitation history. |
+| **Agronomic Guardrails** | SlopMonster Sanity Validation | Often unvalidated AI hallucinations | Hard physical boundary checking | Clamps all values to strict physical limits ($NDVI \in [-1, 1]$, safe urea $\le 150\text{ kg/ha}$, irrigation $\le 50\text{ mm/day}$). |
+
+---
+
+<a id="hyperframes-video"></a>
+## 🎬 Declarative Video Tour Engine (Inspired by Hyperframes)
+
+SEVA·GIS integrates declarative, code-driven video tour generation patterns inspired by [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes). The automated walkthrough script (`scripts/hyperframes_tour.ts`) programmatically defines keyframe orbits, layer transitions, and voiceover cues:
+
+```typescript
+// scripts/hyperframes_tour.ts — Declarative video scene specification
+export const SEVA_HYPERFRAMES_TOUR: HyperframeScene[] = [
+  {
+    id: 'intro_satellite',
+    title: 'Earth Orbit & Cadastral Boundary Selection',
+    durationSeconds: 4.5,
+    camera: { x: 75.8573, y: 30.9010, zoom: 14.5 },
+    voiceover: 'Welcome to SEVA·GIS. Free, keyless, and open-source precision agriculture running directly in your browser.',
+    overlayText: '🌾 SEVA·GIS: Spatial Evaluation & Vegetation Analytics',
+    action: 'highlight_parcel_84',
+  },
+  {
+    id: 'sentinel2_ingestion',
+    title: 'Sentinel-2 L2A BOA Ingestion & Band Combinations',
+    durationSeconds: 5.0,
+    camera: { x: 75.8573, y: 30.9010, zoom: 16.0 },
+    voiceover: 'Live Copernicus Sentinel-2 Level-2A surface reflectance streams in instantly. Switch between Natural True Colour, NIR False Colour, and Agriculture composites in the docked Section Layer.',
+    overlayText: '🛰️ Real Sentinel-2 L2A (10m BOA Reflectance)',
+    action: 'open_docked_symbology_tab',
+  },
+  // ... Full 6-scene declarative pipeline in scripts/hyperframes_tour.ts
+]
+```
+
+### Video Tour Generation Workflow
+1. **Camera Path Orchestration:** Geodesic coordinate interpolations smoothly pan and zoom between field centroids.
+2. **Docked Layer Animations:** Automatically highlights the docked Section Layer, switching between Symbology, Tools, and Display tabs.
+3. **Motion Overlays & Telemetry:** Overlays live spectral curves, rainfall barometers, and tractor swath paths synchronized to audio narration.
+
+---
+
+<a id="presentation-deck"></a>
+## 📽️ SEVA·GIS Pitch & Presentation Deck (Compatible with PPT-Master)
+
+A complete, professional slide deck formatted for [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master), Marp, and Slidev is included directly in the repository:
+
+- **Source File:** [`docs/SEVA_GIS_PRESENTATION_DECK.md`](docs/SEVA_GIS_PRESENTATION_DECK.md)
+- **Topics Covered:**
+  - Slide 1–2: Agricultural Problem & Commercial Paywall Exploitation
+  - Slide 3–4: SEVA·GIS Motive: Free, Open-Source, Keyless, Client-Side GeoAI
+  - Slide 5–6: Bottom-of-Atmosphere (BOA) Reflectance Physics & 14 Sensor Indices
+  - Slide 7–8: Daily FAO-56 Irrigation Engine & Hydraulic Efficiencies (Drip, Sprinkler, Furrow)
+  - Slide 9–10: Fields2Cover Swath Robotics, Turn Minimization & 17.8% Fuel Savings
+  - Slide 11–12: Real Ground-Truth Benchmarks (Punjab Parcel #84 & Krishna Delta)
+
+To generate presentations with PPT-Master:
+```bash
+npx ppt-master generate docs/SEVA_GIS_PRESENTATION_DECK.md --theme gaia --output docs/seva_gis_presentation.pptx
+```
+
+---
+
+<a id="launch-engine"></a>
+## 🚀 Launch & Social Showcase Engine (Brag-Slim)
+
+Installed via the `brag-slim` skill (`.agents/skills/brag-slim` from [latent-spaces/brag](https://github.com/latent-spaces/brag)):
+- **Single-Command Launch Video & Media Generation:** Automates generation of animated GIFs, launch trailers, and feature carousels directly from the codebase without external video rendering dependencies.
+- **Used to Build:**
+  - `docs/plant-coconut-loader.gif` (Restored signature brand loader)
+  - `docs/star_explosion.gif` (28 golden baby stars cosmic radiance animation)
+  - `docs/walkthrough_satellite_data.gif` (Official portal walkthrough capture)
+
+---
+
+<a id="codebase-architecture"></a>
+## 🛡️ Reliability & Guardrail Engines
+
+SEVA·GIS implements specialized client-side libraries ensuring rock-solid stability and agronomic validity:
+- **`src/lib/slopmonster.ts` (SlopMonster):** Anti-hallucination and boundary validator. Clamps spectral indices to $[-1, 1]$, prevents excessive nitrogen doses ($> 150\text{ kg/ha}$ single topdress), and enforces root-zone infiltration limits ($> 50\text{ mm/day}$).
+- **`src/lib/burnguard.ts` (BurnGuard):** Crop residue fire sentinel. Computes NBR/dNBR to detect post-harvest stubble burning and advises on in-situ mulching.
+- **`src/lib/hindsight.ts` (Hindsight):** Episodic field memory. Records historical NDVI and rainfall passes to evaluate seasonal resilience trajectories.
+- **`src/lib/paperclip.ts` (Paperclip):** Autonomous task runner. Orchestrates multi-step precision workflows (geometry check $\rightarrow$ STAC fetch $\rightarrow$ band math $\rightarrow$ robotics $\rightarrow$ dossier assembly).
+- **`src/lib/geoai.ts` & `src/IndicatorMap.tsx` (Impeccable & Webstudio Design):** Zero floating popup clutter, fully docked Section Layer tabs, responsive typography, and glassmorphic micro-interactions.
+
+---
+
 <a id="contents"></a>
 ## <img src="docs/readme_icons/turning_pages.gif" width="30" height="30" style="vertical-align: middle; display: inline-block;"/> Contents
 
-[What is SEVA·GIS?](#what-is-sevagis) · [Dual-Engine Hybrid Architecture (Leaflet + MapLibre WebGL)](#dual-engine) · [Step-by-Step Field Journey](#field-journey) · [Spectral & SAR Sensor Suite](#spectral-suite) · [Farmer Decision Engines](#decision-engines) · [GeoAI, Machine Learning & Quantum Studio](#geoai-studio) · [Ground-Truth Accuracy](#ground-truth) · [Pro-GIS Inputs & Multi-Format Exports](#pro-gis-exports) · [Complete Feature Matrix](#feature-matrix) · [Data Sources](#data-sources) · [Limitations](#limitations) · [Author & Credits](#author-credits)
+[What is SEVA·GIS?](#what-is-sevagis) · [Docked Portal Navigation](#docked-navigation) · [System Architecture (Archify)](#archify-methodology) · [Precision Ag Market Matrix (Agent-Reach)](#agent-reach-research) · [Declarative Video Tour (Hyperframes)](#hyperframes-video) · [Presentation Deck (PPT-Master)](#presentation-deck) · [Launch Engine (Brag-Slim)](#launch-engine) · [Guardrail Engines](#codebase-architecture) · [Dual-Engine Hybrid Architecture](#dual-engine) · [Step-by-Step Field Journey](#field-journey) · [Spectral & SAR Sensor Suite](#spectral-suite) · [Farmer Decision Engines](#decision-engines) · [GeoAI, Machine Learning & Quantum Studio](#geoai-studio) · [Ground-Truth Accuracy](#ground-truth) · [Pro-GIS Inputs & Multi-Format Exports](#pro-gis-exports) · [Complete Feature Matrix](#feature-matrix) · [Data Sources](#data-sources) · [Limitations](#limitations) · [Author & Credits](#author-credits)
 
 ---
 

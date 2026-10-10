@@ -117,8 +117,8 @@ export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint
   }
   sctx.putImageData(img, 0, 0)
 
-  // Render at high-DPI (up to 1024px) to eliminate pixel blur and match QGIS / Earth Engine clarity
-  const maxDim = 1024
+  // Render at optimal DPI (up to 512px) for crisp raster clarity while preventing GPU memory exhaustion
+  const maxDim = 512
   const scale = Math.max(1, Math.floor(maxDim / Math.max(w, h)))
   const big = document.createElement('canvas')
   big.width = w * scale
@@ -131,7 +131,7 @@ export function paintClipped(w: number, h: number, bbox: Bbox, ring: Ring, paint
   ctx.imageSmoothingEnabled = smooth
   if (smooth) ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(small, 0, 0, big.width, big.height)
-  if (sharpen > 0) unsharp(ctx, big.width, big.height, Math.min(2, Math.max(1, Math.round(scale / 2))), Math.min(sharpen, 1.2))
+  if (sharpen > 0 && big.width <= 512) unsharp(ctx, big.width, big.height, Math.min(2, Math.max(1, Math.round(scale / 2))), Math.min(sharpen, 1.0))
   return big.toDataURL('image/png')
 }
 
@@ -164,7 +164,7 @@ export function paintRaw(w: number, h: number, bbox: Bbox, paint: Painter, smoot
   }
   sctx.putImageData(img, 0, 0)
 
-  const maxDim = 1024
+  const maxDim = 512
   const scale = Math.max(1, Math.floor(maxDim / Math.max(w, h)))
   const big = document.createElement('canvas')
   big.width = w * scale

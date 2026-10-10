@@ -65,7 +65,7 @@ export default function NearbyLayer({ map, farm, open, onClose, mine }: { map: L
   }, [map, feats, prefs, ring, JSON.stringify(mine)])
 
   const toggle = (id: CatId) => setPrefs(p => ({ ...p, on: p.on.includes(id) ? p.on.filter(x => x !== id) : [...p.on, id] }))
-  const all = (kind: 'water' | 'power', on: boolean) => setPrefs(p => { const ids = CATS.filter(c => c.kind === kind).map(c => c.id); return { ...p, on: on ? [...new Set([...p.on, ...ids])] : p.on.filter(x => !ids.includes(x)) } })
+  const all = (kind: 'water' | 'power' | 'agri', on: boolean) => setPrefs(p => { const ids = CATS.filter(c => c.kind === kind).map(c => c.id); return { ...p, on: on ? [...new Set([...p.on, ...ids])] : p.on.filter(x => !ids.includes(x)) } })
   if (!open) return null
   const total = feats?.length ?? 0
   return <div className="ix-panel nb-panel" role="dialog" aria-label="Nearby water and power">

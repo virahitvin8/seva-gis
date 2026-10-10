@@ -209,24 +209,62 @@ function Tour({ onClose }: { onClose: () => void }) {
 }
 
 export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
-  const [state, setState] = useState<'ask' | 'tour' | 'off'>(() => (sessionStorage.getItem('seva-mitra-asked') ? 'off' : 'ask'))
-  useEffect(() => { sessionStorage.setItem('seva-mitra-asked', '1') }, [])
+  // Use localStorage so choice persists across sessions (not just current tab)
+  const [state, setState] = useState<'ask' | 'tour' | 'off'>(() => {
+    const choice = localStorage.getItem('seva-mitra-choice')
+    if (choice === 'done') return 'off'
+    return 'ask'
+  })
+
+  const handleSkip = () => {
+    localStorage.setItem('seva-mitra-choice', 'done')
+    setState('off')
+  }
+
+  const handleTour = () => {
+    localStorage.setItem('seva-mitra-choice', 'done')
+    setState('tour')
+  }
+
   useEffect(() => {
     const open = () => setState('tour')
     addEventListener('seva-tour', open)
     return () => removeEventListener('seva-tour', open)
   }, [])
+
   if (state === 'tour') return <Tour onClose={() => { scrollTo({ top: 0, behavior: 'smooth' }); setState('off') }} />
   const who = guest ? 'there' : name.split(' ')[0]
   return <>
-    {state === 'ask' && <aside className="mi-ask" role="dialog" aria-label="Mitra">
-      <MitraAvatar size={30} />
-      <div>
-        <b>Mitra</b>
-        <p>Hi {who}, I'm Mitra. Not sure where to begin? I can give you a quick tour of SEVA.GIS.</p>
-        <div className="mi-row"><button className="mi-go" onClick={() => setState('tour')}>Show me around</button><button className="mi-ghost" onClick={() => setState('off')}>Skip</button></div>
+    {state === 'ask' && (
+      <div className="mi-ask-backdrop" role="dialog" aria-modal="true" aria-label="Mitra Quick Tour">
+        <aside className="mi-ask-card">
+          <div className="mi-ask-avatar-wrap">
+            <MitraAvatar size={52} />
+            <span className="mi-ask-badge">Mitra Agritech Assistant</span>
+          </div>
+          <div className="mi-ask-content">
+            <h3>Welcome to SEVA·GIS, {who}!</h3>
+            <p>
+              Your open-access precision agriculture &amp; satellite GIS portal is ready. Would you like a 60-second interactive tour of your farm tools, 10m Sentinel-2 layers, and crop analytics?
+            </p>
+            <div className="mi-ask-chips">
+              <span>🛰️ Sentinel-2 10m</span>
+              <span>🌱 14 Spectral Indices</span>
+              <span>🚜 Swath Robotics</span>
+            </div>
+            <div className="mi-ask-row">
+              <button className="mi-ask-btn-continue" onClick={handleTour}>
+                Continue Quick Tour →
+              </button>
+              <button className="mi-ask-btn-skip" onClick={handleSkip}>
+                Skip &amp; Remember Choice
+              </button>
+            </div>
+            <small className="mi-ask-footnote">Your choice is remembered. You can reopen Mitra anytime from the top bar.</small>
+          </div>
+        </aside>
       </div>
-    </aside>}
+    )}
   </>
 }
 

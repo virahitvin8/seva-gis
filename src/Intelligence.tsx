@@ -1,6 +1,6 @@
 import LogoLoader from './LogoLoader'
 import SourceNote, { type SourceKey } from './SourceNote'
-import { useEffect, useMemo, useState } from 'react'
+import { Component, type ErrorInfo, type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Bug, CalendarRange, Film, GitCompareArrows, Layers3, RefreshCw, Sparkles, Sprout } from 'lucide-react'
 import { fetchSoil, fetchWeather } from './lib/agro'
 import { RISK_BANDS, changeAnalysis, hotspots, landCover, loadHistory, managementZones, pestRisks, phenology, riskBand, sceneNdvi, type ClassRow, type MapResult } from './lib/gee'
@@ -10,6 +10,30 @@ import { ScaleBox } from './Scale'
 import Studio from './Studio'
 import Timelapse from './Timelapse'
 import { MapFrame } from './LabMap'
+
+class StudioErrorBoundary extends Component<{ children: ReactNode; farmName: string }, { hasError: boolean; errorMsg: string }> {
+  state = { hasError: false, errorMsg: '' }
+  static getDerivedStateFromError(error: unknown) {
+    return { hasError: true, errorMsg: error instanceof Error ? error.message : 'Raster rendering pause' }
+  }
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    console.warn('[StudioErrorBoundary] Caught GeoAI Studio error:', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="ag-empty" style={{ padding: '24px 16px', textAlign: 'center' }}>
+          <p style={{ fontWeight: 600, color: 'var(--primary)' }}>GeoAI Studio experienced a temporary rendering pause.</p>
+          <p style={{ fontSize: 12, color: 'var(--muted)', margin: '6px 0 14px' }}>{this.state.errorMsg}</p>
+          <button className="primary compact" onClick={() => this.setState({ hasError: false, errorMsg: '' })}>
+            Retry GeoAI Studio
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 type Props = { farm: FarmData & { id: string; name: string; crop?: string } }
 type Tab = 'map' | 'plan' | 'change' | 'film' | 'pest' | 'ai'
@@ -229,7 +253,11 @@ export default function Intelligence({ farm }: Props) {
       {tab === 'change' && <ChangeTab farm={farm}/>}
       {tab === 'film' && <Timelapse farm={farm}/>}
       {tab === 'pest' && <PestTab farm={farm} scene={scene}/>}
-      {tab === 'ai' && <Studio farm={farm} scene={scene}/>}
+      {tab === 'ai' && (
+        <StudioErrorBoundary farmName={farm.name}>
+          <Studio farm={farm} scene={scene}/>
+        </StudioErrorBoundary>
+      )}
     </div>
   </section>
 }

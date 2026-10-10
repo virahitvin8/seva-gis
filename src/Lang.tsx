@@ -141,13 +141,8 @@ export default function Lang() {
         }
       })
     } else {
-      // Clean up any residual translate cookies so English remains intact
+      // Clean up any residual translate cookies so English remains pure and fast
       clearAllGoogleTransCookies()
-      // Pre-load translator quietly in background so language changes are instant
-      const timer = setTimeout(() => {
-        ensureGoogleTranslateLoaded()
-      }, 1500)
-      return () => clearTimeout(timer)
     }
   }, [])
 
@@ -192,10 +187,9 @@ export default function Lang() {
         }
       } catch {}
 
-      // 4. Clean reload restores pure un-mutated English DOM while keeping user 100% logged in
-      setTimeout(() => {
-        window.location.reload()
-      }, 120)
+      // 4. Without reload: just clear cookies and let Google Translate settle naturally
+      // (window.location.reload() was causing 1-2s blank flash every 2-3 minutes)
+      clearAllGoogleTransCookies()
       return
     }
 
@@ -222,10 +216,7 @@ export default function Lang() {
       attempts++
       if (applyToCombo() || attempts > 20) {
         clearInterval(pollInterval)
-        if (attempts > 20) {
-          // Fallback safe reload (session is fully preserved)
-          window.location.reload()
-        }
+        // No reload fallback - just let it settle, avoids blank screen
       }
     }, 120)
   }

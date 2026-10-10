@@ -5,9 +5,8 @@ import { LANDCOVER } from './lib/gee'
 import { METHODS, superviseAuto, type Method, autoClassify, sharpTrueColour, download, landCoverLabels, trueColour, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { MapFrame } from './LabMap'
-import FloatingLegend from './FloatingLegend'
 
-type Farm = FarmData & { id: string; name: string }
+type Farm = FarmData & { id: string; name: string; crop?: string; rain?: number }
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
@@ -39,8 +38,16 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     setShowCustom(false)
   }, [scene?.id, farm.id])
 
-  const ring = farmRing(farm)
-  useEffect(() => { let dead = false; setSharp(''); sharpTrueColour(farmRing(farm)).then(u => { if (!dead) setSharp(u) }).catch(() => {}); return () => { dead = true } }, [farm.id, farm.lat, farm.lon, farm.area, farm.polygon?.length])
+  const ring = useMemo(() => farmRing(farm), [farm.id, farm.lat, farm.lon, farm.area, farm.polygon])
+
+  // Only fetch and stitch sub-metre satellite imagery when user explicitly selects 4K picture mode
+  useEffect(() => {
+    if (picMode !== '4k') return
+    let dead = false
+    setSharp('')
+    sharpTrueColour(ring).then(u => { if (!dead) setSharp(u) }).catch(() => {})
+    return () => { dead = true }
+  }, [picMode, farm.id, ring])
 
   const activeCombo = useMemo(() => {
     return BAND_COMBINATIONS.find(c => c.id === selectedCombo) || null
@@ -54,8 +61,13 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   // Live satellite image composite: clipped to farm or RAW unclipped tile on black background
   const photo = useMemo(() => {
     if (!g) return ''
-    const isRaw = picMode === 'raw'
-    return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2], isRaw)
+    try {
+      const isRaw = picMode === 'raw'
+      return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2], isRaw)
+    } catch (e) {
+      console.warn('[GeoAI Studio] Composite error:', e)
+      return ''
+    }
   }, [g, ring, activeBands, picMode])
 
   const resetToDefaultSymbology = () => {
@@ -68,8 +80,25 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     }, 600)
   }
 
-  const auto = useMemo(() => (g && method === 'kmeans' ? autoClassify(g, ring, k) : null), [g, k, method])
-  const sup = useMemo(() => (g && method !== 'kmeans' ? superviseAuto(g, ring, method) : null), [g, method])
+  const auto = useMemo(() => {
+    if (!g || method !== 'kmeans') return null
+    try {
+      return autoClassify(g, ring, k)
+    } catch (e) {
+      console.warn('[GeoAI Studio] autoClassify error:', e)
+      return null
+    }
+  }, [g, ring, k, method])
+
+  const sup = useMemo(() => {
+    if (!g || method === 'kmeans') return null
+    try {
+      return superviseAuto(g, ring, method)
+    } catch (e) {
+      console.warn('[GeoAI Studio] superviseAuto error:', e)
+      return null
+    }
+  }, [g, ring, method])
 
   const yieldPred = useMemo(() => {
     const peakNdvi = farm.analysis?.ndvi.mean ?? 0.68
@@ -288,8 +317,8 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
                   fontSize: 9.5,
                   padding: '1px 4px',
                   borderRadius: 4,
-                  background: useS2 && selectedCombo === 'custom' ? 'rgba(255,255,255,0.22)' : '#f1f5f9',
-                  color: useS2 && selectedCombo === 'custom' ? '#ffffff' : '#64748b',
+                  background: picMode !== '4k' && selectedCombo === 'custom' ? 'rgba(255,255,255,0.22)' : '#f1f5f9',
+                  color: picMode !== '4k' && selectedCombo === 'custom' ? '#ffffff' : '#64748b',
                   fontWeight: 700
                 }}
               >
@@ -398,13 +427,6 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             note="Each colour is one land-cover class."
             legend={sup.classes.filter(c => c.pct > 0).map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
           />
-          <FloatingLegend
-            title={`${METHODS.find(m => m.id === method)!.name} Classes`}
-            subtitle="Movable legend shortcut · Drag anywhere"
-            items={sup.classes.filter(c => c.pct > 0).map(c => ({ name: c.name, color: c.color, pct: c.pct, ha: c.ha }))}
-            unit="Supervised classification · share of pixels"
-            defaultPos={{ x: 16, y: 52 }}
-          />
         </div>
       ) : method !== 'kmeans' ? (
         <div className="ge-wait">Not enough clear pixels to classify</div>
@@ -417,13 +439,6 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             title="Automatic classes"
             note="Each colour is one group found by the computer."
             legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
-          />
-          <FloatingLegend
-            title={`K-Means Spectral Clusters (k=${k})`}
-            subtitle="Movable legend shortcut · Drag anywhere"
-            items={auto.clusters.map(c => ({ name: c.name, color: c.color, pct: c.pct, ha: c.ha, note: `NDVI ${f(c.ndvi, 2)}` }))}
-            unit="Unsupervised k-means++ · greenness & area"
-            defaultPos={{ x: 16, y: 52 }}
           />
         </div>
       ) : (

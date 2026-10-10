@@ -112,7 +112,7 @@ export default function WaterPanel({ farm }: Props) {
       ? { tone: 'warn', text: `Irrigate within about ${f(Math.max(water.daysToMad, 0), 0)} days. Crop use over the next 7 days exceeds forecast rain by ${f(water.need7, 0)} mm net.` }
       : { tone: 'good', text: `No irrigation needed this week. Soil water and forecast rain cover the crop's ${f(water.etc7, 0)} mm of demand.` })
 
-  const budget: Param[] | undefined = water && [
+  const budget: Param[] | undefined = water ? [
     { label: 'Rain, last 30 days', value: `${f(w?.rain30 ?? farm.rain ?? 35, 0)} mm`, note: `Last 7 days ${f(w?.rain7 ?? 8)} mm`, tone: 'neutral' },
     { label: 'Crop water use (ETc), next 7 d', value: `${f(water.etc7, 0)} mm`, note: `${crop.name}: Kc ${crop.kc} × ET0 ${f(w?.et0Next7 ?? 35, 0)} mm`, tone: 'neutral' },
     { label: 'Effective rain, next 7 d', value: `${f(water.effRain, 0)} mm`, note: `75% of the ${f(w?.rainNext7 ?? 10, 0)} mm forecast reaches the roots`, tone: 'neutral' },
@@ -121,7 +121,7 @@ export default function WaterPanel({ farm }: Props) {
     { label: 'Irrigation, next 7 d (net)', value: `${f(water.need7, 0)} mm`, note: `Gross ${f(water.need7 / method.eff, 0)} mm at ${Math.round(method.eff * 100)}% ${method.name.toLowerCase()} efficiency`, tone: water.need7 > 20 ? 'warn' : 'neutral' },
     { label: 'Daily crop demand', value: water.area ? `${f(water.demandDay, 0)} m³/day` : `${f(water.dailyEtc / method.eff, 1)} mm/day`, note: water.area ? `${f(water.area, 1)} ha, ${f(water.dailyEtc, 1)} mm/day crop use` : 'Add farm area for volumes', tone: 'neutral' },
     { label: 'Irrigation interval', value: `${f(water.interval, 0)} days`, note: 'Time to use half the available water', tone: 'neutral' },
-  ]
+  ] : undefined
 
   const soilItems: Param[] | undefined = hyd ? [
     { label: 'Soil type', value: hyd.texture, note: `Sand ${f(hyd.sand, 0)} · silt ${f(hyd.silt, 0)} · clay ${f(hyd.clay, 0)} % (0-30 cm)`, tone: 'neutral' },
@@ -177,7 +177,7 @@ export default function WaterPanel({ farm }: Props) {
       et0Next7={w?.et0Next7 ?? 35}
       rainNext7={w?.rainNext7 ?? 10}
       rain30={w?.rain30 ?? 40}
-      soilMoisturePct={w?.soilM.d0_9 ? Math.round(w.soilM.d0_9 * 100) : 25}
+      soilMoisturePct={w?.soilM ? Math.round(w.soilM.d0_1 * 100) : 25}
     />
 
     {verdict && <div className={`wt-verdict ${verdict.tone}`}><Droplets size={18}/>{verdict.text}</div>}

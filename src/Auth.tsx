@@ -44,9 +44,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState<Known[]>(known)
   const [guideModalOpen, setGuideModalOpen] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const pw = useRef<HTMLInputElement>(null)
 
-  async function enter(w: Who) { sessionStorage.removeItem('seva-bye'); await openWorkspace(w.id); setSession(w.id); setWho(w) }
+  async function enter(w: Who) {
+    sessionStorage.removeItem('seva-bye')
+    await openWorkspace(w.id)
+    if (rememberMe) {
+      setSession(w.id)
+      localStorage.setItem('seva-remember-me', 'true')
+    }
+    setWho(w)
+  }
 
   const enterGuest = async (customName?: string) => {
     const chosen = (customName !== undefined ? customName.trim() : guestName.trim()) || 'Guest'
@@ -83,7 +92,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } catch (err) { setError(err instanceof Error ? err.message : 'Something went wrong.') }
     setBusy(false)
   }
-  const signOut = () => { sessionStorage.setItem('seva-bye', '1'); sessionStorage.removeItem('seva-mitra-asked'); localStorage.removeItem('seva-guest-name'); clearGreeting(); closeWorkspace(); setSession(null); setWho(null); setForm({ name: '', email: '', password: '' }) }
+  const signOut = () => {
+    sessionStorage.setItem('seva-bye', '1')
+    // Reset mitra choice so new session gets the welcome tour popup
+    localStorage.removeItem('seva-mitra-choice')
+    localStorage.removeItem('seva-guest-name')
+    localStorage.removeItem('seva-remember-me')
+    clearGreeting()
+    closeWorkspace()
+    setSession(null)
+    setWho(null)
+    setForm({ name: '', email: '', password: '' })
+  }
 
   if (booting) return (
     <div className="ll-full">
@@ -130,14 +150,21 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         {mode === 'up' && <label>Your name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="name" placeholder="Your name"/></label>}
         <label>Email<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder="you@example.com"/></label>
         <label>Password<input ref={pw} required type="password" minLength={mode === 'up' ? 8 : 1} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} placeholder={mode === 'up' ? 'At least 8 characters' : ''}/></label>
+        <label className="au-remember-box" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px', fontSize: 12.5, color: '#e2e8f0', cursor: 'pointer', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={e => setRememberMe(e.target.checked)}
+            style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+          />
+          <span>Remember me on this device (direct portal access on next visit)</span>
+        </label>
         {error && <div className="au-err" role="alert">{error}</div>}
         <button className="au-go" disabled={busy}>{busy ? <LogoLoader inline size={18} text="Please wait…" /> : mode === 'in' ? <><LogIn size={16}/>Sign in</> : <><UserPlus size={16}/>Create free account</>}</button>
         <div className="au-or"><span>or</span></div>
-        {guestAsk
-          ? <div className="au-guestname"><label>What should we call you? (optional)<input autoFocus value={guestName} maxLength={30} onChange={e => setGuestName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); enterGuest(guestName) } }} placeholder="Guest" autoComplete="given-name"/></label>
-            <button type="button" className="au-guest" onClick={() => enterGuest(guestName)}><UserIcon size={15}/>Continue as guest</button></div>
-          : <button type="button" className="au-guest" onClick={() => enterGuest()}><UserIcon size={15}/>Try freely as a guest</button>}
-        <small>Your account is saved in this browser. Passwords are hashed on your device and never sent anywhere, so there is no reset or sync. Back up from Data manager.</small>
+        <button type="button" className="au-guest" onClick={() => enterGuest()}><UserIcon size={15}/>Continue as Guest · Instant access</button>
+        <small style={{ display: 'block', textAlign: 'center', marginTop: 6, fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ Auto-remember active: Only log in once. Direct access to SEVA·GIS on every visit.</small>
+        <small>Your account is saved on this device. Passwords are hashed locally and never transmitted. Back up or restore anytime from Data manager.</small>
 
         {/* Quick Documentation Links in Sign-in Card */}
         <div className="au-card-links">

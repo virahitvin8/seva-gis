@@ -26,6 +26,17 @@ React, Vite, Tailwind CSS, Leaflet, Turf.js (`@turf/buffer`), shpjs, Motion, luc
 | Copernicus Browser and USGS EarthExplorer | True-colour stretch, clear imagery, layer toggles |
 | QGIS and ArcGIS | Map layouts with title, legend, north arrow, scale bar and coordinate frame |
 | scikit-learn, GDAL, Orfeo Toolbox, SNAP, QGIS Semi-Automatic Classification, ENVI, ERDAS | K-means, minimum-distance and maximum-likelihood classifiers |
+| Fields2Cover | Autonomous agricultural robotics, boustrophedon swath planning & turn minimization |
+| Archify (`tt-a1i/archify`) | End-to-end geospatial system methodology flowchart |
+| Agent-Reach (`Panniantong/agent-reach`) | Multi-source precision agriculture parameter synthesis & commercial benchmark research |
+| Hyperframes (`heygen-com/hyperframes`) | Declarative, code-driven video walkthrough generation |
+| PPT-Master (`hugohe3/ppt-master`) | Automated precision agriculture presentation deck generation |
+| Brag-Slim (`latent-spaces/brag`) | Single-command launch video, GIF, and social media compilation engine |
+| BurnGuard (`ashmoonori-afk/BurnGuard`) | Agricultural crop residue & stubble fire detection with in-situ mulching advice |
+| Hindsight (`vectorize-io/hindsight`) | Episodic field memory tracking longitudinal NDVI trajectories and resilience |
+| Paperclip (`paperclipai/paperclip`) | Client-side agent task orchestrator for multi-step precision workflows |
+| SlopMonster (`ItsssssJack/SlopMonster`) | Agronomic anti-hallucination and physical boundary guardrails |
+| Matt Pocock Skills (`mattpocock/skills`) | Adversarial design grilling (`grill-me`), code review, and domain modeling |
 | particles.js and vanta.js | Particle-network sign-in backdrop |
 | Handy GPS style apps | Walk-the-boundary farm capture |
 

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
-import { ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Compass, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Menu, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, Satellite, ShieldCheck, Sprout, X } from 'lucide-react'
-import RealDataWalkthroughModal from './RealDataWalkthroughModal'
-import WhereIsWhatModal from './WhereIsWhatModal'
+import { ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X } from 'lucide-react'
 
 import CropJournal from './CropJournal'
 import WeeklyRecords from './WeeklyRecords'
@@ -58,8 +56,7 @@ export default function App() {
   const [farms, setFarms] = useState<Farm[]>(() => { try { return (JSON.parse(localStorage.getItem('seva-farms') || 'null') || initialFarms).filter((x: Farm) => !x.sample) } catch { return initialFarms } })
   const [selected, setSelected] = useState(farms[0]?.id || '')
   const [modal, setModal] = useState('')
-  const [showRealWalkthrough, setShowRealWalkthrough] = useState(false)
-  const [showWhereIsWhat, setShowWhereIsWhat] = useState(false)
+
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -71,15 +68,9 @@ export default function App() {
 
   useEffect(() => {
     const handleOpenModal = (e: any) => { if (e.detail) setModal(e.detail) }
-    const handleOpenTour = () => setShowWhereIsWhat(true)
-    const handleOpenWalkthrough = () => setShowRealWalkthrough(true)
     window.addEventListener('seva-open-modal', handleOpenModal)
-    window.addEventListener('seva-open-where-is-what', handleOpenTour)
-    window.addEventListener('seva-open-real-walkthrough', handleOpenWalkthrough)
     return () => {
       window.removeEventListener('seva-open-modal', handleOpenModal)
-      window.removeEventListener('seva-open-where-is-what', handleOpenTour)
-      window.removeEventListener('seva-open-real-walkthrough', handleOpenWalkthrough)
     }
   }, [])
   const [zone, setZone] = useState<Zone | null>(null)
@@ -203,10 +194,10 @@ export default function App() {
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>Personal · Free forever*</small></div><ChevronDown size={16}/></div>
       <div className="nav-label">WORKSPACE</div>
       <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
-      <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setShowWhereIsWhat(true)}><Compass size={19}/>Where is what — Tour</button><button onClick={() => setShowRealWalkthrough(true)}><Satellite size={19}/>Real satellite walkthrough</button><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
+      <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>Built for the ground.<br/>Open to everyone.</h4><p>Earth intelligence, in the spirit of selfless service.</p><span>OPEN DATA. REAL PURPOSE. <ArrowUpRight size={14}/></span></div><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><button className="top-quick-tour-btn" title="Where is what — Guided quick tour of all features" onClick={() => setShowWhereIsWhat(true)}><Compass size={13}/><span>Where is what</span></button><button className="top-walkthrough-btn" title="Full walkthrough with real Sentinel-2 satellite data" onClick={() => setShowRealWalkthrough(true)}><Satellite size={13}/><span>Real Walkthrough</span></button><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Nothing is here yet. Draw your farm on the map, walk its edge with GPS, or upload a boundary file. SEVA.GIS then reads the newest Sentinel-2 satellite picture for it.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
@@ -241,16 +232,6 @@ export default function App() {
         return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Farm average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>What should I do?</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>Satellite values are not pixel cloud-masked and are not field-validated. Confirm on the ground before acting.</div></>
       })() : modal === 'sources' ? <><p>We show what is measured, modeled, or illustrative. No invented accuracy scores and no guarantee of perfect precision.</p>{[['Satellite imagery','Esri world imagery basemap; capture dates vary.'],['Vegetation indices','Sentinel-2 L2A from Microsoft Planetary Computer (STAC search + TiTiler raster API, no API key). Bands are read at 10 m, offset-corrected to surface reflectance, cloud/shadow-masked with the SCL layer, and clipped to your exact boundary before every index is computed in your browser.'],['Weather & soil moisture','Open-Meteo forecast API. Soil moisture is modeled at coarse resolution, not a farm sensor.'],['Terrain & construction','Copernicus GLO-30 DEM (30 m) for elevation, slope, aspect and hillshade; SoilGrids 250 m for soil properties. Engineering and flood assessments require site surveys.']].map(([title,description]) => <div className="source-item" key={title}><Check size={17}/><div><h3>{title}</h3><p>{description}</p></div></div>)}<a className="external-link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo documentation<ExternalLink size={15}/></a></> : modal === 'alerts' ? <>{farms.filter(farmNeedsAttention).map(item => <button className="alert-row" key={item.id} onClick={() => { setSelected(item.id); setZone(null); setModal('zone') }}><Droplets size={21}/><div><h3>{item.name}</h3><p>{item.status} · {item.analysis!.stressPct.toFixed(0)}% of pixels stressed</p></div><ChevronRight size={18}/></button>)}{!farms.some(farmNeedsAttention) && <p>No farms currently need attention based on their latest satellite scene.</p>}<p>Alerts reflect the last analysis on this device. Background monitoring and email notifications are not connected.</p></> : modal === 'reports' ? <ReportPanel farm={farm as any}/> : modal === 'settings' ? <><p>Farms are stored in this browser only, and are not synced across devices. Clearing browser storage removes them.</p><p>*This prototype has no payment flow. External providers have terms, quotas and availability limits; free access forever cannot be guaranteed.</p><button className="outline" onClick={signOut}><LogOut size={16}/>Log out of {who.name}</button><button className="outline" onClick={() => { setModal(''); setMessage('Google login and cloud sync require your own configured authentication project. No account connection is active.') }}>About Google sign-in<ArrowUpRight size={16}/></button></> : <><p>1. Add a farm with its latitude and longitude.<br/>2. Select your farm to explore the satellite basemap.<br/>3. Refresh to fetch current weather-model estimates.<br/>4. Click an example colored zone to understand its meaning.<br/>5. Export your report, including its limitations.</p><div className="privacy-note"><ShieldCheck size={20}/>This is a working frontend foundation, not a validated GeoAI decision engine. Satellite pipelines, authenticated sync, and public deployment require further setup.</div></>}
     </section></div>}
-    <WhereIsWhatModal
-      isOpen={showWhereIsWhat}
-      onClose={() => setShowWhereIsWhat(false)}
-      onStartMitraTour={() => dispatchEvent(new Event('seva-tour'))}
-      onOpenWalkthrough={() => setShowRealWalkthrough(true)}
-    />
-    <RealDataWalkthroughModal
-      isOpen={showRealWalkthrough}
-      onClose={() => setShowRealWalkthrough(false)}
-      onLoadSampleField={addBoundary}
-    />
+
   </div>
 }

@@ -112,8 +112,8 @@ export default function GeoTools({ farm, farms }: Props) {
   // Logistics & Isochrones (openrouteservice)
   const logistics = useMemo(() => {
     const areaHa = g.area / 10000
-    return calculateFarmLogistics(closed, areaHa)
-  }, [closed, g.area, calcKey])
+    return calculateFarmLogistics([farm.lon, farm.lat], areaHa)
+  }, [farm.lon, farm.lat, g.area, calcKey])
 
   // Variable-Rate Nitrogen Prescription (awesome-agriculture)
   const vra = useMemo(() => {

@@ -983,72 +983,6 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 .farm-header-maps-btn{display:inline-flex;align-items:center;gap:5px;background:#eff6ff!important;color:#1d4ed8!important;border-color:#bfdbfe!important;font-weight:600!important}
 .farm-header-maps-btn:hover{background:#dbeafe!important;border-color:#93c5fd!important}
 
-/* Floating Movable Classification Legend */
-.floating-legend-box{position:absolute;z-index:50;width:260px;background:rgba(15,23,42,0.94);border:1px solid rgba(52,211,153,0.35);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.05);backdrop-filter:blur(10px);color:#f8fafc;display:flex;flex-direction:column;overflow:hidden;user-select:none;font-family:'DM Sans',sans-serif;transition:box-shadow .2s ease}
-.floating-legend-box.is-dragging{box-shadow:0 20px 40px rgba(16,185,129,0.35),0 0 0 2px #10b981;cursor:grabbing}
-.floating-legend-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(30,41,59,0.85);border-bottom:1px solid rgba(255,255,255,0.08);cursor:grab}
-.floating-legend-head:active{cursor:grabbing}
-.head-drag-title{display:flex;align-items:center;gap:7px;min-width:0}
-.drag-handle-icon{color:#34d399;flex-shrink:0}
-.legend-head-title{margin:0;font-size:11px;font-weight:750;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.legend-head-sub{display:block;font-size:8.5px;color:#94a3b8;line-height:1.1}
-.legend-head-controls{display:flex;align-items:center;gap:4px}
-.ctrl-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:#cbd5e1;padding:3px 5px;border-radius:4px;cursor:pointer;display:grid;place-items:center;transition:all .15s}
-.ctrl-btn:hover{background:rgba(255,255,255,0.2);color:#ffffff}
-.ctrl-btn.close:hover{background:#dc2626;color:#ffffff}
-.floating-legend-body{padding:8px 10px;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
-.legend-unit-tag{font-size:8.5px;color:#94a3b8;font-style:italic;margin-bottom:2px}
-.legend-classes-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
-.legend-class-row{display:flex;flex-direction:column;gap:2px;padding:4px 6px;border-radius:5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);cursor:pointer;transition:all .15s;position:relative}
-.legend-class-row:hover{background:rgba(255,255,255,0.1);border-color:rgba(52,211,153,0.4)}
-.class-row-left{display:flex;align-items:center;gap:6px}
-.class-color-badge{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px rgba(0,0,0,0.5)}
-.class-name{font-size:10.5px;font-weight:600;color:#ffffff}
-.class-row-right{display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:9px;color:#cbd5e1;font-family:'JetBrains Mono',monospace}
-.class-pct{font-weight:700;color:#34d399}
-.class-ha{color:#94a3b8}
-.class-bar-bg{width:100%;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-top:2px}
-.class-bar-fill{height:100%;border-radius:2px}
-.floating-legend-foot{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(15,23,42,0.95);border-top:1px solid rgba(255,255,255,0.06);font-size:8.5px;color:#64748b}
-.foot-snap-btn{background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);color:#34d399;font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;cursor:pointer}
-.foot-snap-btn:hover{background:rgba(52,211,153,0.3)}
-.floating-legend-pill{position:absolute;z-index:50;display:flex;align-items:center;gap:6px;background:rgba(15,23,42,0.9);border:1px solid rgba(52,211,153,0.4);padding:5px 9px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,0.4);color:#ffffff;font-size:10px;font-weight:600;cursor:pointer;backdrop-filter:blur(8px);user-select:none;transition:transform .15s ease}
-.floating-legend-pill:hover{transform:scale(1.04);border-color:#34d399}
-.top-quick-tour-btn, .top-walkthrough-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #cbd5e1;
-  color: #1e293b;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 5px 9px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-.top-quick-tour-btn:hover {
-  background: #f0fdf4;
-  border-color: #34d399;
-  color: #065f46;
-}
-.top-walkthrough-btn {
-  background: #064e3b;
-  border-color: #064e3b;
-  color: #ffffff;
-}
-.top-walkthrough-btn:hover {
-  background: #047857;
-  border-color: #047857;
-  color: #ffffff;
-}
-@media (max-width: 960px) {
-  .top-walkthrough-btn span, .top-quick-tour-btn span {
-    display: none;
-  }
-}
 
 /* =========================================================================
    GIS Layers & Symbology Box, Farm Background Modes, and Zoom Stretch
@@ -1714,3 +1648,340 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 .ix-lb-empty p {
   font-size: 11px;
 }
+
+/* =========================================================================
+   Mitra Quick Tour Welcome Modal (.mi-ask)
+   ========================================================================= */
+.mi-ask-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(4, 11, 8, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  animation: miAskFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes miAskFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.mi-ask-card {
+  position: relative;
+  max-width: 480px;
+  width: 100%;
+  background: linear-gradient(150deg, #0b1d16 0%, #06120e 100%);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  border-radius: 20px;
+  padding: 28px 24px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(52, 211, 153, 0.22);
+  text-align: center;
+  color: #f1f5f9;
+}
+.mi-ask-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.mi-ask-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.14);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  padding: 2px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mi-ask-content h3 {
+  font-size: 19px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+}
+.mi-ask-content p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #cbd5e1;
+  margin: 0 0 16px;
+}
+.mi-ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.mi-ask-chips span {
+  font-size: 11px;
+  font-weight: 600;
+  color: #93c5fd;
+  background: rgba(30, 58, 138, 0.3);
+  border: 1px solid rgba(147, 197, 253, 0.25);
+  padding: 4px 10px;
+  border-radius: 14px;
+}
+.mi-ask-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.mi-ask-btn-continue {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+  transition: all 0.18s ease;
+}
+.mi-ask-btn-continue:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 26px rgba(16, 185, 129, 0.5);
+}
+.mi-ask-btn-skip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.mi-ask-btn-skip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.mi-ask-footnote {
+  display: block;
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* =========================================================================
+   Section Layer: Multispectral Band Symbology & Field Tools Styles
+   ========================================================================= */
+.ix-band-combos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.ix-band-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ix-band-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(52, 211, 153, 0.35);
+  transform: translateY(-1px);
+}
+.ix-band-card.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.22);
+}
+.ix-band-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ix-band-card-top strong {
+  font-size: 11.5px;
+  color: #ffffff;
+}
+.ix-band-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+.ix-band-desc {
+  font-size: 10px;
+  line-height: 1.4;
+  color: #94a3b8;
+  margin: 0;
+}
+.ix-band-chips {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+.ix-band-chip {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Field Tools inside Section Layer */
+.ix-lb-tool-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.ix-lb-tool-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ix-lb-tool-head strong {
+  font-size: 12.5px;
+  color: #ffffff;
+  flex: 1;
+}
+.ix-tool-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+.ix-tool-badge.on {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+.ix-tool-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: #94a3b8;
+  margin: 0 0 10px;
+}
+.ix-tool-actions {
+  display: flex;
+  gap: 8px;
+}
+.ix-hotspots-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ix-hotspot-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.ix-hotspot-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.ix-hotspot-pill.critical { background: #fee2e2; color: #991b1b; }
+.ix-hotspot-pill.high { background: #ffedd5; color: #9a3412; }
+.ix-hotspot-pill.medium { background: #fef9c3; color: #854d0e; }
+.ix-hotspot-pill.low { background: #f0fdf4; color: #166534; }
+.ix-hotspot-sig {
+  flex: 1;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ix-hotspot-link {
+  font-size: 10px;
+  color: #38bdf8;
+  text-decoration: none;
+}
+.ix-hotspot-link:hover { text-decoration: underline; }
+.ix-robotics-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+  font-size: 10.5px;
+  color: #cbd5e1;
+}
+.ix-robotics-stats div {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.ix-robotics-stats span {
+  display: block;
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+/* Basemap Grid in Section Layer */
+.ix-basemap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+.ix-basemap-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+.ix-basemap-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+.ix-basemap-btn.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: #10b981;
+}
+.ix-basemap-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.ix-basemap-info strong {
+  display: block;
+  font-size: 11px;
+  color: #ffffff;
+}
+.ix-basemap-info small {
+  display: block;
+  font-size: 9px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 95px;
+}
+
+

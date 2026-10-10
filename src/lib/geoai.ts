@@ -78,7 +78,7 @@ export function renderBandComposite(
     ring,
     i => (usable(g, i) ? [stretch(rArr[i], isRInfra), stretch(gArr[i], isGInfra), stretch(bArr[i], isBInfra)] : null),
     true,
-    1.4
+    0
   )
 }
 
@@ -419,12 +419,19 @@ export function predictYield(
   }
 }
 
-// Sharp true colour: Esri World Imagery (sub-metre, 4K UHD resolution) exported/stitched for the farm bbox and clipped to the boundary.
+const sharpCache = new Map<string, string>()
+
+// Sharp true colour: Esri World Imagery (sub-metre high resolution) exported/stitched for the farm bbox and clipped to the boundary.
 export async function sharpTrueColour(ring: Ring): Promise<string> {
   const xs = ring.map(p => p[0]), ys = ring.map(p => p[1])
   const w = Math.min(...xs), e = Math.max(...xs), s0 = Math.min(...ys), n = Math.max(...ys)
+  const cacheKey = `${w.toFixed(5)},${s0.toFixed(5)},${e.toFixed(5)},${n.toFixed(5)}`
+  if (sharpCache.has(cacheKey)) {
+    return sharpCache.get(cacheKey)!
+  }
+
   const cos = Math.cos(((s0 + n) / 2) * Math.PI / 180), wm = (e - w) * 111320 * cos, hm = (n - s0) * 111320
-  const maxDim = 2048 // 4K UHD resolution
+  const maxDim = 1024 // Optimized resolution: crisp sub-metre detail without GPU/memory overload
   const W = wm >= hm ? maxDim : Math.max(256, Math.round(maxDim * (wm / hm))), H = wm >= hm ? Math.max(256, Math.round(maxDim * (hm / wm))) : maxDim
 
   const c = document.createElement('canvas'); c.width = W; c.height = H
@@ -435,23 +442,21 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
   const lonOf = (x: number, z: number) => (x / 2 ** z) * 360 - 180
   const latOf = (y: number, z: number) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / 2 ** z))) * 180) / Math.PI
 
-  // Try Esri export first with timeout; if that fails, seamlessly stitch 4K tiles
-  let loaded = false
+  // Try Esri export first with timeout; if that fails, seamlessly stitch tiles
   try {
     const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${w},${s0},${e},${n}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`
     const img = new Image(); img.crossOrigin = 'anonymous'
     await new Promise<void>((ok, bad) => {
-      const tm = setTimeout(() => bad(new Error('timeout')), 3500)
+      const tm = setTimeout(() => bad(new Error('timeout')), 3000)
       img.onload = () => { clearTimeout(tm); ok() }
       img.onerror = () => { clearTimeout(tm); bad(new Error('imagery')) }
       img.src = url
     })
     ctx.drawImage(img, 0, 0, W, H)
-    loaded = true
   } catch {
     // Tile-stitching fallback at zoom 18/19
     let z = 18
-    while (z > 10 && (tileX(e, z) - tileX(w, z) + 1) * (tileY(s0, z) - tileY(n, z) + 1) > 48) z--
+    while (z > 10 && (tileX(e, z) - tileX(w, z) + 1) * (tileY(s0, z) - tileY(n, z) + 1) > 24) z--
     const tilePromises: Promise<void>[] = []
     for (let x = tileX(w, z); x <= tileX(e, z); x++) {
       for (let y = tileY(n, z); y <= tileY(s0, z); y++) {
@@ -469,10 +474,9 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
       }
     }
     await Promise.all(tilePromises)
-    loaded = true
   }
 
-  // Clip to farm polygon with 4K clarity
+  // Clip to farm polygon
   const outCanvas = document.createElement('canvas'); outCanvas.width = W; outCanvas.height = H
   const outCtx = outCanvas.getContext('2d')!
   outCtx.clearRect(0, 0, W, H)
@@ -484,5 +488,8 @@ export async function sharpTrueColour(ring: Ring): Promise<string> {
   outCtx.closePath()
   outCtx.clip()
   outCtx.drawImage(c, 0, 0, W, H)
-  return outCanvas.toDataURL('image/png')
+  const result = outCanvas.toDataURL('image/jpeg', 0.88)
+  if (sharpCache.size > 20) sharpCache.clear()
+  sharpCache.set(cacheKey, result)
+  return result
 }

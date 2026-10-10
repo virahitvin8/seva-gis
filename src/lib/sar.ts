@@ -75,7 +75,7 @@ export async function fetchSentinel1Sar(farm: FarmGeo): Promise<SarReport> {
     // Graceful offline fallback
     const simulatedDate = new Date().toISOString()
     const fallbackPass: SarPass = {
-      id: `S1A_IW_GRDH_RADAR_${farm.name.slice(0, 4).toUpperCase()}`,
+      id: `S1A_IW_GRDH_RADAR_${((farm as any).name || 'PARCEL').slice(0, 4).toUpperCase()}`,
       datetime: simulatedDate,
       orbit: 'descending',
       polarizations: ['VV', 'VH'],

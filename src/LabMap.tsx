@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Tag } from 'lucide-react'
 import { farmBBox, farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { hotspots, type Patch } from './lib/gee'
-import FloatingLegend from './FloatingLegend'
 
 type Farm = FarmData & { id: string; name: string }
 export type LegendRow = { color: string; label: string }
@@ -27,13 +25,12 @@ function niceScale(widthM: number) {
 }
 
 export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption, highlightAoi = false }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean }) {
-  const [showFloatingLegend, setShowFloatingLegend] = useState(false)
   const spots = useWeakSpots(farm, scene), weak = marks ?? spots
   const [w, s, e, n] = farmBBox(farm)
   const pad = 0.45, dw = (e - w) * pad, dh = (n - s) * pad
   const bb = [w - dw, s - dh, e + dw, n + dh], cos = Math.cos(((s + n) / 2) * Math.PI / 180)
   const wm = (bb[2] - bb[0]) * 111320 * cos, hm = (bb[3] - bb[1]) * 111320
-  const W = 2048, H = Math.min(2560, Math.round(W * (hm / wm)))
+  const W = 1024, H = Math.min(1280, Math.round(W * (hm / wm)))
   const ctx = `${ESRI_EXPORT}?bbox=${bb.join(',')}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`
   const X = (lon: number) => ((lon - bb[0]) / (bb[2] - bb[0])) * 100, Y = (lat: number) => ((bb[3] - lat) / (bb[3] - bb[1])) * 100
   const ring = farmRing(farm)
@@ -72,39 +69,7 @@ export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 
     {legend && (
       <div className="lab-legend-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', margin: '8px 0' }}>
         <ul className="lab-legend" style={{ margin: 0 }}>{legend.map(l => <li key={l.label}><i style={{ background: l.color }}/>{l.label}</li>)}</ul>
-        <button
-          type="button"
-          className="legend-shortcut-btn"
-          onClick={() => setShowFloatingLegend(v => !v)}
-          title="Open adjustable floating legend (drag anywhere on screen)"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '4px 9px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontWeight: 600,
-            background: showFloatingLegend ? '#10b981' : '#f1f5f9',
-            color: showFloatingLegend ? '#ffffff' : '#334155',
-            border: '1px solid ' + (showFloatingLegend ? '#059669' : '#cbd5e1'),
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-        >
-          <Tag size={12}/>
-          <span>{showFloatingLegend ? 'Dock legend' : '🏷️ Adjustable legend shortcut'}</span>
-        </button>
       </div>
-    )}
-    {showFloatingLegend && legend && (
-      <FloatingLegend
-        title={`${title} Legend`}
-        subtitle="Adjustable everywhere · Drag to reposition"
-        items={legend.map(l => ({ name: l.label, color: l.color }))}
-        defaultPos={{ x: 24, y: 70 }}
-        onClose={() => setShowFloatingLegend(false)}
-      />
     )}
     <figcaption>{caption ?? `${title} · Sentinel-2 ${scene?.datetime.slice(0, 10) ?? ''} · background Esri World Imagery`}</figcaption>
   </figure>
@@ -133,7 +98,7 @@ function CtxImage({ url, bb, W, H }: { url: string; bb: number[]; W: number; H: 
     ctx.fillStyle = '#10241b'; ctx.fillRect(0, 0, W, H)
     const [w, s, e, n] = bb
     let z = 18
-    while (z > 8 && (tileX(e, z) - tileX(w, z) + 1) * (tileY(s, z) - tileY(n, z) + 1) > 36) z--
+    while (z > 8 && (tileX(e, z) - tileX(w, z) + 1) * (tileY(s, z) - tileY(n, z) + 1) > 20) z--
     for (let x = tileX(w, z); x <= tileX(e, z); x++) for (let y = tileY(n, z); y <= tileY(s, z); y++) {
       const img = new Image(); img.crossOrigin = 'anonymous'
       img.onload = () => {
@@ -146,5 +111,5 @@ function CtxImage({ url, bb, W, H }: { url: string; bb: number[]; W: number; H: 
   }, [level, url])
   if (level >= 2) return <canvas ref={cv} className="lab-ctx"/>
   const src = level === 0 ? url : url.replace(/size=\d+,\d+/, `size=800,${Math.round((800 * H) / W)}`)
-  return <img className="lab-ctx" src={src} alt="" onError={() => setLevel(l => l + 1)}/>
+  return <img className="lab-ctx" src={src} alt="" onError={() => setLevel(l => (l < 2 ? l + 1 : l))}/>
 }

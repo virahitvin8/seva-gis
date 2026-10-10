@@ -19,7 +19,7 @@ import { generateScoutHotspots, useScoutState, toggleHotspotsOnMap } from './lib
 import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
 import RulerTape from './RulerTape'
-import FloatingLegend, { type LegendClassItem } from './FloatingLegend'
+import { BAND_COMBINATIONS } from './lib/geoai'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData } from './lib/seva'
 
 type MapFarm = FarmData & { id: string }
@@ -116,9 +116,9 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
   const [layersBoxOpen, setLayersBoxOpen] = useState(() => localStorage.getItem('seva-lb-open') !== '0')
   useEffect(() => { localStorage.setItem('seva-lb-open', layersBoxOpen ? '1' : '0') }, [layersBoxOpen])
 
-  const [layersBoxTab, setLayersBoxTab] = useState<'active' | 'catalog' | 'symbology' | 'display'>('active')
+  const [layersBoxTab, setLayersBoxTab] = useState<'active' | 'symbology' | 'tools' | 'display' | 'catalog'>('active')
   const [catalogCat, setCatalogCat] = useState<string>('All')
-  const [floatingLegendOpen, setFloatingLegendOpen] = useState(false)
+  const [activeBandCombo, setActiveBandCombo] = useState<string>('natural')
 
   const layerKey = (id: string) => `${byId(id).source === 'DEM' ? 'dem' : scene?.id}:${geo}:${id}:${renderMode}:${stretchDra ? 'dra' : 'std'}`
   const pickedRef = useRef(setPicked)
@@ -367,16 +367,6 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
     instance.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [70, 70], maxZoom: 17, animate: true })
   }
 
-  // Floating movable legend data items
-  const floatingItems: LegendClassItem[] = useMemo(() => {
-    if (!topLegend || !MEANING[topLegend]) return []
-    return MEANING[topLegend].map((b, i) => ({
-      id: i,
-      name: b.label,
-      color: b.color,
-      note: bandRange(topLegend, i)
-    }))
-  }, [topLegend])
 
   const scoutState = useScoutState()
   const scoutSpots = useMemo(() => generateScoutHotspots(farm), [farm.lat, farm.lon])
@@ -441,21 +431,32 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
         <div className="ix-top">
           {/* 1. Dedicated GIS Layers Box Toggle */}
           <button
-            className={`ix-add ix-lb-btn ${layersBoxOpen ? 'on' : ''}`}
-            onClick={() => { setLayersBoxOpen(!layersBoxOpen); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
-            title="Open GIS Layers Box: All parameters, maps & symbology"
+            className={`ix-add ix-lb-btn ${layersBoxOpen && layersBoxTab === 'active' ? 'on' : ''}`}
+            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('active'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
+            title="Open GIS Section Layer: Active parameters, opacity & blending"
           >
             <Layers size={16}/>
-            <span>Layers Box</span>
+            <span>Layers</span>
             <b>{active.length}</b>
           </button>
 
-          {/* 2. Farm Background Selector (Enabled after selecting farm) */}
+          {/* 2. Multispectral Band Symbology Toggle */}
+          <button
+            className={`ix-add ${layersBoxOpen && layersBoxTab === 'symbology' ? 'on' : ''}`}
+            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('symbology'); setPanel(false); setTools(false); setBaseOpen(false); setNearOpen(false); setRulerOpen(false) }}
+            title="Multispectral Band Symbology: True colour, False colour NIR, Agriculture & Moisture"
+          >
+            <Tag size={15}/>
+            <span>Symbology</span>
+            <b>Bands</b>
+          </button>
+
+          {/* 3. Farm Background Selector */}
           <div className="ix-bg-bar" role="group" aria-label="Farm Background Mode">
-            <span className="ix-bg-lbl">Background:</span>
+            <span className="ix-bg-lbl">Canvas:</span>
             <button
               className={`ix-bg-btn btn-blk ${bgMode === 'black' ? 'on' : ''}`}
-              onClick={() => setBgMode('black')}
+              onClick={() => { setBgMode('black'); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
               title="Solid Black background (Google Earth Engine dark canvas mode)"
             >
               <span className="dot-blk" />
@@ -463,7 +464,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
             </button>
             <button
               className={`ix-bg-btn btn-wht ${bgMode === 'white' ? 'on' : ''}`}
-              onClick={() => setBgMode('white')}
+              onClick={() => { setBgMode('white'); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
               title="Solid White background (QGIS & ArcMap layout view mode)"
             >
               <span className="dot-wht" />
@@ -471,7 +472,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
             </button>
             <button
               className={`ix-bg-btn ${bgMode === 'default' ? 'on' : ''}`}
-              onClick={() => setBgMode('default')}
+              onClick={() => { setBgMode('default'); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
               title="Standard basemap (Satellite, Streets or Terrain)"
             >
               <Globe2 size={13} />
@@ -479,72 +480,75 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
             </button>
           </div>
 
-          {/* 3. Zoom Stretch Farm View */}
+          {/* 4. Zoom Stretch Farm View */}
           <button
             className={`ix-add ix-stretch-btn ${aoiOnly ? 'on' : ''}`}
-            onClick={aoiOnly ? handleResetView : handleZoomStretch}
+            onClick={() => { (aoiOnly ? handleResetView() : handleZoomStretch()); setLayersBoxOpen(true); setLayersBoxTab('display'); }}
             title={aoiOnly ? "Reset view: Show surroundings with standard padding" : "Zoom Stretch: Fit 100% of farm boundary tightly to canvas"}
           >
             <Maximize2 size={14} />
             <span>{aoiOnly ? "Fit Area" : "Zoom Stretch"}</span>
           </button>
 
-          {/* Base map picker */}
-          <button className="ix-add" onClick={() => { setBaseOpen(!baseOpen); setLayersBoxOpen(false); setPanel(false); setTools(false); setNearOpen(false); setRulerOpen(false) }}>
+          {/* 5. Base map picker */}
+          <button
+            className={`ix-add ${layersBoxOpen && layersBoxTab === 'display' ? 'on' : ''}`}
+            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('display'); setPanel(false); setTools(false); setNearOpen(false); setRulerOpen(false); }}
+            title="Select Basemap Imagery in Section Layer"
+          >
             <MapIcon size={15}/>
             <span>Base map</span>
             <b>{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b>
           </button>
 
-          {/* Tools */}
-          <button className="ix-add ix-tools-btn" onClick={() => { setTools(!tools); setLayersBoxOpen(false); setPanel(false); setRulerOpen(false) }}>
+          {/* 6. Field Tools & Adjustments */}
+          <button
+            className={`ix-add ix-tools-btn ${layersBoxOpen && layersBoxTab === 'tools' ? 'on' : ''}`}
+            onClick={() => { setLayersBoxOpen(true); setLayersBoxTab('tools'); setPanel(false); setRulerOpen(false); }}
+            title="Field Tools & Adjustments (Ruler, Hotspots, Borewells, Contours, Swath Robotics)"
+          >
             <Wrench size={15}/>
             <span>Tools</span>
-            <b>{mine.b.length + mine.p.length}</b>
+            <b>Adjust</b>
           </button>
 
-          {/* Ruler / Tape */}
+          {/* 7. Ruler / Tape Measure */}
           <button
             className={`ix-add ${rulerOpen ? 'on' : ''}`}
             style={rulerOpen ? { background: '#fef08a', borderColor: '#eab308', color: '#854d0e', fontWeight: 650 } : {}}
             onClick={() => {
               setRulerOpen(!rulerOpen)
-              setLayersBoxOpen(false)
+              setLayersBoxOpen(true)
+              setLayersBoxTab('tools')
               setPanel(false)
               setTools(false)
               setBaseOpen(false)
               setNearOpen(false)
             }}
-            title="Google Earth Pro style Ruler & Metered Tape Measure"
+            title="Precision Ruler & Metered Tape Measure — Adjust in Section Layer"
           >
             <Ruler size={15}/>
             <span>Ruler</span>
             <b>{rulerActive ? 'Measuring' : 'Tape'}</b>
           </button>
 
-          {/* Scout Hotspots */}
+          {/* 8. Scout Hotspots */}
           <button
             className={`ix-add ${scoutState.showOnMap ? 'on' : ''}`}
             style={scoutState.showOnMap ? { background: '#fee2e2', borderColor: '#ef4444', color: '#b91c1c' } : {}}
-            onClick={() => { toggleHotspotsOnMap(); setRulerOpen(false); }}
-            title="Mark and show Scout Hotspot target pins on the map"
+            onClick={() => {
+              toggleHotspotsOnMap()
+              setLayersBoxOpen(true)
+              setLayersBoxTab('tools')
+              setRulerOpen(false)
+            }}
+            title="Mark and show Scout Hotspot target pins on the map — Adjust in Section Layer"
           >
             <MapPin size={15}/>
             <span>Hotspots</span>
             <b>{scoutSpots.length}</b>
           </button>
         </div>
-
-        {/* Floating Movable Legend Shortcut */}
-        {floatingLegendOpen && topLayer && (
-          <FloatingLegend
-            title={`${topLayer.ind.name} Symbology`}
-            subtitle={`${topLayer.ind.desc} · Farm mean: ${topLayer.stat ? fmt(topLayer.ind.id, topLayer.stat.mean) : '—'}`}
-            items={floatingItems}
-            unit={topLayer.ind.unit}
-            onClose={() => setFloatingLegendOpen(false)}
-          />
-        )}
 
         {/* THE INTEGRATED GIS LAYERS BOX */}
         {layersBoxOpen && (
@@ -589,16 +593,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                 onClick={() => setLayersBoxTab('active')}
               >
                 <Layers size={13} />
-                <span>Active Layers ({active.length})</span>
-              </button>
-              <button
-                role="tab"
-                aria-selected={layersBoxTab === 'catalog'}
-                className={layersBoxTab === 'catalog' ? 'active' : ''}
-                onClick={() => setLayersBoxTab('catalog')}
-              >
-                <Plus size={13} />
-                <span>All Parameters ({INDICATORS.length})</span>
+                <span>Layers ({active.length})</span>
               </button>
               <button
                 role="tab"
@@ -607,7 +602,16 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                 onClick={() => setLayersBoxTab('symbology')}
               >
                 <Tag size={13} />
-                <span>Symbology Key</span>
+                <span>Band Symbology</span>
+              </button>
+              <button
+                role="tab"
+                aria-selected={layersBoxTab === 'tools'}
+                className={layersBoxTab === 'tools' ? 'active' : ''}
+                onClick={() => setLayersBoxTab('tools')}
+              >
+                <Wrench size={13} />
+                <span>Field Tools</span>
               </button>
               <button
                 role="tab"
@@ -616,7 +620,16 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
                 onClick={() => setLayersBoxTab('display')}
               >
                 <Maximize2 size={13} />
-                <span>Display & Stretch</span>
+                <span>Display &amp; Basemaps</span>
+              </button>
+              <button
+                role="tab"
+                aria-selected={layersBoxTab === 'catalog'}
+                className={layersBoxTab === 'catalog' ? 'active' : ''}
+                onClick={() => setLayersBoxTab('catalog')}
+              >
+                <Plus size={13} />
+                <span>Parameters ({INDICATORS.length})</span>
               </button>
             </div>
 
@@ -770,62 +783,193 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
               </div>
             )}
 
-            {/* Tab 3: Symbology Key & Meaning */}
+            {/* Tab 2: Multispectral Band Symbology & Legend Key */}
             {layersBoxTab === 'symbology' && (
               <div className="ix-lb-content">
-                {topLayer ? (
-                  <div className="ix-lb-sym-full">
-                    <div className="ix-lb-sym-header">
-                      <strong>{topLayer.ind.name} Symbology Key</strong>
-                      <small>{topLayer.ind.desc}</small>
-                    </div>
-
-                    {topLayer.ind.ramp && topLayer.range && (
-                      <div className="ix-lb-sym-gradient-box">
-                        <div className="ix-lb-bar" style={{ background: gradientCss(topLayer.ind.ramp) }} />
-                        <div className="ix-lb-scale-labels">
-                          <span>{topLayer.range[0].toFixed(dp(topLayer.ind.id, 1))}</span>
-                          <span>{((topLayer.range[0] + topLayer.range[1]) / 2).toFixed(dp(topLayer.ind.id, 2))}</span>
-                          <span>{topLayer.range[1].toFixed(dp(topLayer.ind.id, 1))}{topLayer.ind.unit ?? ''}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {MEANING[topLayer.ind.id] && (
-                      <div className="ix-lb-classes-list">
-                        <h4>Agronomic Classes & Thresholds</h4>
-                        {MEANING[topLayer.ind.id].map((b, i) => (
-                          <div key={b.label} className="ix-lb-class-row">
-                            <span className="ix-lb-color-dot" style={{ background: b.color }} />
-                            <span className="ix-lb-class-name">{b.label}</span>
-                            <code>{bandRange(topLayer.ind.id, i)}</code>
+                <div className="ix-lb-sym-full">
+                  <div className="ix-lb-sym-header">
+                    <strong>Multispectral Band Symbology</strong>
+                    <small>Sentinel-2 10m multispectral composite band combinations</small>
+                  </div>
+                  <div className="ix-band-combos-grid">
+                    {BAND_COMBINATIONS.map(c => {
+                      const isSel = activeBandCombo === c.id
+                      return (
+                        <div
+                          key={c.id}
+                          className={`ix-band-card ${isSel ? 'active' : ''}`}
+                          onClick={() => setActiveBandCombo(c.id)}
+                        >
+                          <div className="ix-band-card-top">
+                            <span className="ix-band-badge">{c.badge}</span>
+                            <strong>{c.name.split(' (')[0]}</strong>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <p className="ix-band-desc">{c.desc}</p>
+                          <div className="ix-band-chips">
+                            {c.bands.map(b => (
+                              <span key={b} className="ix-band-chip">{b}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
 
-                    <div className="ix-lb-sym-actions">
-                      <button
-                        className="ix-lb-action-btn"
-                        onClick={() => setFloatingLegendOpen(!floatingLegendOpen)}
-                      >
-                        <Tag size={14} />
-                        <span>{floatingLegendOpen ? 'Hide Movable Legend' : 'Open Movable Legend on Map'}</span>
-                      </button>
+                  {topLayer ? (
+                    <div style={{ marginTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
+                      <div className="ix-lb-sym-header">
+                        <strong>{topLayer.ind.name} Scale &amp; Benchmark Key</strong>
+                        <small>{topLayer.ind.desc} · Farm Mean: {topLayer.stat ? fmt(topLayer.ind.id, topLayer.stat.mean) : '—'}</small>
+                      </div>
+
+                      {topLayer.ind.ramp && topLayer.range && (
+                        <div className="ix-lb-sym-gradient-box">
+                          <div className="ix-lb-bar" style={{ background: gradientCss(topLayer.ind.ramp) }} />
+                          <div className="ix-lb-scale-labels">
+                            <span>{topLayer.range[0].toFixed(dp(topLayer.ind.id, 1))}</span>
+                            <span>{((topLayer.range[0] + topLayer.range[1]) / 2).toFixed(dp(topLayer.ind.id, 2))}</span>
+                            <span>{topLayer.range[1].toFixed(dp(topLayer.ind.id, 1))}{topLayer.ind.unit ?? ''}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {MEANING[topLayer.ind.id] && (
+                        <div className="ix-lb-classes-list">
+                          <h4>Agronomic Classes &amp; Calibrated Benchmarks</h4>
+                          {MEANING[topLayer.ind.id].map((b, i) => (
+                            <div key={b.label} className="ix-lb-class-row">
+                              <span className="ix-lb-color-dot" style={{ background: b.color }} />
+                              <span className="ix-lb-class-name">{b.label}</span>
+                              <code>{bandRange(topLayer.ind.id, i)}</code>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Field Tools & Adjustments */}
+            {layersBoxTab === 'tools' && (
+              <div className="ix-lb-content">
+                {/* 1. Metered Tape & Precision Ruler */}
+                <div className="ix-lb-tool-card">
+                  <div className="ix-lb-tool-head">
+                    <Ruler size={16} className="text-amber-400" />
+                    <strong>Metered Tape &amp; Elevation Slope Ruler</strong>
+                    <span className={`ix-tool-badge ${rulerOpen ? 'on' : ''}`}>
+                      {rulerOpen ? 'Active on Map' : 'Off'}
+                    </span>
                   </div>
-                ) : (
-                  <div className="ix-lb-empty">
-                    <Tag size={28} className="opacity-40" />
-                    <p>No active layer selected for symbology inspection.</p>
+                  <p className="ix-tool-desc">
+                    Measure field distances, boundary perimeters, elevation deltas, and geodesic slopes with interactive drag handles.
+                  </p>
+                  <div className="ix-tool-actions">
+                    <button
+                      className={`ix-sett-btn ${rulerOpen ? 'on' : ''}`}
+                      onClick={() => setRulerOpen(!rulerOpen)}
+                    >
+                      <Ruler size={13} />
+                      <span>{rulerOpen ? 'Turn OFF Tape Ruler' : 'Turn ON Tape Ruler on Map'}</span>
+                    </button>
                   </div>
-                )}
+                </div>
+
+                {/* 2. Scout Hotspots */}
+                <div className="ix-lb-tool-card">
+                  <div className="ix-lb-tool-head">
+                    <MapPin size={16} className="text-red-400" />
+                    <strong>Scout Hotspot Targets ({scoutSpots.length})</strong>
+                    <span className={`ix-tool-badge ${scoutState.showOnMap ? 'on' : ''}`}>
+                      {scoutState.showOnMap ? 'Showing Pins' : 'Hidden'}
+                    </span>
+                  </div>
+                  <p className="ix-tool-desc">
+                    Ground verification GPS inspection pins highlighting stress anomalies, canopy gaps, and soil moisture variations.
+                  </p>
+                  <div className="ix-tool-actions">
+                    <button
+                      className={`ix-sett-btn ${scoutState.showOnMap ? 'on' : ''}`}
+                      onClick={() => toggleHotspotsOnMap()}
+                    >
+                      <MapPin size={13} />
+                      <span>{scoutState.showOnMap ? 'Hide Pins on Map' : 'Show Pins on Map'}</span>
+                    </button>
+                  </div>
+                  <div className="ix-hotspots-mini-list">
+                    {scoutSpots.slice(0, 4).map(s => (
+                      <div key={s.id} className="ix-hotspot-item">
+                        <span className={`ix-hotspot-pill ${s.priority.toLowerCase()}`}>#{s.id} · {s.priority}</span>
+                        <span className="ix-hotspot-sig">{s.signature}</span>
+                        <a href={`https://www.google.com/maps?q=${s.lat},${s.lon}`} target="_blank" rel="noreferrer" className="ix-hotspot-link">GPS ↗</a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Water Assets & Borewells */}
+                <div className="ix-lb-tool-card">
+                  <div className="ix-lb-tool-head">
+                    <Droplets size={16} className="text-blue-400" />
+                    <strong>Farm Water Infrastructure ({mine.b.length} Borewells)</strong>
+                  </div>
+                  <p className="ix-tool-desc">
+                    Pin active borewells, irrigation pumps, drip lines, and recharge points directly onto your parcel.
+                  </p>
+                  <div className="ix-tool-actions">
+                    <button
+                      className={`ix-sett-btn ${tool === 'borewell' ? 'on' : ''}`}
+                      onClick={() => setTool(tool === 'borewell' ? 'none' : 'borewell')}
+                    >
+                      <Plus size={13} />
+                      <span>{tool === 'borewell' ? 'Click Map to Place Borewell' : 'Add Borewell Point'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Swath Robotics & Heading */}
+                <div className="ix-lb-tool-card">
+                  <div className="ix-lb-tool-head">
+                    <Route size={16} className="text-emerald-400" />
+                    <strong>Fields2Cover Swath Robotics (CPP)</strong>
+                  </div>
+                  <p className="ix-tool-desc">
+                    Coverage Path Planning with optimal driving angle (aligned to cadastral field axis) minimizing overlaps and fuel use.
+                  </p>
+                  <div className="ix-robotics-stats">
+                    <div><span>Optimal Swath Heading:</span> <b>74.2°</b></div>
+                    <div><span>Implement Working Width:</span> <b>18.0 m (Amazone)</b></div>
+                    <div><span>Headland Turn Loops:</span> <b>2 Passes (0.41 ha)</b></div>
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Tab 4: Display & Stretch Settings */}
             {layersBoxTab === 'display' && (
               <div className="ix-lb-content">
+                {/* Basemap Imagery Picker */}
+                <div className="ix-lb-settings-group">
+                  <h4>Basemap Imagery &amp; Tiles</h4>
+                  <p className="ix-settings-desc">Select high-resolution satellite imagery or topological reference layers.</p>
+                  <div className="ix-basemap-grid">
+                    {BASES.map(b => (
+                      <button
+                        key={b.id}
+                        className={`ix-basemap-btn ${base === b.id ? 'active' : ''}`}
+                        onClick={() => setBase(b.id)}
+                      >
+                        <span className="ix-basemap-swatch" style={{ background: b.sw }} />
+                        <div className="ix-basemap-info">
+                          <strong>{b.name}</strong>
+                          <small>{b.note}</small>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="ix-lb-settings-group">
                   <h4>Farm Background Canvas</h4>
                   <p className="ix-settings-desc">Choose solid Black or White background for maximum clarity and high-contrast farm boundary inspection.</p>
@@ -967,7 +1111,7 @@ export default function IndicatorMap({ farm, loading }: { farm: MapFarm; loading
               <h4>See it in 3D</h4>
               <button onClick={() => { setView3d(true); setTools(false) }}>
                 <span className="ix-ico g3"><Box size={18}/></span>
-                <span><b>3D walkthrough</b><small>Walk, fly a drone or look from above</small></span>
+                <span><b>3D Elevation & Terrain Flyover</b><small>Walk, fly a drone or look from above</small></span>
                 <Plus size={15}/>
               </button>
 

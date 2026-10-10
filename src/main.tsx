@@ -1,12 +1,61 @@
-import React from 'react'
+import React, { Component, type ErrorInfo, type ReactNode } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import AuthGate from './Auth'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './index.css'
 
+interface Props {
+  children: ReactNode
+}
+
+interface State {
+  hasError: boolean
+  error?: Error
+}
+
+class GlobalErrorBoundary extends Component<Props, State> {
+  public state: State = { hasError: false }
+
+  public static getDerivedStateFromError(error: Error): State {
+    // Suppress external Google Translate removeChild errors
+    if (error?.message && /removeChild|not a child/i.test(error.message)) {
+      return { hasError: false }
+    }
+    return { hasError: true, error }
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn('Caught transient render boundary notice:', error, errorInfo)
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 32, textAlign: 'center', background: '#06100c', color: '#cfe3d3', minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'system-ui, sans-serif' }}>
+          <div>
+            <h2 style={{ color: '#38f2d0', marginBottom: 12 }}>SEVA·GIS Resilient Recovery</h2>
+            <p style={{ color: '#94a3b8', maxWidth: 460, margin: '0 auto 20px' }}>
+              A temporary display glitch was detected. Your field data and settings are safely stored.
+            </p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              style={{ background: '#10b981', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Resume Workspace
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AuthGate><App /></AuthGate>
+    <GlobalErrorBoundary>
+      <AuthGate><App /></AuthGate>
+    </GlobalErrorBoundary>
   </React.StrictMode>,
 )

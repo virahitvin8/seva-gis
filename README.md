@@ -43,7 +43,7 @@
 
 ## 📑 Table of Contents (TOC)
 1. [🌟 Motive & Core Philosophy](#-motive--core-philosophy)
-2. [🔄 GEE Ingestion & Failover Methodology Flowchart](#-gee-ingestion--failover-methodology-flowchart)
+2. [🔄 Methodology](#-methodology)
 3. [📊 Result & Discussion](#-result--discussion)
 4. [👨‍🔬 Credits, References & Author Details](#-credits-references--author-details)
 5. [📜 License](#-license)
@@ -62,38 +62,17 @@ In Sanskrit and Indian philosophy, **SEVA** (सेवा) signifies **selfless 
 
 ---
 
-## 🔄 GEE Ingestion & Failover Methodology Flowchart
+## 🔄 Methodology
 
-The following flowchart details the complete lifecycle of data ingestion, STAC crawling, cloud filtering, GEE processing, and autonomous failover:
+<div align="center">
 
-```mermaid
-flowchart TD
-    A([User Selects / Draws Farm Parcel Boundary]) --> B[Generate RFC 7946 Polygon & WGS84 Geodesic Bounding Box]
-    B --> C{Earth Engine Cloud Run Microservice Available?}
-    
-    %% GEE Primary Path
-    C -- YES --> D[Dispatch POST /api/earth-engine/map & /stats]
-    D --> E[Query COPERNICUS/S2_SR_HARMONIZED in Earth Engine Python API]
-    E --> F[Apply SCL Cloud Mask Flags 3, 8, 9, 10 & 2%-98% BOA Percentile Stretch]
-    F --> G[Extract Zonal Spectral Statistics & 256x256 XYZ WebGL Tile URLs]
-    G --> H[Stream Live Tile Canvas into Leaflet / MapLibre GL Layer]
-    
-    %% Planetary Computer Fallback Path
-    C -- NO / TIMEOUT --> I[Trigger Fallback: Microsoft Planetary Computer STAC Ingestion]
-    I --> J[Troll & Crawl STAC Endpoint: planetarycomputer.microsoft.com/api/stac/v1]
-    J --> K[Filter Sentinel-2 L2A Scenes with Cloud Cover <= 30%]
-    K --> L[Stream Cloud-Optimized GeoTIFF / NPY Preview Arrays via Client Fetch]
-    L --> M[Client-Side WebGL / WebWorker Masking & Radiometric Index Computation]
-    M --> H
-    
-    %% Downstream Processing
-    H --> N[Copernicus GLO-30 DEM Ingestion: Elevation, Slope, Aspect, Hillshade]
-    N --> O[Fields2Cover Boustrophedon Robotics Swath Routing & VRA Zonation]
-    O --> P[TradingView Financial Terminal: 6-Session Comparative Assessment]
-    P --> Q[Generate Publication-Grade Academic Report with 3D Clipped Cartography]
-    Q --> R[(Matcha Local Device Vault: OPFS & IndexedDB Storage)]
-    Q --> S[Direct Email Delivery Dispatch]
-```
+[![Architecture diagram of virahitvin8/seva-gis](https://gitdiagram.com/virahitvin8/seva-gis/diagram.png)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=picture)
+
+<br/>
+
+[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/virahitvin8/seva-gis?utm_source=readme&utm_medium=badge)
+
+</div>
 
 ---
 

@@ -1,6 +1,6 @@
 import type { Grid } from './indicators'
 import { LANDCOVER } from './gee'
-import { paintClipped, paintRaw, type Ring } from './raster'
+import { paintClipped, paintRaw, type Ring, type ResamplingMethod } from './raster'
 
 export type ClassDef = { id: string; name: string; color: string }
 const hex = (c: string): [number, number, number] => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
@@ -55,6 +55,7 @@ export type CompositeOptions = {
   smooth?: boolean
   sharpen?: number
   gamma?: number
+  resampling?: ResamplingMethod
 }
 
 function bandPercentiles(
@@ -90,7 +91,7 @@ export function renderBandComposite(
   raw: boolean = false,
   options: CompositeOptions = {}
 ): string {
-  const { stretchMode = 'gee_percentile', smooth = true, sharpen = 0.35, gamma = 1.25 } = options
+  const { stretchMode = 'gee_percentile', smooth = true, sharpen = 0.35, gamma = 1.25, resampling = 'cubic' } = options
   const b = g.b as Record<string, Float64Array | Float32Array>
   const rArr = b[redBand] || b['B04'] || b['B02']
   const gArr = b[greenBand] || b['B03'] || b['B02']
@@ -130,10 +131,10 @@ export function renderBandComposite(
   }
 
   if (raw) {
-    return paintRaw(g.w, g.h, g.bbox, painter, smooth, sharpen)
+    return paintRaw(g.w, g.h, g.bbox, painter, smooth, sharpen, resampling)
   }
 
-  return paintClipped(g.w, g.h, g.bbox, ring, painter, smooth, sharpen)
+  return paintClipped(g.w, g.h, g.bbox, ring, painter, smooth, sharpen, resampling)
 }
 
 export function trueColour(g: Grid, ring: Ring) {

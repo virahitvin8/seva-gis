@@ -137,6 +137,120 @@ function applyUnsharp(ctx: CanvasRenderingContext2D, W: number, H: number, amoun
 
 export type Painter = (i: number) => [number, number, number] | null
 
+export type ResamplingMethod = 'nearest' | 'bilinear' | 'cubic'
+
+function cubicWeight(x: number): number {
+  const absX = Math.abs(x)
+  const a = -0.5
+  if (absX <= 1) {
+    return (a + 2) * absX * absX * absX - (a + 3) * absX * absX + 1
+  } else if (absX < 2) {
+    return a * absX * absX * absX - 5 * a * absX * absX + 8 * a * absX - 4 * a
+  }
+  return 0
+}
+
+/**
+ * Resamples a discrete w x h satellite raster into a high-resolution W x H continuous surface
+ * using 4x4 Bicubic Spline (Cubic Convolution, Keys a = -0.5) interpolation, matching
+ * QGIS / ArcGIS 'Cubic' resampling and Google Earth Engine resample('bicubic').
+ */
+function resampleBicubic(
+  w: number,
+  h: number,
+  W: number,
+  H: number,
+  paint: Painter
+): ImageData {
+  const imgData = new ImageData(W, H)
+  const d = imgData.data
+
+  const srcR = new Float32Array(w * h)
+  const srcG = new Float32Array(w * h)
+  const srcB = new Float32Array(w * h)
+  const srcA = new Float32Array(w * h)
+
+  for (let i = 0; i < w * h; i++) {
+    const c = paint(i)
+    if (c) {
+      srcR[i] = c[0]
+      srcG[i] = c[1]
+      srcB[i] = c[2]
+      srcA[i] = 1.0
+    }
+  }
+
+  const denomH = Math.max(1, H - 1)
+  const denomW = Math.max(1, W - 1)
+  const spanH = Math.max(0, h - 1)
+  const spanW = Math.max(0, w - 1)
+
+  for (let Y = 0; Y < H; Y++) {
+    const srcY = (Y / denomH) * spanH
+    const yInt = Math.floor(srcY)
+    const dy = srcY - yInt
+    const rowOffset = Y * W * 4
+
+    const wy = [
+      cubicWeight(-1 - dy),
+      cubicWeight(0 - dy),
+      cubicWeight(1 - dy),
+      cubicWeight(2 - dy)
+    ]
+
+    for (let X = 0; X < W; X++) {
+      const srcX = (X / denomW) * spanW
+      const xInt = Math.floor(srcX)
+      const dx = srcX - xInt
+
+      const wx = [
+        cubicWeight(-1 - dx),
+        cubicWeight(0 - dx),
+        cubicWeight(1 - dx),
+        cubicWeight(2 - dx)
+      ]
+
+      let rSum = 0
+      let gSum = 0
+      let bSum = 0
+      let weightSum = 0
+      let alphaSum = 0
+
+      for (let n = -1; n <= 2; n++) {
+        const yn = Math.min(h - 1, Math.max(0, yInt + n))
+        const wY = wy[n + 1]
+        const yBase = yn * w
+
+        for (let m = -1; m <= 2; m++) {
+          const xm = Math.min(w - 1, Math.max(0, xInt + m))
+          const w2D = wY * wx[m + 1]
+          const idx = yBase + xm
+          const a = srcA[idx]
+
+          if (a > 0) {
+            const effW = w2D * a
+            rSum += srcR[idx] * effW
+            gSum += srcG[idx] * effW
+            bSum += srcB[idx] * effW
+            weightSum += effW
+            alphaSum += a * Math.max(0, w2D)
+          }
+        }
+      }
+
+      const pixelIdx = rowOffset + X * 4
+      if (weightSum > 0.01 && alphaSum > 0.05) {
+        d[pixelIdx] = Math.min(255, Math.max(0, Math.round(rSum / weightSum)))
+        d[pixelIdx + 1] = Math.min(255, Math.max(0, Math.round(gSum / weightSum)))
+        d[pixelIdx + 2] = Math.min(255, Math.max(0, Math.round(bSum / weightSum)))
+        d[pixelIdx + 3] = Math.min(255, Math.max(0, Math.round(Math.min(1, alphaSum) * 255)))
+      }
+    }
+  }
+
+  return imgData
+}
+
 /**
  * Resamples a discrete w x h satellite raster into a high-resolution W x H continuous surface
  * using weighted bilinear interpolation, matching Google Earth Engine's resample('bilinear').
@@ -219,6 +333,7 @@ function resampleBilinear(
 /**
  * Renders AOI clipped raster image with subpixel vector boundary anti-aliasing
  * and high-DPI scaling (1024px minimum dimension, matching Earth Engine / QGIS quality).
+ * Supports Cubic Spline, Bilinear, and Nearest Neighbour resampling.
  */
 export function paintClipped(
   w: number,
@@ -227,7 +342,8 @@ export function paintClipped(
   ring: Ring,
   paint: Painter,
   smooth = true,
-  sharpen = 0.25
+  sharpen = 0.25,
+  resampling: ResamplingMethod = 'cubic'
 ): string {
   const targetDim = 1024
   const scale = Math.max(1, Math.min(32, Math.ceil(targetDim / Math.max(w, h))))
@@ -239,15 +355,17 @@ export function paintClipped(
   outCanvas.height = H
   const ctx = outCanvas.getContext('2d')!
 
-  if (smooth) {
-    // High-fidelity continuous surface reconstruction matching Earth Engine bicubic/bilinear processing
-    const continuousData = resampleBilinear(w, h, W, H, paint)
+  if (smooth && resampling !== 'nearest') {
+    // Cubic or Bilinear continuous surface reconstruction
+    const continuousData = resampling === 'cubic'
+      ? resampleBicubic(w, h, W, H, paint)
+      : resampleBilinear(w, h, W, H, paint)
     ctx.putImageData(continuousData, 0, 0)
     if (sharpen > 0) {
       applyUnsharp(ctx, W, H, sharpen)
     }
   } else {
-    // Discrete 10m grid cell inspection
+    // Discrete 10m grid cell inspection (Nearest Neighbour)
     const srcCanvas = document.createElement('canvas')
     srcCanvas.width = w
     srcCanvas.height = h
@@ -292,7 +410,7 @@ export function paintClipped(
 
 /**
  * Renders raw unclipped Sentinel-2 satellite scene tile on a solid black background
- * at high-DPI resolution with optional smooth filtering and contrast sharpening.
+ * at high-DPI resolution with configurable resampling method.
  */
 export function paintRaw(
   w: number,
@@ -300,7 +418,8 @@ export function paintRaw(
   _bbox: Bbox,
   paint: Painter,
   smooth = false,
-  sharpen = 0
+  sharpen = 0,
+  resampling: ResamplingMethod = 'cubic'
 ): string {
   const targetDim = 1024
   const scale = Math.max(1, Math.min(32, Math.ceil(targetDim / Math.max(w, h))))
@@ -314,8 +433,10 @@ export function paintRaw(
   ctx.fillStyle = '#000000'
   ctx.fillRect(0, 0, W, H)
 
-  if (smooth) {
-    const continuousData = resampleBilinear(w, h, W, H, paint)
+  if (smooth && resampling !== 'nearest') {
+    const continuousData = resampling === 'cubic'
+      ? resampleBicubic(w, h, W, H, paint)
+      : resampleBilinear(w, h, W, H, paint)
     ctx.putImageData(continuousData, 0, 0)
     if (sharpen > 0) {
       applyUnsharp(ctx, W, H, sharpen)

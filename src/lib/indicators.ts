@@ -1,4 +1,4 @@
-import { insideMask, paintClipped, pixelAt, rampColor, statsOf, type Bbox, type Ring, type Stat } from './raster'
+import { insideMask, paintClipped, pixelAt, rampColor, statsOf, type Bbox, type Ring, type Stat, type ResamplingMethod } from './raster'
 
 export type Bands = Record<string, Float32Array | Float64Array>
 export type Grid = { w: number; h: number; bbox: Bbox; dx: number; dy: number; b: Bands; ok: Uint8Array; inside: Uint8Array }
@@ -149,6 +149,7 @@ export type RenderOptions = {
   smooth?: boolean
   dra?: boolean
   sharpen?: number
+  resampling?: ResamplingMethod
 }
 
 const rangeOf = (ind: Ind, g: Grid, dra = false, stat?: Stat | null): [number, number] | null => {
@@ -165,7 +166,7 @@ const rangeOf = (ind: Ind, g: Grid, dra = false, stat?: Stat | null): [number, n
 }
 
 export function renderLayer(ind: Ind, g: Grid, ring: Ring, opts: RenderOptions = {}): Layer {
-  const { smooth = true, dra = false, sharpen = 0.35 } = opts
+  const { smooth = true, dra = false, sharpen = 0.35, resampling = 'cubic' } = opts
   const valid = ind.valid ?? [-1, 1]
   let stat: Stat | null = null
   if (ind.value) {
@@ -233,7 +234,7 @@ export function renderLayer(ind: Ind, g: Grid, ring: Ring, opts: RenderOptions =
   // convert them as if they were degrees; that inflated the displayed
   // output-cell estimate by roughly 111,320x.
   const cellSizeM = Math.max(g.dx, g.dy)
-  return { url: paintClipped(g.w, g.h, g.bbox, ring, paint, smooth, sharpen), stat, range, ind, bbox: g.bbox, cellSizeM }
+  return { url: paintClipped(g.w, g.h, g.bbox, ring, paint, smooth, sharpen, resampling), stat, range, ind, bbox: g.bbox, cellSizeM }
 }
 
 export function sampleAt(g: Grid, lon: number, lat: number): Record<string, number> | null {

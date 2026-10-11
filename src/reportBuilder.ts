@@ -915,7 +915,7 @@ export async function buildReport(
       try {
         const ind = byId(id)
         if (ind) {
-          const lyr = renderLayer(ind, s2GridObj, ring, { dra: true, sharpen: 0.35 })
+          const lyr = renderLayer(ind, s2GridObj, ring, { dra: true, sharpen: 0.35, resampling: 'cubic' })
           if (lyr?.url) rasterMap[id] = lyr.url
         }
       } catch {}
@@ -928,7 +928,7 @@ export async function buildReport(
       try {
         const ind = byId(id === 'terrain' ? 'dem' : id)
         if (ind) {
-          const lyr = renderLayer(ind, dem, ring, { smooth: true })
+          const lyr = renderLayer(ind, dem, ring, { smooth: true, resampling: 'cubic' })
           if (lyr?.url) rasterMap[id] = lyr.url
         }
       } catch {}

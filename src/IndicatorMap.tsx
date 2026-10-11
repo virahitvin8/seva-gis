@@ -14,7 +14,7 @@ import {
   GROUPS, INDICATORS, MEANING, bandFor, bandRange, byId, verdict,
   compass, gradientCss, renderLayer, sampleAt, type Grid, type Layer, type Group
 } from './lib/indicators'
-import { pixelAt } from './lib/raster'
+import { pixelAt, type ResamplingMethod } from './lib/raster'
 import { ndviClass } from './lib/agro'
 import { addBorewell, addPipeline, lengthM, removeBorewell, removePipeline, useAssets } from './lib/assets'
 import NearbyLayer from './NearbyLayer'
@@ -313,6 +313,18 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [stretchDra, setStretchDra] = useState(() => localStorage.getItem('seva-stretch-dra-v2') !== '0')
   useEffect(() => { localStorage.setItem('seva-stretch-dra-v2', stretchDra ? '1' : '0') }, [stretchDra])
 
+  // GIS Raster Resampling Method: Cubic Spline (default for small parcels), Bilinear, or Nearest Neighbour
+  const [resamplingMethod, setResamplingMethod] = useState<ResamplingMethod>(() => {
+    try {
+      const saved = localStorage.getItem('seva-resampling-method')
+      if (saved === 'nearest' || saved === 'bilinear' || saved === 'cubic') return saved
+    } catch {}
+    return 'cubic'
+  })
+  useEffect(() => {
+    localStorage.setItem('seva-resampling-method', resamplingMethod)
+  }, [resamplingMethod])
+
   // Dedicated Layers Box (Table of Contents / Symbology manager)
   const [layersBoxOpen, setLayersBoxOpen] = useState(false)
   useEffect(() => { localStorage.setItem('seva-lb-open-v2', layersBoxOpen ? '1' : '0') }, [layersBoxOpen])
@@ -399,7 +411,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     return () => window.clearTimeout(timer)
   }, [layersBoxOpen, panelDetached])
 
-  const layerKey = (id: string) => `${byId(id).source === 'DEM' ? 'dem' : sceneKey}:${geo}:${id}:${stretchDra ? 'dra' : 'std'}`
+  const layerKey = (id: string) => `${byId(id).source === 'DEM' ? 'dem' : sceneKey}:${geo}:${id}:${stretchDra ? 'dra' : 'std'}:${resamplingMethod}`
   const pickedRef = useRef(setPicked)
   pickedRef.current = setPicked
 
@@ -862,7 +874,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         try {
           setCachedLayer(
             layerKey(id),
-            renderLayer(ind, g, ring, { dra: stretchDra })
+            renderLayer(ind, g, ring, { dra: stretchDra, resampling: resamplingMethod })
           )
           if (!dead) setErrors(x => { const { [id]: _drop, ...rest } = x; return rest })
         } catch (e) {
@@ -883,7 +895,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       dead = true
       if (rendering.length) setBusy(b => b.filter(id => !rendering.includes(id)))
     }
-  }, [active.join(), geo, sceneKey, stretchDra])
+  }, [active.join(), geo, sceneKey, stretchDra, resamplingMethod])
 
   useEffect(() => {
     const primaryId = [...active].reverse().find(id => !hidden.includes(id) && byId(id).source === 'S2')
@@ -1369,7 +1381,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 onClick={() => setLayersBoxTab('symbology')}
               >
                 <Tag size={13} />
-                <span>Band Symbology</span>
+                <span>Symbology &amp; Resampling</span>
               </button>
               <button
                 role="tab"
@@ -1460,10 +1472,31 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                               <small>min {fmt(id, layer.stat.min)} · max {fmt(id, layer.stat.max)}</small>
                             )}
                           </div>
-                          {layer && <small className="ix-lb-resolution-note">
-                            Output cells about {Math.max(1, Math.round(layer.cellSizeM))} m · nearest-neighbour, no smoothing
-                            {ind.source === 'S2' ? ' · Sentinel-2 source bands are 10 m or 20 m' : ' · Copernicus DEM source is about 30 m'}
-                          </small>}
+                          {layer && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, flexWrap: 'wrap', gap: 4 }}>
+                              <small className="ix-lb-resolution-note" style={{ margin: 0 }}>
+                                ~{Math.max(1, Math.round(layer.cellSizeM))}m cells · {resamplingMethod === 'cubic' ? 'Cubic Spline (anti-pixelated)' : resamplingMethod === 'bilinear' ? 'Bilinear' : 'Nearest Neighbour'}
+                                {ind.source === 'S2' ? ' · S2 (10m)' : ' · DEM (30m)'}
+                              </small>
+                              <button
+                                type="button"
+                                onClick={() => setLayersBoxTab('symbology')}
+                                style={{
+                                  fontSize: 9.5,
+                                  fontWeight: 600,
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  background: 'rgba(255,255,255,0.06)',
+                                  border: '1px solid rgba(255,255,255,0.12)',
+                                  color: '#a7f3d0',
+                                  cursor: 'pointer'
+                                }}
+                                title="Change raster resampling method under Layer Properties → Symbology → Resampling"
+                              >
+                                Symbology &rarr; Resampling
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Opacity Control */}
@@ -1558,6 +1591,128 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             {layersBoxTab === 'symbology' && (
               <div className="ix-lb-content">
                 <div className="ix-lb-sym-full">
+                  {/* Layer Properties → Symbology → Resampling */}
+                  <div
+                    className="ix-resampling-control-box"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 95, 70, 0.2))',
+                      border: '1px solid rgba(52, 211, 153, 0.45)',
+                      borderRadius: 10,
+                      padding: '12px 14px',
+                      marginBottom: 16,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <SlidersHorizontal size={15} style={{ color: '#34d399' }} />
+                        <strong style={{ fontSize: 13, color: '#f8fafc', letterSpacing: '0.01em' }}>
+                          Layer Properties &rarr; Symbology &rarr; Resampling
+                        </strong>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          padding: '3px 9px',
+                          borderRadius: 999,
+                          background: resamplingMethod === 'cubic' ? '#047857' : resamplingMethod === 'bilinear' ? '#0284c7' : '#475569',
+                          color: '#ffffff',
+                          border: '1px solid rgba(255,255,255,0.2)'
+                        }}
+                      >
+                        {resamplingMethod === 'cubic' ? 'Cubic Spline (Active)' : resamplingMethod === 'bilinear' ? 'Bilinear (Active)' : 'Nearest (Active)'}
+                      </span>
+                    </div>
+
+                    <p style={{ margin: '0 0 10px', fontSize: 11, color: '#cbd5e1', lineHeight: 1.45 }}>
+                      Removes pixel blockiness on small fields and zoomed parcels. In QGIS / GEE, small areas are smoothed using <b>Cubic</b> (Bicubic Spline Convolution) or <b>Bilinear</b> interpolation instead of raw 10m pixel squares.
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 6 }}>
+                      <button
+                        type="button"
+                        className={`ix-sett-btn ${resamplingMethod === 'cubic' ? 'on' : ''}`}
+                        style={{
+                          padding: '8px 10px',
+                          fontSize: 11,
+                          borderRadius: 8,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: 3,
+                          background: resamplingMethod === 'cubic' ? 'rgba(16, 185, 129, 0.28)' : 'rgba(255, 255, 255, 0.05)',
+                          border: resamplingMethod === 'cubic' ? '1.5px solid #10b981' : '1px solid rgba(255, 255, 255, 0.12)',
+                          color: resamplingMethod === 'cubic' ? '#6ee7b7' : '#e2e8f0',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onClick={() => setResamplingMethod('cubic')}
+                        title="Bicubic Spline Convolution (Keys a = -0.5 kernel). Recommended for small areas and high-DPI zoomed parcels."
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span style={{ fontWeight: 700 }}>✨ Cubic (Default)</span>
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#059669', color: '#fff', fontWeight: 700 }}>Smooth</span>
+                        </div>
+                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>Bicubic spline convolution, zero pixelation</small>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`ix-sett-btn ${resamplingMethod === 'bilinear' ? 'on' : ''}`}
+                        style={{
+                          padding: '8px 10px',
+                          fontSize: 11,
+                          borderRadius: 8,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: 3,
+                          background: resamplingMethod === 'bilinear' ? 'rgba(2, 132, 199, 0.28)' : 'rgba(255, 255, 255, 0.05)',
+                          border: resamplingMethod === 'bilinear' ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+                          color: resamplingMethod === 'bilinear' ? '#38bdf8' : '#e2e8f0',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onClick={() => setResamplingMethod('bilinear')}
+                        title="Bilinear interpolation. Continuous linear gradients between cells."
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span style={{ fontWeight: 700 }}>📐 Bilinear</span>
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#0284c7', color: '#fff', fontWeight: 700 }}>Linear</span>
+                        </div>
+                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>Continuous linear surface interpolation</small>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`ix-sett-btn ${resamplingMethod === 'nearest' ? 'on' : ''}`}
+                        style={{
+                          padding: '8px 10px',
+                          fontSize: 11,
+                          borderRadius: 8,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          gap: 3,
+                          background: resamplingMethod === 'nearest' ? 'rgba(148, 163, 184, 0.28)' : 'rgba(255, 255, 255, 0.05)',
+                          border: resamplingMethod === 'nearest' ? '1.5px solid #94a3b8' : '1px solid rgba(255, 255, 255, 0.12)',
+                          color: resamplingMethod === 'nearest' ? '#cbd5e1' : '#94a3b8',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                        onClick={() => setResamplingMethod('nearest')}
+                        title="Nearest Neighbour. Native discrete 10m satellite cells for pixel-by-pixel inspection."
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <span style={{ fontWeight: 700 }}>🔲 Nearest Neighbour</span>
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#475569', color: '#fff', fontWeight: 700 }}>10m</span>
+                        </div>
+                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>Raw discrete 10m grid cell blocks</small>
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="ix-lb-sym-header">
                     <strong>Multispectral Band Symbology</strong>
                     <small>Sentinel-2 band combinations; native band resolution varies</small>
@@ -1827,6 +1982,37 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <Sliders size={13} />
                     <span>{stretchDra ? 'Local contrast adjustment active' : 'Adjust local contrast'}</span>
                   </button>
+                </div>
+
+                <div className="ix-lb-settings-group">
+                  <h4>Raster Resampling (Anti-Pixelation)</h4>
+                  <p className="ix-settings-desc">Controls interpolation for small parcels. Cubic Spline or Bilinear eliminates blocky pixel squares (Layer Properties &rarr; Symbology &rarr; Resampling).</p>
+                  <div className="ix-settings-btns">
+                    <button
+                      className={`ix-sett-btn ${resamplingMethod === 'cubic' ? 'on' : ''}`}
+                      onClick={() => setResamplingMethod('cubic')}
+                      title="Bicubic Spline Convolution (Keys a = -0.5 kernel)"
+                    >
+                      <Sparkles size={13} />
+                      <span>Cubic (Spline)</span>
+                    </button>
+                    <button
+                      className={`ix-sett-btn ${resamplingMethod === 'bilinear' ? 'on' : ''}`}
+                      onClick={() => setResamplingMethod('bilinear')}
+                      title="Bilinear linear interpolation"
+                    >
+                      <Sliders size={13} />
+                      <span>Bilinear</span>
+                    </button>
+                    <button
+                      className={`ix-sett-btn ${resamplingMethod === 'nearest' ? 'on' : ''}`}
+                      onClick={() => setResamplingMethod('nearest')}
+                      title="Nearest Neighbour (Raw 10m Cells)"
+                    >
+                      <Box size={13} />
+                      <span>Nearest (10m)</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="ix-lb-settings-group">

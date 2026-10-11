@@ -4,6 +4,7 @@ import { Download, RefreshCw, Sprout, Layers, SlidersHorizontal, Sparkles, Globe
 import { LANDCOVER } from './lib/gee'
 import { autoClassify, sharpTrueColour, download, landCoverLabels, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
+import { type ResamplingMethod } from './lib/raster'
 import { MapFrame } from './LabMap'
 import GeeCartographicStudio from './GeeCartographicStudio'
 import { createEarthEngineMap } from './lib/earthEngineClient'
@@ -27,7 +28,17 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const [symbologySpinning, setSymbologySpinning] = useState(false)
   const [showCustom, setShowCustom] = useState(false)
   const [stretchMode, setStretchMode] = useState<'gee_percentile' | 'calibrated_boa'>('gee_percentile')
-  const [clarityMode, setClarityMode] = useState<'smooth' | 'crisp'>('smooth')
+  const [resamplingMethod, setResamplingMethod] = useState<ResamplingMethod>(() => {
+    try {
+      const saved = localStorage.getItem('seva-resampling-method')
+      if (saved === 'nearest' || saved === 'bilinear' || saved === 'cubic') return saved
+    } catch {}
+    return 'cubic'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('seva-resampling-method', resamplingMethod)
+  }, [resamplingMethod])
 
   useEffect(() => {
     if (!scene) return
@@ -43,7 +54,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     setCustomBands(['B04', 'B03', 'B02'])
     setShowCustom(false)
     setStretchMode('gee_percentile')
-    setClarityMode('smooth')
+    setResamplingMethod('cubic')
   }, [scene?.id, farm.id])
 
   const ring = useMemo(() => farmRing(farm), [farm.id, farm.lat, farm.lon, farm.area, farm.polygon])
@@ -107,15 +118,16 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
       const isRaw = picMode === 'raw'
       return renderBandComposite(g, ring, activeBands[0], activeBands[1], activeBands[2], isRaw, {
         stretchMode,
-        smooth: clarityMode === 'smooth',
-        sharpen: clarityMode === 'smooth' ? 0.35 : 0,
+        smooth: resamplingMethod !== 'nearest',
+        sharpen: resamplingMethod === 'cubic' ? 0.35 : 0,
         gamma: 1.25,
+        resampling: resamplingMethod,
       })
     } catch (e) {
       console.warn('[GeoAI Studio] Composite error:', e)
       return ''
     }
-  }, [g, ring, activeBands, picMode, stretchMode, clarityMode])
+  }, [g, ring, activeBands, picMode, stretchMode, resamplingMethod])
 
   const resetToDefaultSymbology = () => {
     setSymbologySpinning(true)
@@ -123,7 +135,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     setCustomBands(['B04', 'B03', 'B02'])
     setShowCustom(false)
     setStretchMode('gee_percentile')
-    setClarityMode('smooth')
+    setResamplingMethod('cubic')
     setTimeout(() => {
       setSymbologySpinning(false)
     }, 600)
@@ -233,7 +245,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
               note={picMode === '4k' ? 'Esri basemap imagery clipped to the farm. Its capture date and resolution vary by location; it is separate from the selected Sentinel-2 scene.' : picMode === 'gee' ? 'Live Earth Engine stream directly from Google Cloud Run (COPERNICUS/S2_SR_HARMONIZED) with continuous surface bicubic rendering.' : picMode === 'raw' ? 'Sentinel-2 band composite outside the farm boundary on a black background.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
               caption={picMode === '4k' ? 'Esri World Imagery · capture date varies' : picMode === 'gee' ? `Live Google Earth Engine Stream (${activeBands.join('·')})` : picMode === 'raw' ? `Sentinel-2 scene tile (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 (${activeBands.join('·')})`}
               highlightAoi={false}
-              crisp={clarityMode === 'crisp'}
+              crisp={resamplingMethod === 'nearest'}
             />
             <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -337,22 +349,22 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Clarity filter</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Resampling</span>
               <button
                 style={{
                   fontSize: 11,
                   padding: '3px 8px',
                   borderRadius: 5,
                   fontWeight: 600,
-                  background: clarityMode === 'smooth' ? '#0284c7' : '#ffffff',
-                  color: clarityMode === 'smooth' ? '#ffffff' : '#334155',
-                  border: clarityMode === 'smooth' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                  background: resamplingMethod === 'cubic' ? '#047857' : '#ffffff',
+                  color: resamplingMethod === 'cubic' ? '#ffffff' : '#334155',
+                  border: resamplingMethod === 'cubic' ? '1px solid #047857' : '1px solid #cbd5e1',
                   cursor: 'pointer'
                 }}
-                onClick={() => setClarityMode('smooth')}
-                title="Smooth high-DPI bicubic resampling with unsharp mask sharpening"
+                onClick={() => setResamplingMethod('cubic')}
+                title="Bicubic Spline Convolution (Keys a = -0.5 kernel) - Smooth continuous surface, zero pixelation"
               >
-                Smooth + Sharp
+                ✨ Cubic (Spline)
               </button>
               <button
                 style={{
@@ -360,15 +372,31 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
                   padding: '3px 8px',
                   borderRadius: 5,
                   fontWeight: 600,
-                  background: clarityMode === 'crisp' ? '#0284c7' : '#ffffff',
-                  color: clarityMode === 'crisp' ? '#ffffff' : '#334155',
-                  border: clarityMode === 'crisp' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+                  background: resamplingMethod === 'bilinear' ? '#0284c7' : '#ffffff',
+                  color: resamplingMethod === 'bilinear' ? '#ffffff' : '#334155',
+                  border: resamplingMethod === 'bilinear' ? '1px solid #0284c7' : '1px solid #cbd5e1',
                   cursor: 'pointer'
                 }}
-                onClick={() => setClarityMode('crisp')}
-                title="Native Sentinel-2 10m grid cell inspection without blending"
+                onClick={() => setResamplingMethod('bilinear')}
+                title="Bilinear linear interpolation between cells"
               >
-                Crisp 10m cells
+                📐 Bilinear
+              </button>
+              <button
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderRadius: 5,
+                  fontWeight: 600,
+                  background: resamplingMethod === 'nearest' ? '#475569' : '#ffffff',
+                  color: resamplingMethod === 'nearest' ? '#ffffff' : '#334155',
+                  border: resamplingMethod === 'nearest' ? '1px solid #475569' : '1px solid #cbd5e1',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setResamplingMethod('nearest')}
+                title="Native Sentinel-2 10m grid cell inspection without blending (Nearest Neighbour)"
+              >
+                🔲 Nearest (10m)
               </button>
             </div>
           </div>

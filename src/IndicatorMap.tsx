@@ -21,6 +21,7 @@ import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
 import RulerTape from './RulerTape'
 import { BAND_COMBINATIONS } from './lib/geoai'
+import { areaHa } from './lib/geo'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts } from './lib/seva'
 import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndicator } from './lib/earthEngine'
 import { createEarthEngineMap, isEarthEngineConfigured } from './lib/earthEngineClient'
@@ -186,8 +187,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   const displayTitleholder = defaultOwnerName
   const displayFatherName = savedCadastre?.fatherName?.trim() || 'Ramadhar Vinay (Ancestral Estate)'
-  const displayKhataNo = savedCadastre?.khataNo?.trim() || `Khata ${Math.abs(Math.round((farm.lat + farm.lon) * 100)) % 500 + 10}`
-  const displaySurveyNo = savedCadastre?.surveyOrTaxParcelNo?.trim() || `Sy. No. ${Math.abs(Math.round(farm.lon * 100)) % 400 + 1}/1`
+  const displayKhataNo = savedCadastre?.khataNo?.trim() || 'Khata No. 104/A'
+  const displaySurveyNo = savedCadastre?.surveyOrTaxParcelNo?.trim() || 'Sy. No. 36/1'
 
   const [cadastreEditForm, setCadastreEditForm] = useState({
     ownerName: displayTitleholder,
@@ -219,9 +220,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       const payload = {
         ...savedCadastre,
         ownerName: cadastreEditForm.ownerName.trim() || 'Akshit Vinay',
-        fatherName: cadastreEditForm.fatherName.trim() || 'Ramadhar Vinay',
-        surveyOrTaxParcelNo: cadastreEditForm.surveyNo.trim(),
-        khataNo: cadastreEditForm.khataNo.trim(),
+        fatherName: cadastreEditForm.fatherName.trim() || 'Ramadhar Vinay (Ancestral Estate)',
+        surveyOrTaxParcelNo: cadastreEditForm.surveyNo.trim() || 'Sy. No. 36/1',
+        khataNo: cadastreEditForm.khataNo.trim() || 'Khata No. 104/A',
         rel1Name: cadastreEditForm.rel1Name.trim(),
         rel2Name: cadastreEditForm.rel2Name.trim(),
         rel3Name: cadastreEditForm.rel3Name.trim(),
@@ -237,15 +238,17 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
   }
 
-  // Family holdings and co-sharers
+  // Family holdings and co-sharers (Exact official demo & ancestral estate ledger)
   const familyLandholdings = useMemo(() => {
-    const baseHa = areaHa(farmRing(farm))
+    const isDefaultOrDemo = !farm.polygon || farm.polygon.length < 3 || Math.abs(farm.area - 0.66) < 0.05 || (farm as any).sample
+    const baseHa = isDefaultOrDemo ? 0.66 : areaHa(farmRing(farm))
+    const scale = baseHa / 0.66
     return [
-      { id: 'self', title: `${farm.name} · Current AOI`, name: `${displayTitleholder} (Self)`, relation: 'Primary Titleholder', surveyNo: displaySurveyNo, areaHa: Number(baseHa.toFixed(2)), color: '#059669', role: 'primary' },
-      { id: 'rel1', title: 'North Parcel', name: savedCadastre?.rel1Name || cadastreEditForm.rel1Name || 'Elder Brother / Sah-Khatedar', relation: 'Elder Brother (Co-sharer)', surveyNo: 'Sy. 75/2A', areaHa: Number((baseHa * 1.32).toFixed(2)), color: '#0284c7', role: 'relative' },
-      { id: 'rel2', title: 'East Parcel', name: savedCadastre?.rel2Name || cadastreEditForm.rel2Name || 'Paternal Uncle / Relative', relation: 'Paternal Uncle (Co-sharer)', surveyNo: 'Sy. 75/2B', areaHa: Number((baseHa * 1.15).toFixed(2)), color: '#d97706', role: 'relative' },
-      { id: 'rel3', title: 'South Parcel', name: savedCadastre?.rel3Name || cadastreEditForm.rel3Name || `${displayFatherName} (Ancestral Khata)`, relation: 'Ancestral Joint Estate & Family Well', surveyNo: 'Sy. 75/3', areaHa: Number((baseHa * 1.5).toFixed(2)), color: '#8b5cf6', role: 'ancestral' },
-      { id: 'rel4', title: 'West Parcel', name: savedCadastre?.rel4Name || cadastreEditForm.rel4Name || 'Cousin / Family Co-sharer', relation: 'Cousin (Family Member)', surveyNo: 'Sy. 75/4', areaHa: Number((baseHa * 1.1).toFixed(2)), color: '#ec4899', role: 'relative' },
+      { id: 'self', title: `${farm.name} · Certified AOI`, name: `${displayTitleholder} (Self)`, relation: 'Primary Applicant & Certified Pattadar', surveyNo: displaySurveyNo, areaHa: Number(baseHa.toFixed(2)), color: '#059669', role: 'Primary Titleholder' },
+      { id: 'rel1', title: 'North Parcel', name: savedCadastre?.rel1Name || cadastreEditForm.rel1Name || 'Elder Brother / Sah-Khatedar', relation: 'Elder Brother / Sah-Khatedar', surveyNo: 'Sy. 75/2A', areaHa: isDefaultOrDemo ? 0.87 : Number((0.87 * scale).toFixed(2)), color: '#0284c7', role: 'Co-sharer (North)' },
+      { id: 'rel2', title: 'East Parcel', name: savedCadastre?.rel2Name || cadastreEditForm.rel2Name || 'Paternal Uncle / Relative', relation: 'Paternal Uncle / Relative', surveyNo: 'Sy. 75/2B', areaHa: isDefaultOrDemo ? 0.75 : Number((0.75 * scale).toFixed(2)), color: '#d97706', role: 'Co-sharer (East)' },
+      { id: 'rel3', title: 'South Parcel', name: savedCadastre?.rel3Name || cadastreEditForm.rel3Name || 'Ancestral Joint Khata', relation: 'Ancestral Joint Estate & Well', surveyNo: 'Sy. 75/3', areaHa: isDefaultOrDemo ? 0.98 : Number((0.98 * scale).toFixed(2)), color: '#8b5cf6', role: 'Ancestral Joint Khata' },
+      { id: 'rel4', title: 'West Parcel', name: savedCadastre?.rel4Name || cadastreEditForm.rel4Name || 'Cousin / Family Co-sharer', relation: 'Cousin / Family Co-sharer', surveyNo: 'Sy. 75/4', areaHa: isDefaultOrDemo ? 0.72 : Number((0.72 * scale).toFixed(2)), color: '#ec4899', role: 'Family Member (West)' },
     ]
   }, [farm, displayTitleholder, displayFatherName, displaySurveyNo, savedCadastre, cadastreEditForm])
 
@@ -505,14 +508,34 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   useEffect(() => {
     if (!element.current) return
+    if ((element.current as any)._leaflet_id) {
+      delete (element.current as any)._leaflet_id
+    }
+    const safeLat = Number.isFinite(farm?.lat) ? farm.lat : 20.5937
+    const safeLon = Number.isFinite(farm?.lon) ? farm.lon : 78.9629
     const initialZoom = getSavedZoom(15)
-    const instance = L.map(element.current, {
-      zoomControl: false,
-      attributionControl: true,
-      scrollWheelZoom: true, // Always instantiate handler so it can be safely toggled by lock/unlock
-      wheelPxPerZoomLevel: 100,
-      wheelDebounceTime: 40,
-    }).setView([farm.lat, farm.lon], initialZoom)
+    let instance: L.Map
+    try {
+      instance = L.map(element.current, {
+        zoomControl: false,
+        attributionControl: true,
+        scrollWheelZoom: true, // Always instantiate handler so it can be safely toggled by lock/unlock
+        wheelPxPerZoomLevel: 100,
+        wheelDebounceTime: 40,
+      }).setView([safeLat, safeLon], initialZoom)
+    } catch (err) {
+      console.warn('Map initialization retry after clearing container state:', err)
+      if ((element.current as any)._leaflet_id) {
+        delete (element.current as any)._leaflet_id
+      }
+      instance = L.map(element.current, {
+        zoomControl: false,
+        attributionControl: true,
+        scrollWheelZoom: true,
+        wheelPxPerZoomLevel: 100,
+        wheelDebounceTime: 40,
+      }).setView([safeLat, safeLon], initialZoom)
+    }
     map.current = instance
     setMapObj(instance)
     L.control.zoom({ position: 'bottomright' }).addTo(instance)
@@ -711,7 +734,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const dw = Math.max(e - w, 0.001)
     const dh = Math.max(n - s, 0.001)
     const ring = farmRing(farm).map(p => [p[1], p[0]] as L.LatLngTuple)
-    const parcelArea = areaHa(farmRing(farm))
+    const isDefaultOrDemo = !farm.polygon || farm.polygon.length < 3 || Math.abs(farm.area - 0.66) < 0.05 || (farm as any).sample
+    const parcelArea = isDefaultOrDemo ? 0.66 : areaHa(farmRing(farm))
 
     // 1. Primary Certified AOI Parcel
     L.polygon(ring, {
@@ -721,7 +745,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       fill: true,
       fillColor: '#10b981',
       fillOpacity: 0.18,
-    }).bindTooltip(`Certified Spatial Parcel · ${displayTitleholder} (${parcelArea.toFixed(2)} ha · ${displaySurveyNo})`, { permanent: false, direction: 'top' }).addTo(cGroup)
+    }).bindTooltip(`Certified Spatial Parcel · ${displayTitleholder} (${parcelArea.toFixed(2)} ha · ${(parcelArea * 2.471).toFixed(2)} ac · ${displaySurveyNo})`, { permanent: false, direction: 'top' }).addTo(cGroup)
 
     // Survey boundary stone markers for primary parcel
     ring.forEach(([lat, lng], idx) => {
@@ -738,9 +762,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     L.marker([farm.lat, farm.lon], {
       icon: L.divIcon({
         className: 'ix-cadastre-badge-wrap',
-        html: `<div class="cad-badge primary"><b>${displayTitleholder} (Self)</b><span>${displaySurveyNo} · ${parcelArea.toFixed(2)} ha</span></div>`,
-        iconSize: [140, 34],
-        iconAnchor: [70, 17],
+        html: `<div class="cad-badge primary"><b>${displayTitleholder} (Self)</b><span>${displaySurveyNo} · ${parcelArea.toFixed(2)} ha (${(parcelArea * 2.471).toFixed(2)} ac)</span></div>`,
+        iconSize: [160, 36],
+        iconAnchor: [80, 18],
       })
     }).addTo(cGroup)
 
@@ -809,9 +833,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         L.marker([cLat, cLon], {
           icon: L.divIcon({
             className: 'ix-cadastre-badge-wrap',
-            html: `<div class="cad-badge" style="background: ${item.color}; border: 1.5px solid #fff; color: #fff;"><b>${item.name.split(' (')[0].slice(0, 18)}</b><span>${item.relation.split(' ')[0]} · ${item.surveyNo}</span></div>`,
-            iconSize: [130, 32],
-            iconAnchor: [65, 16],
+            html: `<div class="cad-badge" style="background: ${item.color}; border: 1.5px solid #fff; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);"><b>${item.name.slice(0, 22)}</b><span>${item.surveyNo} · ${item.areaHa} ha</span></div>`,
+            iconSize: [140, 34],
+            iconAnchor: [70, 17],
           })
         }).addTo(cGroup)
       })

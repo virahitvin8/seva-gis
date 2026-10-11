@@ -161,7 +161,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [mouseCoords, setMouseCoords] = useState<{ lat: number; lon: number } | null>(null)
   const [cartoLegendPos, setCartoLegendPos] = useState({ x: 28, y: 140 })
   const [cartoLegendDragging, setCartoLegendDragging] = useState(false)
-  const [cartoLegendDragOffset] = useState(() => ({ x: 0, y: 0 }))
+  const [cartoLegendMinimized, setCartoLegendMinimized] = useState(false)
+  const cartoLegendDragOffset = useRef({ x: 0, y: 0 })
 
   // Geodesic Custom Buffer Zone Tool State
   const [bufferDist, setBufferDist] = useState<number>(20)
@@ -269,8 +270,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     return [farm]
   }, [farm])
   const geo = farm.polygon && farm.polygon.length >= 3
-    ? `${farm.id}:${farm.polygon.map(([lon, lat]) => `${lon.toFixed(7)},${lat.toFixed(7)}`).join(';')}`
-    : `${farm.id}:${farm.lat.toFixed(7)}:${farm.lon.toFixed(7)}:${farm.area.toFixed(4)}`
+    ? `${farm.id}:${farm.polygon.map(([lon, lat]) => `${(lon ?? 0).toFixed(7)},${(lat ?? 0).toFixed(7)}`).join(';')}`
+    : `${farm.id}:${(farm.lat ?? 20.5937).toFixed(7)}:${(farm.lon ?? 78.9629).toFixed(7)}:${(farm.area ?? 1.5).toFixed(4)}`
   const sceneKey = scene ? `${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}` : 'no-scene'
 
   // GIS Engine Controls: Background mode, Dynamic Range Adjustment (DRA), High-DPI Clarity
@@ -695,75 +696,97 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   // Boundary frame and exterior canvas mask with evenodd hole rendering
   useEffect(() => {
     const instance = map.current
-    if (!instance) return
-    const [w, s, e, n] = farmBBox(farm)
-    const ring = farmRing(farm).map(p => [p[1], p[0]] as L.LatLngTuple)
-    const group = L.layerGroup().addTo(instance)
-    frame.current = group
+    if (!instance || !farm) return
+    let group: L.LayerGroup | null = null
+    try {
+      const [rawW, rawS, rawE, rawN] = farmBBox(farm)
+      const w = Number.isFinite(rawW) ? rawW : 78.96
+      const s = Number.isFinite(rawS) ? rawS : 20.59
+      const e = Number.isFinite(rawE) ? rawE : 78.97
+      const n = Number.isFinite(rawN) ? rawN : 20.60
+      const rawRing = farmRing(farm)
+      let ring: L.LatLngTuple[] = rawRing
+        .filter(p => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+        .map(p => [p[1], p[0]] as L.LatLngTuple)
+      if (ring.length < 3) {
+        ring = [[s, w], [s, e], [n, e], [n, w]]
+      }
 
-    const bgMapColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
-    if (element.current) {
-      element.current.style.backgroundColor = bgMapColor
+      group = L.layerGroup().addTo(instance)
+      frame.current = group
+
+      const bgMapColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+      if (element.current) {
+        element.current.style.backgroundColor = bgMapColor
+      }
+
+      const worldOuter: L.LatLngTuple[] = [
+        [-85, -180],
+        [-85, 180],
+        [85, 180],
+        [85, -180],
+      ]
+
+      // Area of Interest Clipping Mask: exclusively reveals the AOI while masking surroundings
+      if (aoiOnly) {
+        L.polygon([worldOuter, ring], {
+          fillColor: bgMapColor,
+          fillOpacity: 0.94,
+          stroke: false,
+          interactive: false
+        }).addTo(group)
+      }
+
+      const strokeColor = bgMode === 'black' ? '#22c55e' : bgMode === 'white' ? '#15803d' : aoiOnly ? '#22c55e' : '#facc15'
+      L.polygon(ring, { color: strokeColor, weight: 2.8, fill: false, interactive: false }).addTo(group)
+
+      // Geodesic Buffer Zone Polygon
+      if (bufferActive) {
+        const distMeters = bufferDist * (bufferUnit === 'km' ? 1000 : 1)
+        const latRad = ((s + n) / 2) * (Math.PI / 180)
+        const cosLat = Math.cos(latRad)
+        const dLat = distMeters / 111320
+        const dLon = distMeters / (111320 * Math.max(0.1, cosLat))
+        const cLon = (w + e) / 2
+        const cLat = (s + n) / 2
+        const bufferRing: L.LatLngTuple[] = ring.map(([la, lo]) => {
+          const vLat = la - cLat
+          const vLon = lo - cLon
+          const len = Math.hypot(vLat, vLon) || 0.0001
+          return [la + (vLat / len) * dLat, lo + (vLon / len) * dLon] as L.LatLngTuple
+        })
+        L.polygon(bufferRing, {
+          color: '#f59e0b',
+          weight: 2.4,
+          dashArray: '6 4',
+          fillColor: '#f59e0b',
+          fillOpacity: 0.14,
+          interactive: false
+        }).addTo(group)
+      }
+
+      // Animated traveling pulse / train signal along the AOI boundary during map processing or scene loading
+      if (busy.length > 0 || loading) {
+        L.polyline(ring, {
+          color: '#38bdf8',
+          weight: 4,
+          className: 'seva-train-pulse',
+          interactive: false
+        }).addTo(group)
+      }
+
+      fit75PercentAoi(instance, false)
+    } catch (err) {
+      console.warn('Boundary frame rendering safe catch:', err)
     }
 
-    const worldOuter: L.LatLngTuple[] = [
-      [-85, -180],
-      [-85, 180],
-      [85, 180],
-      [85, -180],
-    ]
-
-    // Area of Interest Clipping Mask: exclusively reveals the AOI while masking surroundings
-    if (aoiOnly) {
-      L.polygon([worldOuter, ring], {
-        fillColor: bgMapColor,
-        fillOpacity: 0.94,
-        stroke: false,
-        interactive: false
-      }).addTo(group)
+    return () => {
+      try {
+        group?.remove()
+      } catch {}
+      frame.current = null
     }
-
-    const strokeColor = bgMode === 'black' ? '#22c55e' : bgMode === 'white' ? '#15803d' : aoiOnly ? '#22c55e' : '#facc15'
-    L.polygon(ring, { color: strokeColor, weight: 2.8, fill: false, interactive: false }).addTo(group)
-
-    // Geodesic Buffer Zone Polygon
-    if (bufferActive) {
-      const distMeters = bufferDist * (bufferUnit === 'km' ? 1000 : 1)
-      const latRad = ((s + n) / 2) * (Math.PI / 180)
-      const cosLat = Math.cos(latRad)
-      const dLat = distMeters / 111320
-      const dLon = distMeters / (111320 * Math.max(0.1, cosLat))
-      const cLon = (w + e) / 2
-      const cLat = (s + n) / 2
-      const bufferRing: L.LatLngTuple[] = ring.map(([la, lo]) => {
-        const vLat = la - cLat
-        const vLon = lo - cLon
-        const len = Math.hypot(vLat, vLon) || 0.0001
-        return [la + (vLat / len) * dLat, lo + (vLon / len) * dLon] as L.LatLngTuple
-      })
-      L.polygon(bufferRing, {
-        color: '#f59e0b',
-        weight: 2.4,
-        dashArray: '6 4',
-        fillColor: '#f59e0b',
-        fillOpacity: 0.14,
-        interactive: false
-      }).addTo(group)
-    }
-
-    // Animated traveling pulse / train signal along the AOI boundary during map processing or scene loading
-    if (busy.length > 0 || loading) {
-      L.polyline(ring, {
-        color: '#38bdf8',
-        weight: 4,
-        className: 'seva-train-pulse',
-        interactive: false
-      }).addTo(group)
-    }
-
-    fit75PercentAoi(instance, false)
-    return () => { group.remove(); frame.current = null }
-  }, [farm.id, geo, dim, bgMode, aoiOnly, locked, busy.length, loading, bufferActive, bufferDist, bufferUnit])
+  }, [mapObj, farm.id, geo, dim, bgMode, aoiOnly, locked, busy.length, loading, bufferActive, bufferDist, bufferUnit])
 
   useEffect(() => {
     overlays.current.forEach(o => o.remove()); overlays.current.clear()
@@ -851,8 +874,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       percentileStretch: stretchDra,
     }, controller.signal).then(result => {
       if (controller.signal.aborted) return
-      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
-      setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
+      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey: geo, sceneCount: String(result.sceneCount) })
+      setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary Live Stream · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
     }).catch(error => {
       if (controller.signal.aborted) return
       setEarthEngineOverlay(null)
@@ -868,7 +891,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     earthEngineTiles.current = null
     earthEngineImageOverlay.current?.remove()
     earthEngineImageOverlay.current = null
-    if (!instance || !earthEngineOverlay || earthEngineOverlay.sceneKey !== sceneKey || hidden.includes(earthEngineOverlay.layerId)) return
+    if (!instance || !earthEngineOverlay || hidden.includes(earthEngineOverlay.layerId)) return
 
     if (earthEngineOverlay.imageUrl && earthEngineOverlay.bounds) {
       const overlay = L.imageOverlay(earthEngineOverlay.imageUrl, earthEngineOverlay.bounds, {
@@ -1214,19 +1237,19 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             onClick={() => setGeeCenterOpen(true)}
           >
             <span className="gee-dot" />
-            <span className="hud-title">{earthEngineOverlay?.sceneKey === sceneKey ? 'GEE Live · S2 L2A' : 'Sentinel-2 L2A'}</span>
+            <span className="hud-title">{earthEngineOverlay ? 'GEE Live · S2 L2A' : 'Sentinel-2 L2A'}</span>
             <span className="hud-sep">·</span>
             <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
             {locked && <span className="zoom-synced-pill">75%</span>}
             <span className="hud-sep">·</span>
-            <span className="hud-coords">{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : `${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E`}</span>
+            <span className="hud-coords">{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : `${(farm?.lat ?? 20.5937).toFixed(4)}°N, ${(farm?.lon ?? 78.9629).toFixed(4)}°E`}</span>
             <span className="hud-sep">·</span>
             <span
               className="hud-north"
               title="True Geodetic North. Click to re-center."
               onClick={(e) => {
                 e.stopPropagation()
-                if (map.current) map.current.setView([farm.lat, farm.lon], map.current.getZoom())
+                if (map.current) map.current.setView([farm?.lat ?? 20.5937, farm?.lon ?? 78.9629], map.current.getZoom())
               }}
             >
               ▲ N 0°
@@ -2106,7 +2129,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         {/* Outer and Inner Dual Neatline with Corner Geodetic Crosshairs */}
         {(() => {
-          const [bboxW, bboxS, bboxE, bboxN] = farmBBox(farm)
+          let bboxW = 78.96, bboxS = 20.59, bboxE = 78.97, bboxN = 20.60
+          try {
+            const [w, s, e, n] = farmBBox(farm)
+            if ([w, s, e, n].every(Number.isFinite)) {
+              bboxW = w; bboxS = s; bboxE = e; bboxN = n
+            }
+          } catch {}
           return (
             <div className="ix-carto-border-frame">
               <div className="ix-carto-tick tick-top-left">{bboxN.toFixed(4)}°N, {bboxW.toFixed(4)}°E</div>

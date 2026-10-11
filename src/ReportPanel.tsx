@@ -26,6 +26,7 @@ import {
 import { useAccount } from './Auth'
 import EmailOctopusGreetingModal from './EmailOctopusGreetingModal'
 import AoiHealthScorePie from './AoiHealthScorePie'
+import ArtCraftStudio from './ArtCraftStudio'
 import {
   DEFAULT_OPTS,
   MAP_CHOICES,
@@ -66,7 +67,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [reports, setReports] = useState<Partial<Record<ReportLang, { html: string; data: unknown; id: string; lang: ReportLang }>>>({})
   const [previewLang, setPreviewLang] = useState<ReportLang>('en')
   const [url, setUrl] = useState('')
-  const [tab, setTab] = useState<'create' | 'history' | 'health' | 'adv'>('create')
+  const [tab, setTab] = useState<'create' | 'history' | 'health' | 'adv' | 'craft'>('create')
   const [greetingModalData, setGreetingModalData] = useState<{
     isOpen: boolean
     recipientEmail: string
@@ -430,6 +431,16 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           onClick={() => setTab('adv')}
         >
           Cartography Settings
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'craft'}
+          className={tab === 'craft' ? 'on' : ''}
+          onClick={() => setTab('craft')}
+          style={{ background: tab === 'craft' ? '#1e1b4b' : undefined, color: tab === 'craft' ? '#c7d2fe' : undefined }}
+        >
+          <Sparkles size={15} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />
+          ArtCraft Dossier Workbench
         </button>
       </div>
 
@@ -989,6 +1000,13 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ARTCRAFT WORKBENCH TAB */}
+      {tab === 'craft' && (
+        <div style={{ marginTop: '16px' }}>
+          <ArtCraftStudio farm={farm as any} isModal={false} initialTab="pdfcraft" />
         </div>
       )}
 

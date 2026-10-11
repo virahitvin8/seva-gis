@@ -175,6 +175,36 @@ SEVA·GIS is engineered using **Vibe Coding** principles and advanced agentic pa
 
 ---
 
+## StoryTold ArtCraft Creative Studio Suite
+
+SEVA·GIS integrates architectural patterns from the **StoryTold ArtCraft** ecosystem, providing 5 specialized creative engines built directly into the client GIS workbench:
+
+1. **PdfCraft Workbench (The Geospatial PDF Workbench):**
+   - Clean-room document organizer, page reordering, and lossless PDF compilation.
+   - Live 3mm print bleed box guides and hairline printer crop marks.
+   - Comprehensive XMP and geodetic metadata embedding (WGS-84, EPSG, SHA-256 integrity hashes).
+
+2. **GridCraft Workbench (Ag-Data Spreadsheets & Formula Engine):**
+   - High-performance tabular data grid for sampled multi-spectral raster coordinates.
+   - Live formula bar with interactive calculation engine (`=AVERAGE()`, `=SUM()`, `=MAX()`, `=MIN()`, `=STDEV()`).
+   - Excel-style conditional formatting data bars and inline SVG sparklines for multi-temporal vegetative trajectories.
+
+3. **VectorCraft Studio (Cartographic Vector & Pathfinder Geometry):**
+   - Pathfinder boolean operations on study area polygons (Union, Intersect, Subtract Front, Exclusion).
+   - Cartographic visual appearances: outer glow halos, elevation hypsometric gradients, and cadastral hatch fills.
+   - Dynamic SVG North Arrow styles (Compass Rose, Classic, Minimal) and graphic scale bars with clean layered SVG export.
+
+4. **DesignCraft Layouts (Editorial Publishing & Dossier Spreads):**
+   - Professional multi-column publication layouts (Academic Geospatial Brief, Executive Field Brief, Landscape Cartographic Atlas).
+   - Parent folio headers/footers with dynamic page numbering, geodetic coordinates, and typographic pull-quotes.
+
+5. **EffectCraft Compositor (Satellite Motion & Multi-Layer Compositing):**
+   - Multi-layer Earth Observation compositor (Sentinel-2 True Color, NDVI Heatmap, Elevation Contours).
+   - Visual layer blending modes (`Normal`, `Screen`, `Multiply`, `Overlay`, `Luminosity`) with live opacity sliders.
+   - Interactive time-series playback scrubber with play/pause transport, loop, playback speed, and keyframe markers.
+
+---
+
 ## Credits & QGIS Inspirations
 
 SEVA·GIS stands upon the shoulders of giants in the free and open-source geospatial software (FOSS4G) community:
@@ -188,6 +218,7 @@ SEVA·GIS stands upon the shoulders of giants in the free and open-source geospa
 - **European Space Agency (ESA) Copernicus Programme:** For open, unrestricted access to the Sentinel-2 multispectral and Sentinel-1 radar constellations.
 - **Google Earth Engine Team:** For petabyte-scale planetary earth observation infrastructure and cloud geoprocessing APIs.
 - **MathWorks MATLAB:** For mathematical and algorithmic inspirations in matrix operations, polynomial curve fitting, and agricultural signal processing for vegetation phenology time-series.
+- **StoryTold & the ArtCraft Team:** For pioneering clean-room open-source creative workbenches ([PdfCraft](https://github.com/storytold/pdfcraft), [GridCraft](https://github.com/storytold/gridcraft), [VectorCraft](https://github.com/storytold/vectorcraft), [DesignCraft](https://github.com/storytold/designcraft), [EffectCraft](https://github.com/storytold/effectcraft)) inspiring SEVA·GIS's unified document compiling, agricultural data grids, vector pathfinder geometry, editorial publishing, and satellite motion compositing.
 
 ---
 

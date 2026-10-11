@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   CheckCircle2,
   Download,
@@ -10,6 +10,7 @@ import {
   HeartHandshake
 } from 'lucide-react'
 import { EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
+import { generateReportPdfBlob } from './lib/pdfGenerator'
 
 interface EmailOctopusGreetingModalProps {
   isOpen: boolean
@@ -42,19 +43,88 @@ export default function EmailOctopusGreetingModal({
 }: EmailOctopusGreetingModalProps) {
   if (!isOpen) return null
 
+  const [downloadFormat, setDownloadFormat] = useState<'html' | 'pdf' | 'doc' | 'json'>('html')
+
+  const baseName = filename.replace(/\.(html|pdf|doc|json)$/i, '') || `${farmName}_SEVA_GIS_Report`
+
   const handleDownloadAttachment = () => {
+    if (downloadFormat === 'pdf') {
+      const pdfBlob = generateReportPdfBlob(
+        farmName,
+        'Study Area Location',
+        areaHa,
+        'Agricultural Study Area',
+        ndvi,
+        ndmi,
+        14.5,
+        245,
+        reportId || 'SEVA-REPORT'
+      )
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${baseName}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    if (downloadFormat === 'doc') {
+      const wordHtml = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset="utf-8"><title>${baseName}</title></head>
+        <body>${htmlContent}</body>
+        </html>
+      `
+      const blob = new Blob([wordHtml], { type: 'application/msword;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${baseName}.doc`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    if (downloadFormat === 'json') {
+      const dataObj = {
+        studyArea: farmName,
+        areaHa,
+        ndvi,
+        ndmi,
+        reportId,
+        recipientEmail,
+        timestamp: new Date().toISOString()
+      }
+      const blob = new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${baseName}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    // Default HTML
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = filename || `${farmName}_SEVA_GIS_Report.html`
+    a.download = `${baseName}.html`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 
-  const nameDisplay = custodianName && custodianName !== 'Guest' ? custodianName : 'Agro-Geospatial Custodian'
+  const nameDisplay = custodianName && custodianName !== 'Guest' ? custodianName : 'Member'
 
   return (
     <div
@@ -195,8 +265,8 @@ export default function EmailOctopusGreetingModal({
               EmailOctopus Verified
             </div>
 
-            <div style={{ fontSize: '15px', fontWeight: 800, color: '#064e3b', marginBottom: '6px' }}>
-              Dear Custodian {nameDisplay},
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#064e3b', marginBottom: '6px' }}>
+              Dear {nameDisplay},
             </div>
             <p style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.55, color: '#334155' }}>
               Warm greetings from <b>SEVA·GIS</b>! Your official spatial evaluation dossier for study area <b>{farmName}</b> has been generated with selfless service. Our automated cloud dispatch has synchronized your profile with our EmailOctopus list and delivered the calibrated Sentinel-2 BOA satellite and hydrological telemetry.
@@ -242,20 +312,45 @@ export default function EmailOctopusGreetingModal({
               marginBottom: '18px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FileText size={18} color="#0284c7" />
                 <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
                   Attached Standalone Dossier
                 </span>
               </div>
-              <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
-                HTML Document
+              <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '999px', fontWeight: 700, textTransform: 'uppercase' }}>
+                {downloadFormat} Format
               </span>
             </div>
 
+            {/* Format Selection Pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#334155' }}>Select Format:</span>
+              {(['html', 'pdf', 'doc', 'json'] as const).map(fmt => (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() => setDownloadFormat(fmt)}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    border: downloadFormat === fmt ? '1.5px solid #047857' : '1px solid #cbd5e1',
+                    background: downloadFormat === fmt ? '#ecfdf5' : '#ffffff',
+                    color: downloadFormat === fmt ? '#047857' : '#64748b',
+                  }}
+                >
+                  {fmt}
+                </button>
+              ))}
+            </div>
+
             <div style={{ fontSize: '12.5px', color: '#475569', marginBottom: '10px', wordBreak: 'break-all' }}>
-              📄 <b>{filename || `${farmName}_SEVA_GIS_Report.html`}</b>
+              📄 <b>{baseName}.{downloadFormat}</b>
             </div>
 
             <button

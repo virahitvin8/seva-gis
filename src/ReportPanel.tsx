@@ -47,6 +47,7 @@ import {
   type ReportHistoryEntry,
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
+import { generateReportPdfBlob } from './lib/pdfGenerator'
 
 export default function ReportPanel({ farm }: { farm?: ReportFarm | null }) {
   if (!farm) {
@@ -244,6 +245,30 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     a.href = u
     a.download = name
     a.click()
+    URL.revokeObjectURL(u)
+  }
+
+  const handleDownloadPdf = () => {
+    const cur = reports[previewLang]
+    if (!cur) return
+    const pdfBlob = generateReportPdfBlob(
+      farm.name,
+      farm.location,
+      farm.area ?? 2.4,
+      farm.crop ?? 'Paddy',
+      farm.analysis?.ndvi?.mean ?? 0.65,
+      farm.analysis?.ndmi?.mean ?? 0.32,
+      farm.analysis?.stressPct ?? 14.5,
+      farm.elevation ?? 245,
+      cur.id
+    )
+    const u = URL.createObjectURL(pdfBlob)
+    const a = document.createElement('a')
+    a.href = u
+    a.download = `${baseFilename}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(u)
   }
 
@@ -708,7 +733,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 </div>
               )}
 
-              <div className="rp-actions" style={{ marginTop: '14px' }}>
+              <div className="rp-actions" style={{ marginTop: '14px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 <button
                   className="primary"
                   onClick={handleDownloadDossier}
@@ -716,9 +741,13 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   <ArrowDownToLine size={16} />
                   Download Dossier ({baseFilename}.html)
                 </button>
-                <button className="outline" onClick={print}>
-                  <Printer size={16} />
-                  Print / Save PDF ({baseFilename}.pdf)
+                <button
+                  className="primary"
+                  onClick={handleDownloadPdf}
+                  style={{ background: '#047857', border: '1px solid #059669' }}
+                >
+                  <ArrowDownToLine size={16} />
+                  Download PDF ({baseFilename}.pdf)
                 </button>
                 <button className="outline" onClick={handleDownloadWord}>
                   <FileText size={16} />
@@ -730,6 +759,10 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 >
                   <FileJson size={16} />
                   Data (JSON)
+                </button>
+                <button className="outline" onClick={print} title="Open browser print preview">
+                  <Printer size={16} />
+                  Print Dossier
                 </button>
               </div>
 

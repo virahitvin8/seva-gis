@@ -4,7 +4,7 @@ const KEY = 'seva-greet'
 
 function pool(n: string, h: number): Greeting[] {
   const part = h < 5 ? 'night' : h < 12 ? 'morning' : h < 17 ? 'afternoon' : h < 21 ? 'evening' : 'night'
-  const line = 'Review a field from home: see the latest clear satellite picture, compare earlier passes, and spot areas that changed.'
+  const line = 'Review field from remote: inspect the latest clear satellite observations, compare multi-temporal passes, and spot spatial changes across your study area.'
   const list: Greeting[] = [
     { text: `Good ${part}, ${n}`, line, dot: true },
     { text: `Welcome back, ${n}`, line, dot: true },

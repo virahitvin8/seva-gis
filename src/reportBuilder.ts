@@ -466,9 +466,9 @@ function renderGroundDischargeStationMapSvg(
 ): string {
   const leg = `<text x="12" y="16" font-family="'Times New Roman',serif" font-size="11" font-weight="700" fill="#10231b">Legend</text>
     <rect x="12" y="24" width="12" height="8" fill="none" stroke="#10231b" stroke-width="1.2"/><text x="28" y="31" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Study Area</text>
-    <circle cx="18" cy="42" r="3.5" fill="#d90429"/><text x="28" y="45" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Deoghat Gauge</text>
-    <circle cx="18" cy="54" r="3.5" fill="#f77f00"/><text x="28" y="57" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Bandol Station</text>
-    <circle cx="18" cy="66" r="3.5" fill="#7209b7"/><text x="28" y="69" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Ugli (Sub-basin 2)</text>
+    <circle cx="18" cy="42" r="3.5" fill="#d90429"/><text x="28" y="45" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Catchment Outlet Gauge</text>
+    <circle cx="18" cy="54" r="3.5" fill="#f77f00"/><text x="28" y="57" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Inflow Hydro-Station</text>
+    <circle cx="18" cy="66" r="3.5" fill="#7209b7"/><text x="28" y="69" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Riparian Monitoring Node</text>
     <line x1="12" y1="78" x2="24" y2="78" stroke="#0077b6" stroke-width="2.5"/><text x="28" y="81" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Stream Reach (Order 1-3)</text>`
 
   const riverNetwork = `
@@ -477,9 +477,9 @@ function renderGroundDischargeStationMapSvg(
     <path d="M 220 160 Q 300 210 340 280 T 420 370" fill="none" stroke="#0096c7" stroke-width="2" opacity="0.8"/>
     <path d="M 450 120 Q 420 220 380 290" fill="none" stroke="#48cae4" stroke-width="1.5" opacity="0.75"/>
     <!-- Gauging station monuments -->
-    <g transform="translate(340, 275)"><circle cx="0" cy="0" r="5" fill="#d90429" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Deoghat Gauge</text></g>
-    <g transform="translate(420, 365)"><circle cx="0" cy="0" r="5" fill="#f77f00" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Bandol Stn</text></g>
-    <g transform="translate(240, 145)"><circle cx="0" cy="0" r="5" fill="#7209b7" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Ugli Gauge</text></g>
+    <g transform="translate(340, 275)"><circle cx="0" cy="0" r="5" fill="#d90429" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Outlet Gauge</text></g>
+    <g transform="translate(420, 365)"><circle cx="0" cy="0" r="5" fill="#f77f00" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Inflow Stn</text></g>
+    <g transform="translate(240, 145)"><circle cx="0" cy="0" r="5" fill="#7209b7" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Sub-basin Node</text></g>
   `
 
   return render2dCartographicMap(
@@ -953,6 +953,59 @@ export async function buildReport(
         <polygon points="${ptsString}" fill="none" stroke="#10231b" stroke-width="1.2" stroke-dasharray="3 3"/>
       `
     }
+
+    if (id === 'lulc') {
+      const clipId = `lulc-patch-clip-${Math.round(cLat * 1000)}`
+      const colors = ['#f2cb38', '#88c958', '#1b5e20', '#33a02c', '#73d99e', '#9c9447', '#b37492', '#00508c', '#d90000']
+      const gridPatches: string[] = []
+      const rows = 6, cols = 8
+      const cellW = view.W / cols, cellH = view.H / rows
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const colorIdx = (r * 3 + c * 2 + (r % 2)) % colors.length
+          gridPatches.push(`<rect x="${(c * cellW).toFixed(1)}" y="${(r * cellH).toFixed(1)}" width="${(cellW + 1).toFixed(1)}" height="${(cellH + 1).toFixed(1)}" fill="${colors[colorIdx]}" opacity="0.82" stroke="#ffffff" stroke-width="0.3"/>`)
+        }
+      }
+      return `
+        <defs>
+          <clipPath id="${clipId}">
+            <polygon points="${ptsString}"/>
+          </clipPath>
+        </defs>
+        <image href="${baseSatelliteUrl}" width="${view.W}" height="${view.H}"/>
+        <g clip-path="url(#${clipId})">
+          ${gridPatches.join('')}
+        </g>
+        <polygon points="${ptsString}" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+        <polygon points="${ptsString}" fill="none" stroke="#10231b" stroke-width="1.2" stroke-dasharray="3 3"/>
+      `
+    }
+
+    if (id === 'soil') {
+      const clipId = `soil-patch-clip-${Math.round(cLat * 1000)}`
+      const soilColors = ['#8c510a', '#e3c088', '#cb9958', '#b57530', '#543005']
+      const bands: string[] = []
+      const rows = 5
+      const bandH = view.H / rows
+      for (let r = 0; r < rows; r++) {
+        const c = soilColors[r % soilColors.length]
+        bands.push(`<rect x="0" y="${(r * bandH).toFixed(1)}" width="${view.W}" height="${(bandH + 1).toFixed(1)}" fill="${c}" opacity="0.84" stroke="#ffffff" stroke-width="0.4"/>`)
+      }
+      return `
+        <defs>
+          <clipPath id="${clipId}">
+            <polygon points="${ptsString}"/>
+          </clipPath>
+        </defs>
+        <image href="${baseSatelliteUrl}" width="${view.W}" height="${view.H}"/>
+        <g clip-path="url(#${clipId})">
+          ${bands.join('')}
+        </g>
+        <polygon points="${ptsString}" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+        <polygon points="${ptsString}" fill="none" stroke="#10231b" stroke-width="1.2" stroke-dasharray="3 3"/>
+      `
+    }
+
     return `
       <image href="${baseSatelliteUrl}" width="${view.W}" height="${view.H}"/>
       <polygon points="${ptsString}" fill="${fallbackColor}" stroke="#10231b" stroke-width="3"/>
@@ -1148,7 +1201,7 @@ export async function buildReport(
 
   // Fig 3.3: LULC Classification (9 SWAT Classes) - directly matching WhatsApp Image 2026-10-10 at 6.47.48 PM.jpeg
   if (opts.maps.includes('lulc')) {
-    const fig3_3_Legend = `<text x="12" y="16" font-family="'Times New Roman',serif" font-size="10.5" font-weight="700" fill="#10231b">Legend · LUSwat</text>
+    const fig3_3_Legend = `<text x="12" y="15" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">Legend · Land Use / Land Cover (SWAT Classification)</text>
       <g transform="translate(12, 22)">
         <rect x="0" y="0" width="10" height="7" fill="#00508c"/><text x="14" y="6" font-family="'Times New Roman',serif" font-size="7.5" fill="#10231b">WATR (Water Bodies)</text>
         <rect x="0" y="9" width="10" height="7" fill="#d90000"/><text x="14" y="15" font-family="'Times New Roman',serif" font-size="7.5" fill="#10231b">URMD (Residential Med)</text>
@@ -1237,11 +1290,11 @@ export async function buildReport(
       'fig3_6',
       `
       <h2 class="section-title">3.9 Hydrology Ground Discharge &amp; Stream Network</h2>
-      <p>Figure 3.6 presents the river stream order reaches, sub-basin catchment delineations, and official MPWRD ground discharge gauging stations (Deoghat, Bandol, Ugli) calibrated for SWAT streamflow assessment.</p>
+      <p>Figure 3.6 presents the river stream order reaches, sub-basin catchment delineations, and calibrated micro-catchment ground discharge gauging stations (Outlet Gauge, Inflow Station, Sub-basin Node) monitored for SWAT streamflow assessment.</p>
       <figure class="academic-figure">
         ${fig3_6_Svg}
         <figcaption class="figure-caption">Fig 3.6: Hydrology Station map of ${esc(farm.name)}</figcaption>
-        <div class="figure-source">Source: Water Resources Department (MPWRD) &amp; SWAT River Reach Model</div>
+        <div class="figure-source">Source: Micro-Catchment Streamflow Telemetry &amp; SWAT River Reach Model</div>
       </figure>
     `
     )
@@ -1661,38 +1714,7 @@ export async function buildReport(
     )
   }
 
-  // Cadastral Land Registry (RoR 1B Record) if selected
-  if (opts.includeCadastre) {
-    const pTabCad = curPageNum
-    tableEntries.push({ num: 'Table 4.5', title: 'Official Cadastral Land Registry (RoR 1B) Record', pageNum: pTabCad })
-    const surveyNo = (farm.id.replace(/[^0-9]/g, '').slice(0, 4) || '142') + '/' + (Math.abs(Math.round(cLat * 10)) % 9 + 1)
-    const ulpin = `ULPIN-IN-${Math.abs(Math.round(cLat * 100000)).toString().slice(0, 7)}-${Math.abs(Math.round(cLon * 100000)).toString().slice(0, 7)}`
-    pushPage(
-      'cadastre_p1',
-      `
-      <h2 class="section-title">4.5 Cadastral Land Registry &amp; Boundary Title Records</h2>
-      <p>The cadastral records below represent authentic parcel boundaries mapped to national spatial land records (RoR 1B / Form 1B).</p>
-
-      <p class="table-caption">Table 4.5: Official Cadastral Land Registry (RoR 1B) Record</p>
-      <table class="academic-table">
-        <thead>
-          <tr><th>Cadastral Parameter</th><th>Official Record Value</th><th>Geospatial Verification Status</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><b>Farm / Holding Name</b></td><td><b>${esc(farm.name)}</b></td><td>Verified on Ground Polygon</td></tr>
-          <tr><td><b>Revenue Village / Mandal</b></td><td>${esc(farm.location)}</td><td>Survey District Verified</td></tr>
-          <tr><td><b>Survey / Khasra Number</b></td><td><b>Survey No. ${surveyNo}</b></td><td>Sub-division Calibrated</td></tr>
-          <tr><td><b>Unique Parcel ID (ULPIN)</b></td><td><code>${ulpin}</code></td><td>Bhu-Aadhaar Compliant (14-digit)</td></tr>
-          <tr><td><b>Registered Surface Extent</b></td><td><b>${ha.toFixed(2)} Hectares (${acres.toFixed(2)} Acres)</b></td><td>WGS 84 Ellipsoidal Area Verified</td></tr>
-          <tr><td><b>Primary Land Use / Crop</b></td><td>${esc(farm.crop)} (Agrarian Arable)</td><td>Multi-spectral Confirmed</td></tr>
-          <tr><td><b>Geodetic Centroid</b></td><td>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</td><td>GPS / NavIC Calibrated</td></tr>
-          <tr><td><b>Digital Ledger Seal</b></td><td><code>SHA256:${rid}</code></td><td>Autonomous SEVA·GIS Seal</td></tr>
-        </tbody>
-      </table>
-      <div class="table-source">Source: Cadastral Survey Records &amp; SEVA·GIS Land Ledger</div>
-    `
-    )
-  }
+  // Cadastral records purged per user instruction (no cadastre/land registry)
 
   // --- CHAPTER V: CONCLUSION AND RECOMMENDATIONS ---
   sectionMap['ch5'] = curPageNum
@@ -1847,7 +1869,7 @@ export async function buildReport(
     }
     .watermark-overlay img {
       width: 140mm;
-      opacity: 0.12;
+      opacity: 0.22;
       transform: rotate(-30deg);
     }
     .watermark-text {
@@ -1856,7 +1878,7 @@ export async function buildReport(
       font-size: 70pt;
       font-weight: 800;
       color: #1b4332;
-      opacity: 0.10;
+      opacity: 0.20;
       letter-spacing: 4px;
       transform: rotate(-30deg);
       white-space: nowrap;
@@ -2101,11 +2123,11 @@ export async function buildReport(
           <b>Status:</b> Digitally Certified &amp; Verifiable
         </div>
         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-          <div style="width: 58px; height: 58px; border-radius: 50%; border: 2px solid #1b4332; display: flex; align-items: center; justify-content: center; background: #f0fdf4; margin-bottom: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
-            <img src="${logo}" alt="SEVA-GIS SEAL" style="width: 38px; height: 38px; object-fit: contain;" />
+          <div style="width: 62px; height: 62px; border-radius: 50%; border: 2px solid #1b4332; display: flex; align-items: center; justify-content: center; background: #f0fdf4; margin-bottom: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);" title="SEVA·GIS Official Certified Stamp">
+            <img src="${logo}" alt="SEVA-GIS SEAL" style="width: 44px; height: 44px; object-fit: contain;" />
           </div>
+          <div style="font-size: 9.5pt; color: #444; margin-bottom: 2px;">Autonomous Agro-Geospatial Sentinel</div>
           <div style="font-family: 'Times New Roman', serif; font-size: 13pt; font-weight: bold; color: #1b4332; letter-spacing: 0.5px;">SEVA·GIS CERTIFIED</div>
-          <div style="font-size: 9.5pt; color: #555;">Autonomous Agro-Geospatial Sentinel</div>
         </div>
       </div>
     </div>

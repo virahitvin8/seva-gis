@@ -24,9 +24,10 @@
 
 [What You Can Analyze](#what-you-can-analyze) · [The Precision Correction Suite](#the-precision-correction-suite) · [Architecture & How SEVA·GIS Works](#architecture--how-sevagis-works) · [Git Repositories](#git-repositories) · [Vibe Coding & Agentic Engineering](#vibe-coding--agentic-engineering) · [Credits & QGIS Inspirations](#credits--qgis-inspirations) · [Live Testing Links](#live-testing-links)
 
-<br />
-
-<img src="docs/portal_preview.png" alt="SEVA·GIS Precision Agriculture Interactive GIS Terminal" width="1200" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);" />
+<a href="https://sevagis.dpdns.org">
+  <img src="docs/walkthrough_satellite_data.gif" alt="SEVA·GIS Precision Agriculture Interactive GIS Terminal" width="1200" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);" />
+</a>
+<p align="center"><em>▶️ Full HD Walkthrough: <a href="docs/seva_gis_portal_walkthrough.mp4">docs/seva_gis_portal_walkthrough.mp4</a> · Interactive Session: <a href="https://sevagis.dpdns.org">sevagis.dpdns.org</a></em></p>
 
 <br /><br />
 
@@ -53,6 +54,20 @@
 **SEVA·GIS** (**S**patial **E**valuation & **V**egetation **A**nalytics) is an open-source, publication-grade geospatial intelligence and spatial analytics platform. Engineered with a strict client-side, zero-telemetry philosophy, SEVA·GIS empowers smallholder farmers, agronomists, remote sensing scientists, and land stewards to assess agricultural parcels and study areas anywhere on Earth with sub-meter geometric clarity, calibrated satellite spectral indices, 3D terrain cartography, and hydrological modeling.
 
 Unlike proprietary software suites that lock users into closed ecosystems and harvest private field data, SEVA·GIS processes rasters locally in the browser using the Origin Private File System (OPFS), WebGL, and direct Google Earth Engine APIs with zero personal tracking.
+
+> ### 🚀 Quick Access: Launch SEVA·GIS Portal
+> Access the live interactive portal with zero setup, keyless satellite ingestion, and local encrypted vault persistence:
+> 
+> ```bash
+> # Direct Browser Access (PWA / WebGL)
+> https://sevagis.dpdns.org
+> 
+> # High-Availability CDN Mirror
+> https://seva-gis-backend-e724a.web.app
+> 
+> # Interactive Earth Engine API Documentation (Swagger)
+> https://seva-gis-backend-419602015618.us-central1.run.app/api/docs
+> ```
 
 ---
 
@@ -172,36 +187,6 @@ SEVA·GIS is engineered using **Vibe Coding** principles and advanced agentic pa
 - **Strict Invariant Verification:** Every mathematical routine—from Sun-Canopy-Sensor topographic angles to Moran's I spatial degrees of freedom—is verified against live API telemetry before deployment.
 - **Zero-Dependency Native Architecture:** Choosing lightweight native web capabilities (Canvas, WebGL, CSS Grid, OPFS) over heavy external dependencies to maintain lightning-fast load times.
 - **Agent Skill Orchestration:** Custom `.agents/skills` managing precision spatial pipelines, coverage robotics math, and code review guardrails.
-
----
-
-## StoryTold ArtCraft Creative Studio Suite
-
-SEVA·GIS integrates architectural patterns from the **StoryTold ArtCraft** ecosystem, providing 5 specialized creative engines built directly into the client GIS workbench:
-
-1. **PdfCraft Workbench (The Geospatial PDF Workbench):**
-   - Clean-room document organizer, page reordering, and lossless PDF compilation.
-   - Live 3mm print bleed box guides and hairline printer crop marks.
-   - Comprehensive XMP and geodetic metadata embedding (WGS-84, EPSG, SHA-256 integrity hashes).
-
-2. **GridCraft Workbench (Ag-Data Spreadsheets & Formula Engine):**
-   - High-performance tabular data grid for sampled multi-spectral raster coordinates.
-   - Live formula bar with interactive calculation engine (`=AVERAGE()`, `=SUM()`, `=MAX()`, `=MIN()`, `=STDEV()`).
-   - Excel-style conditional formatting data bars and inline SVG sparklines for multi-temporal vegetative trajectories.
-
-3. **VectorCraft Studio (Cartographic Vector & Pathfinder Geometry):**
-   - Pathfinder boolean operations on study area polygons (Union, Intersect, Subtract Front, Exclusion).
-   - Cartographic visual appearances: outer glow halos, elevation hypsometric gradients, and cadastral hatch fills.
-   - Dynamic SVG North Arrow styles (Compass Rose, Classic, Minimal) and graphic scale bars with clean layered SVG export.
-
-4. **DesignCraft Layouts (Editorial Publishing & Dossier Spreads):**
-   - Professional multi-column publication layouts (Academic Geospatial Brief, Executive Field Brief, Landscape Cartographic Atlas).
-   - Parent folio headers/footers with dynamic page numbering, geodetic coordinates, and typographic pull-quotes.
-
-5. **EffectCraft Compositor (Satellite Motion & Multi-Layer Compositing):**
-   - Multi-layer Earth Observation compositor (Sentinel-2 True Color, NDVI Heatmap, Elevation Contours).
-   - Visual layer blending modes (`Normal`, `Screen`, `Multiply`, `Overlay`, `Luminosity`) with live opacity sliders.
-   - Interactive time-series playback scrubber with play/pause transport, loop, playback speed, and keyframe markers.
 
 ---
 

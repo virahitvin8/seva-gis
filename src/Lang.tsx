@@ -59,6 +59,19 @@ function clearAllGoogleTransCookies() {
       document.cookie = `googtrans=; max-age=0${pathPart}${domPart}`
     }
   }
+  // Clear any cookie whose name contains googtrans
+  document.cookie.split(';').forEach(c => {
+    const name = c.split('=')[0]?.trim()
+    if (name && /googtrans/i.test(name)) {
+      domains.forEach(d => {
+        paths.forEach(p => {
+          const domPart = d ? `; domain=${d}` : ''
+          const pathPart = p ? `; path=${p}` : ''
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC${pathPart}${domPart}`
+        })
+      })
+    }
+  })
   try {
     sessionStorage.removeItem('googtrans')
     localStorage.removeItem('googtrans')
@@ -108,7 +121,7 @@ function ensureGoogleTranslateLoaded(onReady?: () => void) {
           'seva-gt'
         )
       }
-      if (onReady) setTimeout(onReady, 100)
+      if (onReady) setTimeout(onReady, 80)
     } catch (e) {
       console.warn('Google Translate initialization notice:', e)
     }
@@ -133,7 +146,6 @@ export default function Lang() {
     if (cur !== 'en') {
       setLanguageCookie(cur)
       ensureGoogleTranslateLoaded(() => {
-        // Trigger translation if combo is ready
         const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
         if (sel && sel.value !== cur) {
           sel.value = cur
@@ -141,7 +153,6 @@ export default function Lang() {
         }
       })
     } else {
-      // Clean up any residual translate cookies so English remains pure and fast
       clearAllGoogleTransCookies()
     }
   }, [])
@@ -166,10 +177,9 @@ export default function Lang() {
     document.documentElement.lang = code
 
     if (code === 'en') {
-      // 1. Thoroughly wipe all Google Translate cookies
       clearAllGoogleTransCookies()
 
-      // 2. Try resetting the select combo if available
+      // Reset the select combo to English/empty
       try {
         const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
         if (sel) {
@@ -178,7 +188,7 @@ export default function Lang() {
         }
       } catch {}
 
-      // 3. Try to click restore button in Google's top iframe banner if present
+      // Click restore banner if present
       try {
         const bannerFrame = document.querySelector<HTMLIFrameElement>('.goog-te-banner-frame')
         if (bannerFrame?.contentDocument) {
@@ -187,10 +197,10 @@ export default function Lang() {
         }
       } catch {}
 
-      // 4. Clean reload ensures React DOM tree is cleanly restored to native English
+      // Fast, clean reload without caching stale DOM translation
       setTimeout(() => {
         window.location.reload()
-      }, 50)
+      }, 30)
       return
     }
 
@@ -207,19 +217,16 @@ export default function Lang() {
       return false
     }
 
-    // Try applying directly without reload
     if (applyToCombo()) return
 
-    // If combo is not ready yet, load script and poll up to 2.5 seconds
     ensureGoogleTranslateLoaded()
     let attempts = 0
     const pollInterval = setInterval(() => {
       attempts++
-      if (applyToCombo() || attempts > 20) {
+      if (applyToCombo() || attempts > 15) {
         clearInterval(pollInterval)
-        // No reload fallback - just let it settle, avoids blank screen
       }
-    }, 120)
+    }, 100)
   }
 
   return (

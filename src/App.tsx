@@ -17,6 +17,7 @@ import { NumbersGuide } from './Scale'
 import { farmRing } from './lib/seva'
 import FieldHealthScore from './FieldHealthScore'
 import TeamGitDiagram from './TeamGitDiagram'
+import InsightPlayingCardModal, { type InsightCardData } from './InsightPlayingCardModal'
 
 const AgroPanel = lazy(() => import('./AgroPanel'))
 const CropJournal = lazy(() => import('./CropJournal'))
@@ -63,7 +64,6 @@ const DEFAULT_SECTION_ORDER = [
   'numbers-guide',
   'advice-grid',
   'agro-water',
-  'crop-library',
   'village-view',
   'gis-export',
   'intelligence-lab',
@@ -229,6 +229,34 @@ export default function App() {
   }
   const [opts, setOpts] = useState<SceneOpts>({ mode: 'latest', maxCloud: 30 })
   const [spinningCard, setSpinningCard] = useState<string | null>(null)
+  const [activeInsightCard, setActiveInsightCard] = useState<InsightCardData | null>(null)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY
+      const journalEl = document.querySelector('.crop-journal')
+      const myFarmsEl = document.getElementById('my-farms')
+      if (journalEl) {
+        const rect = journalEl.getBoundingClientRect()
+        if (rect.top <= 200 && rect.bottom >= 100) {
+          setNav('Crop journal')
+          return
+        }
+      }
+      if (myFarmsEl) {
+        const rect = myFarmsEl.getBoundingClientRect()
+        if (rect.top <= 200 && rect.bottom >= 100) {
+          setNav('My farms')
+          return
+        }
+      }
+      if (scrollY < 300) {
+        setNav('Overview')
+      }
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
   async function refreshCard(title: string) {
     if (!farm) return
     setSpinningCard(title)
@@ -370,7 +398,7 @@ export default function App() {
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Add an outline for any field you want to review from home. SEVA·GIS will show the latest available clear Sentinel-2 pass so you can compare dates, layers, and visible changes remotely.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
       <div className="summary-grid"><div className="summary-card"><span className="metric-icon"><MapPinned size={21}/></span><div><span>Total farms</span><strong>{farms.length}<small>Across {new Set(farms.map(item => item.location)).size} locations</small></strong></div></div><div className="summary-card"><span className="metric-icon"><Sprout size={21}/></span><div><span>Mapped boundary area</span><strong>{farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0).toFixed(1)} <em>ha</em><small>{(farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0) * 2.47105381).toFixed(1)} acres · outlines only</small></strong></div></div><div className="summary-card"><span className="metric-icon healthy"><Leaf size={21}/></span><div><span>Farms with strong green cover</span><strong>{farms.filter(item => item.status === 'Healthy').length}<small><i className="dot green"/>Strong green-cover signal</small></strong></div></div><div className="summary-card"><span className="metric-icon attention"><Droplets size={21}/></span><div><span>Fields to review</span><strong>{farms.filter(farmNeedsAttention).length}<small><i className="dot amber"/>Review flagged areas in the latest pass</small></strong></div><ArrowUpRight size={17}/></div></div>
       <div className={`farm-workspace ${mapFocus ? 'map-focus' : ''}`} id="my-farms"><section className="farm-list"><div className="section-top"><h2>My farms <span>{farms.length}</span></h2><button aria-label="Add farm" onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder="Find a farm..." value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => setSelected(item.id)}><div className="farm-thumb aoi" title="Satellite view of your farm boundary"><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.polygon && item.polygon.length >= 3 ? `${mappedBoundaryAreaHa(item).toFixed(2)} ha · ${(mappedBoundaryAreaHa(item) * 2.47105381).toFixed(2)} ac` : 'Location pin · area unknown'}<b>·</b>{item.crop}</span><div className="farm-badges-row"><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span><span role="button" tabIndex={0} className="farm-maps-btn" title={`View this field location in Google Maps: ${item.name} (${item.lat.toFixed(4)}°, ${item.lon.toFixed(4)}°)`} onClick={event => { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') } }}><Navigation size={11} className="maps-symbol-icon"/><span>View location</span></span></div></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>Add another farm</button><div ref={setLayersPanelTarget} className="ix-panel-dock" aria-label="Layers and symbology controls"/><div className="list-note"><ShieldCheck size={16}/><span>Your coordinates stay on this device.</span></div></section>
-       <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm.name} (${farm.lat.toFixed(4)}°, ${farm.lon.toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>View location</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">Loading the field map…</div>}><IndicatorMap key={farm.id} farm={farm} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>About this data<ArrowUpRight size={13}/></button></div></section></div>
+       <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm.name} (${farm.lat.toFixed(4)}°, ${farm.lon.toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>View location</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">Loading the field map…</div>}><IndicatorMap farm={farm} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>About this data<ArrowUpRight size={13}/></button></div></section></div>
       {editLayout && (
         <div style={{ background: '#064e3b', color: '#a7f3d0', border: '1px solid #10b981', borderRadius: '12px', padding: '14px 18px', margin: '15px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
@@ -496,7 +524,22 @@ export default function App() {
                     ]
 
                     return cardsData.map(({ title, icon: Icon, value, unit, label, color, bars, stat, lo, hi, benchmarks, reasoning }) => (
-                      <div className={`intelligence-card ${color}`} key={title} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div
+                        className={`intelligence-card ${color}`}
+                        key={title}
+                        onClick={() => setActiveInsightCard({
+                          title,
+                          value,
+                          unit,
+                          label,
+                          color,
+                          benchmarks,
+                          reasoning,
+                          metricCode: title.startsWith('Vegetation') ? 'NDVI / EVI' : title.startsWith('Surface') ? 'NDMI / SMAP' : title.startsWith('Rainfall') ? 'CHIRPS / ERA5' : 'Copernicus DEM'
+                        })}
+                        style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
+                        title="Click to view 3D playing card insight"
+                      >
                         <div>
                           <div className="intelligence-title">
                             <span>{title}</span>
@@ -700,6 +743,10 @@ export default function App() {
       farmLocation={farm?.location}
       userEmail={who?.email}
       userName={who?.name}
+    />
+    <InsightPlayingCardModal
+      card={activeInsightCard}
+      onClose={() => setActiveInsightCard(null)}
     />
   </div>
 }

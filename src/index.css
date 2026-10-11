@@ -446,6 +446,51 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .ix-tools{overflow:auto}
 .leaflet-control-scale, .leaflet-control-scale-line { display: none !important; }
 .field-map.leaflet-container { background: #0b1410; }
+.field-map.bg-black, .field-map.bg-black.leaflet-container, .field-map.bg-black .leaflet-tile-pane {
+  background: #000000 !important;
+  background-color: #000000 !important;
+}
+.field-map.bg-white, .field-map.bg-white.leaflet-container, .field-map.bg-white .leaflet-tile-pane {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+
+/* Animated traveling train pulse along AOI boundary while loading */
+@keyframes trainTravel {
+  0% { stroke-dashoffset: 160; }
+  100% { stroke-dashoffset: 0; }
+}
+.seva-train-pulse {
+  stroke-dasharray: 20 14 !important;
+  animation: trainTravel 1.1s linear infinite !important;
+  filter: drop-shadow(0 0 8px #38bdf8) !important;
+}
+
+/* High-contrast water borewell pin marker */
+.ix-bw-pin {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  margin-left: -12px !important;
+  margin-top: -12px !important;
+  border-radius: 50% !important;
+  background: #0284c7 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 12px rgba(2, 132, 199, 0.9), 0 3px 6px rgba(0,0,0,0.5) !important;
+  cursor: pointer !important;
+  z-index: 500 !important;
+}
+.ix-bw-pin span {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  display: block !important;
+  box-shadow: 0 0 4px #0284c7 !important;
+}
+
 
 /* Credits: handwritten signature */
 .cr{position:relative;text-align:center;margin:8px 0 22px;padding:46px 20px 38px;border-radius:26px;background:#fbf8ef;background-image:repeating-linear-gradient(transparent 0 31px,#cfe0d4 31px 32px);color:#10231b;overflow:hidden;box-shadow:inset 0 0 0 1px #e5dfc9}

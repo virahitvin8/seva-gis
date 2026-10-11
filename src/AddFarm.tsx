@@ -227,7 +227,7 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
 
   return <form onSubmit={submit} className="add-farm">
     <label>Field name<input required maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. North paddy field"/></label>
-    <p className="add-remote-note">Add a boundary for a field you want to review from home. SEVA·GIS uses public satellite imagery to show visible patterns; the outline is not an official parcel record.</p>
+    <p className="add-remote-note">Add a boundary for an area of interest or field you want to review remotely. SEVA·GIS uses public satellite imagery and terrain models to reveal visible geospatial patterns.</p>
     <div className="add-tabs" role="tablist">{tabs.map(([key, text, Icon]) => <button type="button" role="tab" aria-selected={tab === key} key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}><Icon size={14}/>{text}</button>)}</div>
     <div className="add-search"><Search size={14}/><input value={place} onChange={event => setPlace(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findPlace() } }} placeholder="Find village, town or state (e.g. Uttar Pradesh, UP)"/><button type="button" onClick={() => findPlace()}>Go</button></div>
     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, fontSize: 11, alignItems: 'center' }}>

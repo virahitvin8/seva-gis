@@ -161,8 +161,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [mouseCoords, setMouseCoords] = useState<{ lat: number; lon: number } | null>(null)
   const [cartoLegendPos, setCartoLegendPos] = useState({ x: 28, y: 140 })
   const [cartoLegendDragging, setCartoLegendDragging] = useState(false)
-  const [cartoLegendMinimized, setCartoLegendMinimized] = useState(false)
-  const cartoLegendDragOffset = useRef({ x: 0, y: 0 })
+  const [cartoLegendDragOffset] = useState(() => ({ x: 0, y: 0 }))
+
+  // Geodesic Custom Buffer Zone Tool State
+  const [bufferDist, setBufferDist] = useState<number>(20)
+  const [bufferUnit, setBufferUnit] = useState<'m' | 'km'>('m')
+  const [bufferActive, setBufferActive] = useState<boolean>(false)
 
   const handleDownloadMap = (format: 'png' | 'geotiff' | 'geojson' | 'kml') => {
     const farmRingCoords = farmRing(farm)
@@ -341,18 +345,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     window.addEventListener('pointerup', end, { once: true })
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
   }, [panelDragging])
-
-  useEffect(() => {
-    if (!cadastreDragging) return
-    const move = (event: PointerEvent) => setCadastrePos({
-      x: Math.max(8, Math.min(window.innerWidth - Math.min(420, window.innerWidth - 16) - 8, event.clientX - cadastreDragOffset.current.x)),
-      y: Math.max(8, Math.min(window.innerHeight - 80, event.clientY - cadastreDragOffset.current.y)),
-    })
-    const end = () => setCadastreDragging(false)
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', end, { once: true })
-    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
-  }, [cadastreDragging])
 
   useEffect(() => {
     if (!dataDragging) return
@@ -734,11 +726,36 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const strokeColor = bgMode === 'black' ? '#22c55e' : bgMode === 'white' ? '#15803d' : aoiOnly ? '#22c55e' : '#facc15'
     L.polygon(ring, { color: strokeColor, weight: 2.8, fill: false, interactive: false }).addTo(group)
 
-    // Animated traveling pulse / train signal along the AOI boundary during map processing
-    if (busy.length > 0) {
+    // Geodesic Buffer Zone Polygon
+    if (bufferActive) {
+      const distMeters = bufferDist * (bufferUnit === 'km' ? 1000 : 1)
+      const latRad = ((s + n) / 2) * (Math.PI / 180)
+      const cosLat = Math.cos(latRad)
+      const dLat = distMeters / 111320
+      const dLon = distMeters / (111320 * Math.max(0.1, cosLat))
+      const cLon = (w + e) / 2
+      const cLat = (s + n) / 2
+      const bufferRing: L.LatLngTuple[] = ring.map(([la, lo]) => {
+        const vLat = la - cLat
+        const vLon = lo - cLon
+        const len = Math.hypot(vLat, vLon) || 0.0001
+        return [la + (vLat / len) * dLat, lo + (vLon / len) * dLon] as L.LatLngTuple
+      })
+      L.polygon(bufferRing, {
+        color: '#f59e0b',
+        weight: 2.4,
+        dashArray: '6 4',
+        fillColor: '#f59e0b',
+        fillOpacity: 0.14,
+        interactive: false
+      }).addTo(group)
+    }
+
+    // Animated traveling pulse / train signal along the AOI boundary during map processing or scene loading
+    if (busy.length > 0 || loading) {
       L.polyline(ring, {
         color: '#38bdf8',
-        weight: 3.8,
+        weight: 4,
         className: 'seva-train-pulse',
         interactive: false
       }).addTo(group)
@@ -746,7 +763,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
     fit75PercentAoi(instance, false)
     return () => { group.remove(); frame.current = null }
-  }, [farm.id, geo, dim, bgMode, aoiOnly, locked, busy.length])
+  }, [farm.id, geo, dim, bgMode, aoiOnly, locked, busy.length, loading, bufferActive, bufferDist, bufferUnit])
 
   useEffect(() => {
     overlays.current.forEach(o => o.remove()); overlays.current.clear()
@@ -1187,7 +1204,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       </div>
 
       <div className="ix-wrap">
-        <div ref={element} className={`field-map${locked ? ' is-locked' : ''}`} />
+        <div ref={element} className={`field-map${locked ? ' is-locked' : ''} bg-${bgMode}`} style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }} />
 
         {/* Single Unified Non-Redundant Map HUD Bar */}
         <div className="ix-map-hud-bar" role="status" aria-label="Map status and orientation">
@@ -1756,7 +1773,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   <div className="ix-tool-actions">
                     <button
                       className={`ix-sett-btn ${rulerOpen ? 'on' : ''}`}
-                      onClick={() => setRulerOpen(!rulerOpen)}
+                      onClick={() => {
+                        setTool('none')
+                        setDraft([])
+                        setRulerOpen(!rulerOpen)
+                      }}
                     >
                       <Ruler size={13} />
                       <span>{rulerOpen ? 'Turn OFF Tape Ruler' : 'Turn ON Tape Ruler on Map'}</span>
@@ -1764,11 +1785,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   </div>
                 </div>
 
-                {/* 3. Water Assets & Borewells */}
+                {/* 2. Water Assets & Borewells */}
                 <div className="ix-lb-tool-card">
                   <div className="ix-lb-tool-head">
                     <Droplets size={16} className="text-blue-400" />
-                    <strong>Farm water points ({mine.b.length + mine.p.length})</strong>
+                    <strong>Water Points &amp; Borewells ({mine.b.length + mine.p.length})</strong>
                   </div>
                   <p className="ix-tool-desc">
                     Pin active borewells, irrigation pumps, drip lines, and recharge points directly onto your parcel.
@@ -1776,14 +1797,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   <div className="ix-tool-actions">
                     <button
                       className={`ix-sett-btn ${tool === 'borewell' ? 'on' : ''}`}
-                      onClick={() => setTool(tool === 'borewell' ? 'none' : 'borewell')}
+                      onClick={() => {
+                        setRulerOpen(false)
+                        setTool(tool === 'borewell' ? 'none' : 'borewell')
+                      }}
                     >
                       <Plus size={13} />
                       <span>{tool === 'borewell' ? 'Click Map to Place Borewell' : 'Add Borewell Point'}</span>
                     </button>
                     <button
                       className={`ix-sett-btn ${tool === 'pipeline' ? 'on' : ''}`}
-                      onClick={() => { setDraft([]); setTool(tool === 'pipeline' ? 'none' : 'pipeline') }}
+                      onClick={() => {
+                        setRulerOpen(false)
+                        setDraft([])
+                        setTool(tool === 'pipeline' ? 'none' : 'pipeline')
+                      }}
                     >
                       <Route size={13} />
                       <span>{tool === 'pipeline' ? 'Click the map to draw' : 'Draw a pipeline'}</span>
@@ -1802,7 +1830,49 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                         <button aria-label={`Remove ${pipeline.name}`} title={`Remove ${pipeline.name}`} onClick={() => removePipeline(pipeline.id)}><Trash2 size={14}/></button>
                       </div>
                     ))}
-                    {!mine.b.length && !mine.p.length && <small className="ix-assets-empty">No borewells or pipelines added for this farm.</small>}
+                    {!mine.b.length && !mine.p.length && <small className="ix-assets-empty">No borewells or pipelines added for this parcel.</small>}
+                  </div>
+                </div>
+
+                {/* 3. Custom Geodesic Buffer Zone Tool */}
+                <div className="ix-lb-tool-card">
+                  <div className="ix-lb-tool-head">
+                    <Box size={16} className="text-amber-400" />
+                    <strong>Geodesic Buffer Zone Creator</strong>
+                    <span className={`ix-tool-badge ${bufferActive ? 'on' : ''}`}>
+                      {bufferActive ? `${bufferDist} ${bufferUnit} Active` : 'Off'}
+                    </span>
+                  </div>
+                  <p className="ix-tool-desc">
+                    Specify custom perimeter buffer distance in meters or kilometers to analyze surrounding buffer zones, spray setbacks, and canal easements.
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '8px 0', background: 'rgba(255,255,255,0.06)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>Distance:</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={bufferDist}
+                      onChange={e => setBufferDist(Math.max(1, parseFloat(e.target.value) || 1))}
+                      style={{ width: '80px', background: '#0f172a', border: '1px solid #475569', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}
+                    />
+                    <select
+                      value={bufferUnit}
+                      onChange={e => setBufferUnit(e.target.value as 'm' | 'km')}
+                      style={{ background: '#0f172a', border: '1px solid #475569', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}
+                    >
+                      <option value="m">Meters (m)</option>
+                      <option value="km">Kilometers (km)</option>
+                    </select>
+                  </div>
+                  <div className="ix-tool-actions">
+                    <button
+                      className={`ix-sett-btn ${bufferActive ? 'on' : ''}`}
+                      onClick={() => setBufferActive(!bufferActive)}
+                    >
+                      <Box size={13} />
+                      <span>{bufferActive ? 'Remove Buffer Zone' : `Create ${bufferDist} ${bufferUnit} Buffer on Map`}</span>
+                    </button>
                   </div>
                 </div>
 

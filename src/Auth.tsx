@@ -46,6 +46,35 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [guideModalOpen, setGuideModalOpen] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const pw = useRef<HTMLInputElement>(null)
+  const cardRef = useRef<HTMLFormElement>(null)
+  const [tiltStyle, setTiltStyle] = useState<React.CSSProperties>({})
+
+  const handleCardPointerMove = (e: React.PointerEvent<HTMLFormElement>) => {
+    const el = cardRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const centerX = rect.width / 2
+    const centerY = rect.height / 2
+    const rotX = -((y - centerY) / centerY) * 8
+    const rotY = ((x - centerX) / centerX) * 8
+    const glareX = (x / rect.width) * 100
+    const glareY = (y / rect.height) * 100
+    setTiltStyle({
+      transform: `perspective(1000px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) translateZ(8px)`,
+      transition: 'transform 0.08s ease-out',
+      backgroundImage: `radial-gradient(circle at ${glareX.toFixed(1)}% ${glareY.toFixed(1)}%, rgba(255, 255, 255, 0.12) 0%, transparent 65%)`,
+    })
+  }
+
+  const handleCardPointerLeave = () => {
+    setTiltStyle({
+      transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)',
+      transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+      backgroundImage: 'none',
+    })
+  }
 
   async function enter(w: Who) {
     sessionStorage.removeItem('seva-bye')
@@ -142,7 +171,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </section>
 
-      <form className="au-card" onSubmit={submit}>
+      <form
+        ref={cardRef}
+        className="au-card"
+        onSubmit={submit}
+        onPointerMove={handleCardPointerMove}
+        onPointerLeave={handleCardPointerLeave}
+        style={{ ...tiltStyle, willChange: 'transform' }}
+      >
         <h1>{mode === 'in' ? 'Welcome back' : 'Start for free'}</h1>
         <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
         {mode === 'in' && saved.length > 0 && <div className="au-known"><span>Welcome back, tap your name</span>{saved.map(k => <div className="au-chip" key={k.email}><button type="button" onClick={() => { setForm({ ...form, email: k.email, password: '' }); setTimeout(() => pw.current?.focus(), 30) }}><b>{(k.name || k.email)[0].toUpperCase()}</b><span>{k.name}<small>{k.email}</small></span></button><button type="button" aria-label={`Forget ${k.name}`} onClick={() => { forget(k.email); setSaved(known()) }}>×</button></div>)}</div>}

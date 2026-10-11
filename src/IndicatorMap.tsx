@@ -21,12 +21,12 @@ import NearbyLayer from './NearbyLayer'
 import MapKit, { KIT_DEFAULT, type Kit } from './MapKit'
 import RulerTape from './RulerTape'
 import { BAND_COMBINATIONS } from './lib/geoai'
-import { areaHa } from './lib/geo'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts } from './lib/seva'
-import { buildEarthEngineScript, supportsEarthEngineIndicator } from './lib/earthEngine'
+import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndicator } from './lib/earthEngine'
 import { createEarthEngineMap, isEarthEngineConfigured } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 import { fetchOverpassCadastre, type OverpassParcel } from './lib/cadastreOnline'
+import { getGroundTalk } from './lib/plainTalk'
 
 type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
@@ -157,7 +157,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   // Cartographic Thesis Print Frame Mode (Matching MAPS REF publication figures)
   const [thesisFrameOpen, setThesisFrameOpen] = useState(false)
-  const [thesisTheme, setThesisTheme] = useState<'dem' | 'lulc' | 'soil' | 'stations' | 'discharge'>('dem')
+  const [thesisTheme, setThesisTheme] = useState<'dem' | 'lulc' | 'soil' | 'stations' | 'discharge' | 'dotty'>('dem')
+  const [mouseCoords, setMouseCoords] = useState<{ lat: number; lon: number } | null>(null)
   const [cartoLegendPos, setCartoLegendPos] = useState({ x: 28, y: 140 })
   const [cartoLegendDragging, setCartoLegendDragging] = useState(false)
   const [cartoLegendMinimized, setCartoLegendMinimized] = useState(false)
@@ -380,63 +381,91 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   // Automatically resizes and fits the AOI so it fills 75% of the viewport container (12.5% padding on each margin).
   // Constrains zoom within safe bounds (13 to 18) so imagery never exceeds native resolution,
   // overcoming black-screen tile void glitches while maintaining cartographic scale.
-  const fit75PercentAoi = (instance: L.Map, animate = false) => {
-    if (!instance) return
-    const [w, s, e, n] = farmBBox(farm)
-    const bounds = L.latLngBounds([s, w], [n, e])
-    const sz = instance.getSize()
-    if (!sz || sz.x <= 0 || sz.y <= 0) {
-      instance.invalidateSize({ pan: false })
-      instance.setView([farm.lat, farm.lon], 16)
-      return 16
+  const fit75PercentAoi = (instance: L.Map, animate = false, enforceMinZoom = false) => {
+    if (!instance || !(instance as any)._loaded) return
+    try {
+      const [w, s, e, n] = farmBBox(farm)
+      const bounds = L.latLngBounds([s, w], [n, e])
+      if (!bounds.isValid()) return
+
+      const sz = instance.getSize()
+      if (!sz || sz.x <= 0 || sz.y <= 0) {
+        instance.invalidateSize({ pan: false })
+        instance.setView([farm.lat, farm.lon], 16)
+        return 16
+      }
+
+      const padX = Math.max(30, Math.round(sz.x * 0.125))
+      const padY = Math.max(30, Math.round(sz.y * 0.125))
+      const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, padY * 2))
+      const safeAoiZoom = Math.min(18, Math.max(13, computedZoom))
+
+      instance.fitBounds(bounds, {
+        paddingTopLeft: [padX, padY],
+        paddingBottomRight: [padX, padY],
+        maxZoom: 18,
+        animate,
+      })
+
+      if (enforceMinZoom) {
+        setTimeout(() => {
+          try {
+            if (instance && (instance as any)._loaded) {
+              instance.setMinZoom(safeAoiZoom)
+              instance.setMaxZoom(19)
+            }
+          } catch {}
+        }, 50)
+      }
+      return safeAoiZoom
+    } catch (err) {
+      console.warn('fit75PercentAoi safe catch:', err)
     }
-
-    const padX = Math.max(30, Math.round(sz.x * 0.125))
-    const padY = Math.max(30, Math.round(sz.y * 0.125))
-    const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, padY * 2))
-    // Safe zoom: Max 18 (Esri max native zoom level) to avoid blank tile 404s, Min 13
-    const safeAoiZoom = Math.min(18, Math.max(13, computedZoom))
-
-    instance.fitBounds(bounds, {
-      paddingTopLeft: [padX, padY],
-      paddingBottomRight: [padX, padY],
-      maxZoom: 18,
-      animate,
-    })
-
-    // Constant scale: only lock to safeAoiZoom when locked; allow zooming out when unlocked
-    instance.setMinZoom(locked ? safeAoiZoom : Math.max(3, safeAoiZoom - 4))
-    instance.setMaxZoom(19)
-    return safeAoiZoom
   }
 
   useEffect(() => {
     localStorage.setItem('seva-map-lock', locked ? '1' : '0')
     const m = mapObj
-    if (!m) return
-    // Allow smooth scroll wheel zoom on the map when unlocked, while preventing outer page scrolling
-    const hs = [m.dragging, m.doubleClickZoom, m.touchZoom, m.boxZoom, m.keyboard, m.scrollWheelZoom]
-    hs.forEach(h => {
-      try {
-        if (h && typeof (h as any).enable === 'function' && typeof (h as any).disable === 'function') {
-          if (locked) (h as any).disable()
-          else (h as any).enable()
-        }
-      } catch (err) {
-        console.warn('Leaflet lock handler toggle:', err)
+    if (!m || !(m as any)._loaded) return
+
+    try {
+      // Safely stop any running pan or zoom animation before toggling handlers
+      if (typeof (m as any).stop === 'function') {
+        (m as any).stop()
       }
-    })
 
-    fit75PercentAoi(m, false)
+      const hs = [m.dragging, m.doubleClickZoom, m.touchZoom, m.boxZoom, m.keyboard, m.scrollWheelZoom]
+      hs.forEach(h => {
+        try {
+          if (h && typeof (h as any).enable === 'function' && typeof (h as any).disable === 'function') {
+            if (locked) (h as any).disable()
+            else (h as any).enable()
+          }
+        } catch (err) {
+          console.warn('Leaflet lock handler toggle:', err)
+        }
+      })
 
-    requestAnimationFrame(() => {
-      m.invalidateSize({ pan: false })
-    })
-    const t = setTimeout(() => {
-      m.invalidateSize({ pan: false })
-    }, 80)
-    return () => clearTimeout(t)
-  }, [locked, mapObj, geo])
+      if (locked) {
+        // When locking, fit AOI cleanly and enforce constant zoom scale
+        fit75PercentAoi(m, false, true)
+      } else {
+        // When unlocking, allow zooming out freely without resetting view or bounds
+        m.setMinZoom(3)
+        m.setMaxZoom(19)
+      }
+
+      requestAnimationFrame(() => {
+        try { m.invalidateSize({ pan: false }) } catch {}
+      })
+      const t = setTimeout(() => {
+        try { m.invalidateSize({ pan: false }) } catch {}
+      }, 80)
+      return () => clearTimeout(t)
+    } catch (err) {
+      console.warn('Map lock state toggle safe catch:', err)
+    }
+  }, [locked, mapObj, farm])
 
   // Automatic wake/unlock recovery and container resize observer
   useEffect(() => {
@@ -548,6 +577,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         }))
       } catch {}
     }
+    const onMouseMove = (e: L.LeafletMouseEvent) => {
+      setMouseCoords({ lat: e.latlng.lat, lon: e.latlng.lng })
+    }
+    const onMouseOut = () => {
+      setMouseCoords(null)
+    }
+    instance.on('mousemove', onMouseMove)
+    instance.on('mouseout', onMouseOut)
+
     instance.on('zoomend', syncView)
     instance.on('moveend', syncView)
 
@@ -555,6 +593,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       timers.forEach(t => clearTimeout(t))
       instance.off('zoomend', syncView)
       instance.off('moveend', syncView)
+      instance.off('mousemove', onMouseMove)
+      instance.off('mouseout', onMouseOut)
       el.removeEventListener('wheel', onWheel)
       instance.remove()
       map.current = null
@@ -1168,12 +1208,26 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             {locked && <span className="zoom-synced-pill">75% LOCKED</span>}
           </div>
 
-          <div className="ix-hud-compass" title="True Geodetic North (0.0° Azimuth)">
-            <svg viewBox="0 0 20 20" width="13" height="13" style={{ transform: 'rotate(0deg)' }}>
-              <polygon points="10,2 14,16 10,12 6,16" fill="#34d399" stroke="#065f46" strokeWidth="1" />
-            </svg>
-            <span>N</span>
+          <div className="ix-hud-pill" title="Geodetic Coordinates (WGS84)">
+            <span>{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : `${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E (Centroid)`}</span>
           </div>
+
+          {!thesisFrameOpen && (
+            <div
+              className="ix-hud-compass cursor-pointer"
+              title="True Geodetic North (0.0° Azimuth). Click to reset map bearing."
+              onClick={() => {
+                if (map.current) {
+                  map.current.setView([farm.lat, farm.lon], map.current.getZoom())
+                }
+              }}
+            >
+              <svg viewBox="0 0 20 20" width="13" height="13" style={{ transform: 'rotate(0deg)' }}>
+                <polygon points="10,2 14,16 10,12 6,16" fill="#34d399" stroke="#065f46" strokeWidth="1" />
+              </svg>
+              <span>N 0.0°</span>
+            </div>
+          )}
         </div>
 
         {/* The Layers & Symbology Box: cleanly docked over map when open, or portaled to body when detached */}
@@ -1516,6 +1570,38 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                           ))}
                         </div>
                       )}
+
+                      {/* Farmer Ground Talk (Plain Friendly Explanation) */}
+                      {(() => {
+                        const gt = getGroundTalk(topLayer.ind.id)
+                        const interp = gt.interpret(topLayer.stat?.mean)
+                        return (
+                          <div className="ix-ground-talk-card" style={{ marginTop: 14, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 14 }}>🤝</span>
+                                <strong style={{ fontSize: 11.5, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                  Farmer Ground Talk · {gt.plainTitle}
+                                </strong>
+                              </div>
+                              <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: interp.rating === 'Great' || interp.rating === 'Good' ? '#065f46' : interp.rating === 'Needs Attention' ? '#854d0e' : '#991b1b', color: '#f0fdf4' }}>
+                                {interp.rating}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: 11, color: '#e2e8f0', lineHeight: 1.45, margin: '0 0 8px' }}>
+                              {gt.friendConcept}
+                            </p>
+                            <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', borderLeft: '3px solid #10b981' }}>
+                              <strong style={{ fontSize: 10.5, color: '#a7f3d0', display: 'block', marginBottom: 2 }}>
+                                Practical Field Action:
+                              </strong>
+                              <span style={{ fontSize: 10.5, color: '#f8fafc', lineHeight: 1.4 }}>
+                                {interp.groundAction}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                   ) : null}
                 </div>
@@ -1729,6 +1815,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             {thesisTheme === 'soil' && 'FAO SOIL ASSOCIATION CLASSIFICATION (DSMW) MAP'}
             {thesisTheme === 'stations' && 'HYDRO-METEOROLOGICAL MONITORING STATIONS OVER DEM'}
             {thesisTheme === 'discharge' && 'GROUND DISCHARGE GAUGING STATIONS & SUB-BASIN REACHES'}
+            {thesisTheme === 'dotty' && 'SUFI-2 PARAMETER UNCERTAINTY & SENSITIVITY DOTTY PLOTS (FIG 4.4)'}
           </div>
           <div className="ix-carto-subtitle">
             SEVA·GIS SPATIAL WATERSHED SUITE · WAINGANGA BASIN · SRTM / SENTINEL-2 PROCESSING OUTPUT
@@ -1736,12 +1823,17 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </div>
 
         {/* Outer and Inner Dual Neatline with Corner Geodetic Crosshairs */}
-        <div className="ix-carto-border-frame">
-          <div className="ix-carto-tick tick-top-left">{(farm.lat + 0.04).toFixed(4)}°N, {(farm.lon - 0.04).toFixed(4)}°E</div>
-          <div className="ix-carto-tick tick-top-right">{(farm.lat + 0.04).toFixed(4)}°N, {(farm.lon + 0.04).toFixed(4)}°E</div>
-          <div className="ix-carto-tick tick-bottom-left">{(farm.lat - 0.04).toFixed(4)}°N, {(farm.lon - 0.04).toFixed(4)}°E</div>
-          <div className="ix-carto-tick tick-bottom-right">{(farm.lat - 0.04).toFixed(4)}°N, {(farm.lon + 0.04).toFixed(4)}°E</div>
-        </div>
+        {(() => {
+          const [bboxW, bboxS, bboxE, bboxN] = farmBBox(farm)
+          return (
+            <div className="ix-carto-border-frame">
+              <div className="ix-carto-tick tick-top-left">{bboxN.toFixed(4)}°N, {bboxW.toFixed(4)}°E</div>
+              <div className="ix-carto-tick tick-top-right">{bboxN.toFixed(4)}°N, {bboxE.toFixed(4)}°E</div>
+              <div className="ix-carto-tick tick-bottom-left">{bboxS.toFixed(4)}°N, {bboxW.toFixed(4)}°E</div>
+              <div className="ix-carto-tick tick-bottom-right">{bboxS.toFixed(4)}°N, {bboxE.toFixed(4)}°E</div>
+            </div>
+          )
+        })()}
 
         {/* Authentic Topographic North Arrow Compass Rose */}
         <div className="ix-carto-north-compass" title="True Geodetic North">
@@ -1820,6 +1912,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 <button className={thesisTheme === 'soil' ? 'active' : ''} onClick={() => setThesisTheme('soil')}>Soil</button>
                 <button className={thesisTheme === 'stations' ? 'active' : ''} onClick={() => setThesisTheme('stations')}>Stations</button>
                 <button className={thesisTheme === 'discharge' ? 'active' : ''} onClick={() => setThesisTheme('discharge')}>Reaches</button>
+                <button className={thesisTheme === 'dotty' ? 'active' : ''} onClick={() => setThesisTheme('dotty')}>Dotty Plots</button>
               </div>
 
               {/* Exact Swatches Matching MAPS REF */}
@@ -1914,6 +2007,34 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   </div>
                 </div>
               )}
+
+              {thesisTheme === 'dotty' && (
+                <div className="ix-carto-legend-list">
+                  <div className="ix-legend-title">SUFI-2 Calibration Dotty Plots (Fig 4.4)</div>
+                  <p style={{ fontSize: 10, color: '#64748b', margin: '0 0 6px', lineHeight: 1.35 }}>
+                    Nash-Sutcliffe Efficiency (NSE) response across 2,000 parameter iteration runs. Top clusters define calibrated optima.
+                  </p>
+                  {[
+                    { param: '1:R__CN2.mgt', name: 'Curve Number Relative Delta', opt: '-0.12', nse: '0.68', range: '-0.40 to +0.40' },
+                    { param: '2:A__GWQMN.gw', name: 'Shallow Aquifer Threshold (mm)', opt: '245 mm', nse: '0.67', range: '210 to 300 mm' },
+                    { param: '3:A__GW_REVAP.gw', name: 'Groundwater Revap Coeff', opt: '0.08', nse: '0.66', range: '-0.40 to +0.40' },
+                    { param: '4:R__SOL_AWC.sol', name: 'Soil Available Water Capacity', opt: '+0.15', nse: '0.68', range: '0.40 to 0.60' },
+                    { param: '5:V__ESCO.hru', name: 'Soil Evaporation Compensation', opt: '0.04', nse: '0.65', range: '0.00 to 0.20' },
+                    { param: '6:A__REVAPMN.gw', name: 'Revap Shallow Threshold (mm)', opt: '0.34 mm', nse: '0.67', range: '0.27 to 0.39 mm' },
+                  ].map(dp => (
+                    <div key={dp.param} className="ix-legend-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '4px 6px', background: '#f8fafc', borderRadius: 4, border: '1px solid #e2e8f0', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 10.5 }}>
+                        <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{dp.param}</strong>
+                        <span style={{ color: '#16a34a', fontWeight: 700 }}>NSE: {dp.nse}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 9.5, color: '#64748b' }}>
+                        <span>{dp.name}</span>
+                        <span>Opt: <b>{dp.opt}</b> ({dp.range})</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1975,6 +2096,29 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <div><span>Aspect</span><b>{compass(picked.values.aspect)} ({picked.values.aspect.toFixed(0)}°)</b></div>
                   )}
                 </div>
+
+                {/* Face-to-Face Farmer Ground Talk for clicked spot */}
+                {(() => {
+                  const primaryId = active[0] || 'ndvi'
+                  const pVal = picked.values[primaryId]
+                  if (pVal !== undefined) {
+                    const gt = getGroundTalk(primaryId)
+                    const interp = gt.interpret(pVal)
+                    return (
+                      <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: 11 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#166534', fontWeight: 700, marginBottom: 3 }}>
+                          <span>🤝 Ground Talk ({gt.plainTitle}):</span>
+                          <span style={{ fontSize: 9.5, padding: '1px 6px', borderRadius: 999, background: interp.rating === 'Great' || interp.rating === 'Good' ? '#dcfce7' : '#fef3c7', color: interp.rating === 'Great' || interp.rating === 'Good' ? '#15803d' : '#854d0e', fontWeight: 700 }}>
+                            {interp.rating}
+                          </span>
+                        </div>
+                        <div style={{ color: '#14532d', lineHeight: 1.4 }}>{interp.groundAction}</div>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+
                 {Object.keys(picked.values).length === 0 && <p>No clear pixel here (cloud, shadow, or no data).</p>}
               </>
             )}

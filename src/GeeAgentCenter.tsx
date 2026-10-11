@@ -29,7 +29,7 @@ import {
   getEarthEngineStats,
   type EarthEngineStatsResponse
 } from './lib/earthEngineClient'
-import { buildEarthEngineScript } from './lib/earthEngine'
+import { buildEarthEngineScript, buildThesisMapScript } from './lib/earthEngine'
 import { runAgentCrewUltrawork, type CrewExecutionResult, type AgentMessage } from './lib/agentsCrew'
 import { getFarmMemories, saveFarmMemory, type FarmMemory } from './lib/memoryEngine'
 import { type FarmData } from './lib/seva'
@@ -56,6 +56,7 @@ export default function GeeAgentCenter({
   const [bandCombo, setBandCombo] = useState<string>('natural')
   const [stretchDra, setStretchDra] = useState<boolean>(true)
   const [copiedScript, setCopiedScript] = useState(false)
+  const [scriptMode, setScriptMode] = useState<'farm' | 'thesis'>('farm')
 
   // CrewAI State
   const [crewRunning, setCrewRunning] = useState(false)
@@ -132,8 +133,11 @@ export default function GeeAgentCenter({
   }
 
   const generatedScript = useMemo(() => {
+    if (scriptMode === 'thesis') {
+      return buildThesisMapScript()
+    }
     return buildEarthEngineScript(farm, 'ndvi', bandCombo, {})
-  }, [farm, bandCombo])
+  }, [scriptMode, farm, bandCombo])
 
   function handleCopyScript() {
     navigator.clipboard.writeText(generatedScript)
@@ -439,10 +443,23 @@ export default function GeeAgentCenter({
           {/* TAB 4: CODE EDITOR SCRIPT */}
           {activeTab === 'script' && (
             <div className="ix-gac-content">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                  Pure JavaScript for Google Earth Engine Code Editor
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    className={`ix-gac-sm-btn ${scriptMode === 'farm' ? 'active' : ''}`}
+                    onClick={() => setScriptMode('farm')}
+                    style={scriptMode === 'farm' ? { background: '#059669', color: '#fff', borderColor: '#10b981' } : undefined}
+                  >
+                    <span>🌱 Farm Parcel S2 L2A</span>
+                  </button>
+                  <button
+                    className={`ix-gac-sm-btn ${scriptMode === 'thesis' ? 'active' : ''}`}
+                    onClick={() => setScriptMode('thesis')}
+                    style={scriptMode === 'thesis' ? { background: '#0284c7', color: '#fff', borderColor: '#38bdf8' } : undefined}
+                  >
+                    <span>🌊 Wainganga Basin (MAPS REF)</span>
+                  </button>
+                </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button className="ix-gac-sm-btn" onClick={handleCopyScript}>
                     {copiedScript ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
@@ -458,6 +475,11 @@ export default function GeeAgentCenter({
                     <span>Open Code Editor</span>
                   </a>
                 </div>
+              </div>
+              <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 6 }}>
+                {scriptMode === 'farm'
+                  ? 'Pure JavaScript for GEE Code Editor: Sentinel-2 Level-2A surface reflectance, cloud masking, band math, and farm boundary geometry.'
+                  : 'Publication Thesis Script (MAPS REF): Replicates Fig 3.2 DEM 30m, Fig 3.3 9-Class SWAT LULC, and Fig 3.6 Stream Gauging Reaches in GEE.'}
               </div>
               <pre className="ix-gac-code-box">
                 <code>{generatedScript}</code>

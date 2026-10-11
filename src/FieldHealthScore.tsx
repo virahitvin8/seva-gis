@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Sparkles, TrendingUp, AlertCircle, CheckCircle2, ChevronRight, Sprout } from 'lucide-react'
+import { Sparkles, TrendingUp, AlertCircle, CheckCircle2, ChevronRight, Sprout, MessageCircle } from 'lucide-react'
 import { EXTENDED_CROPS, GROWTH_STAGES, computeStageAdjustedVerdict, matchCropSpec, autoDetectStage, type GrowthStage } from './lib/cropstages'
 import type { FarmData, WeekRec } from './lib/seva'
+import { getGroundTalk } from './lib/plainTalk'
 
 type Props = {
   farm: FarmData & { id: string; name: string; crop?: string; passes?: WeekRec[] }
@@ -36,6 +37,7 @@ export default function FieldHealthScore({ farm }: Props) {
 
   const [isAuto, setIsAuto] = useState(true)
   const [manualStage, setManualStage] = useState<GrowthStage>('flowering')
+  const [showFriendAdvice, setShowFriendAdvice] = useState(false)
 
   const stage = isAuto ? detectedStage : manualStage
   const stageDef = GROWTH_STAGES.find(s => s.id === stage) || GROWTH_STAGES[2]
@@ -43,6 +45,14 @@ export default function FieldHealthScore({ farm }: Props) {
   const verdict = useMemo(() => {
     return computeStageAdjustedVerdict(cropDef.id, stage, currentNdvi, currentNdmi)
   }, [cropDef.id, stage, currentNdvi, currentNdmi])
+
+  const groundTalk = useMemo(() => {
+    const talk = getGroundTalk('ndvi')
+    return {
+      talk,
+      interp: talk.interpret(currentNdvi)
+    }
+  }, [currentNdvi])
 
   // Benchmark curve vs actual passes
   const chartPoints = useMemo(() => {
@@ -128,12 +138,43 @@ export default function FieldHealthScore({ farm }: Props) {
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => setShowFriendAdvice(prev => !prev)}
+            style={{ fontSize: 11, padding: '5px 10px', borderRadius: 8, border: '1px solid #16a34a', background: showFriendAdvice ? '#dcfce7' : '#ffffff', color: '#15803d', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+          >
+            <Sparkles size={12} />
+            <span>{showFriendAdvice ? 'Hide Ground Talk' : '🗣️ Ground Talk (Like Friends)'}</span>
+          </button>
         </div>
       </div>
 
       <p style={{ margin: '0 0 12px', fontSize: 12.5, color: '#475569', lineHeight: 1.4 }}>
         {verdict.note} {stageDef.advisory} {isAuto && 'The stage is only a guess from the satellite signal; choose the stage you see in the field if you know it.'}
       </p>
+
+      {showFriendAdvice && (
+        <div style={{ background: '#f0fdf4', border: '1.5px solid #22c55e', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#15803d', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <MessageCircle size={15} />
+              <span>Face-to-Face Ground Talk for {cropDef.name} ({stageDef.name})</span>
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: groundTalk.interp.rating === 'Great' ? '#bbf7d0' : '#fef08a', color: groundTalk.interp.rating === 'Great' ? '#14532d' : '#854d0e' }}>
+              Condition: {groundTalk.interp.rating}
+            </span>
+          </div>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#166534', lineHeight: 1.4 }}>
+            <b>What the satellite is seeing:</b> {groundTalk.talk.friendConcept}
+          </p>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#14532d', lineHeight: 1.4 }}>
+            <b>Your crop reading right now:</b> {groundTalk.interp.summary}
+          </p>
+          <div style={{ background: '#ffffff', borderRadius: 6, padding: '8px 10px', border: '1px solid #86efac', fontSize: 11.5, color: '#15803d' }}>
+            <b>👉 What you should do on the ground:</b> {groundTalk.interp.groundAction}
+          </div>
+        </div>
+      )}
 
       {/* Season NDVI Trend vs Crop-Peak Benchmark Curve */}
       <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0' }}>

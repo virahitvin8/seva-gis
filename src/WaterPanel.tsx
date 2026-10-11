@@ -1,6 +1,6 @@
 import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
-import { CircleDot, Droplets, RefreshCw, Route, Trash2, Waves, BarChart3, Activity, Compass } from 'lucide-react'
+import { CircleDot, Droplets, RefreshCw, Route, Trash2, Waves, BarChart3, Activity, Compass, MessageCircle, Sparkles } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
 import { fetchSoil, fetchWeather, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { CROPS, METHODS, pipeHydraulics, pumpKw, soilHydraulics } from './lib/hydro'
@@ -9,6 +9,7 @@ import { bandFor, sampleAt, type Grid } from './lib/indicators'
 import { ScaleBox } from './Scale'
 import { indexStat, loadDem, type FarmData } from './lib/seva'
 import IrrigationDecisionCard from './IrrigationDecisionCard'
+import { getGroundTalk } from './lib/plainTalk'
 
 type Props = { farm: FarmData & { id: string; name: string } }
 type Remote<T> = { key: string; data?: T; error?: string }
@@ -49,6 +50,7 @@ export default function WaterPanel({ farm }: Props) {
   const [weather, setWeather] = useState<Remote<Weather>>({ key: '' })
   const [soil, setSoil] = useState<Remote<Soil>>({ key: '' })
   const [dem, setDem] = useState<{ key: string; grid?: Grid }>({ key: '' })
+  const [showFriendHydrology, setShowFriendHydrology] = useState(false)
   const [cfgAll, setCfgAll] = useState<Record<string, Cfg>>(() => { try { return JSON.parse(localStorage.getItem(CFG) || '{}') } catch { return {} } })
   const cfg = cfgAll[farm.id] ?? { crop: 'wheat', method: 'furrow' }
   const setCfg = (p: Partial<Cfg>) => setCfgAll(a => { const n = { ...a, [farm.id]: { ...cfg, ...p } }; localStorage.setItem(CFG, JSON.stringify(n)); return n })
@@ -229,10 +231,46 @@ export default function WaterPanel({ farm }: Props) {
 
         {/* Fig 4.2 Schematic Cycle Diagram (Interactive SVG matching 6.jpeg) */}
         <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: 12, marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>Fig 4.2 · Schematic Representation of the Watershed Water Balance</span>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Fig 4.2 · Schematic Representation of the Watershed Water Balance</span>
+              <button
+                type="button"
+                onClick={() => setShowFriendHydrology(prev => !prev)}
+                style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #10b981', background: showFriendHydrology ? '#ecfdf5' : '#ffffff', color: '#047857', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <Sparkles size={11} />
+                <span>{showFriendHydrology ? 'Hide Friend Talk' : '🗣️ Explain Like Friends'}</span>
+              </button>
+            </div>
             <span style={{ fontSize: 9.5, color: '#64748b', fontWeight: 500 }}>SWAT Equilibrium: PREC = SURQ + LATQ + GWQ + ET + ΔS</span>
           </div>
+
+          {showFriendHydrology && (
+            <div style={{ background: '#ffffff', border: '1.5px solid #10b981', borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 11, color: '#1e293b', lineHeight: 1.45 }}>
+              <div style={{ fontWeight: 800, color: '#047857', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <MessageCircle size={14} />
+                <span>Ground Practical Water Balance (Friend to Friend):</span>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <li>
+                  <b>Total Monsoon Rain (1,171 mm):</b> Imagine all the rain in a year stayed on the ground like a flat lake—it would stand nearly 4 feet deep across the entire watershed!
+                </li>
+                <li>
+                  <b style={{ color: '#e11d48' }}>Runoff (359.3 mm · 31%):</b> Almost one-third of every rainstorm washes right over the soil surface straight into rivers before sinking in. Building contour bunds and farm ponds lets you capture this lost water!
+                </li>
+                <li>
+                  <b style={{ color: '#d97706' }}>Crop Drinking &amp; Sun Evaporation (401.9 mm · 34%):</b> Crops drink this through their roots and "sweat" it out of leaves, while midday sun bakes moisture off the dirt. Mulching saves a huge share of this.
+                </li>
+                <li>
+                  <b style={{ color: '#059669' }}>Deep Aquifer Recharge (224.8 mm GWQ + 400 mm Percolation):</b> Rain that sinks deep down into underground sand and rock layers. This is what keeps village borewells and wells pumping all through the dry summer.
+                </li>
+                <li>
+                  <b style={{ color: '#0f172a' }}>Soil Sponge Score (CN = 75.6):</b> Standard agricultural loam soil. It acts like a moderate sponge: absorbs light showers easily, but water rolls right off during heavy downpours.
+                </li>
+              </ul>
+            </div>
+          )}
 
           <svg viewBox="0 0 650 250" style={{ width: '100%', height: 'auto', display: 'block' }}>
             {/* Atmospheric Zone / Cloud */}

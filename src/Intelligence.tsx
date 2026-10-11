@@ -77,9 +77,14 @@ function MapTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
     {lc && zones && <div className="ge-cols">
       <div><Img farm={farm} scene={scene} res={lc} caption={`Land cover · Sentinel-2 ${scene.datetime.slice(0, 10)}`} how="Each colour is one kind of ground, estimated from the satellite picture: water, thick crop, thin crop, bare soil or buildings. Dark green usually means more green cover; brown can be exposed soil or residue. Compare the same area across clear dates before deciding whether it needs a closer look."/><Legend title="Land-cover class" unit="share of clear pixels · area in ha" rows={lc.rows}/></div>
       <div><Img farm={farm} scene={scene} res={zones} caption="Management zones · k-means on NDVI, NDMI, NDRE" how="The computer groups areas that look similar in this satellite image. Compare the coloured zones across dates to see whether a pattern stays in the same place. The groups do not identify a cause or prescribe an input."/><Legend title="Vigour zone" unit="share of field · area in ha" rows={zones.rows}/>
-        <div className="ge-zmean">{zones.means.map((m, i) => <span key={i}>Z{i + 1}: NDVI {f(m.ndvi, 2)}, NDMI {f(m.ndmi, 2)}</span>)}</div></div>
+        <div className="ge-zmean">{zones.means.map((m, i) => <span key={i}>Z{i + 1}: NDVI {f(m.ndvi, 2)}, NDMI {f(m.ndmi, 2)}</span>)}</div>
+        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '8px 10px', marginTop: 8, fontSize: 11, color: '#166534', lineHeight: 1.4 }}>
+          <b>🗣️ How to use these zones in the field:</b> Management zones group parts of your field that grow similarly. Zone 1 is your strongest growth; Zone 3 is thinner. Instead of spreading equal fertilizer everywhere, save money by giving lighter doses to strong zones and boosting thinner zones!
+        </div>
+      </div>
     </div>}
     <div className="sc-grid"><ScaleBox id="ndvi" compact/><ScaleBox id="ndre" compact/></div>
+
     <Note>Land cover uses visible index thresholds (NDVI, MNDWI, NDBI) on one clear scene. Zones are unsupervised groups of pixels that look similar; compare them across dates and review the source image before drawing conclusions. They do not identify a cause or prescribe inputs.</Note>
   </>
 }

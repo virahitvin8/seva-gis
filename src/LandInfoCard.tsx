@@ -24,9 +24,11 @@ import {
   Save,
   CheckCircle2,
   Compass,
-  X
+  X,
+  Sparkles
 } from 'lucide-react'
 import { areaHa, perimeterM, centroid } from './lib/geo'
+import { LAND_UNIT_FRIEND_TALK } from './lib/plainTalk'
 import {
   calculateUTMZone,
   calculatePlusCode,
@@ -78,6 +80,7 @@ export default function LandInfoCard({
   const [loadingGeocoding, setLoadingGeocoding] = useState(false)
   const [loadingOverpass, setLoadingOverpass] = useState(false)
   const [isEditingCustom, setIsEditingCustom] = useState(false)
+  const [showLandTalk, setShowLandTalk] = useState(false)
 
   // Farm relocation / location correction state
   const [showRelocateModal, setShowRelocateModal] = useState(false)
@@ -865,6 +868,42 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
       )}
 
       {/* 2. Measured Cadastral Extents & Geodetic Extents */}
+      <div className="flex items-center justify-between my-2 flex-wrap gap-2">
+        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+          <Ruler size={13} className="text-emerald-400" />
+          <span>Cadastral Extents &amp; Standard Land Units</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowLandTalk(prev => !prev)}
+          className="text-xs px-2.5 py-1 rounded-lg border border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+        >
+          <Sparkles size={12} />
+          <span>{showLandTalk ? 'Hide Unit Guide' : '🗣️ Explain Land Units (Like Friends)'}</span>
+        </button>
+      </div>
+
+      {showLandTalk && (
+        <div className="bg-slate-950 border border-emerald-500/30 rounded-xl p-3.5 my-2 text-xs space-y-2.5">
+          <div className="font-bold text-emerald-400 flex items-center justify-between flex-wrap gap-1">
+            <span>Ground Practical Land Unit Equivalents (Everyday Village Talking):</span>
+            <span className="text-[10px] text-slate-400 font-normal">No confusing math — direct real-world scale</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {LAND_UNIT_FRIEND_TALK.map(item => (
+              <div key={item.name} className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+                <div className="flex items-center justify-between mb-1">
+                  <strong className="text-white text-[11px]">{item.name}</strong>
+                  <span className="text-[10px] text-emerald-400 font-mono font-bold">{item.size}</span>
+                </div>
+                <p className="text-[11px] text-slate-300 m-0 leading-relaxed">{item.plainAnalogy}</p>
+                <small className="text-[9.5px] text-slate-500 block mt-1">Used in: {item.popularIn}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-3">
         <div className="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/40 rounded-xl p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between text-emerald-400 text-xs font-semibold">

@@ -122,7 +122,6 @@ export default function MapKit({ map, farm, kit, farmOnly }: { map: L.Map | null
 
   return <>
     <div className="kit-frame" aria-hidden="true"/>
-    <div className="kit-north" aria-label="North is up"><svg viewBox="0 0 40 52" width="34" height="44"><path d="M20 2 L32 44 L20 36 L8 44Z" fill="#f4ffd0" stroke="#10231b" strokeWidth="2" strokeLinejoin="round"/><path d="M20 2 L32 44 L20 36Z" fill="#10231b"/></svg><b>N</b></div>
     {kit.legend && need && <div className="kit-legend" aria-label="Map layer legend">
       <strong>Map layers</strong>
       {kit.dem && info && <div><span>Height above sea level</span><i style={{ background: gradientCss(DEM_RAMP) }}/><small><em>{Math.round(info.lo)} m</em><em>{Math.round(info.hi)} m</em></small></div>}

@@ -28,3 +28,4 @@ __pycache__/
 scratch/
 *.key.json
 *service-account*.json
+ShellShock/

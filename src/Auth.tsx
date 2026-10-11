@@ -179,6 +179,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         onPointerLeave={handleCardPointerLeave}
         style={{ ...tiltStyle, willChange: 'transform' }}
       >
+        <div className="au-motion-badge">
+          <span className="au-motion-dot" />
+          <span>Motion-First WebGL · Real Physics</span>
+        </div>
         <h1>{mode === 'in' ? 'Welcome back' : 'Start for free'}</h1>
         <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
         {mode === 'in' && saved.length > 0 && <div className="au-known"><span>Welcome back, tap your name</span>{saved.map(k => <div className="au-chip" key={k.email}><button type="button" onClick={() => { setForm({ ...form, email: k.email, password: '' }); setTimeout(() => pw.current?.focus(), 30) }}><b>{(k.name || k.email)[0].toUpperCase()}</b><span>{k.name}<small>{k.email}</small></span></button><button type="button" aria-label={`Forget ${k.name}`} onClick={() => { forget(k.email); setSaved(known()) }}>×</button></div>)}</div>}

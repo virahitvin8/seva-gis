@@ -22,7 +22,7 @@
 
 **[Production App](https://sevagis.dpdns.org)** · **[Firebase Mirror](https://seva-gis-backend-e724a.web.app)** · **[Backend API Docs](https://seva-gis-backend-419602015618.us-central1.run.app/api/docs)**
 
-[What You Can Analyze](#what-you-can-analyze) · [The Precision Correction Suite](#the-precision-correction-suite) · [Architecture & How SEVA·GIS Works](#architecture--how-sevagis-works) · [Git Repositories](#git-repositories) · [Vibe Coding & Agentic Engineering](#vibe-coding--agentic-engineering) · [Credits & QGIS Inspirations](#credits--qgis-inspirations) · [Live Testing Links](#live-testing-links)
+[What You Can Analyze](#what-you-can-analyze) · [The Precision Correction Suite](#the-precision-correction-suite) · [HyperFrames Showcase](#interactive-walkthrough--video-showcase-hyperframes) · [Architecture & How SEVA·GIS Works](#architecture--how-sevagis-works) · [Motion-First Design](#motion-first-design-architecture-feitangyuanmotion-web) · [Git Repositories](#git-repositories) · [Credits & QGIS Inspirations](#credits--qgis-inspirations) · [Live Testing Links](#live-testing-links)
 
 <a href="https://sevagis.dpdns.org">
   <img src="docs/walkthrough_satellite_data.gif" alt="SEVA·GIS Precision Agriculture Interactive GIS Terminal" width="1200" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);" />
@@ -90,31 +90,7 @@ Unlike proprietary software suites that lock users into closed ecosystems and ha
 
 To bridge the gap between raw 10m/20m satellite observations and ultra-high-resolution aerial or field-grade survey accuracy, SEVA·GIS applies a comprehensive 10-stage correction pipeline in [seva_corrected_pipeline.js](seva_corrected_pipeline.js).
 
-### ArchiFi Flow: Precision Radiometric & Geometric Correction Engine
-
-```mermaid
-flowchart TD
-    classDef input fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
-    classDef step fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ecfdf5;
-    classDef output fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc;
-
-    RAW[Raw Sentinel-2 L2A 10m/20m + Copernicus DEM + Sentinel-1 SAR]:::input
-
-    RAW --> S1[1. Cloud & Shadow Decontamination\nCloud Score+ cs_cdf >= 0.60 + ESA SCL 4-7 + 20m Dilation]:::step
-    S1 --> S2[2. Sub-Pixel Co-Registration Tracking\n2D NIR cross-correlation displacement dx, dy vs temporal baseline]:::step
-    S2 --> S3[3. Super-Resolution Sharpening\n20m Red-Edge / SWIR -> 10m via VNIR multilinear bases]:::step
-    S3 --> S4[4. Topographic Sun-Canopy Normalization\nSCS+C illumination correction via Copernicus 30m DEM]:::step
-    S4 --> S5[5. Boundary Inward Core Erosion\n-10m inner-field buffer excluding perimeter mixed pixels]:::step
-    S5 --> S6[6. Phenological Bi-Temporal Interpolation\nInverse harmonic time-weighting between clean satellite passes]:::step
-    S6 --> S7[7. All-Weather Radar Cross-Sensor Fusion\nSentinel-1 C-Band dual-pol VH-VV dB canopy volume fallback]:::step
-    S7 --> S8[8. Full-Spectrum Agronomic Indices\nNDVI, NDRE, EVI, OSAVI, MSAVI2, NDMI, BSI, REIP, CIre]:::step
-    S8 --> S9[9. Spatial Autocorrelation Error Correction\nMoran's I degrees-of-freedom adjustment: Neff ≈ N / 4]:::step
-    S9 --> S10[10. In-Situ Handheld Sensor & Field Calibration\nOLS transfer regression: Ycal = aX + b, R², RMSE]:::step
-
-    S10 --> OUT[Clean SEVA·GIS Field Intelligence & Continuous Spline Surface]:::output
-```
-
-### Correction Method Specifications
+### Correction Specifications & Physical Calibration Methods
 
 | # | Correction Technique | Mathematical & Physical Algorithm | Practical Field Benefit |
 | :-: | :--- | :--- | :--- |
@@ -128,6 +104,27 @@ flowchart TD
 | **8** | **Full-Spectrum Agronomic Indices** | Red-Edge indices (NDRE, CIre) + Soil-adjusted (OSAVI, MSAVI2) + Water absorption (NDMI) | Bypasses high-biomass NDVI saturation and eliminates bare soil reflectance in young crops. |
 | **9** | **Spatial Autocorrelation Modeling** | Adjusts degrees of freedom for spatial neighbor autocorrelation: $N_{\text{eff}} \approx N / 4$ | Prevents pseudo-replication and reports statistically honest standard error of the mean. |
 | **10** | **In-Situ Handheld Sensor Calibration** | OLS regression ($Y_{\text{cal}} = a \cdot X + b$) against SPAD meters, soil probes, or quadrat clips | Translates dimensionless satellite ratios into physical, field-calibrated units. |
+
+---
+
+## Interactive Walkthrough & Video Showcase (HyperFrames)
+
+Experience SEVA·GIS in motion through our cinematic walkthrough and feature demonstration:
+
+<div align="center">
+  <a href="https://sevagis.dpdns.org">
+    <img src="docs/walkthrough_satellite_data.gif" alt="SEVA·GIS Satellite Telemetry & Crop Health Interactive Terminal" width="900" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.35);" />
+  </a>
+  <p>
+    <b>▶️ Video Walkthrough:</b> <a href="docs/seva_gis_portal_walkthrough.mp4"><code>docs/seva_gis_portal_walkthrough.mp4</code></a> &bull; 
+    <b>Live Production Terminal:</b> <a href="https://sevagis.dpdns.org">sevagis.dpdns.org</a>
+  </p>
+</div>
+
+| Media Asset | Format & Resolution | Highlights Covered | Direct Link |
+| :--- | :--- | :--- | :--- |
+| **Full HD Feature Walkthrough** | MP4 (1080p, 60fps) | Farm polygon drawing, Sentinel-2 spectral indices, 3D DEM hillshading, tractor swath robotics | [seva_gis_portal_walkthrough.mp4](docs/seva_gis_portal_walkthrough.mp4) |
+| **Telemetry & Raster Animation** | Optimized GIF (800x450) | Real-time band reflectance inspection, NDVI color ramps, instantaneous GEE API responses | [walkthrough_satellite_data.gif](docs/walkthrough_satellite_data.gif) |
 
 ---
 
@@ -166,6 +163,19 @@ graph TB
     UI -. Direct WMS / WMTS .-> MPC
     UI -. Basemap Tiles .-> ESRI
 ```
+
+---
+
+## Motion-First Design Architecture ([feitangyuan/motion-web](https://github.com/feitangyuan/motion-web))
+
+SEVA·GIS adheres to the design principles pioneered in **[feitangyuan/motion-web](https://github.com/feitangyuan/motion-web)**: building high-touch, motion-first creative experiences powered by vanilla Canvas 2D, WebGL, and CSS physics with zero heavy third-party animation runtimes:
+
+- **Damped Harmonic Physics:** The interactive ambient landing experience in [`src/Aurora.tsx`](src/Aurora.tsx) implements second-order damped harmonic oscillators ($F = -k \cdot \Delta x - c \cdot v$) running on `requestAnimationFrame` with frame-rate decoupled delta-time integration ($\Delta t$).
+- **Gravitational Cursor Attraction Well:** Dynamic pointer position tracking creates an inverse-distance gravitational well that gently bends ambient aurora nodes towards the user's cursor ($F_{\text{pull}} = (1 - r/R) \cdot 0.45 \cdot m^{-1}$).
+- **Orbital Keplerian Satellite Rings:** Ambient concentric orbital paths simulate Copernicus Sentinel-2 orbital passes with elliptical eccentricity, node inclination, and periodic phase pulses.
+- **Wave Propagation & Decelerating Shockwaves:** Interactive pointer-down events trigger dynamic radial wave rings that physically dissipate and decelerate outwards across the canvas.
+- **3D Perspective Glare Card Dynamics:** The authentication card in [`src/Auth.tsx`](src/Auth.tsx) tracks cursor offset to produce real-time 3D perspective rotation (`perspective(1000px) rotateX/rotateY`) with dynamic radial specular glare reflection.
+- **Sub-16ms Frame Budget:** All physics routines run in vanilla Canvas 2D with zero GC pressure, pre-allocated particle buffers, and CSS spring cubic-bezier transitions (`cubic-bezier(0.16, 1, 0.3, 1)`).
 
 ---
 

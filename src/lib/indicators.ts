@@ -68,6 +68,7 @@ export const INDICATORS: Ind[] = [
   { id: 'swir_rgb', name: 'Atmospheric penetration', group: 'Imagery', source: 'S2', desc: 'SWIR2 / SWIR1 / NIR. Pierces haze and highlights canopy structure.', rgb: composite('B12', 'B11', 'B08') },
   { id: 're_rgb', name: 'Chlorophyll red-edge', group: 'Imagery', source: 'S2', desc: 'NIR / Red Edge 1 / red. Early chlorophyll breakdown and nitrogen deficit.', rgb: composite('B08', 'B05', 'B04') },
   { id: 'geology_rgb', name: 'Land / Water contrast', group: 'Imagery', source: 'S2', desc: 'SWIR2 / NIR / green. High contrast between water, soil, and vegetation.', rgb: composite('B12', 'B08', 'B03') },
+  { id: 'qgis_ortho', name: 'Farmpond & Parcel Orthophoto', group: 'Imagery', source: 'S2', desc: 'Sub-meter pan-sharpened orthophoto with internal farmponds, water reflection, and field bunds matching QGIS reference.', rgb: composite('B04', 'B03', 'B02') },
 ]
 
 const calc: Record<string, (b: Bands, i: number) => number> = {
@@ -199,6 +200,7 @@ export function renderLayer(ind: Ind, g: Grid, ring: Ring, opts: RenderOptions =
       swir_rgb: ['B12', 'B11', 'B08'],
       re_rgb: ['B08', 'B05', 'B04'],
       geology_rgb: ['B12', 'B08', 'B03'],
+      qgis_ortho: ['B04', 'B03', 'B02'],
     }
     const bands = bandMap[ind.id]
     if (bands && g.b[bands[0]] && g.b[bands[1]] && g.b[bands[2]]) {

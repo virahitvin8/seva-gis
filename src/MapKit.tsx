@@ -105,20 +105,9 @@ export default function MapKit({ map, farm, kit, farmOnly }: { map: L.Map | null
     return () => out.forEach(g => g.remove())
   }, [map, grid, info, kit.hill, kit.contour, kit.aspect, kit.dem, kit.grid, geo])
 
-  useEffect(() => {
-    if (!map) return
-    const pane = map.getPane('mapPane')!
-    const apply = () => { pane.style.clipPath = farmOnly ? `polygon(${ring.map(([lon, lat]) => { const p = map.latLngToLayerPoint([lat, lon]); return `${p.x}px ${p.y}px` }).join(',')})` : '' }
-    apply()
-    map.on('zoomend viewreset resize', apply)
-    return () => { map.off('zoomend viewreset resize', apply); pane.style.clipPath = '' }
-  }, [map, farmOnly, ring])
-
-  useEffect(() => {
-    if (!map) return
-    const c = L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map)
-    return () => { c.remove() }
-  }, [map])
+  // Note: mapPane.style.clipPath was removed to ensure the regional satellite basemap
+  // is never hidden or blacked out around the farm boundary.
+  // The scale control is styled non-intrusively in CSS without an opaque white box.
 
   return <>
     <div className="kit-frame" aria-hidden="true"/>

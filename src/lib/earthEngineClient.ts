@@ -42,6 +42,17 @@ export async function createEarthEngineMap(
   const coordinates = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
   if (!coordinates || coordinates.length < 3) throw new Error('Draw or upload a field boundary before requesting Earth Engine tiles.')
 
+  const layerToCombo: Record<string, string> = {
+    rgb: 'natural',
+    cir: 'cir',
+    agri: 'agri',
+    moist_rgb: 'moisture',
+    swir_rgb: 'swir',
+    re_rgb: 'chlorophyll',
+    geology_rgb: 'geology',
+  }
+  const effectiveCombo = bandCombination || (layer.rgb ? (layerToCombo[layer.id] || 'natural') : undefined)
+
   const fetchSignal = signal || AbortSignal.timeout(15000)
   const response = await fetch(`${endpoint}/api/earth-engine/map`, {
     method: 'POST',
@@ -54,8 +65,8 @@ export async function createEarthEngineMap(
       start_date: sceneOpts.from,
       end_date: sceneOpts.to,
       max_cloud: sceneOpts.maxCloud ?? 30,
-      indicator_id: bandCombination ? undefined : layer.id,
-      band_combination: bandCombination,
+      indicator_id: effectiveCombo ? undefined : layer.id,
+      band_combination: effectiveCombo,
       compositing,
       percentile_stretch: percentileStretch,
       visualization: {
@@ -82,6 +93,16 @@ export async function createEarthEngineMap(
   }
   if (!payload.tileUrl) {
     throw new Error('Earth Engine returned no map tile URL.')
+  }
+
+  if (payload.tileUrl) {
+    let normalized = payload.tileUrl
+    if (normalized.includes('/map/projects/')) {
+      normalized = normalized
+        .replace('/map/projects/', '/v1/projects/')
+        .replace(/\/{z}\/{x}\/{y}.*$/, '/tiles/{z}/{x}/{y}')
+    }
+    payload.tileUrl = normalized
   }
 
   return payload as EarthEngineMapResponse

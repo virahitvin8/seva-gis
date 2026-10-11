@@ -148,7 +148,15 @@ def _comp(col: ee.ImageCollection, method: str) -> ee.Image:
     return col.median()
 
 def _tileurl(mid: dict) -> str:
-    return f"https://earthengine.googleapis.com/map/{mid['mapid']}/{{z}}/{{x}}/{{y}}?token={mid['token']}"
+    if "urlFormat" in mid and mid["urlFormat"]:
+        return mid["urlFormat"]
+    if "tile_fetcher" in mid and hasattr(mid["tile_fetcher"], "url_format"):
+        return mid["tile_fetcher"].url_format
+    mapid = mid.get("mapid", "")
+    token = mid.get("token", "")
+    if mapid.startswith("projects/"):
+        return f"https://earthengine.googleapis.com/v1/{mapid}/tiles/{{z}}/{{x}}/{{y}}"
+    return f"https://earthengine.googleapis.com/map/{mapid}/{{z}}/{{x}}/{{y}}?token={token}"
 
 def _dr(req: Any) -> tuple[date, date]:
     today = date.today()
@@ -277,8 +285,12 @@ async def create_map(request: Request, body: MapReq) -> dict:
         n: int = col.size().getInfo()
         if n == 0: raise HTTPException(404,"No Sentinel-2 scenes.")
         img = _comp(col, body.compositing).clip(field)
-        if body.band_combination:
-            bands = BAND_COMBOS[body.band_combination]; vz = COMBO_VIZ.get(body.band_combination, COMBO_VIZ["natural"])
+        combo = body.band_combination
+        if not combo and body.indicator_id in BAND_COMBOS:
+            combo = body.indicator_id
+
+        if combo:
+            bands = BAND_COMBOS[combo]; vz = COMBO_VIZ.get(combo, COMBO_VIZ["natural"])
             sc = img.divide(10000).select(bands)
             if body.percentile_stretch:
                 pct = sc.reduceRegion(ee.Reducer.percentile([2,98]),geometry=field,scale=30,maxPixels=1_000_000).getInfo()

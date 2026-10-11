@@ -51,16 +51,26 @@ const comboLayer: Record<string, string> = {
   natural: 'rgb', cir: 'cir', agri: 'agri', moisture: 'moist_rgb',
   swir: 'swir_rgb', chlorophyll: 're_rgb', geology: 'geology_rgb',
 }
+const layerToBandCombo: Record<string, string> = {
+  rgb: 'natural',
+  cir: 'cir',
+  agri: 'agri',
+  moist_rgb: 'moisture',
+  swir_rgb: 'swir',
+  re_rgb: 'chlorophyll',
+  geology_rgb: 'geology',
+  qgis_ortho: 'natural',
+}
 const STORE = 'seva-indicators'
 const ESRI = (n: string) => `https://server.arcgisonline.com/ArcGIS/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`
 const BASES: { id: string; name: string; note: string; sw: string }[] = [
-  { id: 'sat', name: 'Satellite', note: 'Photo of the ground (Esri)', sw: 'linear-gradient(135deg,#3b5a2c,#8a7a52)' },
-  { id: 'hybrid', name: 'Satellite + names', note: 'Photo with roads and place names', sw: 'linear-gradient(135deg,#3b5a2c,#e8e8e8)' },
-  { id: 'original', name: 'Original image', note: 'Latest Sentinel-2 true colour, untouched', sw: 'linear-gradient(135deg,#6f7c4a,#b9a77a)' },
-  { id: 'streets', name: 'Streets', note: 'OpenStreetMap roads and places', sw: 'linear-gradient(135deg,#f2efe9,#aad3df)' },
+  { id: 'hybrid', name: 'Google Hybrid', note: 'Ultra-clear 0.3m optical imagery + roads (No voids)', sw: 'linear-gradient(135deg,#2e4d25,#e8e8e8)' },
+  { id: 'sat', name: 'Google Satellite', note: 'Pure sub-meter optical satellite imagery', sw: 'linear-gradient(135deg,#2e4d25,#5a7a3b)' },
+  { id: 'esri', name: 'Esri World Imagery', note: 'Esri World Imagery (Maxar)', sw: 'linear-gradient(135deg,#3b5a2c,#8a7a52)' },
+  { id: 'streets', name: 'OpenStreetMap', note: 'Roads, towns and landmarks', sw: 'linear-gradient(135deg,#f2efe9,#aad3df)' },
   { id: 'terrain', name: 'Terrain', note: 'Height and landforms (Esri Topo)', sw: 'linear-gradient(135deg,#d9e8c4,#c9b48a)' },
-  { id: 'light', name: 'Light', note: 'Quiet pale map', sw: 'linear-gradient(135deg,#f4f4f4,#d4d9dc)' },
-  { id: 'dark', name: 'Dark', note: 'Dark map, colours stand out', sw: 'linear-gradient(135deg,#222,#444)' },
+  { id: 'light', name: 'Light Canvas', note: 'Quiet pale map', sw: 'linear-gradient(135deg,#f4f4f4,#d4d9dc)' },
+  { id: 'dark', name: 'Dark Canvas', note: 'Dark map, colours stand out', sw: 'linear-gradient(135deg,#222,#444)' },
 ]
 const BASE_STORE = 'seva-basemap'
 const dp = (id: string, d: number) => ({ dem: 0, bw: 0, slope: 1, twi: 1, flow: 1, sink: 1 } as Record<string, number>)[id] ?? d
@@ -101,7 +111,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const cadastreLayerRef = useRef<L.LayerGroup | null>(null)
   const [base, setBase] = useState(() => {
     const saved = localStorage.getItem(BASE_STORE)
-    return (saved && saved !== 'streets') ? saved : 'sat'
+    return (saved && saved !== 'streets' && saved !== 'original') ? saved : 'hybrid'
   })
   const baseLayers = useRef<L.TileLayer[]>([])
   const [tools, setTools] = useState(false)
@@ -650,11 +660,27 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       })
     }
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
-    if (base === 'sat' || base === 'hybrid') {
-      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 18 })
-      if (base === 'hybrid') {
-        add(ESRI('Reference/World_Transportation'), 'Esri')
-        add(ESRI('Reference/World_Boundaries_and_Places'), 'Esri')
+    const google = 'Imagery © Google'
+    if (base === 'sat' || base === 'hybrid' || base === 'esri') {
+      if (base === 'esri') {
+        add(ESRI('World_Imagery'), esri, { maxNativeZoom: 18, maxZoom: 22 })
+      } else {
+        const isHybrid = base === 'hybrid'
+        add(
+          isHybrid
+            ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+            : 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+          google,
+          { maxNativeZoom: 20, maxZoom: 22 }
+        )
+        // High-availability Esri backup tile layer underneath at zIndex: 5
+        const esriBackup = L.tileLayer(ESRI('World_Imagery'), {
+          attribution: esri,
+          maxNativeZoom: 18,
+          maxZoom: 22,
+          zIndex: 5,
+        }).addTo(instance)
+        baseLayers.current.push(esriBackup)
       }
     } else if (base === 'streets') {
       add('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', { maxNativeZoom: 19 })
@@ -686,7 +712,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     frame.current = group
 
     if (element.current) {
-      element.current.style.backgroundColor = '#15291f'
+      element.current.style.backgroundColor = 'transparent'
     }
 
     const worldOuter: L.LatLngTuple[] = [
@@ -945,11 +971,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const controller = new AbortController()
     setEarthEngineOverlay(null)
     setEarthEngineStatus('Requesting primary Sentinel-2 layer from Google Earth Engine…')
+    const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
+
     createEarthEngineMap({
       farm,
       sceneOpts: sceneOpts ?? {},
       layer,
-      bandCombination: layer.rgb ? activeBandCombo : undefined,
+      bandCombination: effectiveCombo,
       percentileStretch: stretchDra,
     }, controller.signal).then(result => {
       if (controller.signal.aborted) return
@@ -971,9 +999,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     if (!instance || !earthEngineOverlay || earthEngineOverlay.sceneKey !== sceneKey || hidden.includes(earthEngineOverlay.layerId)) return
     const eeLayer = L.tileLayer(earthEngineOverlay.tileUrl, {
       attribution: 'Sentinel-2 L2A · Google Earth Engine',
-      maxZoom: 20,
+      maxZoom: 22,
       maxNativeZoom: 16,
-      zIndex: 700,
+      zIndex: 250, // Position directly over basemap, underneath overlays, cadastre and markers
       opacity: opacity[earthEngineOverlay.layerId] ?? 1,
       crossOrigin: true,
     })
@@ -1215,43 +1243,32 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       <div className="ix-wrap">
         <div ref={element} className={`field-map${locked ? ' is-locked' : ''}`} />
 
-        {/* Clean, Non-Redundant Map HUD Bar */}
+        {/* Single Unified Non-Redundant Map HUD Bar */}
         <div className="ix-map-hud-bar" role="status" aria-label="Map status and orientation">
-          <button
-            className={`ix-hud-pill is-btn${earthEngineOverlay?.sceneKey === sceneKey ? ' is-live' : ''}`}
+          <div
+            className="ix-unified-hud"
+            title="Click to open Google Earth Engine AI Crew Studio"
             onClick={() => setGeeCenterOpen(true)}
-            title="Click to open Google Earth Engine & Autonomous Agent Studio"
           >
             <span className="gee-dot" />
-            <span>{earthEngineOverlay?.sceneKey === sceneKey ? 'GEE Live · S2 L2A' : 'GEE Studio · S2 L2A'}</span>
-            <Sparkles size={11} className="text-emerald-400" />
-          </button>
-
-          <div className="ix-hud-pill" title={`Live map zoom ${mapZoom.toFixed(1)}x · Synchronized across dashboard`}>
+            <span className="hud-title">{earthEngineOverlay?.sceneKey === sceneKey ? 'GEE Live · S2 L2A' : 'Sentinel-2 L2A'}</span>
+            <span className="hud-sep">·</span>
             <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
-            {locked && <span className="zoom-synced-pill">75% LOCKED</span>}
-          </div>
-
-          <div className="ix-hud-pill" title="Geodetic Coordinates (WGS84)">
-            <span>{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : `${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E (Centroid)`}</span>
-          </div>
-
-          {!thesisFrameOpen && (
-            <div
-              className="ix-hud-compass cursor-pointer"
-              title="True Geodetic North (0.0° Azimuth). Click to reset map bearing."
-              onClick={() => {
-                if (map.current) {
-                  map.current.setView([farm.lat, farm.lon], map.current.getZoom())
-                }
+            {locked && <span className="zoom-synced-pill">75%</span>}
+            <span className="hud-sep">·</span>
+            <span className="hud-coords">{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : `${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E`}</span>
+            <span className="hud-sep">·</span>
+            <span
+              className="hud-north"
+              title="True Geodetic North. Click to re-center."
+              onClick={(e) => {
+                e.stopPropagation()
+                if (map.current) map.current.setView([farm.lat, farm.lon], map.current.getZoom())
               }}
             >
-              <svg viewBox="0 0 20 20" width="13" height="13" style={{ transform: 'rotate(0deg)' }}>
-                <polygon points="10,2 14,16 10,12 6,16" fill="#34d399" stroke="#065f46" strokeWidth="1" />
-              </svg>
-              <span>N 0.0°</span>
-            </div>
-          )}
+              ▲ N 0°
+            </span>
+          </div>
         </div>
 
         {/* The Layers & Symbology Box: cleanly docked over map when open, or portaled to body when detached */}

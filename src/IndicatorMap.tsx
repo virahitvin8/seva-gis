@@ -24,7 +24,7 @@ import { BAND_COMBINATIONS } from './lib/geoai'
 import { areaHa } from './lib/geo'
 import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts } from './lib/seva'
 import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndicator } from './lib/earthEngine'
-import { createEarthEngineMap, isEarthEngineConfigured } from './lib/earthEngineClient'
+import { createEarthEngineMap, isEarthEngineConfigured, renderFarmSentinel2 } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 import { fetchOverpassCadastre, type OverpassParcel } from './lib/cadastreOnline'
 import { getGroundTalk } from './lib/plainTalk'
@@ -96,9 +96,17 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [earthEngineOverlay, setEarthEngineOverlay] = useState<{ tileUrl: string; layerId: string; sceneKey: string; sceneCount: string } | null>(null)
+  const [earthEngineOverlay, setEarthEngineOverlay] = useState<{
+    tileUrl?: string
+    imageUrl?: string
+    bounds?: [[number, number], [number, number]]
+    layerId: string
+    sceneKey: string
+    sceneCount: string
+  } | null>(null)
   const [earthEngineStatus, setEarthEngineStatus] = useState('')
   const earthEngineTiles = useRef<L.TileLayer | null>(null)
+  const earthEngineImageOverlay = useRef<L.ImageOverlay | null>(null)
   const [panel, setPanel] = useState(false)
   const [baseOpen, setBaseOpen] = useState(false)
   const [nearOpen, setNearOpen] = useState(false)
@@ -733,7 +741,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       } else if (aoiOnly) {
         L.polygon(ring, { color: '#22c55e', weight: 3, dashArray: '6 4', fill: false, interactive: false }).addTo(group)
       } else {
-        L.polygon(ring, { color: '#f4ffd0', weight: 2.5, fill: false, interactive: false }).addTo(group)
+        L.polygon(ring, { color: '#facc15', weight: 2.2, fill: false, interactive: false }).addTo(group)
       }
     }
 
@@ -971,24 +979,74 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const controller = new AbortController()
     setEarthEngineOverlay(null)
     setEarthEngineStatus('Requesting primary Sentinel-2 layer from Google Earth Engine…')
-    const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
 
-    createEarthEngineMap({
-      farm,
-      sceneOpts: sceneOpts ?? {},
-      layer,
-      bandCombination: effectiveCombo,
-      percentileStretch: stretchDra,
-    }, controller.signal).then(result => {
-      if (controller.signal.aborted) return
-      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
-      setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
-    }).catch(error => {
-      if (controller.signal.aborted) return
-      setEarthEngineOverlay(null)
-      setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
-      console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', error)
-    })
+    const layerToPreset: Record<string, 'trueColor' | 'colourInfrared' | 'agriculture' | 'swir'> = {
+      rgb: 'trueColor',
+      qgis_ortho: 'trueColor',
+      cir: 'colourInfrared',
+      agri: 'agriculture',
+      swir_rgb: 'swir',
+      moist_rgb: 'swir',
+    }
+    const targetPreset = layerToPreset[layer.id]
+
+    if (targetPreset) {
+      renderFarmSentinel2(farm, {
+        preset: targetPreset,
+        mode: sceneOpts?.mode as any,
+        startDate: sceneOpts?.date || sceneOpts?.from,
+        endDate: sceneOpts?.to,
+        maxCloud: sceneOpts?.maxCloud,
+      }, controller.signal).then(result => {
+        if (controller.signal.aborted) return
+        setEarthEngineOverlay({
+          imageUrl: result.url,
+          bounds: result.bounds,
+          layerId: primaryId!,
+          sceneKey,
+          sceneCount: String(result.scenes)
+        })
+        setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (QGIS Ortho · ${result.date} · ${result.scenes} scene${result.scenes === 1 ? '' : 's'})`)
+      }).catch(err => {
+        if (controller.signal.aborted) return
+        console.warn('QGIS on-farm render fallback to GEE tiles:', err)
+        const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
+        createEarthEngineMap({
+          farm,
+          sceneOpts: sceneOpts ?? {},
+          layer,
+          bandCombination: effectiveCombo,
+          percentileStretch: stretchDra,
+        }, controller.signal).then(result => {
+          if (controller.signal.aborted) return
+          setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
+          setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
+        }).catch(fallbackErr => {
+          if (controller.signal.aborted) return
+          setEarthEngineOverlay(null)
+          setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
+          console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', fallbackErr)
+        })
+      })
+    } else {
+      const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
+      createEarthEngineMap({
+        farm,
+        sceneOpts: sceneOpts ?? {},
+        layer,
+        bandCombination: effectiveCombo,
+        percentileStretch: stretchDra,
+      }, controller.signal).then(result => {
+        if (controller.signal.aborted) return
+        setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
+        setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
+      }).catch(error => {
+        if (controller.signal.aborted) return
+        setEarthEngineOverlay(null)
+        setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
+        console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', error)
+      })
+    }
     return () => controller.abort()
   }, [active.join(), hidden.join(), geo, sceneKey, stretchDra, activeBandCombo, JSON.stringify(sceneOpts)])
 
@@ -996,18 +1054,40 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const instance = map.current
     earthEngineTiles.current?.remove()
     earthEngineTiles.current = null
+    earthEngineImageOverlay.current?.remove()
+    earthEngineImageOverlay.current = null
     if (!instance || !earthEngineOverlay || earthEngineOverlay.sceneKey !== sceneKey || hidden.includes(earthEngineOverlay.layerId)) return
-    const eeLayer = L.tileLayer(earthEngineOverlay.tileUrl, {
-      attribution: 'Sentinel-2 L2A · Google Earth Engine',
-      maxZoom: 22,
-      maxNativeZoom: 16,
-      zIndex: 250, // Position directly over basemap, underneath overlays, cadastre and markers
-      opacity: opacity[earthEngineOverlay.layerId] ?? 1,
-      crossOrigin: true,
-    })
-    eeLayer.addTo(instance)
-    earthEngineTiles.current = eeLayer
-    return () => { earthEngineTiles.current?.remove(); earthEngineTiles.current = null }
+
+    if (earthEngineOverlay.imageUrl && earthEngineOverlay.bounds) {
+      const overlay = L.imageOverlay(earthEngineOverlay.imageUrl, earthEngineOverlay.bounds, {
+        attribution: 'Sentinel-2 L2A · Google Earth Engine (QGIS Ortho)',
+        zIndex: 260,
+        opacity: opacity[earthEngineOverlay.layerId] ?? 0.95,
+        interactive: false,
+      }).addTo(instance)
+      const el = overlay.getElement()
+      if (el) {
+        el.style.imageRendering = 'pixelated'
+      }
+      earthEngineImageOverlay.current = overlay
+    } else if (earthEngineOverlay.tileUrl) {
+      const eeLayer = L.tileLayer(earthEngineOverlay.tileUrl, {
+        attribution: 'Sentinel-2 L2A · Google Earth Engine',
+        maxZoom: 22,
+        maxNativeZoom: 16,
+        zIndex: 250, // Position directly over basemap, underneath overlays, cadastre and markers
+        opacity: opacity[earthEngineOverlay.layerId] ?? 1,
+        crossOrigin: true,
+      })
+      eeLayer.addTo(instance)
+      earthEngineTiles.current = eeLayer
+    }
+    return () => {
+      earthEngineTiles.current?.remove()
+      earthEngineTiles.current = null
+      earthEngineImageOverlay.current?.remove()
+      earthEngineImageOverlay.current = null
+    }
   }, [mapObj, earthEngineOverlay, hidden.join(), JSON.stringify(opacity), sceneKey])
 
   useEffect(() => {

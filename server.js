@@ -41,6 +41,36 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Forward /api/gee/render or /api/earth-engine/* to Cloud Run Earth Engine backend
+  if ((urlPath === '/api/gee/render' || urlPath.startsWith('/api/earth-engine/')) && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 5 * 1024 * 1024) req.destroy();
+    });
+    req.on('end', async () => {
+      try {
+        const eeEndpoint = process.env.EE_BACKEND_URL || 'https://seva-gis-backend-419602015618.us-central1.run.app';
+        const targetUrl = `${eeEndpoint}${urlPath}`;
+        const eeRes = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
+        const eeData = await eeRes.text();
+        res.writeHead(eeRes.status, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(eeData);
+      } catch (err) {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: `Backend proxy error: ${err.message}` }));
+      }
+    });
+    return;
+  }
+
   // SEVA.GIS Report Email Delivery API with EmailOctopus integration
   if (urlPath === '/api/send-report' && req.method === 'POST') {
     let body = '';

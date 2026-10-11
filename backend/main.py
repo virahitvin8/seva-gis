@@ -2,7 +2,8 @@
 from __future__ import annotations
 import asyncio, hashlib, logging, os, time
 from collections import defaultdict, deque
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+import math
 from typing import Any, Literal, Optional
 import ee
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -252,6 +253,20 @@ class AlertReq(PolyBase):
     alert_pct: float = Field(default=30.0, ge=1.0, le=100.0)
     scale: int = Field(default=30, ge=10, le=500)
 
+class GeeRenderReq(BaseModel):
+    geojson: Optional[dict] = None
+    coordinates: Optional[list[list[float]]] = None
+    mode: Literal["latest", "single", "range"] = "latest"
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    maxCloud: Optional[int] = Field(default=30, ge=0, le=100)
+    max_cloud: Optional[int] = None
+    preset: str = "trueColor"
+    padM: Optional[int] = Field(default=20, ge=0, le=500)
+    pad_m: Optional[int] = None
+
 # === Middleware ===
 @app.middleware("http")
 async def limit_body(request: Request, call_next: Any) -> Response:
@@ -269,6 +284,128 @@ async def timing(request: Request, call_next: Any) -> Response:
 @app.get("/health")
 async def health() -> dict:
     return {"service":"seva-gis-earth-engine","version":"2.0.0","project":PROJECT_ID,"engineReady":_ee_ready,"cachedTiles":len(_tile_cache),"rateLimitRpm":RATE_LIMIT_RPM}
+
+@app.post("/api/gee/render")
+@app.post("/api/earth-engine/render")
+async def render_farm_endpoint(request: Request, body: GeeRenderReq) -> dict:
+    """Render Sentinel-2 PNG with on-farm percentile [2, 98] stretch matching QGIS and geeRender.js."""
+    _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
+    preset_map = {
+        "trueColor":      ["B4", "B3", "B2"],
+        "colourInfrared": ["B8", "B4", "B3"],
+        "agriculture":    ["B11", "B8", "B2"],
+        "swir":           ["B12", "B8A", "B4"],
+        "natural":        ["B4", "B3", "B2"],
+        "cir":            ["B8", "B4", "B3"],
+        "agri":           ["B11", "B8", "B2"],
+    }
+    bands = preset_map.get(body.preset)
+    if not bands:
+        raise HTTPException(422, f"BAD_PRESET: {body.preset}")
+    start_d = body.startDate or body.start_date
+    end_d = body.endDate or body.end_date
+    cloud = body.maxCloud if body.max_cloud is None else body.max_cloud
+    pad_meters = body.padM if body.pad_m is None else body.pad_m
+
+    def _execute() -> dict:
+        if body.geojson:
+            region = ee.Geometry(body.geojson)
+        elif body.coordinates:
+            region = _geom(body.coordinates)
+        else:
+            raise HTTPException(422, "geojson or coordinates required.")
+        col = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            .filterBounds(region)
+            .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", cloud)))
+        now = datetime.now(timezone.utc)
+        if body.mode == "latest":
+            s_str = (now - timedelta(days=120)).strftime("%Y-%m-%d")
+            e_str = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+            col = col.filterDate(s_str, e_str)
+        elif body.mode == "single":
+            if not start_d: raise HTTPException(422, "startDate required for single mode.")
+            s_dt = datetime.strptime(start_d, "%Y-%m-%d")
+            col = col.filterDate(start_d, (s_dt + timedelta(days=1)).strftime("%Y-%m-%d"))
+        else:
+            if not start_d or not end_d: raise HTTPException(422, "startDate and endDate required for range mode.")
+            col = col.filterDate(start_d, end_d)
+        total = col.size().getInfo()
+        if total == 0:
+            raise HTTPException(404, "NO_SCENES")
+
+        def _mask_s2(img: ee.Image) -> ee.Image:
+            scl = img.select("SCL")
+            bad = scl.eq(1).Or(scl.eq(3)).Or(scl.eq(8)).Or(scl.eq(9)).Or(scl.eq(10)).Or(scl.eq(11))
+            return img.updateMask(bad.Not())
+
+        if body.mode == "range":
+            composite = col.map(_mask_s2).median()
+            label = f"{start_d} -> {end_d} (median)"
+            scene_count = total
+        else:
+            newest = col.sort("system:time_start", False).first()
+            day = ee.Date(newest.get("system:time_start")).format("YYYY-MM-dd").getInfo()
+            d_dt = datetime.strptime(day, "%Y-%m-%d")
+            day_col = col.filterDate(day, (d_dt + timedelta(days=1)).strftime("%Y-%m-%d"))
+            composite = day_col.map(_mask_s2).mosaic()
+            label = day
+            scene_count = day_col.size().getInfo()
+
+        img = composite.select(bands)
+        raw = img.reduceRegion(
+            reducer=ee.Reducer.percentile([2, 98]),
+            geometry=region,
+            scale=10,
+            maxPixels=1_000_000_000,
+            bestEffort=True
+        ).getInfo()
+
+        mins = [raw.get(f"{b}_p2") for b in bands]
+        maxs = [raw.get(f"{b}_p98") for b in bands]
+        if any(v is None for v in mins) or any(v is None for v in maxs):
+            raise HTTPException(422, "ALL_MASKED")
+
+        if body.preset in ("trueColor", "natural"):
+            lo = min(mins); hi = max(maxs)
+            mins = [lo for _ in mins]
+            maxs = [hi for _ in maxs]
+        maxs = [m if m > mins[i] else mins[i] + 1 for i, m in enumerate(maxs)]
+
+        box = region.buffer(pad_meters).bounds(1)
+        ring = box.coordinates().getInfo()[0]
+        lons = [c[0] for c in ring]; lats = [c[1] for c in ring]
+        lon_min, lon_max = min(lons), max(lons)
+        lat_min, lat_max = min(lats), max(lats)
+        lat_mid = (lat_min + lat_max) / 2.0
+        width_m = (lon_max - lon_min) * 111320.0 * math.cos(math.radians(lat_mid))
+        height_m = (lat_max - lat_min) * 110574.0
+        w = max(8, math.ceil(width_m / 10.0))
+        h = max(8, math.ceil(height_m / 10.0))
+        k = min(1.0, 2048.0 / max(w, h))
+        w = round(w * k); h = round(h * k)
+
+        vis_img = img.visualize(bands=bands, min=mins, max=maxs, gamma=1)
+        thumb_url = vis_img.getThumbURL({
+            "region": box,
+            "dimensions": f"{w}x{h}",
+            "format": "png",
+            "crs": "EPSG:4326"
+        })
+        return {
+            "url": thumb_url,
+            "bounds": [[lat_min, lon_min], [lat_max, lon_max]],
+            "date": label,
+            "scenes": scene_count,
+            "preset": body.preset,
+            "stretch": {"bands": bands, "mins": mins, "maxs": maxs}
+        }
+
+    try:
+        return await asyncio.to_thread(_execute)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, f"EE render error: {exc}") from exc
 
 @app.post("/api/earth-engine/map")
 async def create_map(request: Request, body: MapReq) -> dict:

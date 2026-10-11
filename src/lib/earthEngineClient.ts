@@ -242,3 +242,59 @@ export async function checkEarthEngineBackendHealth(): Promise<{
     return { ok: false, detail: err instanceof Error ? err.message : 'Backend unreachable' }
   }
 }
+
+export interface RenderFarmOptions {
+  mode?: 'latest' | 'single' | 'range'
+  startDate?: string
+  endDate?: string
+  maxCloud?: number
+  preset?: 'trueColor' | 'colourInfrared' | 'agriculture' | 'swir' | 'natural' | 'cir' | 'agri'
+  padM?: number
+}
+
+export interface RenderFarmResult {
+  url: string
+  bounds: [[number, number], [number, number]]
+  date: string
+  scenes: number
+  preset: string
+  stretch: { bands: string[]; mins: number[]; maxs: number[] }
+}
+
+export async function renderFarmSentinel2(
+  farm: FarmData,
+  options: RenderFarmOptions = {},
+  signal?: AbortSignal
+): Promise<RenderFarmResult> {
+  const endpoint = getEarthEngineEndpoint() || ''
+  const ring = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
+  const isClosed = ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
+  const farmGeoJSON = {
+    type: 'Polygon',
+    coordinates: [isClosed ? ring : [...ring, ring[0]]]
+  }
+
+  const url = endpoint ? `${endpoint}/api/gee/render` : '/api/gee/render'
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: signal || AbortSignal.timeout(20000),
+    body: JSON.stringify({
+      geojson: farmGeoJSON,
+      coordinates: ring,
+      mode: options.mode ?? 'latest',
+      startDate: options.startDate,
+      endDate: options.endDate,
+      maxCloud: options.maxCloud ?? 30,
+      preset: options.preset ?? 'trueColor',
+      padM: options.padM ?? 20,
+    })
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || err.error || `GEE render failed (${res.status})`)
+  }
+
+  return res.json()
+}

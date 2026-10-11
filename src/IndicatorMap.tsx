@@ -303,8 +303,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   })
   useEffect(() => { localStorage.setItem('seva-map-bg', bgMode) }, [bgMode])
 
-  const [stretchDra, setStretchDra] = useState(() => localStorage.getItem('seva-stretch-dra') === '1')
-  useEffect(() => { localStorage.setItem('seva-stretch-dra', stretchDra ? '1' : '0') }, [stretchDra])
+  const [stretchDra, setStretchDra] = useState(() => localStorage.getItem('seva-stretch-dra-v2') !== '0')
+  useEffect(() => { localStorage.setItem('seva-stretch-dra-v2', stretchDra ? '1' : '0') }, [stretchDra])
 
   // Dedicated Layers Box (Table of Contents / Symbology manager)
   const [layersBoxOpen, setLayersBoxOpen] = useState(false)
@@ -478,9 +478,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
       requestAnimationFrame(() => {
         try { m.invalidateSize({ pan: false }) } catch {}
+        baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
       })
       const t = setTimeout(() => {
         try { m.invalidateSize({ pan: false }) } catch {}
+        baseLayers.current.forEach(l => { try { l.redraw() } catch {} })
       }, 80)
       return () => clearTimeout(t)
     } catch (err) {
@@ -670,25 +672,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
     const google = 'Imagery © Google'
     if (base === 'sat' || base === 'hybrid' || base === 'esri') {
-      if (base === 'esri') {
-        add(ESRI('World_Imagery'), esri, { maxNativeZoom: 18, maxZoom: 22 })
-      } else {
-        const isHybrid = base === 'hybrid'
-        add(
-          isHybrid
-            ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
-            : 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-          google,
-          { maxNativeZoom: 20, maxZoom: 22 }
-        )
-        // High-availability Esri backup tile layer underneath at zIndex: 5
-        const esriBackup = L.tileLayer(ESRI('World_Imagery'), {
-          attribution: esri,
-          maxNativeZoom: 18,
-          maxZoom: 22,
-          zIndex: 5,
-        }).addTo(instance)
-        baseLayers.current.push(esriBackup)
+      // blurry underlay so a tile that is still loading or missing is never a black hole
+      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 13, zIndex: 8 })
+      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 17 })
+      if (base === 'hybrid') {
+        add('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', google, { maxNativeZoom: 20, maxZoom: 22 })
+      } else if (base === 'sat') {
+        add('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', google, { maxNativeZoom: 20, maxZoom: 22 })
       }
     } else if (base === 'streets') {
       add('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', { maxNativeZoom: 19 })
@@ -720,7 +710,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     frame.current = group
 
     if (element.current) {
-      element.current.style.backgroundColor = 'transparent'
+      element.current.style.backgroundColor = '#8f9c92'
     }
 
     const worldOuter: L.LatLngTuple[] = [
@@ -1074,8 +1064,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       const eeLayer = L.tileLayer(earthEngineOverlay.tileUrl, {
         attribution: 'Sentinel-2 L2A · Google Earth Engine',
         maxZoom: 22,
-        maxNativeZoom: 16,
-        zIndex: 250, // Position directly over basemap, underneath overlays, cadastre and markers
+        maxNativeZoom: 19,
+        zIndex: 700,
         opacity: opacity[earthEngineOverlay.layerId] ?? 1,
         crossOrigin: true,
       })
@@ -1089,6 +1079,65 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       earthEngineImageOverlay.current = null
     }
   }, [mapObj, earthEngineOverlay, hidden.join(), JSON.stringify(opacity), sceneKey])
+
+  // Extra Earth Engine tile layers: every visible Sentinel-2 layer except the top one
+  const eeExtra = useRef(new Map<string, { key: string; tileUrl: string; layer: L.TileLayer | null }>())
+  const [eeExtraTick, setEeExtraTick] = useState(0)
+  const extraKey = (id: string) =>
+    `${geo}|${sceneKey}|${id}|${byId(id).rgb ? activeBandCombo : '-'}|${stretchDra}|${JSON.stringify(sceneOpts ?? {})}`
+  const topS2 = () => [...active].reverse().find(id => !hidden.includes(id) && byId(id).source === 'S2')
+
+  useEffect(() => {
+    if (!isEarthEngineConfigured) return
+    const topId = topS2()
+    const ids = active.filter(id => id !== topId && !hidden.includes(id) && byId(id).source === 'S2')
+    const controller = new AbortController()
+    ids.forEach(id => {
+      const ind = byId(id)
+      const key = extraKey(id)
+      if (eeExtra.current.get(id)?.key === key) return
+      createEarthEngineMap({
+        farm,
+        sceneOpts: sceneOpts ?? {},
+        layer: ind,
+        bandCombination: ind.rgb ? activeBandCombo : undefined,
+        percentileStretch: stretchDra,
+      }, controller.signal).then(result => {
+        if (controller.signal.aborted) return
+        eeExtra.current.get(id)?.layer?.remove()
+        eeExtra.current.set(id, { key, tileUrl: result.tileUrl, layer: null })
+        setEeExtraTick(t => t + 1)
+      }).catch(error => {
+        if (!controller.signal.aborted) console.info('Earth Engine layer failed:', id, error)
+      })
+    })
+    return () => controller.abort()
+  }, [active.join(), hidden.join(), geo, sceneKey, stretchDra, activeBandCombo, JSON.stringify(sceneOpts)])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!instance) return
+    const topId = topS2()
+    const wanted = new Set<string>()
+    active.forEach((id, index) => {
+      const hit = eeExtra.current.get(id)
+      if (!hit || id === topId || hidden.includes(id) || hit.key !== extraKey(id)) return
+      wanted.add(id)
+      if (!hit.layer) {
+        hit.layer = L.tileLayer(hit.tileUrl, {
+          attribution: 'Sentinel-2 L2A · Google Earth Engine',
+          maxZoom: 21,
+          maxNativeZoom: 19,
+          crossOrigin: true,
+        }).addTo(instance)
+      }
+      hit.layer.setOpacity(opacity[id] ?? 1)
+      hit.layer.setZIndex(600 + index)
+    })
+    eeExtra.current.forEach((hit, id) => {
+      if (!wanted.has(id) && hit.layer) { hit.layer.remove(); hit.layer = null }
+    })
+  }, [mapObj, active.join(), hidden.join(), JSON.stringify(opacity), eeExtraTick, geo, sceneKey, activeBandCombo, stretchDra])
 
   useEffect(() => {
     const instance = map.current

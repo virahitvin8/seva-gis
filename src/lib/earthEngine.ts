@@ -96,15 +96,15 @@ ${indices}
 
 /**
  * Generates an official Google Earth Engine Code Editor script directly replicating
- * the publication maps from MAPS REF (Wainganga Basin Watershed Study & SWAT Model).
+ * publication-grade cartographic maps (Area of Interest Catchment Study & SWAT Model).
  */
 export function buildThesisMapScript(theme: 'dem' | 'lulc' | 'soil' | 'stations' | 'discharge' | 'dotty', farm: FarmData & { name: string }): string {
   const [w, s, e, n] = [farm.lon - 0.5, farm.lat - 0.5, farm.lon + 0.5, farm.lat + 0.5]
   
   if (theme === 'dem') {
     return `// =========================================================================
-// SEVA·GIS THESIS REPLICATION: FIG 3.2 DEM MAP OF WAINGANGA WATERSHED
-// Direct GEE Code Editor Script (Matching MAPS REF Fig 3.2)
+// SEVA·GIS PUBLICATION REPLICATION: DEM MAP OF STUDY AREA WATERSHED (${farm.name})
+// Direct GEE Code Editor Script (Matching Standard Cartography)
 // Data Source: Copernicus DEM GLO-30 / NASA SRTM 30m
 // =========================================================================
 
@@ -124,27 +124,27 @@ var demStats = dem.reduceRegion({
   maxPixels: 1e9
 });
 
-print('Wainganga Basin DEM Statistics (m ASL):', demStats);
+print('Study Area DEM Statistics (m ASL):', demStats);
 
-// Fig 3.2 Publication Color Palette (Low 135m to High 1212m)
+// Publication Color Palette
 var demVis = {
   min: 135,
   max: 1012,
   palette: ['1a9850', 'ffffbf', 'fc8d59', '8c510a', 'ffffff']
 };
 
-Map.addLayer(dem, demVis, 'DEM Map (Fig 3.2)');
+Map.addLayer(dem, demVis, 'DEM Map');
 Map.addLayer(ee.Image(0).byte().paint(studyArea, 1, 2), {palette: ['000000']}, 'Watershed Study Boundary');
 
 // Cartographic Frame Annotation
-print('Fig 3.2: DEM map of Wainganga Watershed generated with authentic publication cartography.');`
+print('DEM map of Study Area Catchment generated with authentic publication cartography.');`
   }
 
   if (theme === 'lulc') {
     return `// =========================================================================
-// SEVA·GIS THESIS REPLICATION: FIG 3.3 LULC MAP OF WAINGANGA BASIN
+// SEVA·GIS PUBLICATION REPLICATION: LULC MAP OF STUDY AREA WATERSHED (${farm.name})
 // Reclassified into 9 SWAT Model Classes (Decadal LULC / Dynamic World 10m)
-// Matching MAPS REF Fig 3.3: WATR, URMD, SWRN, RNGE, RNGB, FRST, FRSD, AGRR, AGRL
+// Standard hydrological classes: WATR, URMD, SWRN, RNGE, RNGB, FRST, FRSD, AGRR, AGRL
 // =========================================================================
 
 var studyArea = ee.Geometry.Rectangle([${w.toFixed(4)}, ${s.toFixed(4)}, ${e.toFixed(4)}, ${n.toFixed(4)}]);
@@ -177,16 +177,15 @@ var swatVis = {
   ]
 };
 
-Map.addLayer(swatLulc, swatVis, 'LULC SWAT 9-Class Map (Fig 3.3)');
+Map.addLayer(swatLulc, swatVis, 'LULC SWAT 9-Class Map');
 Map.addLayer(ee.Image(0).byte().paint(studyArea, 1, 2), {palette: ['000000']}, 'Study Area Neatline');
-print('Fig 3.3: LULC map of Wainganga Watershed classified into 9 SWAT input classes.');`
+print('LULC map of Study Area Watershed classified into 9 SWAT input classes.');`
   }
 
   if (theme === 'discharge') {
     return `// =========================================================================
-// SEVA·GIS THESIS REPLICATION: FIG 3.6 GROUND DISCHARGE GAUGING STATIONS
-// Wainganga Sub-Basin Reaches & MPWRD / CWC River Discharge Gauges
-// Stations: Deoghat, Banda, Chandan, Satrapur, Ugli, Kheri
+// SEVA·GIS PUBLICATION REPLICATION: GROUND DISCHARGE GAUGING STATIONS
+// Local Catchment Reaches & Hydrological River Discharge Gauges
 // =========================================================================
 
 var studyArea = ee.Geometry.Rectangle([${w.toFixed(4)}, ${s.toFixed(4)}, ${e.toFixed(4)}, ${n.toFixed(4)}]);
@@ -196,29 +195,29 @@ Map.centerObject(studyArea, 10);
 var dem = ee.Image('COPERNICUS/DEM/GLO30').select('DEM').clip(studyArea);
 Map.addLayer(dem, {min: 135, max: 1012, palette: ['1a9850', 'ffffbf', 'fc8d59', '8c510a']}, 'Background DEM');
 
-// Gauging Stations (Fig 3.6 MPWRD Discharge Network)
+// Gauging Stations (Catchment Discharge Network)
 var stations = ee.FeatureCollection([
-  ee.Feature(ee.Geometry.Point([${(farm.lon + 0.08).toFixed(4)}, ${(farm.lat + 0.12).toFixed(4)}]), {name: 'Deoghat', type: 'Discharge Gauge'}),
-  ee.Feature(ee.Geometry.Point([${(farm.lon + 0.04).toFixed(4)}, ${(farm.lat + 0.08).toFixed(4)}]), {name: 'Banda', type: 'Discharge Gauge'}),
-  ee.Feature(ee.Geometry.Point([${(farm.lon + 0.02).toFixed(4)}, ${(farm.lat + 0.04).toFixed(4)}]), {name: 'Chandan', type: 'Discharge Gauge'}),
-  ee.Feature(ee.Geometry.Point([${(farm.lon - 0.02).toFixed(4)}, ${(farm.lat + 0.02).toFixed(4)}]), {name: 'Satrapur', type: 'Discharge Gauge'}),
-  ee.Feature(ee.Geometry.Point([${(farm.lon - 0.05).toFixed(4)}, ${(farm.lat - 0.02).toFixed(4)}]), {name: 'Ugli', type: 'Discharge Gauge'}),
-  ee.Feature(ee.Geometry.Point([${(farm.lon - 0.10).toFixed(4)}, ${(farm.lat - 0.08).toFixed(4)}]), {name: 'Kheri', type: 'Discharge Gauge'})
+  ee.Feature(ee.Geometry.Point([${(farm.lon + 0.08).toFixed(4)}, ${(farm.lat + 0.12).toFixed(4)}]), {name: 'Outlet-1', type: 'Discharge Gauge'}),
+  ee.Feature(ee.Geometry.Point([${(farm.lon + 0.04).toFixed(4)}, ${(farm.lat + 0.08).toFixed(4)}]), {name: 'Reach-2', type: 'Discharge Gauge'}),
+  ee.Feature(ee.Geometry.Point([${(farm.lon + 0.02).toFixed(4)}, ${(farm.lat + 0.04).toFixed(4)}]), {name: 'Reach-3', type: 'Discharge Gauge'}),
+  ee.Feature(ee.Geometry.Point([${(farm.lon - 0.02).toFixed(4)}, ${(farm.lat + 0.02).toFixed(4)}]), {name: 'Reach-4', type: 'Discharge Gauge'}),
+  ee.Feature(ee.Geometry.Point([${(farm.lon - 0.05).toFixed(4)}, ${(farm.lat - 0.02).toFixed(4)}]), {name: 'Reach-5', type: 'Discharge Gauge'}),
+  ee.Feature(ee.Geometry.Point([${(farm.lon - 0.10).toFixed(4)}, ${(farm.lat - 0.08).toFixed(4)}]), {name: 'Reach-6', type: 'Discharge Gauge'})
 ]);
 
 // HydroSHEDS Free Flowing Stream Reach Network
 var reaches = ee.FeatureCollection('WWF/HydroSHEDS/v1/FreeFlowingRivers').filterBounds(studyArea);
 
 Map.addLayer(reaches, {color: '0066cc', strokeWidth: 2}, 'Sub-Basin Stream Reaches');
-Map.addLayer(stations, {color: 'ff0000', pointSize: 6}, 'Discharge Gauging Stations (Fig 3.6)');
-print('Fig 3.6: Ground discharge gauging station network across Wainganga watershed.');`
+Map.addLayer(stations, {color: 'ff0000', pointSize: 6}, 'Discharge Gauging Stations');
+print('Ground discharge gauging station network across Study Area watershed.');`
   }
 
   // General Watershed Suite
-  return `// SEVA·GIS Wainganga Watershed SWAT Model Suite
+  return `// SEVA·GIS Study Area Watershed SWAT Model Suite (${farm.name})
 var studyArea = ee.Geometry.Rectangle([${w.toFixed(4)}, ${s.toFixed(4)}, ${e.toFixed(4)}, ${n.toFixed(4)}]);
 Map.centerObject(studyArea, 10);
 var dem = ee.Image('COPERNICUS/DEM/GLO30').select('DEM').clip(studyArea);
-Map.addLayer(dem, {min: 135, max: 1012, palette: ['1a9850', 'ffffbf', 'fc8d59', '8c510a']}, 'Wainganga DEM');
-print('SEVA·GIS: Wainganga Basin SWAT Hydrological Model Ready.');`
+Map.addLayer(dem, {min: 135, max: 1012, palette: ['1a9850', 'ffffbf', 'fc8d59', '8c510a']}, 'Catchment DEM');
+print('SEVA·GIS: Study Area Catchment SWAT Hydrological Model Ready.');`
 }

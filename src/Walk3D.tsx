@@ -15,7 +15,7 @@ const M_LAT = 111320
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const PRESETS = [
   { id: 'walk', label: 'Walk', icon: Footprints, h: 2, pitch: 80, hint: 'Eye level, 2 m above ground' },
-  { id: 'drone', label: 'Drone', icon: Plane, h: 60, pitch: 62, hint: 'Low flight, 60 m' },
+  { id: 'aerial', label: 'Aerial', icon: Plane, h: 60, pitch: 62, hint: 'Low flight, 60 m' },
   { id: 'orbit', label: 'Overview', icon: Orbit, h: 0, pitch: 50, hint: 'Whole farm' },
 ]
 

@@ -23,6 +23,7 @@ import {
   HeartHandshake,
   ShieldCheck,
 } from 'lucide-react'
+import { useAccount } from './Auth'
 import EmailOctopusGreetingModal from './EmailOctopusGreetingModal'
 import AoiHealthScorePie from './AoiHealthScorePie'
 import {
@@ -59,6 +60,7 @@ export default function ReportPanel({ farm }: { farm?: ReportFarm | null }) {
 }
 
 function ReportPanelInner({ farm }: { farm: ReportFarm }) {
+  const { who } = useAccount()
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [reports, setReports] = useState<Partial<Record<ReportLang, { html: string; data: unknown; id: string; lang: ReportLang }>>>({})
@@ -69,6 +71,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     isOpen: boolean
     recipientEmail: string
     farmName: string
+    custodianName?: string
     reportId: string
     filename: string
     htmlContent: string
@@ -80,6 +83,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     isOpen: false,
     recipientEmail: '',
     farmName: '',
+    custodianName: who.name || 'Agro-Geospatial Custodian',
     reportId: '',
     filename: '',
     htmlContent: '',
@@ -243,9 +247,61 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   }
 
   const print = () => {
-    const fr = document.getElementById('report-frame') as HTMLIFrameElement | null
-    fr?.contentWindow?.focus()
-    fr?.contentWindow?.print()
+    const cur = reports[previewLang]
+    if (!cur) return
+    const printWin = window.open('', '_blank')
+    if (printWin) {
+      printWin.document.open()
+      printWin.document.write(cur.html)
+      printWin.document.close()
+      printWin.focus()
+      setTimeout(() => {
+        try {
+          printWin.print()
+        } catch {
+          // fallback to iframe
+        }
+      }, 600)
+    } else {
+      const fr = document.getElementById('report-frame') as HTMLIFrameElement | null
+      fr?.contentWindow?.focus()
+      fr?.contentWindow?.print()
+    }
+  }
+
+  const handleDownloadWord = () => {
+    const cur = reports[previewLang]
+    if (!cur) return
+    const wordHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>${baseFilename}</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
+        <style>
+          @page { size: A4; margin: 2.5cm 2.5cm 2.5cm 3.5cm; }
+          body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5; text-align: justify; }
+          table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+          th, td { border: 1pt solid #cbd5e1; padding: 6pt; }
+          th { background-color: #f1f5f9; font-weight: bold; }
+          h1 { font-size: 18pt; text-align: center; color: #10231b; }
+          h2 { font-size: 14pt; color: #10231b; }
+        </style>
+      </head>
+      <body>
+        ${cur.html}
+      </body>
+      </html>
+    `
+    save(`${baseFilename}.doc`, wordHtml, 'application/msword;charset=utf-8')
   }
 
   const handleSendEmail = async (e?: React.FormEvent) => {
@@ -283,6 +339,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           isOpen: true,
           recipientEmail: emailInput,
           farmName: farm.name,
+          custodianName: who.name || 'Agro-Geospatial Custodian',
           reportId: current.id,
           filename: `${baseFilename}.html`,
           htmlContent: current.html,
@@ -617,41 +674,6 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setGreetingModalData({
-                    isOpen: true,
-                    recipientEmail: emailInput || localStorage.getItem('seva-user-email') || 'Recipient',
-                    farmName: farm.name,
-                    reportId: curReport.id,
-                    filename: `${baseFilename}.html`,
-                    htmlContent: curReport.html,
-                    areaHa: farm.area,
-                    ndvi: farm.analysis?.ndvi?.mean ?? 0.65,
-                    ndmi: farm.analysis?.ndmi?.mean ?? 0.32,
-                    contactId: 'EmailOctopus Verified',
-                  })
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginTop: '12px',
-                  fontSize: '12px',
-                  background: '#ffffff',
-                  border: '1px solid #10b981',
-                  color: '#047857',
-                  padding: '7px 12px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                }}
-              >
-                <HeartHandshake size={14} />
-                <span>View EmailOctopus Greeting Card &amp; Attachment Receipt</span>
-              </button>
             </div>
           )}
 
@@ -686,6 +708,10 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 <button className="outline" onClick={print}>
                   <Printer size={16} />
                   Print / Save PDF ({baseFilename}.pdf)
+                </button>
+                <button className="outline" onClick={handleDownloadWord}>
+                  <FileText size={16} />
+                  Word Document ({baseFilename}.doc)
                 </button>
                 <button
                   className="outline"
@@ -972,6 +998,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         onClose={() => setGreetingModalData(prev => ({ ...prev, isOpen: false }))}
         recipientEmail={greetingModalData.recipientEmail}
         farmName={greetingModalData.farmName}
+        custodianName={greetingModalData.custodianName}
         reportId={greetingModalData.reportId}
         filename={greetingModalData.filename}
         htmlContent={greetingModalData.htmlContent}

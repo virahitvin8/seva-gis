@@ -187,9 +187,10 @@ export default function Lang() {
         }
       } catch {}
 
-      // 4. Without reload: just clear cookies and let Google Translate settle naturally
-      // (window.location.reload() was causing 1-2s blank flash every 2-3 minutes)
-      clearAllGoogleTransCookies()
+      // 4. Clean reload ensures React DOM tree is cleanly restored to native English
+      setTimeout(() => {
+        window.location.reload()
+      }, 50)
       return
     }
 

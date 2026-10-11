@@ -133,7 +133,7 @@ Reflectance
 
 - **For Farmers:** Clear, actionable, daily advice on irrigation and crop vigor.
 - **For Agronomists:** Full 14-index spectral lab, soil hydraulics, and VRA maps.
-- **For Robotics & Drone Operators:** Fields2Cover swath paths and terrain contours.
+- **For Robotics & Autonomous Flight Operators:** Fields2Cover swath paths and terrain contours.
 - **For Open Source:** Free, MIT licensed, keyless, and private forever.
 
 **Experience it live:** [sevagis.dpdns.org](https://sevagis.dpdns.org)  

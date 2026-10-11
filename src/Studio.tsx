@@ -246,6 +246,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
               caption={picMode === '4k' ? 'Esri World Imagery · capture date varies' : picMode === 'gee' ? `Live Google Earth Engine Stream (${activeBands.join('·')})` : picMode === 'raw' ? `Sentinel-2 scene tile (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 (${activeBands.join('·')})`}
               highlightAoi={false}
               crisp={resamplingMethod === 'nearest'}
+              marks={[]}
             />
             <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -647,6 +648,7 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
             title="Spectral groups"
             note="Each color is a cluster of pixels with similar reflectance, not a confirmed crop class."
             opacity={0.72}
+            marks={[]}
             legend={auto.clusters.map(c => ({ color: c.color, label: `${c.name} · ${f(c.pct, 0)}%` }))}
           />
         </div>

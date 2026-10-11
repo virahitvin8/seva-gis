@@ -51,6 +51,8 @@ function inRing(lon: number, lat: number, ring: Ring) {
 export function insideMask(w: number, h: number, bbox: Bbox, ring: Ring) {
   const [west, south, east, north] = bbox
   const out = new Uint8Array(w * h)
+  if (!ring || ring.length < 3) return out
+
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity
   for (let i = 0; i < ring.length; i++) {
     const [x, y] = ring[i]
@@ -59,13 +61,33 @@ export function insideMask(w: number, h: number, bbox: Bbox, ring: Ring) {
     if (y < minLat) minLat = y
     if (y > maxLat) maxLat = y
   }
+
+  const nEdges = ring.length
+  const latStep = (north - south) / h
+  const lonStep = (east - west) / w
+
   for (let y = 0; y < h; y++) {
-    const lat = north - ((y + 0.5) / h) * (north - south)
+    const lat = north - (y + 0.5) * latStep
     if (lat < minLat || lat > maxLat) continue
-    for (let x = 0; x < w; x++) {
-      const lon = west + ((x + 0.5) / w) * (east - west)
-      if (lon >= minLon && lon <= maxLon && inRing(lon, lat, ring)) {
-        out[y * w + x] = 1
+
+    const xNodes: number[] = []
+    for (let i = 0, j = nEdges - 1; i < nEdges; j = i++) {
+      const yi = ring[i][1], yj = ring[j][1]
+      if ((yi < lat && yj >= lat) || (yj < lat && yi >= lat)) {
+        const xi = ring[i][0], xj = ring[j][0]
+        xNodes.push(xi + ((lat - yi) / (yj - yi)) * (xj - xi))
+      }
+    }
+    if (xNodes.length < 2) continue
+    xNodes.sort((a, b) => a - b)
+
+    const rowOffset = y * w
+    for (let k = 0; k < xNodes.length; k += 2) {
+      if (k + 1 >= xNodes.length) break
+      const xStart = Math.max(0, Math.floor((xNodes[k] - west) / lonStep))
+      const xEnd = Math.min(w - 1, Math.floor((xNodes[k + 1] - west) / lonStep))
+      for (let x = xStart; x <= xEnd; x++) {
+        out[rowOffset + x] = 1
       }
     }
   }
@@ -154,6 +176,7 @@ function cubicWeight(x: number): number {
  * Resamples a discrete w x h satellite raster into a high-resolution W x H continuous surface
  * using 4x4 Bicubic Spline (Cubic Convolution, Keys a = -0.5) interpolation, matching
  * QGIS / ArcGIS 'Cubic' resampling and Google Earth Engine resample('bicubic').
+ * Highly optimized with precomputed 1D weights and unrolled kernel evaluations.
  */
 function resampleBicubic(
   w: number,
@@ -185,64 +208,83 @@ function resampleBicubic(
   const spanH = Math.max(0, h - 1)
   const spanW = Math.max(0, w - 1)
 
+  // Pre-calculate horizontal 1D cubic weights and source indices for all X
+  const allWx = new Float32Array(W * 4)
+  const allXInt = new Int32Array(W)
+  for (let X = 0; X < W; X++) {
+    const srcX = (X / denomW) * spanW
+    const xInt = Math.floor(srcX)
+    allXInt[X] = xInt
+    const dx = srcX - xInt
+    const base = X * 4
+    allWx[base] = cubicWeight(-1 - dx)
+    allWx[base + 1] = cubicWeight(0 - dx)
+    allWx[base + 2] = cubicWeight(1 - dx)
+    allWx[base + 3] = cubicWeight(2 - dx)
+  }
+
   for (let Y = 0; Y < H; Y++) {
     const srcY = (Y / denomH) * spanH
     const yInt = Math.floor(srcY)
     const dy = srcY - yInt
     const rowOffset = Y * W * 4
 
-    const wy = [
-      cubicWeight(-1 - dy),
-      cubicWeight(0 - dy),
-      cubicWeight(1 - dy),
-      cubicWeight(2 - dy)
-    ]
+    const wy0 = cubicWeight(-1 - dy)
+    const wy1 = cubicWeight(0 - dy)
+    const wy2 = cubicWeight(1 - dy)
+    const wy3 = cubicWeight(2 - dy)
+
+    const y0 = Math.min(h - 1, Math.max(0, yInt - 1)) * w
+    const y1 = Math.min(h - 1, Math.max(0, yInt)) * w
+    const y2 = Math.min(h - 1, Math.max(0, yInt + 1)) * w
+    const y3 = Math.min(h - 1, Math.max(0, yInt + 2)) * w
 
     for (let X = 0; X < W; X++) {
-      const srcX = (X / denomW) * spanW
-      const xInt = Math.floor(srcX)
-      const dx = srcX - xInt
+      const xInt = allXInt[X]
+      const wxBase = X * 4
+      const wx0 = allWx[wxBase]
+      const wx1 = allWx[wxBase + 1]
+      const wx2 = allWx[wxBase + 2]
+      const wx3 = allWx[wxBase + 3]
 
-      const wx = [
-        cubicWeight(-1 - dx),
-        cubicWeight(0 - dx),
-        cubicWeight(1 - dx),
-        cubicWeight(2 - dx)
-      ]
+      const xm0 = Math.min(w - 1, Math.max(0, xInt - 1))
+      const xm1 = Math.min(w - 1, Math.max(0, xInt))
+      const xm2 = Math.min(w - 1, Math.max(0, xInt + 1))
+      const xm3 = Math.min(w - 1, Math.max(0, xInt + 2))
 
-      let rSum = 0
-      let gSum = 0
-      let bSum = 0
-      let weightSum = 0
-      let alphaSum = 0
+      let rSum = 0, gSum = 0, bSum = 0, weightSum = 0, alphaSum = 0
 
-      for (let n = -1; n <= 2; n++) {
-        const yn = Math.min(h - 1, Math.max(0, yInt + n))
-        const wY = wy[n + 1]
-        const yBase = yn * w
-
-        for (let m = -1; m <= 2; m++) {
-          const xm = Math.min(w - 1, Math.max(0, xInt + m))
-          const w2D = wY * wx[m + 1]
-          const idx = yBase + xm
-          const a = srcA[idx]
-
-          if (a > 0) {
-            const effW = w2D * a
-            rSum += srcR[idx] * effW
-            gSum += srcG[idx] * effW
-            bSum += srcB[idx] * effW
-            weightSum += effW
-            alphaSum += a * Math.max(0, w2D)
-          }
-        }
+      if (wy0 !== 0) {
+        const i0 = y0 + xm0, a0 = srcA[i0]; if (a0) { const w = wy0 * wx0; rSum += srcR[i0] * w; gSum += srcG[i0] * w; bSum += srcB[i0] * w; weightSum += w; alphaSum += a0 * w }
+        const i1 = y0 + xm1, a1 = srcA[i1]; if (a1) { const w = wy0 * wx1; rSum += srcR[i1] * w; gSum += srcG[i1] * w; bSum += srcB[i1] * w; weightSum += w; alphaSum += a1 * w }
+        const i2 = y0 + xm2, a2 = srcA[i2]; if (a2) { const w = wy0 * wx2; rSum += srcR[i2] * w; gSum += srcG[i2] * w; bSum += srcB[i2] * w; weightSum += w; alphaSum += a2 * w }
+        const i3 = y0 + xm3, a3 = srcA[i3]; if (a3) { const w = wy0 * wx3; rSum += srcR[i3] * w; gSum += srcG[i3] * w; bSum += srcB[i3] * w; weightSum += w; alphaSum += a3 * w }
+      }
+      if (wy1 !== 0) {
+        const i0 = y1 + xm0, a0 = srcA[i0]; if (a0) { const w = wy1 * wx0; rSum += srcR[i0] * w; gSum += srcG[i0] * w; bSum += srcB[i0] * w; weightSum += w; alphaSum += a0 * w }
+        const i1 = y1 + xm1, a1 = srcA[i1]; if (a1) { const w = wy1 * wx1; rSum += srcR[i1] * w; gSum += srcG[i1] * w; bSum += srcB[i1] * w; weightSum += w; alphaSum += a1 * w }
+        const i2 = y1 + xm2, a2 = srcA[i2]; if (a2) { const w = wy1 * wx2; rSum += srcR[i2] * w; gSum += srcG[i2] * w; bSum += srcB[i2] * w; weightSum += w; alphaSum += a2 * w }
+        const i3 = y1 + xm3, a3 = srcA[i3]; if (a3) { const w = wy1 * wx3; rSum += srcR[i3] * w; gSum += srcG[i3] * w; bSum += srcB[i3] * w; weightSum += w; alphaSum += a3 * w }
+      }
+      if (wy2 !== 0) {
+        const i0 = y2 + xm0, a0 = srcA[i0]; if (a0) { const w = wy2 * wx0; rSum += srcR[i0] * w; gSum += srcG[i0] * w; bSum += srcB[i0] * w; weightSum += w; alphaSum += a0 * w }
+        const i1 = y2 + xm1, a1 = srcA[i1]; if (a1) { const w = wy2 * wx1; rSum += srcR[i1] * w; gSum += srcG[i1] * w; bSum += srcB[i1] * w; weightSum += w; alphaSum += a1 * w }
+        const i2 = y2 + xm2, a2 = srcA[i2]; if (a2) { const w = wy2 * wx2; rSum += srcR[i2] * w; gSum += srcG[i2] * w; bSum += srcB[i2] * w; weightSum += w; alphaSum += a2 * w }
+        const i3 = y2 + xm3, a3 = srcA[i3]; if (a3) { const w = wy2 * wx3; rSum += srcR[i3] * w; gSum += srcG[i3] * w; bSum += srcB[i3] * w; weightSum += w; alphaSum += a3 * w }
+      }
+      if (wy3 !== 0) {
+        const i0 = y3 + xm0, a0 = srcA[i0]; if (a0) { const w = wy3 * wx0; rSum += srcR[i0] * w; gSum += srcG[i0] * w; bSum += srcB[i0] * w; weightSum += w; alphaSum += a0 * w }
+        const i1 = y3 + xm1, a1 = srcA[i1]; if (a1) { const w = wy3 * wx1; rSum += srcR[i1] * w; gSum += srcG[i1] * w; bSum += srcB[i1] * w; weightSum += w; alphaSum += a1 * w }
+        const i2 = y3 + xm2, a2 = srcA[i2]; if (a2) { const w = wy3 * wx2; rSum += srcR[i2] * w; gSum += srcG[i2] * w; bSum += srcB[i2] * w; weightSum += w; alphaSum += a2 * w }
+        const i3 = y3 + xm3, a3 = srcA[i3]; if (a3) { const w = wy3 * wx3; rSum += srcR[i3] * w; gSum += srcG[i3] * w; bSum += srcB[i3] * w; weightSum += w; alphaSum += a3 * w }
       }
 
       const pixelIdx = rowOffset + X * 4
-      if (weightSum > 0.01 && alphaSum > 0.05) {
-        d[pixelIdx] = Math.min(255, Math.max(0, Math.round(rSum / weightSum)))
-        d[pixelIdx + 1] = Math.min(255, Math.max(0, Math.round(gSum / weightSum)))
-        d[pixelIdx + 2] = Math.min(255, Math.max(0, Math.round(bSum / weightSum)))
+      if (weightSum > 0.01 && alphaSum > 0.02) {
+        const invW = 1 / weightSum
+        d[pixelIdx] = Math.min(255, Math.max(0, Math.round(rSum * invW)))
+        d[pixelIdx + 1] = Math.min(255, Math.max(0, Math.round(gSum * invW)))
+        d[pixelIdx + 2] = Math.min(255, Math.max(0, Math.round(bSum * invW)))
         d[pixelIdx + 3] = Math.min(255, Math.max(0, Math.round(Math.min(1, alphaSum) * 255)))
       }
     }
@@ -285,6 +327,17 @@ function resampleBilinear(
   const spanH = Math.max(0, h - 1)
   const spanW = Math.max(0, w - 1)
 
+  const allX0 = new Int32Array(W)
+  const allX1 = new Int32Array(W)
+  const allFx = new Float32Array(W)
+  for (let X = 0; X < W; X++) {
+    const srcX = (X / denomW) * spanW
+    const x0 = Math.floor(srcX)
+    allX0[X] = x0
+    allX1[X] = Math.min(w - 1, x0 + 1)
+    allFx[X] = srcX - x0
+  }
+
   for (let Y = 0; Y < H; Y++) {
     const srcY = (Y / denomH) * spanH
     const y0 = Math.floor(srcY)
@@ -296,10 +349,9 @@ function resampleBilinear(
     const i1_base = y1 * w
 
     for (let X = 0; X < W; X++) {
-      const srcX = (X / denomW) * spanW
-      const x0 = Math.floor(srcX)
-      const x1 = Math.min(w - 1, x0 + 1)
-      const fx = srcX - x0
+      const x0 = allX0[X]
+      const x1 = allX1[X]
+      const fx = allFx[X]
 
       const i00 = i0_base + x0
       const i10 = i0_base + x1
@@ -315,9 +367,10 @@ function resampleBilinear(
       const pixelIdx = rowOffset + (X * 4)
 
       if (totalA > 0.02) {
-        const r = (srcR[i00] * w00 + srcR[i10] * w10 + srcR[i01] * w01 + srcR[i11] * w11) / totalA
-        const g = (srcG[i00] * w00 + srcG[i10] * w10 + srcG[i01] * w01 + srcG[i11] * w11) / totalA
-        const b = (srcB[i00] * w00 + srcB[i10] * w10 + srcB[i01] * w01 + srcB[i11] * w11) / totalA
+        const invA = 1 / totalA
+        const r = (srcR[i00] * w00 + srcR[i10] * w10 + srcR[i01] * w01 + srcR[i11] * w11) * invA
+        const g = (srcG[i00] * w00 + srcG[i10] * w10 + srcG[i01] * w01 + srcG[i11] * w11) * invA
+        const b = (srcB[i00] * w00 + srcB[i10] * w10 + srcB[i01] * w01 + srcB[i11] * w11) * invA
 
         d[pixelIdx] = Math.min(255, Math.max(0, Math.round(r)))
         d[pixelIdx + 1] = Math.min(255, Math.max(0, Math.round(g)))
@@ -332,8 +385,8 @@ function resampleBilinear(
 
 /**
  * Renders AOI clipped raster image with subpixel vector boundary anti-aliasing
- * and high-DPI scaling (1024px minimum dimension, matching Earth Engine / QGIS quality).
- * Supports Cubic Spline, Bilinear, and Nearest Neighbour resampling.
+ * and high-DPI scaling. Dimensions are bounded up to 512px for lightning-fast 60fps rendering
+ * without browser unresponsiveness on large agricultural holdings.
  */
 export function paintClipped(
   w: number,
@@ -345,10 +398,11 @@ export function paintClipped(
   sharpen = 0.25,
   resampling: ResamplingMethod = 'cubic'
 ): string {
-  const targetDim = 1024
-  const scale = Math.max(1, Math.min(32, Math.ceil(targetDim / Math.max(w, h))))
-  const W = Math.max(targetDim, w * scale)
-  const H = Math.max(targetDim, h * scale)
+  const maxDim = Math.max(w, h)
+  const targetDim = maxDim >= 128 ? Math.min(512, maxDim) : Math.min(512, Math.max(256, maxDim * 8))
+  const scale = Math.max(1, Math.min(16, Math.round(targetDim / maxDim)))
+  const W = Math.min(512, Math.max(128, w * scale))
+  const H = Math.min(512, Math.max(128, h * scale))
 
   const outCanvas = document.createElement('canvas')
   outCanvas.width = W
@@ -356,7 +410,6 @@ export function paintClipped(
   const ctx = outCanvas.getContext('2d')!
 
   if (smooth && resampling !== 'nearest') {
-    // Cubic or Bilinear continuous surface reconstruction
     const continuousData = resampling === 'cubic'
       ? resampleBicubic(w, h, W, H, paint)
       : resampleBilinear(w, h, W, H, paint)
@@ -365,7 +418,6 @@ export function paintClipped(
       applyUnsharp(ctx, W, H, sharpen)
     }
   } else {
-    // Discrete 10m grid cell inspection (Nearest Neighbour)
     const srcCanvas = document.createElement('canvas')
     srcCanvas.width = w
     srcCanvas.height = h
@@ -410,7 +462,7 @@ export function paintClipped(
 
 /**
  * Renders raw unclipped Sentinel-2 satellite scene tile on a solid black background
- * at high-DPI resolution with configurable resampling method.
+ * at high-DPI resolution with bounded dimensions to prevent page unresponsiveness.
  */
 export function paintRaw(
   w: number,
@@ -421,10 +473,11 @@ export function paintRaw(
   sharpen = 0,
   resampling: ResamplingMethod = 'cubic'
 ): string {
-  const targetDim = 1024
-  const scale = Math.max(1, Math.min(32, Math.ceil(targetDim / Math.max(w, h))))
-  const W = Math.max(targetDim, w * scale)
-  const H = Math.max(targetDim, h * scale)
+  const maxDim = Math.max(w, h)
+  const targetDim = maxDim >= 128 ? Math.min(512, maxDim) : Math.min(512, Math.max(256, maxDim * 8))
+  const scale = Math.max(1, Math.min(16, Math.round(targetDim / maxDim)))
+  const W = Math.min(512, Math.max(128, w * scale))
+  const H = Math.min(512, Math.max(128, h * scale))
 
   const outCanvas = document.createElement('canvas')
   outCanvas.width = W
@@ -454,11 +507,6 @@ export function paintRaw(
         srcImg.data[i * 4 + 1] = c[1]
         srcImg.data[i * 4 + 2] = c[2]
         srcImg.data[i * 4 + 3] = 255
-      } else {
-        srcImg.data[i * 4] = 0
-        srcImg.data[i * 4 + 1] = 0
-        srcImg.data[i * 4 + 2] = 0
-        srcImg.data[i * 4 + 3] = 255
       }
     }
     srcCtx.putImageData(srcImg, 0, 0)
@@ -466,5 +514,5 @@ export function paintRaw(
     ctx.drawImage(srcCanvas, 0, 0, W, H)
   }
 
-  return outCanvas.toDataURL('image/png')
+  return outCanvas.toDataURL('image/jpeg', 0.92)
 }

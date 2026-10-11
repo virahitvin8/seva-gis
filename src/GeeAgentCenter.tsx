@@ -457,7 +457,7 @@ export default function GeeAgentCenter({
                     onClick={() => setScriptMode('thesis')}
                     style={scriptMode === 'thesis' ? { background: '#0284c7', color: '#fff', borderColor: '#38bdf8' } : undefined}
                   >
-                    <span>🌊 Wainganga Basin (MAPS REF)</span>
+                    <span>🌊 Watershed Hydro Suite</span>
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>

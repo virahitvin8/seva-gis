@@ -67,7 +67,7 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
     { i: CloudRain, t: 'Rain, next 7 days', v: farm.rain !== undefined ? `${farm.rain.toFixed(0)} mm` : '—', s: farm.moisture !== undefined ? `topsoil model ${farm.moisture}%` : 'topsoil model unavailable', c: '#4b7fb0', w: farm.rain !== undefined ? Math.min(1, farm.rain / 50) : 0, why: 'Rain and surface-soil values are regional estimates. Check your local forecast and soil before irrigation.' },
   ]
   return <section className="cj" id="crop-journal" aria-label="Crop journal">
-    <div className="cj-top"><div><div className="eyebrow">CROP JOURNAL</div><h2>Review field changes from home</h2><p>Compare recent clear satellite passes, see which areas changed, and decide whether anything needs a closer look.</p></div>
+    <div className="cj-top"><div><div className="eyebrow">CROP JOURNAL</div><h2>Review Area of Interest from Remote</h2><p>Compare recent clear satellite passes, inspect surface reflectance changes, and evaluate multi-temporal spectral trends across the designated area of interest.</p></div>
       <div className="cj-tools">{frames.map(([n, d]) => <button key={n} className={days === d ? 'on' : ''} onClick={() => setDays(d)}>{n}</button>)}<button onClick={onRefresh} aria-label="Refresh satellite data"><RefreshCw size={14} className={loading ? 'spin' : ''}/></button></div></div>
     <div className="cj-tabs" role="tablist">{farms.map(f => <button role="tab" aria-selected={f.id === farm.id} key={f.id} className={f.id === farm.id ? 'on' : ''} onClick={() => onSelect(f.id)}><b>{f.name}</b><small>{f.crop} · {f.area} ha</small></button>)}</div>
     <div className="cj-grid">
@@ -75,16 +75,27 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
         <h3>Crop health over time <small>{farm.name}</small></h3>
         {state === 'loading' ? <div className="cj-empty"><LogoLoader size={80} text="Loading satellite history…"/></div> : state === 'error' ? <div className="cj-empty"><LogoLoader state="error" size={80} text="Could not load satellite history. Check your internet and press Refresh."/></div> : <Growth rows={rows}/>}
         <SourceNote of={['s2']}/>
-        <p className="cj-legend"><i className="ln"/> Farm average <i className="bd"/> Weakest to strongest 10% of the farm <i className="dt"/> One satellite picture</p>
-        <div className="cj-story"><b>In plain words</b><p>{story}</p></div>
+        <p className="cj-legend"><i className="ln"/> Area average <i className="bd"/> Lowest to highest 10% canopy vigor <i className="dt"/> Calibrated satellite pass</p>
+        <div className="cj-story"><b>Area of interest telemetry analysis</b><p>{story}</p></div>
       </div>
-      <div className="cj-side">{cards.map(({ i: Icon, t, v, s, c, w, why }) => <div className="cj-card cj-stat" key={t}><span className="cj-ico" style={{ background: c + '22', color: c }}><Icon size={18}/></span><div><small>{t}</small><strong>{v}</strong><em>{s}</em><div className="cj-meter"><i style={{ width: `${w * 100}%`, background: c }}/></div><p><b>Why?</b> {why}</p></div></div>)}</div>
+      <div className="cj-side">{cards.map(({ i: Icon, t, v, s, c, w, why }) => <div className="cj-card cj-stat" key={t}><span className="cj-ico" style={{ background: c + '22', color: c }}><Icon size={18}/></span><div><small>{t}</small><strong>{v}</strong><em>{s}</em><div className="cj-meter"><i style={{ width: `${w * 100}%`, background: c }}/></div><p><b>Scientific reasoning:</b> {why}</p></div></div>)}</div>
     </div>
-    <div className="cj-card"><h3><Satellite size={15}/> Recent satellite passes <small>newest first; colour = crop health, ☁ = cloud over the picture</small></h3>
-      <div className="cj-visits">{rows.length ? [...rows].reverse().slice(0, 10).map(c => <div key={c.scene.id} style={{ borderColor: tone(c.ndvi.mean) }}><span style={{ background: tone(c.ndvi.mean) }}/><b>{c.ndvi.mean.toFixed(2)}</b><small>{day(c.scene.datetime)}</small><small>☁ {c.scene.cloud.toFixed(0)}%</small></div>) : <p className="cj-dim">No passes to show for this period.</p>}</div><SourceNote of={['s2']}/></div>
-    <div className="cj-card"><h3>All your farms side by side <small>latest crop health score, 0 to 1</small></h3>
+    <div className="cj-card">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+        <h3 style={{ margin: 0 }}><Satellite size={15}/> Recent satellite passes <small>newest first; Sentinel-2 Level-2A surface reflectance</small></h3>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 11, color: '#4a5f52', background: '#f4f8f3', padding: '4px 10px', borderRadius: 6, border: '1px solid #d5e6d6' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><i style={{ width: 9, height: 9, borderRadius: '50%', background: '#2f8f46', display: 'inline-block' }}/><b>Green:</b> NDVI ≥ 0.50 (Vigorous canopy)</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><i style={{ width: 9, height: 9, borderRadius: '50%', background: '#d99a1b', display: 'inline-block' }}/><b>Yellow:</b> 0.30–0.50 (Moderate cover)</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><i style={{ width: 9, height: 9, borderRadius: '50%', background: '#d0453a', display: 'inline-block' }}/><b>Red:</b> &lt; 0.30 (Sparse / stressed / bare)</span>
+          <span style={{ color: '#64748b' }}>☁ Cloud obscuration %</span>
+        </div>
+      </div>
+      <div className="cj-visits">{rows.length ? [...rows].reverse().slice(0, 10).map(c => <div key={c.scene.id} style={{ borderColor: tone(c.ndvi.mean) }}><span style={{ background: tone(c.ndvi.mean) }}/><b>{c.ndvi.mean.toFixed(2)}</b><small>{day(c.scene.datetime)}</small><small>☁ {c.scene.cloud.toFixed(0)}%</small></div>) : <p className="cj-dim">No passes to show for this period.</p>}</div>
+      <SourceNote of={['s2']}/>
+    </div>
+    <div className="cj-card"><h3>All study areas side by side <small>latest vegetation health score, 0 to 1</small></h3>
       <div className="cj-cmp">{farms.map(f => { const r = all(f.id), v = r[r.length - 1]?.ndvi.mean ?? f.analysis?.ndvi.mean; return <button key={f.id} className={f.id === farm.id ? 'on' : ''} onClick={() => onSelect(f.id)}><span>{f.name}</span><div><i style={{ width: `${Math.max(0, Math.min(1, (v ?? 0) / 0.9)) * 100}%`, background: v === undefined ? '#cfd8cf' : tone(v) }}/><u style={{ left: `${(0.3 / 0.9) * 100}%` }}/><u style={{ left: `${(0.5 / 0.9) * 100}%` }}/></div><b>{v?.toFixed(2) ?? '—'}</b></button> })}</div>
       <SourceNote of={['s2']}/>
-      <p className="cj-dim">Guide lines mark NDVI 0.30 (little green cover) and 0.50 (stronger cover signal); crop stage changes what is expected. Data: Sentinel-2 via Microsoft Planetary Computer, Open-Meteo. This supports remote review; the crop-stage guide is approximate and does not verify the cause of a pattern.</p></div>
+      <p className="cj-dim">Guide lines mark NDVI 0.30 (transitional/sparse cover) and 0.50 (dense vegetative canopy). Data: Sentinel-2 BOA surface reflectance via Microsoft Planetary Computer, Open-Meteo. Suitable for remote study and geospatial research analysis.</p></div>
   </section>
 }

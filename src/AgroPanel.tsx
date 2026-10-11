@@ -10,7 +10,9 @@ import { loadDem, type FarmData } from './lib/seva'
 type Props = { farm: FarmData & { id: string; name: string } }
 type Remote<T> = { key: string; data?: T; error?: string }
 
-function Section({ title, sub, icon: Icon, items, empty, src = ['s2'], onRefresh }: { src?: SourceKey[]; title: string; sub: string; icon: typeof CloudSun; items?: Param[]; empty: string; onRefresh?: () => void }) {
+import InsightPlayingCardModal, { type InsightCardData } from './InsightPlayingCardModal'
+
+function Section({ title, sub, icon: Icon, items, empty, src = ['s2'], onRefresh, onCardClick }: { src?: SourceKey[]; title: string; sub: string; icon: typeof CloudSun; items?: Param[]; empty: string; onRefresh?: () => void; onCardClick?: (p: Param, category: string) => void }) {
   const [spinning, setSpinning] = useState(false)
   const handleRefresh = () => {
     setSpinning(true)
@@ -20,7 +22,7 @@ function Section({ title, sub, icon: Icon, items, empty, src = ['s2'], onRefresh
   return <section className="ag-card"><div className="ag-head"><Icon size={17}/><h3>{title}</h3><small>{sub}</small>
     {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={handleRefresh}><RefreshCw size={13}/></button>}
   </div>
-    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`}><span>{p.label}</span><b>{p.value}</b><small>{p.note}</small></div>)}</div> : <div className="ag-empty">{/^Loading/.test(empty) ? <LogoLoader text={empty}/> : /fail|error|unavailable|could not/i.test(empty) ? <LogoLoader state="error" text={empty}/> : empty}</div>}<SourceNote of={src}/></section>
+    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`} onClick={() => onCardClick?.(p, title)} style={{ cursor: 'pointer' }} title="Click to view animated insight card"><span>{p.label}</span><b>{p.value}</b><small>{p.note}</small></div>)}</div> : <div className="ag-empty">{/^Loading/.test(empty) ? <LogoLoader text={empty}/> : /fail|error|unavailable|could not/i.test(empty) ? <LogoLoader state="error" text={empty}/> : empty}</div>}<SourceNote of={src}/></section>
 }
 
 export default function AgroPanel({ farm }: Props) {
@@ -66,17 +68,87 @@ export default function AgroPanel({ farm }: Props) {
   const refreshSoil = () => fetchSoil(farm.lat, farm.lon, true).then(data => setSoil({ key, data })).catch(e => setSoil({ key, error: e.message }))
   const refreshDem = () => loadDem(farm).then(() => {})
 
+  const [activeCard, setActiveCard] = useState<InsightCardData | null>(null)
+
+  const handleCardClick = (p: Param, category: string) => {
+    const isSpectral = category.includes('spectral') || category.includes('indices')
+    const isWeather = category.includes('Weather')
+    const isSoilWater = category.includes('water')
+    const isSoilProp = category.includes('properties')
+    const isTerrain = category.includes('Terrain')
+
+    const cardCat: InsightCardData['category'] = isSpectral ? 'Spectral Index' : isWeather ? 'Weather & Atmosphere' : isSoilWater ? 'Soil Water' : isSoilProp ? 'Soil Property' : isTerrain ? 'Terrain' : 'Hydrology'
+
+    let acronym = p.label.match(/\b([A-Z0-9]{2,6})\b/)?.[1]
+    if (!acronym && isSpectral) acronym = p.label.slice(0, 4).toUpperCase()
+
+    let formula = ''
+    let thresholds = 'Favourable · Balanced for crop'
+    let highImpact = 'Indicates elevated signal. Check if due to dense canopy, high biomass, or excess moisture.'
+    let lowImpact = 'Indicates lower signal. Check for potential moisture or nutrient deficit.'
+    let actionRecommendation = 'Ground-truth this zone on foot; review time series to check persistence.'
+
+    if (p.label.toLowerCase().includes('ndvi')) {
+      formula = 'NDVI = (B8_NIR - B4_Red) / (B8_NIR + B4_Red)'
+      thresholds = '≥ 0.50 Vigorous | 0.30–0.50 Moderate | < 0.30 Stressed'
+      highImpact = 'Dense green canopy with high photosynthetic chlorophyll absorption.'
+      lowImpact = 'Sparse canopy, bare soil, or crop under severe biotic/abiotic stress.'
+      actionRecommendation = 'If < 0.30 persists across passes, scout for moisture deficit, nitrogen deficiency, or disease hotspots.'
+    } else if (p.label.toLowerCase().includes('msi') || p.label.toLowerCase().includes('leaf moisture') || p.label.toLowerCase().includes('moisture stress')) {
+      formula = 'MSI = B11_SWIR / B8_NIR'
+      thresholds = '< 0.80 Well-Hydrated | 0.80–1.20 Moderate | > 1.20 Water Stressed'
+      highImpact = 'Leaves are severely dehydrated; shortwave-infrared reflectance increases.'
+      lowImpact = 'Optimal leaf turgor and cell hydration; healthy cellular transpiration.'
+      actionRecommendation = 'If MSI > 1.20, schedule priority irrigation within 24–48 hours to avert permanent wilting.'
+    } else if (p.label.toLowerCase().includes('ndmi') || p.label.toLowerCase().includes('canopy water')) {
+      formula = 'NDMI = (B8_NIR - B11_SWIR) / (B8_NIR + B11_SWIR)'
+      thresholds = '> 0.20 Well Hydrated | 0.00–0.20 Moderate | < 0.00 Water Deficit'
+      highImpact = 'Canopy is thoroughly hydrated and actively transpiring.'
+      lowImpact = 'Crop water deficit; canopy begins stomatal closure.'
+      actionRecommendation = 'Cross-reference with soil moisture model and schedule irrigation.'
+    } else if (p.label.toLowerCase().includes('ndre') || p.label.toLowerCase().includes('chlorophyll')) {
+      formula = 'NDRE = (B8_NIR - B5_RedEdge) / (B8_NIR + B5_RedEdge)'
+      thresholds = '> 0.35 High Chlorophyll | 0.20–0.35 Moderate | < 0.20 Nitrogen Deficient'
+      highImpact = 'High chlorophyll density in mid-to-late growth stages.'
+      lowImpact = 'Nitrogen starvation or root-zone chlorosis.'
+      actionRecommendation = 'Target variable-rate nitrogen or foliar urea top-dressing in low-scoring zones.'
+    } else if (p.label.toLowerCase().includes('soil moisture') || p.label.toLowerCase().includes('moisture')) {
+      thresholds = 'Optimal: 25%–38% | Wilting: < 15% | Saturation: > 42%'
+      highImpact = 'Excessive water; risks root hypoxia, damping off, and nutrient leaching.'
+      lowImpact = 'Moisture deficit; roots unable to extract capillary water; immediate irrigation needed.'
+      actionRecommendation = 'Match irrigation volumes to crop evapotranspiration (ETc).'
+    }
+
+    setActiveCard({
+      title: p.label,
+      acronym,
+      value: p.value,
+      status: p.tone === 'good' ? 'good' : p.tone === 'warn' ? 'warn' : p.tone === 'bad' ? 'bad' : 'neutral',
+      category: cardCat,
+      formula,
+      thresholds,
+      meaning: p.note,
+      highImpact,
+      lowImpact,
+      actionRecommendation
+    })
+  }
+
   return <section className="ag-wrap">
-    <div className="intelligence-heading"><h2>Agronomy parameters <span>Sentinel-2 · Open-Meteo · SoilGrids · Copernicus DEM</span></h2></div>
+    <div className="intelligence-heading"><h2>Agronomy parameters <span>Sentinel-2 · Open-Meteo · SoilGrids · Copernicus DEM · Click any box for 3D card analysis</span></h2></div>
     <div className="ag-cols">
-      <Section title="Crop & spectral indices" sub={a ? `Farm mean · ${new Date(a.scene.datetime).toLocaleDateString()}` : 'waiting for scene'} icon={Satellite} items={spectral} empty="Refresh to compute vegetation, water and soil indices from Sentinel-2." onRefresh={() => { window.dispatchEvent(new CustomEvent('seva-refresh-spectral')) }} />
-      <Section title="Weather & atmosphere" sub={w?.error ?? 'Open-Meteo, live'} icon={CloudSun} items={w?.data && weatherParams(w.data)} empty={w?.error ?? 'Loading weather…'} src={['weather']} onRefresh={refreshWeather}/>
-      <Section title="Soil water & temperature" sub="Modelled by depth" icon={Thermometer} items={w?.data && soilWaterParams(w.data)} empty={w?.error ?? 'Loading soil moisture…'} src={['weather', 'model']} onRefresh={refreshWeather}/>
-      <Section title="Soil properties" sub={s?.data ? 'SoilGrids 250 m, 0-5 cm' : 'SoilGrids regional baseline (0-5 cm)'} icon={Shovel} items={soilParams(sData)} empty="Loading soil data…" src={['soil']} onRefresh={refreshSoil}/>
-      <Section title="Terrain" sub="Farm DEM statistics" icon={Mountain} items={terrain} empty="Elevation loads with the satellite analysis." src={['dem']} onRefresh={refreshDem}/>
+      <Section title="Crop & spectral indices" sub={a ? `Farm mean · ${new Date(a.scene.datetime).toLocaleDateString()}` : 'waiting for scene'} icon={Satellite} items={spectral} empty="Refresh to compute vegetation, water and soil indices from Sentinel-2." onRefresh={() => { window.dispatchEvent(new CustomEvent('seva-refresh-spectral')) }} onCardClick={handleCardClick} />
+      <Section title="Weather & atmosphere" sub={w?.error ?? 'Open-Meteo, live'} icon={CloudSun} items={w?.data && weatherParams(w.data)} empty={w?.error ?? 'Loading weather…'} src={['weather']} onRefresh={refreshWeather} onCardClick={handleCardClick}/>
+      <Section title="Soil water & temperature" sub="Modelled by depth" icon={Thermometer} items={w?.data && soilWaterParams(w.data)} empty={w?.error ?? 'Loading soil moisture…'} src={['weather', 'model']} onRefresh={refreshWeather} onCardClick={handleCardClick}/>
+      <Section title="Soil properties" sub={s?.data ? 'SoilGrids 250 m, 0-5 cm' : 'SoilGrids regional baseline (0-5 cm)'} icon={Shovel} items={soilParams(sData)} empty="Loading soil data…" src={['soil']} onRefresh={refreshSoil} onCardClick={handleCardClick}/>
+      <Section title="Terrain" sub="Farm DEM statistics" icon={Mountain} items={terrain} empty="Elevation loads with the satellite analysis." src={['dem']} onRefresh={refreshDem} onCardClick={handleCardClick}/>
     </div>
     <details className="sc-guide" open><summary>What to look for on your farm</summary><div className="sc-grid">{spectralIds.map(id => <ScaleBox key={id} id={id} compact/>)}</div></details>
     <div className="ag-key"><span><i className="good"/>Favourable</span><span><i className="warn"/>Watch</span><span><i className="bad"/>Act or risk</span><span><i/>Information only</span> Card edge colour shows the status of each value.</div>
     <small className="ag-note">Weather, soil water, and soil properties are broad-area estimates, not readings from your field. Satellite maps use clear pixels; check unusual patches on the ground.</small>
+
+    {activeCard && (
+      <InsightPlayingCardModal card={activeCard} onClose={() => setActiveCard(null)} />
+    )}
   </section>
 }

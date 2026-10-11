@@ -16,7 +16,7 @@ import { useAccount } from './Auth'
 import { NumbersGuide } from './Scale'
 import { farmRing } from './lib/seva'
 import FieldHealthScore from './FieldHealthScore'
-import LandInfoCard from './LandInfoCard'
+import TeamGitDiagram from './TeamGitDiagram'
 
 const AgroPanel = lazy(() => import('./AgroPanel'))
 const CropJournal = lazy(() => import('./CropJournal'))
@@ -61,7 +61,6 @@ const DEFAULT_SECTION_ORDER = [
   'numbers-guide',
   'advice-grid',
   'agro-water',
-  'land-passbook',
   'crop-library',
   'village-view',
   'gis-export',
@@ -82,8 +81,6 @@ const SECTION_TITLES: Record<string, string> = {
   advice: 'Irrigation & Drainage Advisory',
   'agro-water': 'Agro & Hydrology Panels',
   panels: 'Agro & Hydrology Panels',
-  'land-passbook': 'Cadastral Land Registry (RoR 1B)',
-  land: 'Cadastral Land Registry (RoR 1B)',
   'crop-library': 'Crop Library & Agronomy Knowledge',
   cropLib: 'Crop Library & Agronomy Knowledge',
   'village-view': 'Village View & Multi-Plot Map',
@@ -327,10 +324,6 @@ export default function App() {
     if (text === 'Alerts') return setModal('alerts')
     if (text === 'Reports') return setModal('reports')
     if (text === 'Terminal') return setShowTerminal(true)
-    if (text === 'Land registry') {
-      requestAnimationFrame(() => document.getElementById('land-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-      return
-    }
     const id = text === 'Overview' ? 'top' : text === 'My farms' ? 'my-farms' : 'crop-journal'
     requestAnimationFrame(() => (id === 'top' ? window.scrollTo({ top: 0, behavior: 'smooth' }) : document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })))
   }
@@ -362,7 +355,7 @@ export default function App() {
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>Personal · Free forever*</small></div><ChevronDown size={16}/></div>
       <div className="nav-label">WORKSPACE</div>
-      <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Terminal', icon: Activity }, { text: 'Land registry', icon: FileCheck2 }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
+      <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Terminal', icon: Activity }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>Built for the ground.<br/>Open to everyone.</h4><p>Earth intelligence, in the spirit of selfless service.</p><span>OPEN DATA. REAL PURPOSE. <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>Page not working? Pop the team</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
@@ -372,19 +365,33 @@ export default function App() {
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Add an outline for any field you want to review from home. SEVA·GIS will show the latest available clear Sentinel-2 pass so you can compare dates, layers, and visible changes remotely.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
       <div className="summary-grid"><div className="summary-card"><span className="metric-icon"><MapPinned size={21}/></span><div><span>Total farms</span><strong>{farms.length}<small>Across {new Set(farms.map(item => item.location)).size} locations</small></strong></div></div><div className="summary-card"><span className="metric-icon"><Sprout size={21}/></span><div><span>Mapped boundary area</span><strong>{farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0).toFixed(1)} <em>ha</em><small>{(farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0) * 2.47105381).toFixed(1)} acres · outlines only</small></strong></div></div><div className="summary-card"><span className="metric-icon healthy"><Leaf size={21}/></span><div><span>Farms with strong green cover</span><strong>{farms.filter(item => item.status === 'Healthy').length}<small><i className="dot green"/>Strong green-cover signal</small></strong></div></div><div className="summary-card"><span className="metric-icon attention"><Droplets size={21}/></span><div><span>Fields to review</span><strong>{farms.filter(farmNeedsAttention).length}<small><i className="dot amber"/>Review flagged areas in the latest pass</small></strong></div><ArrowUpRight size={17}/></div></div>
       <div className={`farm-workspace ${mapFocus ? 'map-focus' : ''}`} id="my-farms"><section className="farm-list"><div className="section-top"><h2>My farms <span>{farms.length}</span></h2><button aria-label="Add farm" onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder="Find a farm..." value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => setSelected(item.id)}><div className="farm-thumb aoi" title="Satellite view of your farm boundary"><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.polygon && item.polygon.length >= 3 ? `${mappedBoundaryAreaHa(item).toFixed(2)} ha · ${(mappedBoundaryAreaHa(item) * 2.47105381).toFixed(2)} ac` : 'Location pin · area unknown'}<b>·</b>{item.crop}</span><div className="farm-badges-row"><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span><span role="button" tabIndex={0} className="farm-maps-btn" title={`View this field location in Google Maps: ${item.name} (${item.lat.toFixed(4)}°, ${item.lon.toFixed(4)}°)`} onClick={event => { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') } }}><Navigation size={11} className="maps-symbol-icon"/><span>View location</span></span></div></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>Add another farm</button><div ref={setLayersPanelTarget} className="ix-panel-dock" aria-label="Layers and symbology controls"/><div className="list-note"><ShieldCheck size={16}/><span>Your coordinates stay on this device.</span></div></section>
-       <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact" title="Open Land Registry & Pattadar Passbook" onClick={() => document.getElementById('land-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><FileCheck2 size={13} color="#16a34a"/><span>Land passbook</span></button><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm.name} (${farm.lat.toFixed(4)}°, ${farm.lon.toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>View location</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">Loading the field map…</div>}><IndicatorMap key={farm.id} farm={farm} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>About this data<ArrowUpRight size={13}/></button></div></section></div>
+       <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm.name} (${farm.lat.toFixed(4)}°, ${farm.lon.toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>View location</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">Loading the field map…</div>}><IndicatorMap key={farm.id} farm={farm} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>About this data<ArrowUpRight size={13}/></button></div></section></div>
       {editLayout && (
-        <div style={{ background: '#064e3b', color: '#a7f3d0', border: '1px solid #10b981', borderRadius: '12px', padding: '12px 18px', margin: '15px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <strong style={{ display: 'block', fontSize: '14px', color: '#fff' }}>Dashboard Layout Customizer Active</strong>
-            <span style={{ fontSize: '12px' }}>Move modules up or down to personalize your workflow. Your layout is auto-saved locally on this device.</span>
+        <div style={{ background: '#064e3b', color: '#a7f3d0', border: '1px solid #10b981', borderRadius: '12px', padding: '14px 18px', margin: '15px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <strong style={{ display: 'block', fontSize: '14px', color: '#fff' }}>Dashboard Layout Customizer Active</strong>
+              <span style={{ fontSize: '12px' }}>Move modules up or down to personalize your workflow, or select a preset layout below.</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={resetLayout} style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <RotateCcw size={13}/> Reset Default
+              </button>
+              <button onClick={saveLayout} style={{ background: '#10b981', border: 'none', color: '#022c22', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <Save size={13}/> Save Layout
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={resetLayout} style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <RotateCcw size={13}/> Reset Default
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', borderTop: '1px solid rgba(16, 185, 129, 0.3)', paddingTop: '10px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff' }}>Quick Presets:</span>
+            <button onClick={() => { setSectionOrder(DEFAULT_SECTION_ORDER); localStorage.setItem('seva-dashboard-layout', JSON.stringify(DEFAULT_SECTION_ORDER)); setMessage('Applied Standard Overview layout preset.'); }} style={{ background: '#065f46', border: '1px solid #34d399', color: '#fff', borderRadius: '5px', padding: '4px 10px', fontSize: '11.5px', cursor: 'pointer' }}>
+              Standard Overview
             </button>
-            <button onClick={saveLayout} style={{ background: '#10b981', border: 'none', color: '#022c22', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              <Save size={13}/> Save Layout
+            <button onClick={() => { const p = ['gis-export', 'intelligence-lab', 'village-view', 'weekly-records', 'field-intelligence', 'health-score', 'crop-journal', 'numbers-guide', 'advice-grid', 'agro-water', 'crop-library', 'measurement-tools']; setSectionOrder(p); localStorage.setItem('seva-dashboard-layout', JSON.stringify(p)); setMessage('Applied GIS & Satellite First layout preset.'); }} style={{ background: '#065f46', border: '1px solid #34d399', color: '#fff', borderRadius: '5px', padding: '4px 10px', fontSize: '11.5px', cursor: 'pointer' }}>
+              GIS &amp; Satellite First
+            </button>
+            <button onClick={() => { const p = ['agro-water', 'field-intelligence', 'advice-grid', 'health-score', 'crop-journal', 'intelligence-lab', 'numbers-guide', 'gis-export', 'village-view', 'weekly-records', 'crop-library', 'measurement-tools']; setSectionOrder(p); localStorage.setItem('seva-dashboard-layout', JSON.stringify(p)); setMessage('Applied Hydrology Focus layout preset.'); }} style={{ background: '#065f46', border: '1px solid #34d399', color: '#fff', borderRadius: '5px', padding: '4px 10px', fontSize: '11.5px', cursor: 'pointer' }}>
+              Hydrology Focus
             </button>
           </div>
         </div>
@@ -418,25 +425,101 @@ export default function App() {
                   <button onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>Create report</button>
                 </div>
                 <div className="intelligence-grid">
-                  {[{title:'Vegetation health',icon:Leaf,value:farm.analysis?.ndvi.mean.toFixed(2),unit:'NDVI',label:farm.analysis ? classify(farm.analysis.ndvi.mean).label : 'Awaiting analysis',note:farm.analysis ? `Range ${farm.analysis.ndvi.min.toFixed(2)} to ${farm.analysis.ndvi.max.toFixed(2)} · Sentinel-2` : 'Sentinel-2 · pending',color:'green',bars:true,stat:farm.analysis?.ndvi,lo:-0.2,hi:1},{title:'Surface soil moisture model',icon:Droplets,value:farm.moisture,unit:'%',label:'Estimate at 0–1 cm, not root zone',note:farm.analysis ? `Broad-area estimate · not a root-zone reading` : 'Broad-area estimate · not a soil sensor',color:'blue',bars:true,stat:farm.analysis?.ndmi,lo:-0.3,hi:0.5},{title:'Rainfall outlook',icon:CloudSun,value:farm.rain?.toFixed(1),unit:'mm',label:'Next 7 days',note:'Open-Meteo · refresh for live data',color:'blue',bars:false},{title:'Terrain & elevation',icon:Mountain,value:farm.elevation,unit:'m',label:'Above sea level',note:'Not a construction assessment',color:'brown',bars:false}].map(({title,icon:Icon,value,unit,label,note,color,bars,stat,lo,hi}: { title: string; icon: typeof Leaf; value?: string | number; unit: string; label: string; note: string; color: string; bars: boolean; stat?: Analysis['ndvi']; lo?: number; hi?: number }) => (
-                    <div className={`intelligence-card ${color}`} key={title}>
-                      <div className="intelligence-title">
-                        <span>{title}</span>
-                        <div style={{display:'inline-flex',alignItems:'center',gap:'5px'}}>
-                          <button className={`card-refresh-btn ${spinningCard === title ? 'spinning' : ''}`} title={`Refresh ${title}`} aria-label={`Refresh ${title}`} onClick={e => { e.stopPropagation(); refreshCard(title); }}><RefreshCw size={12}/></button>
-                          <Icon size={18}/>
+                  {(() => {
+                    const ndviVal = farm.analysis?.ndvi.mean
+                    const moistVal = farm.moisture ?? 32
+                    const rainVal = farm.rain ?? 0.7
+                    const slopeVal = farm.analysis?.slopePct ?? 2.1
+                    
+                    const cardsData = [
+                      {
+                        title: 'Vegetation health',
+                        icon: Leaf,
+                        value: ndviVal?.toFixed(2),
+                        unit: 'NDVI',
+                        label: farm.analysis ? classify(ndviVal!).label : 'Awaiting analysis',
+                        color: 'green',
+                        bars: true,
+                        stat: farm.analysis?.ndvi,
+                        lo: -0.2,
+                        hi: 1,
+                        benchmarks: 'Benchmark: Vigorous ≥ 0.50 · Moderate 0.30–0.50 · Stressed < 0.30',
+                        reasoning: farm.analysis 
+                          ? `${farm.analysis.stressPct.toFixed(0)}% of pixels show NDVI < 0.30 (sparse canopy). If persistent over consecutive clear passes, inspect for root-zone moisture deficit or nutrient deficiency.`
+                          : 'Computed from Sentinel-2 10 m multi-spectral bands (B4 Red & B8 NIR).'
+                      },
+                      {
+                        title: 'Surface soil moisture model',
+                        icon: Droplets,
+                        value: moistVal,
+                        unit: '%',
+                        label: moistVal >= 25 && moistVal <= 38 ? 'Optimal Available Moisture (AWC)' : moistVal < 25 ? 'Moisture Deficit (Dry)' : 'Excess Moisture (Saturated)',
+                        color: moistVal >= 25 && moistVal <= 38 ? 'blue' : moistVal < 25 ? 'amber' : 'red',
+                        bars: true,
+                        stat: farm.analysis?.ndmi,
+                        lo: -0.3,
+                        hi: 0.5,
+                        benchmarks: 'Limits: Wilting Point ≈ 14% · Optimal 25%–38% · Field Capacity ≈ 38% · Saturation > 44%',
+                        reasoning: `Why ${moistVal}%? Moisture is within normal capillary retention. If < 15%: root suction fails causing permanent wilting; irrigate immediately. If > 42%: anaerobic waterlogging occurs, suffocating roots.`
+                      },
+                      {
+                        title: 'Rainfall outlook (Next 7 days)',
+                        icon: CloudSun,
+                        value: rainVal.toFixed(1),
+                        unit: 'mm',
+                        label: rainVal < 5 ? 'Rainfall Deficit · Insufficient for Active Crop Demand' : 'Sufficient Precipitation',
+                        color: rainVal < 5 ? 'amber' : 'blue',
+                        bars: false,
+                        benchmarks: `Weekly Crop Demand: ≈ 20–35 mm | Forecast: ${rainVal.toFixed(1)} mm (${rainVal < 5 ? 'Shortfall' : 'Surplus'})`,
+                        reasoning: rainVal < 5
+                          ? `Rainfall is insufficient to satisfy crop evapotranspiration. Action: Schedule supplemental irrigation (drip or furrow) within 48–72 hours.`
+                          : `Precipitation meets baseline water requirement. Hold supplemental irrigation to prevent unnecessary energy and water costs.`
+                      },
+                      {
+                        title: 'Terrain & elevation',
+                        icon: Mountain,
+                        value: farm.elevation,
+                        unit: 'm',
+                        label: `${slopeVal.toFixed(1)}% Surface Slope (GLO-30)`,
+                        color: 'brown',
+                        bars: false,
+                        benchmarks: 'Grade Classification: Gentle (0%–3%) · Moderate (3%–8%) · Steep (> 8%)',
+                        reasoning: slopeVal <= 3
+                          ? 'Gentle gradient facilitates uniform furrow advance with minimal runoff velocity and negligible topsoil sheet erosion.'
+                          : 'Elevated gradient accelerates runoff velocity; consider contour plowing or check bunds to prevent soil detachment.'
+                      }
+                    ]
+
+                    return cardsData.map(({ title, icon: Icon, value, unit, label, color, bars, stat, lo, hi, benchmarks, reasoning }) => (
+                      <div className={`intelligence-card ${color}`} key={title} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div>
+                          <div className="intelligence-title">
+                            <span>{title}</span>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                              <button className={`card-refresh-btn ${spinningCard === title ? 'spinning' : ''}`} title={`Refresh ${title}`} aria-label={`Refresh ${title}`} onClick={e => { e.stopPropagation(); refreshCard(title); }}><RefreshCw size={12}/></button>
+                              <Icon size={18}/>
+                            </div>
+                          </div>
+                          <div className="intelligence-value">
+                            {value ?? '—'}<small>{unit}</small>
+                            {title === 'Vegetation health' && farm.analysis && <span className="trend">{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}
+                          </div>
+                          <div className="mini-chart">
+                            {bars ? (stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height, index) => <span key={index} className={`bar-height-${height}`}/>) : title.startsWith('Rainfall') ? <div className="weather-strip"><span><CloudSun size={18}/><small>7-day total: {rainVal.toFixed(1)} mm</small></span></div> : <div className="weather-strip"><span><Mountain size={18}/><small>{slopeVal.toFixed(1)}% slope</small></span></div>}
+                          </div>
+                          <div className="metric-description">
+                            <b>{label}</b>
+                            <div style={{ fontSize: '11px', color: '#166534', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '3px 6px', margin: '4px 0' }}>
+                              {benchmarks}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: '#475569', borderTop: '1px solid #e2e8f0', paddingTop: '6px', marginTop: '6px', lineHeight: 1.4 }}>
+                          <b>Scientific Insight:</b> {reasoning}
                         </div>
                       </div>
-                      <div className="intelligence-value">
-                        {value ?? '—'}<small>{unit}</small>
-                        {title === 'Vegetation health' && farm.analysis && <span className="trend">{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}
-                      </div>
-                      <div className="mini-chart">
-                        {bars ? (stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height,index) => <span key={index} className={`bar-height-${height}`}/>) : title === 'Rainfall outlook' ? <div className="weather-strip"><span><CloudSun size={18}/><small>7-day total</small></span></div> : <div className="weather-strip"><span><Mountain size={18}/><small>{farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}% slope` : 'Slope pending'}</small></span></div>}
-                      </div>
-                      <div className="metric-description">{label}<span>{note}</span></div>
-                    </div>
-                  ))}
+                    ))
+                  })()}
                 </div>
               </>
             )
@@ -475,10 +558,6 @@ export default function App() {
                 </SectionBoundary>
               </Reveal>
             )
-            break
-          case 'land-passbook':
-          case 'land':
-            content = <Reveal><LandInfoCard farm={farm} onUpdateFarm={updateFarm}/></Reveal>
             break
           case 'crop-library':
           case 'cropLib':

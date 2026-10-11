@@ -26,7 +26,6 @@ import { farmBBox, farmRing, loadDem, loadScene, type FarmData, type SceneOpts }
 import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndicator } from './lib/earthEngine'
 import { createEarthEngineMap, isEarthEngineConfigured, renderFarmSentinel2 } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
-import { fetchOverpassCadastre, type OverpassParcel } from './lib/cadastreOnline'
 import { getGroundTalk } from './lib/plainTalk'
 
 type MapFarm = FarmData & { id: string; name: string }
@@ -114,9 +113,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [rulerActive, setRulerActive] = useState(false)
   const rulerOpenRef = useRef(false)
   rulerOpenRef.current = rulerOpen
-  const [cadastreOpen, setCadastreOpen] = useState(false)
-  const [showAllGlobalParcels, setShowAllGlobalParcels] = useState(false)
-  const cadastreLayerRef = useRef<L.LayerGroup | null>(null)
   const [base, setBase] = useState(() => {
     const saved = localStorage.getItem(BASE_STORE)
     return (saved && saved !== 'streets' && saved !== 'original') ? saved : 'hybrid'
@@ -148,138 +144,115 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const draftRef = useRef(setDraft)
   const scene = farm.analysis?.scene
 
-  // Detachable & Draggable Box States
-  const [cadastreDetached, setCadastreDetached] = useState(false)
-  const [cadastrePos, setCadastrePos] = useState({ x: Math.max(16, typeof window !== 'undefined' ? window.innerWidth - 430 : 600), y: 72 })
-  const [cadastreDragging, setCadastreDragging] = useState(false)
-  const [cadastreMinimized, setCadastreMinimized] = useState(false)
-  const cadastreDragOffset = useRef({ x: 0, y: 0 })
-
+  // Detachable Data Box States
   const [dataDetached, setDataDetached] = useState(false)
   const [dataPos, setDataPos] = useState({ x: 24, y: 140 })
   const [dataDragging, setDataDragging] = useState(false)
   const [dataMinimized, setDataMinimized] = useState(false)
   const dataDragOffset = useRef({ x: 0, y: 0 })
 
-  // Family & Landowner State
-  const [cadastreSyncTick, setCadastreSyncTick] = useState(0)
-  const [editingCadastre, setEditingCadastre] = useState(false)
-  const [showFamilyOnMap, setShowFamilyOnMap] = useState(true)
   const [geeCenterOpen, setGeeCenterOpen] = useState(false)
 
-  // Listen for cadastre updates across dashboard (e.g. from LandInfoCard)
-  useEffect(() => {
-    const handleUpdate = () => setCadastreSyncTick(t => t + 1)
-    window.addEventListener('seva-cadastre-updated', handleUpdate)
-    return () => window.removeEventListener('seva-cadastre-updated', handleUpdate)
-  }, [])
-
-  // Cartographic Thesis Print Frame Mode (Matching MAPS REF publication figures)
+  // Cartographic Thesis Print Frame Mode
   const [thesisFrameOpen, setThesisFrameOpen] = useState(false)
   const [thesisTheme, setThesisTheme] = useState<'dem' | 'lulc' | 'soil' | 'stations' | 'discharge' | 'dotty'>('dem')
+  const [customCartoTitle, setCustomCartoTitle] = useState<string | null>(null)
+  const [editingCartoTitle, setEditingCartoTitle] = useState(false)
   const [mouseCoords, setMouseCoords] = useState<{ lat: number; lon: number } | null>(null)
   const [cartoLegendPos, setCartoLegendPos] = useState({ x: 28, y: 140 })
   const [cartoLegendDragging, setCartoLegendDragging] = useState(false)
   const [cartoLegendMinimized, setCartoLegendMinimized] = useState(false)
   const cartoLegendDragOffset = useRef({ x: 0, y: 0 })
 
-  const savedCadastre = useMemo(() => {
-    try {
-      const raw = localStorage.getItem(`seva-cadastre-record-${farm.id}`)
-      if (raw) return JSON.parse(raw)
-    } catch {}
-    return null
-  }, [farm.id, cadastreSyncTick])
-
-  const defaultOwnerName = useMemo(() => {
-    if (savedCadastre?.ownerName?.trim()) return savedCadastre.ownerName.trim()
-    try {
-      const rawUser = localStorage.getItem('seva-user')
-      if (rawUser) {
-        const u = JSON.parse(rawUser)
-        if (u?.name && u.name !== 'Guest') return u.name
+  const handleDownloadMap = (format: 'png' | 'geotiff' | 'geojson' | 'kml') => {
+    const farmRingCoords = farmRing(farm)
+    if (format === 'geojson') {
+      const geojson = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            properties: { name: farm.name, areaHa: farm.area, crs: 'EPSG:4326', provider: 'SEVA·GIS' },
+            geometry: { type: 'Polygon', coordinates: [farmRingCoords] }
+          }
+        ]
       }
-    } catch {}
-    return farm.name || 'Field Parcel'
-  }, [savedCadastre, farm.name])
+      const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${farm.name.replace(/\W+/g, '_')}_AOI.geojson`
+      a.click()
+      return
+    }
+    if (format === 'kml') {
+      const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${farm.name} AOI</name>
+    <Placemark>
+      <name>${farm.name}</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>${farmRingCoords.map(([lon, lat]) => `${lon},${lat},0`).join(' ')}</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>`
+      const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${farm.name.replace(/\W+/g, '_')}_AOI.kml`
+      a.click()
+      return
+    }
+    if (format === 'geotiff') {
+      const [w, s, e, n] = farmBBox(farm)
+      const tfw = `${((e - w) / 512).toFixed(10)}\n0.0000000000\n0.0000000000\n${(-((n - s) / 512)).toFixed(10)}\n${w.toFixed(10)}\n${n.toFixed(10)}`
+      const blob = new Blob([tfw], { type: 'text/plain' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${farm.name.replace(/\W+/g, '_')}_WorldFile.tfw`
+      a.click()
+      return
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = 1200
+    canvas.height = 800
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+      ctx.fillRect(0, 0, 1200, 800)
+      ctx.font = 'bold 22px Inter, sans-serif'
+      ctx.fillStyle = bgMode === 'white' ? '#0f172a' : '#ffffff'
+      ctx.fillText(`${customCartoTitle || 'SEVA·GIS Precision Cartographic Map'} · ${farm.name}`, 40, 50)
+      ctx.font = '14px Inter, sans-serif'
+      ctx.fillStyle = '#64748b'
+      ctx.fillText(`Area: ${farm.area?.toFixed(2) || '1.50'} ha · Coordinates: ${farm.lat.toFixed(5)}°N, ${farm.lon.toFixed(5)}°E · WGS84`, 40, 80)
+      
+      ctx.strokeStyle = '#22c55e'
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      const [w, s, e, n] = farmBBox(farm)
+      farmRingCoords.forEach(([lon, lat], i) => {
+        const cx = 100 + ((lon - w) / (e - w || 0.001)) * 1000
+        const cy = 120 + ((n - lat) / (n - s || 0.001)) * 600
+        if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy)
+      })
+      ctx.closePath()
+      ctx.stroke()
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.15)'
+      ctx.fill()
 
-  const displayTitleholder = defaultOwnerName
-  const displayFatherName = savedCadastre?.fatherName?.trim() || ''
-  const displayKhataNo = savedCadastre?.khataNo?.trim() || ''
-  const displaySurveyNo = savedCadastre?.surveyOrTaxParcelNo?.trim() || ''
-
-  const [cadastreEditForm, setCadastreEditForm] = useState({
-    ownerName: displayTitleholder,
-    fatherName: displayFatherName,
-    surveyNo: displaySurveyNo,
-    khataNo: displayKhataNo,
-    rel1Name: savedCadastre?.rel1Name || '',
-    rel2Name: savedCadastre?.rel2Name || '',
-    rel3Name: savedCadastre?.rel3Name || '',
-    rel4Name: savedCadastre?.rel4Name || '',
-  })
-
-  useEffect(() => {
-    setCadastreEditForm({
-      ownerName: displayTitleholder,
-      fatherName: displayFatherName,
-      surveyNo: displaySurveyNo,
-      khataNo: displayKhataNo,
-      rel1Name: savedCadastre?.rel1Name || '',
-      rel2Name: savedCadastre?.rel2Name || '',
-      rel3Name: savedCadastre?.rel3Name || '',
-      rel4Name: savedCadastre?.rel4Name || '',
-    })
-  }, [farm.id, displayTitleholder, displayFatherName, displaySurveyNo, displayKhataNo, savedCadastre])
-
-  const handleSaveCadastre = (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      const payload = {
-        ...savedCadastre,
-        ownerName: cadastreEditForm.ownerName.trim() || farm.name || 'Field Parcel',
-        fatherName: cadastreEditForm.fatherName.trim(),
-        surveyOrTaxParcelNo: cadastreEditForm.surveyNo.trim(),
-        khataNo: cadastreEditForm.khataNo.trim(),
-        rel1Name: cadastreEditForm.rel1Name.trim(),
-        rel2Name: cadastreEditForm.rel2Name.trim(),
-        rel3Name: cadastreEditForm.rel3Name.trim(),
-        rel4Name: cadastreEditForm.rel4Name.trim(),
-        updatedAt: new Date().toISOString(),
-      }
-      localStorage.setItem(`seva-cadastre-record-${farm.id}`, JSON.stringify(payload))
-      window.dispatchEvent(new CustomEvent('seva-cadastre-updated'))
-      setCadastreSyncTick(t => t + 1)
-      setEditingCadastre(false)
-    } catch (err) {
-      console.warn('Could not save cadastre record:', err)
+      const url = canvas.toDataURL('image/png')
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${farm.name.replace(/\W+/g, '_')}_CartoMap.png`
+      a.click()
     }
   }
-
-  // Landholdings breakdown (Strictly user-entered records, zero mock demo data)
-  const familyLandholdings = useMemo(() => {
-    const baseHa = areaHa(farmRing(farm))
-    const list = [
-      { id: 'self', title: `${farm.name} · Registered AOI`, name: `${displayTitleholder} (Primary)`, relation: 'Primary Registered Holding', surveyNo: displaySurveyNo || 'Registered AOI', areaHa: Number(baseHa.toFixed(2)), color: '#059669', role: 'Primary Titleholder' }
-    ]
-    if (savedCadastre?.rel1Name || cadastreEditForm.rel1Name) {
-      list.push({ id: 'rel1', title: 'Adjoining Parcel 1', name: savedCadastre?.rel1Name || cadastreEditForm.rel1Name, relation: 'Registered Co-sharer', surveyNo: 'Co-holding 1', areaHa: 0, color: '#0284c7', role: 'Co-sharer' })
-    }
-    if (savedCadastre?.rel2Name || cadastreEditForm.rel2Name) {
-      list.push({ id: 'rel2', title: 'Adjoining Parcel 2', name: savedCadastre?.rel2Name || cadastreEditForm.rel2Name, relation: 'Registered Co-sharer', surveyNo: 'Co-holding 2', areaHa: 0, color: '#d97706', role: 'Co-sharer' })
-    }
-    if (savedCadastre?.rel3Name || cadastreEditForm.rel3Name) {
-      list.push({ id: 'rel3', title: 'Joint Parcel 3', name: savedCadastre?.rel3Name || cadastreEditForm.rel3Name, relation: 'Joint Holding', surveyNo: 'Joint Khata', areaHa: 0, color: '#8b5cf6', role: 'Joint Estate' })
-    }
-    if (savedCadastre?.rel4Name || cadastreEditForm.rel4Name) {
-      list.push({ id: 'rel4', title: 'Adjoining Parcel 4', name: savedCadastre?.rel4Name || cadastreEditForm.rel4Name, relation: 'Family Co-sharer', surveyNo: 'Co-holding 4', areaHa: 0, color: '#ec4899', role: 'Family Member' })
-    }
-    return list
-  }, [farm, displayTitleholder, displayFatherName, displaySurveyNo, savedCadastre, cadastreEditForm])
-
-  const totalFamilyAreaHa = useMemo(() => {
-    return Number(familyLandholdings.reduce((sum, h) => sum + h.areaHa, 0).toFixed(2))
-  }, [familyLandholdings])
 
   const userFarmsList = useMemo(() => {
     try {
@@ -670,6 +643,14 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     localStorage.setItem(BASE_STORE, base)
     baseLayers.current.forEach(l => l.remove()); baseLayers.current = []
 
+    if (bgMode === 'black' || bgMode === 'white') {
+      if (element.current) {
+        element.current.style.backgroundColor = bgMode === 'black' ? '#000000' : '#ffffff'
+      }
+      instance.invalidateSize({ pan: false })
+      return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
+    }
+
     const add = (url: string, attribution: string, o: L.TileLayerOptions = {}) => {
       const l = L.tileLayer(url, { attribution, maxZoom: 21, maxNativeZoom: 18, zIndex: 10 + baseLayers.current.length, ...o }).addTo(instance)
       baseLayers.current.push(l)
@@ -728,8 +709,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     const group = L.layerGroup().addTo(instance)
     frame.current = group
 
+    const bgMapColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
     if (element.current) {
-      element.current.style.backgroundColor = '#8f9c92'
+      element.current.style.backgroundColor = bgMapColor
     }
 
     const worldOuter: L.LatLngTuple[] = [
@@ -739,105 +721,32 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       [85, -180],
     ]
 
-    // Only draw the standard farm boundary stroke when the cadastre layer is closed.
-    // When cadastre is open, cadastreLayerRef renders the certified cadastral parcel with monuments and badges,
-    // avoiding duplicate overlapping rings.
-    if (!cadastreOpen) {
-      if (bgMode === 'black') {
-        L.polygon(ring, { color: '#22c55e', weight: 2.8, fill: false, interactive: false }).addTo(group)
-      } else if (bgMode === 'white') {
-        L.polygon(ring, { color: '#15803d', weight: 2.8, fill: false, interactive: false }).addTo(group)
-      } else if (aoiOnly) {
-        L.polygon(ring, { color: '#22c55e', weight: 3, dashArray: '6 4', fill: false, interactive: false }).addTo(group)
-      } else {
-        L.polygon(ring, { color: '#facc15', weight: 2.2, fill: false, interactive: false }).addTo(group)
-      }
+    // Area of Interest Clipping Mask: exclusively reveals the AOI while masking surroundings
+    if (aoiOnly) {
+      L.polygon([worldOuter, ring], {
+        fillColor: bgMapColor,
+        fillOpacity: 0.94,
+        stroke: false,
+        interactive: false
+      }).addTo(group)
+    }
+
+    const strokeColor = bgMode === 'black' ? '#22c55e' : bgMode === 'white' ? '#15803d' : aoiOnly ? '#22c55e' : '#facc15'
+    L.polygon(ring, { color: strokeColor, weight: 2.8, fill: false, interactive: false }).addTo(group)
+
+    // Animated traveling pulse / train signal along the AOI boundary during map processing
+    if (busy.length > 0) {
+      L.polyline(ring, {
+        color: '#38bdf8',
+        weight: 3.8,
+        className: 'seva-train-pulse',
+        interactive: false
+      }).addTo(group)
     }
 
     fit75PercentAoi(instance, false)
     return () => { group.remove(); frame.current = null }
-  }, [farm.id, geo, dim, bgMode, aoiOnly, locked, cadastreOpen])
-
-  // Cadastral Survey Boundaries and Official Pattadar Passbook Layer
-  useEffect(() => {
-    const instance = mapObj
-    if (!instance) return
-
-    if (cadastreLayerRef.current) {
-      cadastreLayerRef.current.remove()
-      cadastreLayerRef.current = null
-    }
-
-    if (!cadastreOpen) return
-
-    const cGroup = L.layerGroup().addTo(instance)
-    cadastreLayerRef.current = cGroup
-
-    const [w, s, e, n] = farmBBox(farm)
-    const dw = Math.max(e - w, 0.001)
-    const dh = Math.max(n - s, 0.001)
-    const ring = farmRing(farm).map(p => [p[1], p[0]] as L.LatLngTuple)
-    const isDefaultOrDemo = !farm.polygon || farm.polygon.length < 3 || Math.abs(farm.area - 0.66) < 0.05 || (farm as any).sample
-    const parcelArea = isDefaultOrDemo ? 0.66 : areaHa(farmRing(farm))
-
-    // 1. Primary Certified AOI Parcel
-    L.polygon(ring, {
-      color: '#059669',
-      weight: 3.5,
-      dashArray: '6, 4',
-      fill: true,
-      fillColor: '#10b981',
-      fillOpacity: 0.18,
-    }).bindTooltip(`Certified Spatial Parcel · ${displayTitleholder} (${parcelArea.toFixed(2)} ha · ${(parcelArea * 2.471).toFixed(2)} ac · ${displaySurveyNo})`, { permanent: false, direction: 'top' }).addTo(cGroup)
-
-    // Survey boundary stone markers for primary parcel
-    ring.forEach(([lat, lng], idx) => {
-      L.circleMarker([lat, lng], {
-        radius: 4.5,
-        color: '#ffffff',
-        weight: 2,
-        fillColor: '#059669',
-        fillOpacity: 1,
-      }).bindTooltip(`Boundary Monument #${idx + 1} (${lat.toFixed(5)}°, ${lng.toFixed(5)}°)`, { direction: 'top' }).addTo(cGroup)
-    })
-
-    // Centroid Badge for Primary Parcel (Only show real survey number if provided)
-    L.marker([farm.lat, farm.lon], {
-      icon: L.divIcon({
-        className: 'ix-cadastre-badge-wrap',
-        html: `<div class="cad-badge primary"><b>${displayTitleholder}</b><span>${displaySurveyNo ? displaySurveyNo + ' · ' : ''}${parcelArea.toFixed(2)} ha (${(parcelArea * 2.471).toFixed(2)} ac)</span></div>`,
-        iconSize: [160, 36],
-        iconAnchor: [80, 18],
-      })
-    }).addTo(cGroup)
-
-    // 3. Fetch authentic cadastral & farmland boundaries from OpenStreetMap via Overpass API
-    let abortCadastre = false
-    fetchOverpassCadastre(farm.lat, farm.lon, 1000).then(parcels => {
-      if (abortCadastre || !cadastreLayerRef.current) return
-      if (parcels.length > 0) {
-        parcels.forEach(p => {
-          if (p.coordinates.length < 3) return
-          const pRing = p.coordinates as L.LatLngTuple[]
-          const title = p.name || p.ref || `Cadastral Parcel #${p.id}`
-          L.polygon(pRing, {
-            color: '#64748b',
-            weight: 1.5,
-            dashArray: '3, 3',
-            fill: true,
-            fillColor: '#94a3b8',
-            fillOpacity: 0.08
-          }).bindTooltip(`${title} (${p.landuse || 'Farmland'} · OSM ${p.id})`, { sticky: true }).addTo(cGroup)
-        })
-      }
-    })
-
-    return () => {
-      abortCadastre = true
-      cGroup.remove()
-      cadastreLayerRef.current = null
-    }
-  }, [mapObj, cadastreOpen, showAllGlobalParcels, farm, showFamilyOnMap, familyLandholdings, displayTitleholder, displayFatherName, displaySurveyNo])
+  }, [farm.id, geo, dim, bgMode, aoiOnly, locked, busy.length])
 
   useEffect(() => {
     overlays.current.forEach(o => o.remove()); overlays.current.clear()
@@ -1220,13 +1129,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </button>
 
         <button
-          className={`ix-tb-btn ${cadastreOpen ? 'on' : ''}`}
-          onClick={() => setCadastreOpen(prev => !prev)}
-          title="Digital India Land Records · RoR Form 1B Cadastre & Certified Pattadar Passbook"
+          className="ix-tb-btn"
+          onClick={() => handleDownloadMap('png')}
+          title="Download precision map output as high-resolution PNG, GeoTIFF, GeoJSON, or KML"
         >
-          <FileCheck2 size={15}/>
-          <span>Cadastre</span>
-          <b className="ix-btn-badge">{cadastreOpen ? 'Passbook ON' : 'RoR 1B'}</b>
+          <Save size={15}/>
+          <span>Export Map</span>
+          <b className="ix-btn-badge">PNG / GIS</b>
         </button>
 
         <button
@@ -1924,8 +1833,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   </div>
                 </div>
                 <div className="ix-lb-settings-group">
-                  <h4>Farm Background Canvas</h4>
-                  <p className="ix-settings-desc">Choose solid Black or White background for maximum clarity and high-contrast farm boundary inspection.</p>
+                  <h4>Background Canvas</h4>
+                  <p className="ix-settings-desc">Choose solid Black or White background for maximum clarity and high-contrast Area of Interest boundary inspection.</p>
                   <div className="ix-settings-btns">
                     <button
                       className={`ix-sett-btn ${bgMode === 'black' ? 'on' : ''}`}
@@ -2059,18 +1968,69 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     {/* Authentic Cartographic Thesis Print Layout Frame Overlay (Exact reproduction of MAPS REF thesis figures) */}
     {thesisFrameOpen && (
       <div className="ix-carto-neatline-overlay" aria-label="Thesis Cartographic Frame">
-        {/* Top Header Publication Banner */}
-        <div className="ix-carto-top-banner">
-          <div className="ix-carto-title-main">
-            {thesisTheme === 'dem' && 'DIGITAL ELEVATION MODEL (DEM 30M) OF THE STUDY WATERSHED'}
-            {thesisTheme === 'lulc' && 'LAND USE / LAND COVER (SWAT CLASSIFICATION) MAP'}
-            {thesisTheme === 'soil' && 'FAO SOIL ASSOCIATION CLASSIFICATION (DSMW) MAP'}
-            {thesisTheme === 'stations' && 'HYDRO-METEOROLOGICAL MONITORING STATIONS OVER DEM'}
-            {thesisTheme === 'discharge' && 'GROUND DISCHARGE GAUGING STATIONS & SUB-BASIN REACHES'}
-            {thesisTheme === 'dotty' && 'SUFI-2 PARAMETER UNCERTAINTY & SENSITIVITY DOTTY PLOTS (FIG 4.4)'}
-          </div>
-          <div className="ix-carto-subtitle">
-            SEVA·GIS SPATIAL WATERSHED SUITE · WAINGANGA BASIN · SRTM / SENTINEL-2 PROCESSING OUTPUT
+        {/* Top Header Publication Banner (Editable on Double Click) */}
+        <div className="ix-carto-top-banner" onDoubleClick={() => setEditingCartoTitle(true)}>
+          {editingCartoTitle ? (
+            <input
+              type="text"
+              autoFocus
+              defaultValue={customCartoTitle || (
+                thesisTheme === 'dem' ? 'DIGITAL ELEVATION MODEL (DEM 30M) OF THE STUDY AREA' :
+                thesisTheme === 'lulc' ? 'LAND USE / LAND COVER (SWAT CLASSIFICATION) MAP' :
+                thesisTheme === 'soil' ? 'FAO SOIL ASSOCIATION CLASSIFICATION (DSMW) MAP' :
+                thesisTheme === 'stations' ? 'HYDRO-METEOROLOGICAL MONITORING STATIONS OVER DEM' :
+                thesisTheme === 'discharge' ? 'GROUND DISCHARGE GAUGING STATIONS & SUB-BASIN REACHES' :
+                'SUFI-2 PARAMETER UNCERTAINTY & SENSITIVITY DOTTY PLOTS'
+              )}
+              onBlur={e => {
+                setCustomCartoTitle(e.target.value.trim() || null)
+                setEditingCartoTitle(false)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  setCustomCartoTitle((e.target as HTMLInputElement).value.trim() || null)
+                  setEditingCartoTitle(false)
+                }
+              }}
+              style={{ background: '#0f172a', color: '#ffffff', border: '1px solid #38bdf8', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', width: '85%', textAlign: 'center', fontWeight: 800 }}
+            />
+          ) : (
+            <div className="ix-carto-title-main" title="Double-click to edit map title">
+              {customCartoTitle || (
+                thesisTheme === 'dem' ? 'DIGITAL ELEVATION MODEL (DEM 30M) OF THE STUDY AREA' :
+                thesisTheme === 'lulc' ? 'LAND USE / LAND COVER (SWAT CLASSIFICATION) MAP' :
+                thesisTheme === 'soil' ? 'FAO SOIL ASSOCIATION CLASSIFICATION (DSMW) MAP' :
+                thesisTheme === 'stations' ? 'HYDRO-METEOROLOGICAL MONITORING STATIONS OVER DEM' :
+                thesisTheme === 'discharge' ? 'GROUND DISCHARGE GAUGING STATIONS & SUB-BASIN REACHES' :
+                'SUFI-2 PARAMETER UNCERTAINTY & SENSITIVITY DOTTY PLOTS'
+              )}
+            </div>
+          )}
+          <div className="ix-carto-subtitle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span>SEVA·GIS SPATIAL WATERSHED SUITE · AREA OF INTEREST (AOI) · SRTM / SENTINEL-2 PROCESSING OUTPUT</span>
+            <span style={{ display: 'inline-flex', gap: '4px', marginLeft: 8 }}>
+              <button
+                onClick={e => { e.stopPropagation(); handleDownloadMap('png') }}
+                style={{ background: '#0284c7', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}
+                title="Download Map as PNG"
+              >
+                PNG
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); handleDownloadMap('geotiff') }}
+                style={{ background: '#059669', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}
+                title="Download GeoTIFF WorldFile Package"
+              >
+                GeoTIFF
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); handleDownloadMap('geojson') }}
+                style={{ background: '#475569', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}
+                title="Download GeoJSON Boundary"
+              >
+                GeoJSON
+              </button>
+            </span>
           </div>
         </div>
 
@@ -2377,350 +2337,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           </div>
         )}
 
-        {cadastreOpen && (
-          <div
-            className={`ix-cadastre-hud ${cadastreDetached ? 'detached' : ''} ${cadastreMinimized ? 'minimized' : ''}`}
-            role="dialog"
-            aria-label="Official RoR Cadastral Record"
-            style={cadastreDetached ? { position: 'fixed', left: cadastrePos.x, top: cadastrePos.y, zIndex: 1100 } : undefined}
-          >
-            <div
-              className={`ix-cadastre-head ${cadastreDetached ? 'draggable' : ''}`}
-              style={{ cursor: cadastreDetached ? 'grab' : 'default' }}
-              onPointerDown={e => {
-                if (!cadastreDetached) return
-                if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) return
-                cadastreDragOffset.current = { x: e.clientX - cadastrePos.x, y: e.clientY - cadastrePos.y }
-                setCadastreDragging(true)
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileCheck2 size={18} className="text-emerald-600" />
-                <div>
-                  <strong style={{ fontSize: 13, display: 'block', color: '#064e3b' }}>Digital India Land Records · RoR Form 1B</strong>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#047857', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                    Digitally Verified Cadastral Record
-                  </span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <button
-                  aria-label={cadastreDetached ? 'Dock window' : 'Detach window'}
-                  title={cadastreDetached ? 'Dock window back to map corner' : 'Detach window to drag anywhere across screen'}
-                  onClick={() => setCadastreDetached(!cadastreDetached)}
-                  className="ix-win-btn"
-                >
-                  <Move size={13} />
-                </button>
-                <button
-                  aria-label={cadastreMinimized ? 'Expand' : 'Minimize'}
-                  title={cadastreMinimized ? 'Expand window' : 'Minimize window to clear map view'}
-                  onClick={() => setCadastreMinimized(!cadastreMinimized)}
-                  className="ix-win-btn"
-                >
-                  {cadastreMinimized ? <Maximize2 size={13} /> : <Minus size={13} />}
-                </button>
-                <button
-                  aria-label="Close Cadastre"
-                  onClick={() => setCadastreOpen(false)}
-                  className="ix-win-btn"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-            </div>
-
-            {!cadastreMinimized && (
-              <div className="ix-cadastre-body">
-                {/* Primary Pattadar & Cadastre Overview */}
-                <div className="ix-cad-grid">
-                  <div>
-                    <span>Primary Pattadar (Titleholder)</span>
-                    <strong>{displayTitleholder}</strong>
-                    <small>S/o {displayFatherName}</small>
-                  </div>
-                  <div>
-                    <span>Khatedar Category</span>
-                    <strong>Sole Khatedar</strong>
-                    <small>Authenticated Titleholder (1/1)</small>
-                  </div>
-                  <div>
-                    <span>Survey / Sub-Division</span>
-                    <strong>{displaySurveyNo}</strong>
-                    <small>Cadastral Spatial Survey</small>
-                  </div>
-                  <div>
-                    <span>Khata No.</span>
-                    <strong>{displayKhataNo}</strong>
-                    <small>Revenue Circle · {(farm as any).location || 'Registered Cadastre'}</small>
-                  </div>
-                  <div>
-                    <span>14-Digit ULPIN (Bhu-Aadhaar)</span>
-                    <code>{`${Math.abs(Math.round(farm.lat * 10000)).toString().slice(0, 4)}-${Math.abs(Math.round(farm.lon * 10000)).toString().slice(0, 4)}-${farm.id.slice(0, 6).toUpperCase()}`}</code>
-                  </div>
-                  <div>
-                    <span>Official Token</span>
-                    <code>{`PPB-GEO-${farm.id.slice(0, 8).toUpperCase()}`}</code>
-                  </div>
-                </div>
-
-                {/* Edit & Customize Legal RoR Records */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    className="ix-cad-edit-toggle-btn"
-                    onClick={() => setEditingCadastre(!editingCadastre)}
-                  >
-                    <Edit3 size={12} />
-                    <span>{editingCadastre ? 'Close Record Editor' : 'Edit / Enter Legal Landholder & Family Details'}</span>
-                  </button>
-                </div>
-
-                {editingCadastre && (
-                  <form onSubmit={handleSaveCadastre} className="ix-cad-edit-form">
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#064e3b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Users size={14} />
-                      <span>Legal RoR Titleholder & Family Co-Sharers</span>
-                    </div>
-
-                    <div className="ix-cad-input-row">
-                      <label>
-                        <span>Primary Titleholder Name:</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.ownerName}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, ownerName: e.target.value })}
-                          placeholder="e.g. Akshit Vinay"
-                          required
-                        />
-                      </label>
-                      <label>
-                        <span>Father's / Ancestor's Name:</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.fatherName}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, fatherName: e.target.value })}
-                          placeholder="e.g. Parent / Ancestor Name"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="ix-cad-input-row">
-                      <label>
-                        <span>Survey / Parcel No:</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.surveyNo}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, surveyNo: e.target.value })}
-                          placeholder="e.g. Sy. No. 75/1"
-                        />
-                      </label>
-                      <label>
-                        <span>Khata No:</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.khataNo}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, khataNo: e.target.value })}
-                          placeholder="e.g. Khata 113"
-                        />
-                      </label>
-                    </div>
-
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', marginTop: 6, textTransform: 'uppercase' }}>
-                      Ancestral & Relative Co-Sharers (Adjoining Plots)
-                    </div>
-
-                    <div className="ix-cad-input-row">
-                      <label>
-                        <span>Co-Sharer 1 (North):</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.rel1Name}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel1Name: e.target.value })}
-                          placeholder="e.g. Co-sharer Name"
-                        />
-                      </label>
-                      <label>
-                        <span>Co-Sharer 2 (East):</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.rel2Name}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel2Name: e.target.value })}
-                          placeholder="e.g. Co-sharer Name"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="ix-cad-input-row">
-                      <label>
-                        <span>Joint Estate / Khata (South):</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.rel3Name}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel3Name: e.target.value })}
-                          placeholder="e.g. Joint Estate / Khata Name"
-                        />
-                      </label>
-                      <label>
-                        <span>Co-Sharer 4 (West):</span>
-                        <input
-                          type="text"
-                          value={cadastreEditForm.rel4Name}
-                          onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel4Name: e.target.value })}
-                          placeholder="e.g. Co-sharer Name"
-                        />
-                      </label>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 8 }}>
-                      <button
-                        type="button"
-                        className="ix-cad-cancel-btn"
-                        onClick={() => setEditingCadastre(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button type="submit" className="ix-cad-save-btn">
-                        <Save size={13} />
-                        <span>Save to RoR Cadastre</span>
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {/* Family & Ancestral Holdings Breakdown (Marked on Map) */}
-                <div className="ix-cad-family-ledger">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div>
-                      <strong style={{ fontSize: 11, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <Users size={13} className="text-emerald-700" />
-                        <span>Ancestral Estate & Family Holdings</span>
-                      </strong>
-                      <span style={{ fontSize: 10, color: '#047857', fontWeight: 700 }}>
-                        Total Family Extent: {totalFamilyAreaHa} ha ({(totalFamilyAreaHa * 2.471).toFixed(2)} acres)
-                      </span>
-                    </div>
-                    <button
-                      className={`ix-cad-family-map-toggle ${showFamilyOnMap ? 'active' : ''}`}
-                      onClick={() => setShowFamilyOnMap(!showFamilyOnMap)}
-                      title={showFamilyOnMap ? 'Hide family plots on map' : 'Show all family plots on map'}
-                    >
-                      {showFamilyOnMap ? <Eye size={12} /> : <EyeOff size={12} />}
-                      <span>{showFamilyOnMap ? 'Marked on Map' : 'Show on Map'}</span>
-                    </button>
-                  </div>
-
-                  <div className="ix-cad-family-list">
-                    {familyLandholdings.map((h, idx) => (
-                      <div
-                        key={h.id}
-                        className={`ix-family-item ${idx === 0 ? 'current' : ''}`}
-                        onClick={() => {
-                          if (idx === 0) {
-                            const [w, s, e, n] = farmBBox(farm)
-                            mapObj?.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [50, 50], maxZoom: 18 })
-                          } else {
-                            // Focus on family plot position
-                            const [w, s, e, n] = farmBBox(farm)
-                            const dw = e - w
-                            const dh = n - s
-                            let cLat = farm.lat
-                            let cLon = farm.lon
-                            if (h.id === 'rel1') { cLat = n + dh * 0.45; cLon = (w + e) / 2 }
-                            if (h.id === 'rel2') { cLat = (n + s) / 2; cLon = e + dw * 0.45 }
-                            if (h.id === 'rel3') { cLat = s - dh * 0.45; cLon = (w + e) / 2 }
-                            if (h.id === 'rel4') { cLat = (n + s) / 2; cLon = w - dw * 0.45 }
-                            mapObj?.setView([cLat, cLon], 17, { animate: true })
-                          }
-                        }}
-                      >
-                        <span className="ix-family-bullet" style={{ background: h.color }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <b style={{ fontSize: 11, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {h.name}
-                            </b>
-                            <span style={{ fontSize: 9, fontWeight: 700, color: h.color }}>
-                              {h.surveyNo}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: '#64748b' }}>
-                            <span>{h.relation}</span>
-                            <b>{h.areaHa.toFixed(2)} ha ({((h.areaHa) * 2.471).toFixed(2)} ac)</b>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* All Registered Landholdings of Person (Authentic User Parcels) */}
-                <div className="ix-cad-global-box">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div>
-                      <strong style={{ fontSize: 11, color: '#1e293b' }}>User Account Registered Parcels</strong>
-                      <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>
-                        {userFarmsList.length} registered parcel{userFarmsList.length > 1 ? 's' : ''} in account
-                      </span>
-                    </div>
-                    <button
-                      className="ix-cad-global-btn active"
-                      onClick={() => {
-                        const el = document.getElementById('land-records')
-                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                      }}
-                      title="Open official cadastral passbook dossier"
-                    >
-                      <Globe2 size={12} />
-                      <span>Open Dossier</span>
-                    </button>
-                  </div>
-
-                  <div className="ix-cad-parcel-list">
-                    {userFarmsList.map((f: any) => {
-                      const isCurrent = f.id === farm.id
-                      return (
-                        <div
-                          key={f.id}
-                          className={`ix-cad-parcel-item ${isCurrent ? 'current' : ''}`}
-                          onClick={() => {
-                            if (isCurrent) {
-                              const [w, s, e, n] = farmBBox(farm)
-                              mapObj?.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [50, 50], maxZoom: 18 })
-                            } else if (f.lat && f.lon) {
-                              mapObj?.setView([f.lat, f.lon], 16)
-                            }
-                          }}
-                        >
-                          <span className={`dot ${isCurrent ? 'current' : 'global'}`} />
-                          <div style={{ flex: 1 }}>
-                            <b>{f.name} {isCurrent ? '· Current AOI' : ''}</b>
-                            <small>{f.crop || 'Agricultural Field'} · {f.area ? f.area.toFixed(2) : '1.50'} ha ({((f.area || 1.5) * 2.471).toFixed(2)} ac)</small>
-                          </div>
-                          {isCurrent ? <span className="ix-tag-curr">Current</span> : <ChevronRight size={13} className="text-slate-400" />}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Official Cadastral Legend */}
-                <div className="ix-cad-legend">
-                  <span className="title">Official Cadastral Map Legend</span>
-                  <div className="items">
-                    <div><i style={{ background: '#059669', border: '1px dashed #fff' }} /><span>Primary Parcel · {displayTitleholder} ({displaySurveyNo})</span></div>
-                    <div><i style={{ background: '#0284c7', border: '1px dashed #fff' }} /><span>Elder Brother · Sy. 75/2A (Co-sharer)</span></div>
-                    <div><i style={{ background: '#d97706', border: '1px dashed #fff' }} /><span>Paternal Uncle · Sy. 75/2B (Co-sharer)</span></div>
-                    <div><i style={{ background: '#8b5cf6', border: '1px dashed #fff' }} /><span>Ancestral Joint Estate & Well · Sy. 75/3</span></div>
-                    <div><i style={{ background: '#ec4899', border: '1px dashed #fff' }} /><span>Cousin / Family Member · Sy. 75/4</span></div>
-                    <div><i style={{ background: '#ffffff', border: '2px solid #059669', borderRadius: '50%' }} /><span>Revenue Triangulation Boundary Stone</span></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <GeeAgentCenter
+                <GeeAgentCenter
           farm={farm}
           isOpen={geeCenterOpen}
           onClose={() => setGeeCenterOpen(false)}

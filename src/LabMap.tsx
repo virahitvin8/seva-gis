@@ -29,28 +29,71 @@ function niceScale(widthM: number) {
 }
 
 export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend, opacity = 1, marks, caption, highlightAoi = false, crisp = false }: { farm: Farm; scene?: Scene; overlay?: string; geeTileUrl?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean; crisp?: boolean }) {
-  const { zoom: syncedZoom, padFactor } = useGlobalZoom(15)
   const spots = useWeakSpots(farm, scene), weak = marks ?? spots
   const [w, s, e, n] = farmBBox(farm)
-  // Dynamic pad factor directly synchronized with main map zoom level
-  const pad = padFactor, dw = (e - w) * pad, dh = (n - s) * pad
+
+  // Remote Field Review Scale: Fixed 19x precision zoom with Area of Interest strictly centered
+  const pad = 0.075 // Tight 19x framing
+  const dw = (e - w) * pad, dh = (n - s) * pad
   const bb = [w - dw, s - dh, e + dw, n + dh], cos = Math.cos(((s + n) / 2) * Math.PI / 180)
   const wm = (bb[2] - bb[0]) * 111320 * cos, hm = (bb[3] - bb[1]) * 111320
   const W = 1024, H = Math.min(1280, Math.round(W * (hm / wm)))
   const ctx = `${ESRI_EXPORT}?bbox=${bb.join(',')}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`
   const X = (lon: number) => ((lon - bb[0]) / (bb[2] - bb[0])) * 100, Y = (lat: number) => ((bb[3] - lat) / (bb[3] - bb[1])) * 100
   const ring = farmRing(farm)
-  const scaleM = niceScale(wm), scaleW = (scaleM / wm) * 100
+  const scaleM = niceScale(wm), scaleW = Math.min(22, (scaleM / wm) * 100)
   const maskId = `aoi-mask-${farm.id}-${title.replace(/\W+/g, '')}`
 
+  // Interactive Sliding Loupe Inspection Window & Point Count Controls
+  const [pointsMode, setPointsMode] = useState<'off' | 'window' | 'show'>('off')
+  const [pointCount, setPointCount] = useState<number>(3)
+  const [loupePos, setLoupePos] = useState<{ x: number; y: number } | null>(null)
+  const [isHovering, setIsHovering] = useState(false)
+  const stageRef = useRef<HTMLDivElement>(null)
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!stageRef.current) return
+    const rect = stageRef.current.getBoundingClientRect()
+    const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+    const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+    setLoupePos({ x: xPct, y: yPct })
+  }
+
+  const activePoints = weak.slice(0, pointCount)
+  const visiblePoints = pointsMode === 'off'
+    ? []
+    : pointsMode === 'show'
+      ? activePoints
+      : activePoints.filter(p => {
+          if (!loupePos) return false
+          const px = X(p.lon), py = Y(p.lat)
+          const dist = Math.hypot(px - loupePos.x, py - loupePos.y)
+          return dist <= 14 // Visible within sliding inspection window radius
+        })
+
   return <figure className="ge-fig lab-map">
-    <div className="lab-stage" style={{ aspectRatio: `${W} / ${H}` }}>
+    <div
+      ref={stageRef}
+      className="lab-stage"
+      style={{ aspectRatio: `${W} / ${H}`, position: 'relative', overflow: 'hidden' }}
+      onPointerMove={handlePointerMove}
+      onPointerEnter={() => setIsHovering(true)}
+      onPointerLeave={() => { setIsHovering(false); setLoupePos(null) }}
+    >
       <CtxImage url={ctx} bb={bb} W={W} H={H}/>
-      <div className="lab-zoom-indicator" title={`Synchronized from main map zoom (${syncedZoom.toFixed(1)}x)`}>
-        Zoom {syncedZoom.toFixed(1)}x · Synced
+      
+      {/* 19x Zoom Indicator (Strictly Centered Framing) */}
+      <div
+        className="lab-zoom-indicator"
+        title="High-definition 19x zoom framing with Area of Interest strictly centered in middle"
+        style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)', color: '#38bdf8', border: '1px solid #0284c7', borderRadius: 4, zIndex: 30 }}
+      >
+        Scale 19x · AOI Centered
       </div>
+
       {geeTileUrl && <GeeTileCanvas tileUrl={geeTileUrl} bb={bb} W={W} H={H} ring={ring} opacity={opacity} />}
       {!geeTileUrl && overlay && <img className={`lab-over ${crisp ? 'crisp' : ''}`} src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
+      
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="lab-svg">
         <defs>
           <mask id={maskId}>
@@ -65,23 +108,125 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
           points={ring.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')}
           fill="none"
           stroke="#ffffff"
-          strokeWidth="2.5"
+          strokeWidth="2.4"
           vectorEffect="non-scaling-stroke"
           style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))' }}
         />
       </svg>
-      {weak.map((p, i) => <span key={i} className="lab-weak" style={{ left: `${X(p.lon)}%`, top: `${Y(p.lat)}%` }} title={`Weak spot ${i + 1}: ${p.ha.toFixed(2)} ha, ${p.signature}`}>{i + 1}</span>)}
-      <div className="lab-title">{title}</div>
-      <div className="lab-north" aria-label="North"><b>N</b><svg viewBox="0 0 20 28"><path d="M10 1 L18 26 L10 20 L2 26 Z" fill="#fff" stroke="#10241b" strokeWidth="1.5"/></svg></div>
-      <div className="lab-scale" style={{ width: `${scaleW}%` }}><i/><span>{scaleM >= 1000 ? `${scaleM / 1000} km` : `${scaleM} m`}</span></div>
+
+      {/* Movable Sliding Inspection Loupe Window */}
+      {pointsMode === 'window' && loupePos && isHovering && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${loupePos.x}%`,
+            top: `${loupePos.y}%`,
+            width: '28%',
+            aspectRatio: '1/1',
+            transform: 'translate(-50%, -50%)',
+            borderRadius: '50%',
+            border: '2.5px solid #38bdf8',
+            boxShadow: '0 0 0 9999px rgba(11, 19, 26, 0.45), 0 0 20px rgba(56, 189, 248, 0.6)',
+            pointerEvents: 'none',
+            zIndex: 25,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{ position: 'absolute', top: 6, fontSize: 9.5, fontWeight: 700, color: '#38bdf8', background: 'rgba(15,23,42,0.85)', padding: '1px 6px', borderRadius: 4 }}>
+            Sliding Inspection Loupe
+          </div>
+        </div>
+      )}
+
+      {/* Inspection Numbers (1..5) - Only visible when turned ON or inside sliding inspection window */}
+      {visiblePoints.map((p, i) => (
+        <span
+          key={i}
+          className="lab-weak"
+          style={{ left: `${X(p.lon)}%`, top: `${Y(p.lat)}%`, zIndex: 28 }}
+          title={`Inspection Zone ${i + 1}: ${p.ha.toFixed(2)} ha, ${p.signature}`}
+        >
+          {i + 1}
+        </span>
+      ))}
+
+      {/* Non-overlapping Carto Frame Overlays: auto-scaled to corners */}
+      <div className="lab-title" style={{ maxWidth: '38%', fontSize: 'clamp(9px, 1.1vw, 11px)', lineHeight: 1.25, zIndex: 20 }}>
+        {title}
+      </div>
+      <div className="lab-north" aria-label="North" style={{ zIndex: 20 }}>
+        <b>N</b>
+        <svg viewBox="0 0 20 28"><path d="M10 1 L18 26 L10 20 L2 26 Z" fill="#fff" stroke="#10241b" strokeWidth="1.5"/></svg>
+      </div>
+      <div className="lab-scale" style={{ width: `${scaleW}%`, zIndex: 20 }}>
+        <i/>
+        <span>{scaleM >= 1000 ? `${scaleM / 1000} km` : `${scaleM} m`}</span>
+      </div>
     </div>
-    <div className="lab-how"><b>How to read this map.</b> {note}{weak.length > 0 && <> <span className="lab-weak inline">1</span> Numbered red dots mark vulnerable spots: the weakest patches of your farm, to walk and check first.</>}</div>
+
+    {/* Interactive Remote Field Review Controls: Sliding Loupe Window & Point Counts */}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, padding: '7px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, margin: '8px 0 4px', fontSize: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700, color: '#475569' }}>Inspection Window &amp; Points:</span>
+        <button
+          type="button"
+          onClick={() => setPointsMode(m => m === 'off' ? 'window' : m === 'window' ? 'show' : 'off')}
+          style={{
+            fontSize: 11,
+            padding: '3px 8px',
+            borderRadius: 5,
+            fontWeight: 700,
+            cursor: 'pointer',
+            background: pointsMode === 'window' ? '#0284c7' : pointsMode === 'show' ? '#15803d' : '#ffffff',
+            color: pointsMode === 'off' ? '#475569' : '#ffffff',
+            border: pointsMode === 'off' ? '1px solid #cbd5e1' : '1px solid transparent'
+          }}
+        >
+          {pointsMode === 'off' ? '● Points Hidden' : pointsMode === 'window' ? '🔍 Sliding Window Loupe' : '✓ All Numbers Displayed'}
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ fontSize: 10.5, color: '#64748b' }}>Count:</span>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button
+            key={n}
+            type="button"
+            disabled={pointsMode === 'off'}
+            onClick={() => setPointCount(n)}
+            style={{
+              padding: '2px 6px',
+              fontSize: 10.5,
+              borderRadius: 4,
+              cursor: pointsMode === 'off' ? 'not-allowed' : 'pointer',
+              opacity: pointsMode === 'off' ? 0.45 : 1,
+              background: pointCount === n ? '#0f172a' : '#ffffff',
+              color: pointCount === n ? '#ffffff' : '#334155',
+              border: pointCount === n ? '1px solid #0f172a' : '1px solid #cbd5e1',
+              fontWeight: 700
+            }}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div className="lab-how">
+      <b>How to read this map.</b> {note}
+      {weak.length > 0 && pointsMode !== 'off' && (
+        <> <span className="lab-weak inline">1</span> Numbered inspection markers highlight low-vigor zones within the analyzed Area of Interest (AOI) to prioritize for on-ground verification.</>
+      )}
+    </div>
+    
     {legend && (
       <div className="lab-legend-header-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', margin: '8px 0' }}>
         <ul className="lab-legend" style={{ margin: 0 }}>{legend.map(l => <li key={l.label}><i style={{ background: l.color }}/>{l.label}</li>)}</ul>
       </div>
     )}
-    <figcaption>{caption ?? `${title} · Sentinel-2 ${scene?.datetime.slice(0, 10) ?? ''} · background Esri World Imagery`}</figcaption>
+    <figcaption>{caption ?? `${title} · Sentinel-2 ${scene?.datetime.slice(0, 10) ?? ''} · background Esri World Imagery (Zoom 19x)`}</figcaption>
   </figure>
 }
 

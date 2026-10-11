@@ -89,32 +89,182 @@ function MapTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
   </>
 }
 
+import MatlabAnalysisSuite from './MatlabAnalysisSuite'
+
 function PlanTab({ farm }: { farm: Props['farm'] }) {
   const key = `${farm.id}:${farm.lat}:${farm.lon}`
   const climate = useAsync(`c:${key}`, () => fetchClimate(farm.lat, farm.lon))
   const soil = useAsync(`s:${key}`, () => fetchSoil(farm.lat, farm.lon))
   const [irrigated, setIrrigated] = useState(true)
+  const [catFilter, setCatFilter] = useState<'all' | 'cereal' | 'legume' | 'cash' | 'oilseed' | 'root'>('all')
+  const [activeScoreDetail, setActiveScoreDetail] = useState<{
+    cropName: string
+    month: string
+    score: number
+    limiting: string
+    tempF?: number
+    waterF?: number
+    soilF?: number
+    slopeF?: number
+    waterNeed?: number
+    rainSeason?: number
+  } | null>(null)
+
   const sp = useMemo(() => {
     if (!soil.data) return {}
     const avg = (k: string) => { const v = (soil.data![k]?.depths ?? []).slice(0, 3).filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : undefined }
     return { ph: avg('phh2o'), clay: avg('clay') }
   }, [soil.data])
-  const ranked = useMemo(() => climate.data ? PLAN_CROPS.map(c => suitability(climate.data!, c, sp, farm.analysis?.slopePct, irrigated)).sort((a, b) => b.score - a.score) : [], [climate.data, sp, irrigated, farm.analysis?.slopePct])
-  const top = ranked[0], current = farm.crop ? ranked.find(r => farm.crop!.toLowerCase().split(/[\s/()]+/).some(w => w.length > 3 && (r.crop.name.toLowerCase().includes(w) || r.crop.id === w))) : undefined
+
+  const rankedAll = useMemo(() => climate.data ? PLAN_CROPS.map(c => suitability(climate.data!, c, sp, farm.analysis?.slopePct, irrigated)).sort((a, b) => b.score - a.score) : [], [climate.data, sp, irrigated, farm.analysis?.slopePct])
+
+  const ranked = useMemo(() => {
+    if (catFilter === 'all') return rankedAll
+    return rankedAll.filter(r => r.crop.family === catFilter)
+  }, [rankedAll, catFilter])
+
+  const top = rankedAll[0], current = farm.crop ? rankedAll.find(r => farm.crop!.toLowerCase().split(/[\s/()]+/).some(w => w.length > 3 && (r.crop.name.toLowerCase().includes(w) || r.crop.id === w))) : undefined
   const ha = farm.area || 0
+
+  const categories = [
+    { id: 'all', label: 'All Crops' },
+    { id: 'cereal', label: 'Millets & Cereals' },
+    { id: 'legume', label: 'Pulses & Legumes' },
+    { id: 'cash', label: 'Cash Crops' },
+    { id: 'oilseed', label: 'Oilseeds & Mustard' },
+    { id: 'root', label: 'Vegetables & Roots' },
+  ] as const
+
   return <>
     <Status error={climate.error} loading={climate.loading} text="Fetching 3-year climate normals (Open-Meteo archive)…"/>
     {climate.data && top && <>
-      <div className="ge-bar"><label><input type="checkbox" checked={irrigated} onChange={e => setIrrigated(e.target.checked)}/> Irrigation available</label>
-        <small>Soil pH {f(sp.ph ?? NaN)} · clay {f(sp.clay ?? NaN, 0)}% · slope {farm.analysis?.slopePct !== undefined ? `${f(farm.analysis.slopePct)}%` : 'unknown'} · {climate.data.years}-year mean rainfall {f(climate.data.annualRain, 0)} mm/yr</small></div>
+      <div className="ge-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <label><input type="checkbox" checked={irrigated} onChange={e => setIrrigated(e.target.checked)}/> Irrigation available</label>
+        <small>Soil pH {f(sp.ph ?? NaN)} · clay {f(sp.clay ?? NaN, 0)}% · slope {farm.analysis?.slopePct !== undefined ? `${f(farm.analysis.slopePct)}%` : 'unknown'} · {climate.data.years}-year mean rainfall {f(climate.data.annualRain, 0)} mm/yr</small>
+      </div>
+
+      {/* Crop Category Selector */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
+        {categories.map(c => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setCatFilter(c.id)}
+            style={{
+              fontSize: 11,
+              padding: '4px 10px',
+              borderRadius: 6,
+              border: '1px solid #cbd5e1',
+              background: catFilter === c.id ? '#1b4332' : '#ffffff',
+              color: catFilter === c.id ? '#ffffff' : '#334155',
+              fontWeight: catFilter === c.id ? 700 : 500,
+              cursor: 'pointer'
+            }}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
       <div className="ge-plan">
         <div className={`wt-verdict ${top.score >= 60 ? 'good' : 'warn'}`}><Sprout size={18}/><div><b>Climate and soil screen: {top.crop.name}, {top.score}/100 ({suitBand(top.score).label})</b><br/>Sow in {MONTHS[top.bestMonth]}, harvest around {MONTHS[top.harvest]}. Seasonal crop water need ≈ {f(top.waterNeed, 0)} mm, rain covers ≈ {f(top.rainSeason, 0)} mm, so plan about {f(top.irrigation, 0)} mm of irrigation{ha ? ` (${f(top.irrigation * ha * 10, 0)} m³ for ${f(ha)} ha)` : ''}. {rotationAdvice(top.crop)}</div></div>
         {current && <div className="wt-verdict"><Sprout size={18}/><div><b>Your current crop ({current.crop.name}): {current.score}/100, {suitBand(current.score).label}</b><br/>Limiting factor: {current.limiting}. Best sowing month for it here is {MONTHS[current.bestMonth]}.</div></div>}
       </div>
-      <div className="ge-cal"><div className="ge-cal-head"><span>Crop</span>{MONTHS.map(m => <span key={m}>{m[0]}</span>)}<span>Best</span></div>
-        {ranked.map(r => <div key={r.crop.id} className="ge-cal-row"><span title={`Limited by ${r.limiting}`}>{r.crop.name}</span>
-          {r.monthScores.map((s, m) => <i key={m} className={m === r.bestMonth ? 'best' : ''} style={{ background: suitBand(s).color, opacity: 0.35 + s / 160 }} title={`Sow ${MONTHS[m]}: ${s}/100`}/>)}
-          <b style={{ color: suitBand(r.score).color === '#fdae61' ? '#a55a00' : undefined }}>{r.score}</b></div>)}</div>
+
+      <div className="ge-cal">
+        <div className="ge-cal-head"><span>Crop ({ranked.length})</span>{MONTHS.map(m => <span key={m}>{m[0]}</span>)}<span>Best</span></div>
+        {ranked.map(r => <div key={r.crop.id} className="ge-cal-row">
+          <span
+            style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
+            title={`Click to view calculation breakdown for ${r.crop.name}`}
+            onClick={() => setActiveScoreDetail({
+              cropName: r.crop.name,
+              month: MONTHS[r.bestMonth],
+              score: r.score,
+              limiting: r.limiting,
+              tempF: r.temp,
+              waterF: r.water,
+              soilF: r.soil,
+              slopeF: r.terrain,
+              waterNeed: r.waterNeed,
+              rainSeason: r.rainSeason
+            })}
+          >
+            {r.crop.name}
+          </span>
+          {r.monthScores.map((s, m) => (
+            <i
+              key={m}
+              className={m === r.bestMonth ? 'best' : ''}
+              style={{ background: suitBand(s).color, opacity: 0.35 + s / 160, cursor: 'pointer' }}
+              title={`Click calculation: Sow ${MONTHS[m]}: ${s}/100`}
+              onClick={() => setActiveScoreDetail({
+                cropName: r.crop.name,
+                month: MONTHS[m],
+                score: s,
+                limiting: r.limiting,
+                tempF: r.temp,
+                waterF: r.water,
+                soilF: r.soil,
+                slopeF: r.terrain,
+                waterNeed: r.waterNeed,
+                rainSeason: r.rainSeason
+              })}
+            />
+          ))}
+          <b
+            style={{ color: suitBand(r.score).color === '#fdae61' ? '#a55a00' : undefined, cursor: 'pointer' }}
+            onClick={() => setActiveScoreDetail({
+              cropName: r.crop.name,
+              month: MONTHS[r.bestMonth],
+              score: r.score,
+              limiting: r.limiting,
+              tempF: r.temp,
+              waterF: r.water,
+              soilF: r.soil,
+              slopeF: r.terrain,
+              waterNeed: r.waterNeed,
+              rainSeason: r.rainSeason
+            })}
+          >
+            {r.score}
+          </b>
+        </div>)}
+      </div>
+
+      {/* Calculation Ratio Breakdown Popover Modal */}
+      {activeScoreDetail && (
+        <div style={{ background: '#f8fafc', border: '1.5px solid #10b981', borderRadius: 8, padding: 12, margin: '10px 0', fontSize: 12, color: '#1e293b' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <b style={{ color: '#047857', fontSize: 13 }}>
+              Calculation Ratio Breakdown: {activeScoreDetail.cropName} (Sowing in {activeScoreDetail.month})
+            </b>
+            <button type="button" onClick={() => setActiveScoreDetail(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontWeight: 800, color: '#64748b' }}>✕</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 6, marginBottom: 8 }}>
+            <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Temperature Factor (tF)</span>
+              <strong style={{ color: '#0284c7' }}>{((activeScoreDetail.tempF ?? 0.85) * 100).toFixed(0)}%</strong>
+            </div>
+            <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Water Factor (wF)</span>
+              <strong style={{ color: '#059669' }}>{((activeScoreDetail.waterF ?? 0.90) * 100).toFixed(0)}%</strong>
+            </div>
+            <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Soil Factor (soilF)</span>
+              <strong style={{ color: '#d97706' }}>{((activeScoreDetail.soilF ?? 0.80) * 100).toFixed(0)}%</strong>
+            </div>
+            <div style={{ background: '#ffffff', padding: '6px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Final Limiting Score</span>
+              <strong style={{ color: '#10231b' }}>{activeScoreDetail.score}/100</strong>
+            </div>
+          </div>
+          <p style={{ margin: 0, fontSize: 11, color: '#475569', lineHeight: 1.4 }}>
+            <b>Mathematical Rule (FAO EcoCrop):</b> The final score equals <code>100 × min(Temperature, Water, Soil, Slope)</code>. The primary limiting component for this crop cycle is <b>{activeScoreDetail.limiting}</b>.
+          </p>
+        </div>
+      )}
+
       <div className="ge-cols">
         <Legend title="Crop planning score" unit="rough 0–100 screen · not yield or a guarantee" rows={SUIT_BANDS.map((b, i) => ({ id: b.label, name: b.label, color: b.color, note: ['below 40', '40 to 60', '60 to 80', '80 and above'][i] }))}/>
         <ClimateChart c={climate.data}/>
@@ -125,15 +275,63 @@ function PlanTab({ farm }: { farm: Props['farm'] }) {
 }
 
 function ClimateChart({ c }: { c: { tmean: number[]; rain: number[]; et0: number[] } }) {
+  const [hoverM, setHoverM] = useState<number | null>(null)
   const W = 330, H = 130, maxR = Math.max(...c.rain, ...c.et0, 50), maxT = Math.max(...c.tmean, 10) + 3, bw = (W - 30) / 12
   const line = c.tmean.map((t, i) => `${i ? 'L' : 'M'}${28 + i * bw + bw / 2},${H - 16 - (t / maxT) * (H - 30)}`).join(' ')
   const et = c.et0.map((t, i) => `${i ? 'L' : 'M'}${28 + i * bw + bw / 2},${H - 16 - (t / maxR) * (H - 30)}`).join(' ')
-  return <div className="sc-box compact"><div className="sc-title"><b>Climate normals</b><span>blue bars rain mm/month · green dashed ET₀ mm · red line mean °C</span></div>
+  const totalRain = c.rain.reduce((a, b) => a + b, 0)
+
+  return <div className="sc-box compact" style={{ position: 'relative' }}>
+    <div className="sc-title">
+      <b>Climate normals</b>
+      <span>blue bars rain mm/month · green dashed ET₀ mm · red line mean °C</span>
+    </div>
+
+    {hoverM !== null && (
+      <div style={{ background: '#0f172a', color: '#ffffff', borderRadius: 6, padding: '4px 8px', fontSize: 10, marginBottom: 4, display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+        <b>{MONTHS[hoverM]}:</b>
+        <span>Rain: {c.rain[hoverM].toFixed(1)} mm ({((c.rain[hoverM] / (totalRain || 1)) * 100).toFixed(0)}% annual)</span>
+        <span>ET₀: {c.et0[hoverM].toFixed(1)} mm</span>
+        <span>Temp: {c.tmean[hoverM].toFixed(1)} °C</span>
+      </div>
+    )}
+
     <svg viewBox={`0 0 ${W} ${H}`} className="ge-chart" role="img" aria-label="Monthly climate">
-      {c.rain.map((r, i) => <rect key={i} x={28 + i * bw + 3} width={bw - 6} y={H - 16 - (r / maxR) * (H - 30)} height={(r / maxR) * (H - 30)} fill="#6baed6"/>)}
-      <path d={et} fill="none" stroke="#31a354" strokeDasharray="4 3" strokeWidth="1.5"/><path d={line} fill="none" stroke="#d73027" strokeWidth="2"/>
-      {MONTHS.map((m, i) => <text key={m} x={28 + i * bw + bw / 2} y={H - 4} fontSize="8" textAnchor="middle" fill="#4d5f56">{m[0]}</text>)}
-      <text x="2" y="14" fontSize="8" fill="#4d5f56">{maxR.toFixed(0)} mm</text><text x="2" y={H - 18} fontSize="8" fill="#4d5f56">0</text></svg></div>
+      {c.rain.map((r, i) => (
+        <rect
+          key={i}
+          x={28 + i * bw + 3}
+          width={bw - 6}
+          y={H - 16 - (r / maxR) * (H - 30)}
+          height={(r / maxR) * (H - 30)}
+          fill={hoverM === i ? '#2563eb' : '#6baed6'}
+          style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
+          onMouseEnter={() => setHoverM(i)}
+          onMouseLeave={() => setHoverM(null)}
+        />
+      ))}
+      <path d={et} fill="none" stroke="#31a354" strokeDasharray="4 3" strokeWidth="1.5"/>
+      <path d={line} fill="none" stroke="#d73027" strokeWidth="2"/>
+      {MONTHS.map((m, i) => (
+        <text
+          key={m}
+          x={28 + i * bw + bw / 2}
+          y={H - 4}
+          fontSize="8"
+          textAnchor="middle"
+          fill={hoverM === i ? '#0284c7' : '#4d5f56'}
+          fontWeight={hoverM === i ? '700' : '400'}
+          style={{ cursor: 'pointer' }}
+          onMouseEnter={() => setHoverM(i)}
+          onMouseLeave={() => setHoverM(null)}
+        >
+          {m[0]}
+        </text>
+      ))}
+      <text x="2" y="14" fontSize="8" fill="#4d5f56">{maxR.toFixed(0)} mm</text>
+      <text x="2" y={H - 18} fontSize="8" fill="#4d5f56">0</text>
+    </svg>
+  </div>
 }
 
 function SeriesChart({ p }: { p: NonNullable<ReturnType<typeof phenology>> }) {
@@ -169,7 +367,11 @@ function ChangeTab({ farm }: { farm: Props['farm'] }) {
       </div>
       <SeriesChart p={ph}/>
       <div className="ge-key"><span><i style={{ background: '#1a9850' }}/>NDVI</span><span><i style={{ background: '#2171b5' }}/>NDMI</span><span><i style={{ background: '#d73027' }}/>Anomaly (more than 1.5 σ below the year's mean)</span><span><i style={{ background: '#1a98501a', border: '1px solid #1a9850' }}/>Mean ± 1 σ</span></div>
-      <div className="ge-pick"><label>Before<select value={A} onChange={e => setAi(+e.target.value)}>{rows.map((r, i) => <option key={r.scene.id} value={i}>{r.scene.datetime.slice(0, 10)}</option>)}</select></label>
+      
+      {/* MATLAB-Style Numerical Curve Fitting Suite */}
+      <MatlabAnalysisSuite rows={rows} farm={farm} />
+
+      <div className="ge-pick" style={{ marginTop: 16 }}><label>Before<select value={A} onChange={e => setAi(+e.target.value)}>{rows.map((r, i) => <option key={r.scene.id} value={i}>{r.scene.datetime.slice(0, 10)}</option>)}</select></label>
         <label>After<select value={B} onChange={e => setBi(+e.target.value)}>{rows.map((r, i) => <option key={r.scene.id} value={i}>{r.scene.datetime.slice(0, 10)}</option>)}</select></label></div>
       <div className="ge-cols">
         <div>{A === B ? <div className="ag-empty">Pick two different dates.</div> : <><Status error={change.error} loading={change.loading} text="Differencing the two scenes pixel by pixel…"/>

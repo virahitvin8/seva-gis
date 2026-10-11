@@ -3523,3 +3523,18 @@ canvas.seva-raster-canvas,
 .lab-over {
   image-rendering: auto !important;
 }
+
+@keyframes sevaTrainPulse {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -120px;
+  }
+}
+
+.seva-train-pulse {
+  stroke-dasharray: 12 18 !important;
+  animation: sevaTrainPulse 1.2s linear infinite !important;
+  filter: drop-shadow(0 0 6px #38bdf8) !important;
+}

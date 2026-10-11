@@ -200,23 +200,23 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         if (u?.name && u.name !== 'Guest') return u.name
       }
     } catch {}
-    return 'Akshit Vinay'
-  }, [savedCadastre])
+    return farm.name || 'Field Parcel'
+  }, [savedCadastre, farm.name])
 
   const displayTitleholder = defaultOwnerName
-  const displayFatherName = savedCadastre?.fatherName?.trim() || 'Ramadhar Vinay (Ancestral Estate)'
-  const displayKhataNo = savedCadastre?.khataNo?.trim() || 'Khata No. 104/A'
-  const displaySurveyNo = savedCadastre?.surveyOrTaxParcelNo?.trim() || 'Sy. No. 36/1'
+  const displayFatherName = savedCadastre?.fatherName?.trim() || ''
+  const displayKhataNo = savedCadastre?.khataNo?.trim() || ''
+  const displaySurveyNo = savedCadastre?.surveyOrTaxParcelNo?.trim() || ''
 
   const [cadastreEditForm, setCadastreEditForm] = useState({
     ownerName: displayTitleholder,
     fatherName: displayFatherName,
     surveyNo: displaySurveyNo,
     khataNo: displayKhataNo,
-    rel1Name: 'Elder Brother / Sah-Khatedar',
-    rel2Name: 'Paternal Uncle / Relative',
-    rel3Name: 'Ancestral Joint Khata',
-    rel4Name: 'Cousin / Family Co-sharer',
+    rel1Name: savedCadastre?.rel1Name || '',
+    rel2Name: savedCadastre?.rel2Name || '',
+    rel3Name: savedCadastre?.rel3Name || '',
+    rel4Name: savedCadastre?.rel4Name || '',
   })
 
   useEffect(() => {
@@ -225,10 +225,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       fatherName: displayFatherName,
       surveyNo: displaySurveyNo,
       khataNo: displayKhataNo,
-      rel1Name: savedCadastre?.rel1Name || 'Elder Brother / Sah-Khatedar',
-      rel2Name: savedCadastre?.rel2Name || 'Paternal Uncle / Relative',
-      rel3Name: savedCadastre?.rel3Name || 'Ancestral Joint Khata',
-      rel4Name: savedCadastre?.rel4Name || 'Cousin / Family Co-sharer',
+      rel1Name: savedCadastre?.rel1Name || '',
+      rel2Name: savedCadastre?.rel2Name || '',
+      rel3Name: savedCadastre?.rel3Name || '',
+      rel4Name: savedCadastre?.rel4Name || '',
     })
   }, [farm.id, displayTitleholder, displayFatherName, displaySurveyNo, displayKhataNo, savedCadastre])
 
@@ -237,10 +237,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     try {
       const payload = {
         ...savedCadastre,
-        ownerName: cadastreEditForm.ownerName.trim() || 'Akshit Vinay',
-        fatherName: cadastreEditForm.fatherName.trim() || 'Ramadhar Vinay (Ancestral Estate)',
-        surveyOrTaxParcelNo: cadastreEditForm.surveyNo.trim() || 'Sy. No. 36/1',
-        khataNo: cadastreEditForm.khataNo.trim() || 'Khata No. 104/A',
+        ownerName: cadastreEditForm.ownerName.trim() || farm.name || 'Field Parcel',
+        fatherName: cadastreEditForm.fatherName.trim(),
+        surveyOrTaxParcelNo: cadastreEditForm.surveyNo.trim(),
+        khataNo: cadastreEditForm.khataNo.trim(),
         rel1Name: cadastreEditForm.rel1Name.trim(),
         rel2Name: cadastreEditForm.rel2Name.trim(),
         rel3Name: cadastreEditForm.rel3Name.trim(),
@@ -256,18 +256,25 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
   }
 
-  // Family holdings and co-sharers (Exact official demo & ancestral estate ledger)
+  // Landholdings breakdown (Strictly user-entered records, zero mock demo data)
   const familyLandholdings = useMemo(() => {
-    const isDefaultOrDemo = !farm.polygon || farm.polygon.length < 3 || Math.abs(farm.area - 0.66) < 0.05 || (farm as any).sample
-    const baseHa = isDefaultOrDemo ? 0.66 : areaHa(farmRing(farm))
-    const scale = baseHa / 0.66
-    return [
-      { id: 'self', title: `${farm.name} · Certified AOI`, name: `${displayTitleholder} (Self)`, relation: 'Primary Applicant & Certified Pattadar', surveyNo: displaySurveyNo, areaHa: Number(baseHa.toFixed(2)), color: '#059669', role: 'Primary Titleholder' },
-      { id: 'rel1', title: 'North Parcel', name: savedCadastre?.rel1Name || cadastreEditForm.rel1Name || 'Elder Brother / Sah-Khatedar', relation: 'Elder Brother / Sah-Khatedar', surveyNo: 'Sy. 75/2A', areaHa: isDefaultOrDemo ? 0.87 : Number((0.87 * scale).toFixed(2)), color: '#0284c7', role: 'Co-sharer (North)' },
-      { id: 'rel2', title: 'East Parcel', name: savedCadastre?.rel2Name || cadastreEditForm.rel2Name || 'Paternal Uncle / Relative', relation: 'Paternal Uncle / Relative', surveyNo: 'Sy. 75/2B', areaHa: isDefaultOrDemo ? 0.75 : Number((0.75 * scale).toFixed(2)), color: '#d97706', role: 'Co-sharer (East)' },
-      { id: 'rel3', title: 'South Parcel', name: savedCadastre?.rel3Name || cadastreEditForm.rel3Name || 'Ancestral Joint Khata', relation: 'Ancestral Joint Estate & Well', surveyNo: 'Sy. 75/3', areaHa: isDefaultOrDemo ? 0.98 : Number((0.98 * scale).toFixed(2)), color: '#8b5cf6', role: 'Ancestral Joint Khata' },
-      { id: 'rel4', title: 'West Parcel', name: savedCadastre?.rel4Name || cadastreEditForm.rel4Name || 'Cousin / Family Co-sharer', relation: 'Cousin / Family Co-sharer', surveyNo: 'Sy. 75/4', areaHa: isDefaultOrDemo ? 0.72 : Number((0.72 * scale).toFixed(2)), color: '#ec4899', role: 'Family Member (West)' },
+    const baseHa = areaHa(farmRing(farm))
+    const list = [
+      { id: 'self', title: `${farm.name} · Registered AOI`, name: `${displayTitleholder} (Primary)`, relation: 'Primary Registered Holding', surveyNo: displaySurveyNo || 'Registered AOI', areaHa: Number(baseHa.toFixed(2)), color: '#059669', role: 'Primary Titleholder' }
     ]
+    if (savedCadastre?.rel1Name || cadastreEditForm.rel1Name) {
+      list.push({ id: 'rel1', title: 'Adjoining Parcel 1', name: savedCadastre?.rel1Name || cadastreEditForm.rel1Name, relation: 'Registered Co-sharer', surveyNo: 'Co-holding 1', areaHa: 0, color: '#0284c7', role: 'Co-sharer' })
+    }
+    if (savedCadastre?.rel2Name || cadastreEditForm.rel2Name) {
+      list.push({ id: 'rel2', title: 'Adjoining Parcel 2', name: savedCadastre?.rel2Name || cadastreEditForm.rel2Name, relation: 'Registered Co-sharer', surveyNo: 'Co-holding 2', areaHa: 0, color: '#d97706', role: 'Co-sharer' })
+    }
+    if (savedCadastre?.rel3Name || cadastreEditForm.rel3Name) {
+      list.push({ id: 'rel3', title: 'Joint Parcel 3', name: savedCadastre?.rel3Name || cadastreEditForm.rel3Name, relation: 'Joint Holding', surveyNo: 'Joint Khata', areaHa: 0, color: '#8b5cf6', role: 'Joint Estate' })
+    }
+    if (savedCadastre?.rel4Name || cadastreEditForm.rel4Name) {
+      list.push({ id: 'rel4', title: 'Adjoining Parcel 4', name: savedCadastre?.rel4Name || cadastreEditForm.rel4Name, relation: 'Family Co-sharer', surveyNo: 'Co-holding 4', areaHa: 0, color: '#ec4899', role: 'Family Member' })
+    }
+    return list
   }, [farm, displayTitleholder, displayFatherName, displaySurveyNo, savedCadastre, cadastreEditForm])
 
   const totalFamilyAreaHa = useMemo(() => {
@@ -589,7 +596,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     instance.on('click', (event: L.LeafletMouseEvent) => {
       const { lat, lng } = event.latlng
       const t = toolRef.current
-      if (t.tool === 'borewell') { addBorewell({ farmId: t.farmId, name: `Borewell ${t.n + 1}`, lat, lon: lng, depth: 90, level: 25, yieldM3h: 5, hours: 6 }); toolSet.current('none'); return }
+      if (t.tool === 'borewell') { addBorewell({ farmId: t.farmId, name: `Borewell ${t.n + 1}`, lat, lon: lng, depth: 90, level: 25, yieldM3h: 5, hours: 6 }); setTool('none'); return }
       if (t.tool === 'pipeline') { draftRef.current(d => [...d, [lng, lat]]); return }
       if (rulerOpenRef.current) return
       const values: Record<string, number> = {}
@@ -782,88 +789,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       }).bindTooltip(`Boundary Monument #${idx + 1} (${lat.toFixed(5)}°, ${lng.toFixed(5)}°)`, { direction: 'top' }).addTo(cGroup)
     })
 
-    // Centroid Badge for Primary Parcel
+    // Centroid Badge for Primary Parcel (Only show real survey number if provided)
     L.marker([farm.lat, farm.lon], {
       icon: L.divIcon({
         className: 'ix-cadastre-badge-wrap',
-        html: `<div class="cad-badge primary"><b>${displayTitleholder} (Self)</b><span>${displaySurveyNo} · ${parcelArea.toFixed(2)} ha (${(parcelArea * 2.471).toFixed(2)} ac)</span></div>`,
+        html: `<div class="cad-badge primary"><b>${displayTitleholder}</b><span>${displaySurveyNo ? displaySurveyNo + ' · ' : ''}${parcelArea.toFixed(2)} ha (${(parcelArea * 2.471).toFixed(2)} ac)</span></div>`,
         iconSize: [160, 36],
         iconAnchor: [80, 18],
       })
     }).addTo(cGroup)
-
-    // 2. Mark Ancestral & Family Members / Relatives Landholdings
-    if (showFamilyOnMap) {
-      const familyPlots = [
-        {
-          item: familyLandholdings[1], // Elder Brother
-          ring: [[n, w], [n + dh * 0.75, w + dw * 0.1], [n + dh * 0.8, e - dw * 0.1], [n, e]] as L.LatLngTuple[],
-        },
-        {
-          item: familyLandholdings[2], // Paternal Uncle
-          ring: [[n, e], [n - dh * 0.1, e + dw * 0.65], [s + dh * 0.1, e + dw * 0.7], [s, e]] as L.LatLngTuple[],
-        },
-        {
-          item: familyLandholdings[3], // Ancestral Joint Estate & Family Well
-          ring: [[s, w], [s, e], [s - dh * 0.7, e - dw * 0.15], [s - dh * 0.75, w + dw * 0.1]] as L.LatLngTuple[],
-        },
-        {
-          item: familyLandholdings[4], // Cousin / Family Co-sharer
-          ring: [[n, w], [s, w], [s + dh * 0.15, w - dw * 0.65], [n - dh * 0.1, w - dw * 0.6]] as L.LatLngTuple[],
-        },
-      ]
-
-      familyPlots.forEach(({ item, ring: fRing }) => {
-        if (!item) return
-        const cLat = fRing.reduce((sum, pt) => sum + pt[0], 0) / fRing.length
-        const cLon = fRing.reduce((sum, pt) => sum + pt[1], 0) / fRing.length
-
-        // Polygon
-        const poly = L.polygon(fRing, {
-          color: item.color,
-          weight: 2.4,
-          dashArray: '5, 4',
-          fill: true,
-          fillColor: item.color,
-          fillOpacity: 0.22,
-        }).addTo(cGroup)
-
-        poly.bindPopup(`
-          <div style="font-family: inherit; font-size: 12px; line-height: 1.5; min-width: 180px;">
-            <b style="color: ${item.color}; font-size: 13px; display: block; margin-bottom: 3px;">${item.name}</b>
-            <div><b>Relation:</b> ${item.relation}</div>
-            <div><b>Survey No:</b> ${item.surveyNo}</div>
-            <div><b>Area:</b> ${item.areaHa} ha (${(item.areaHa * 2.471).toFixed(2)} acres)</div>
-            <div style="margin-top: 4px; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 3px;">
-              Digitally verified family co-sharer cadastre
-            </div>
-          </div>
-        `)
-
-        poly.bindTooltip(`${item.name} (${item.relation}) · ${item.surveyNo} (${item.areaHa} ha)`, { sticky: true })
-
-        // Boundary monuments for family sub-division
-        fRing.forEach(([lat, lng]) => {
-          L.circleMarker([lat, lng], {
-            radius: 3.5,
-            color: '#ffffff',
-            weight: 1.5,
-            fillColor: item.color,
-            fillOpacity: 1,
-          }).addTo(cGroup)
-        })
-
-        // Centroid Badge
-        L.marker([cLat, cLon], {
-          icon: L.divIcon({
-            className: 'ix-cadastre-badge-wrap',
-            html: `<div class="cad-badge" style="background: ${item.color}; border: 1.5px solid #fff; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);"><b>${item.name.slice(0, 22)}</b><span>${item.surveyNo} · ${item.areaHa} ha</span></div>`,
-            iconSize: [140, 34],
-            iconAnchor: [70, 17],
-          })
-        }).addTo(cGroup)
-      })
-    }
 
     // 3. Fetch authentic cadastral & farmland boundaries from OpenStreetMap via Overpass API
     let abortCadastre = false
@@ -970,73 +904,23 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     setEarthEngineOverlay(null)
     setEarthEngineStatus('Requesting primary Sentinel-2 layer from Google Earth Engine…')
 
-    const layerToPreset: Record<string, 'trueColor' | 'colourInfrared' | 'agriculture' | 'swir'> = {
-      rgb: 'trueColor',
-      qgis_ortho: 'trueColor',
-      cir: 'colourInfrared',
-      agri: 'agriculture',
-      swir_rgb: 'swir',
-      moist_rgb: 'swir',
-    }
-    const targetPreset = layerToPreset[layer.id]
-
-    if (targetPreset) {
-      renderFarmSentinel2(farm, {
-        preset: targetPreset,
-        mode: sceneOpts?.mode as any,
-        startDate: sceneOpts?.date || sceneOpts?.from,
-        endDate: sceneOpts?.to,
-        maxCloud: sceneOpts?.maxCloud,
-      }, controller.signal).then(result => {
-        if (controller.signal.aborted) return
-        setEarthEngineOverlay({
-          imageUrl: result.url,
-          bounds: result.bounds,
-          layerId: primaryId!,
-          sceneKey,
-          sceneCount: String(result.scenes)
-        })
-        setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (QGIS Ortho · ${result.date} · ${result.scenes} scene${result.scenes === 1 ? '' : 's'})`)
-      }).catch(err => {
-        if (controller.signal.aborted) return
-        console.warn('QGIS on-farm render fallback to GEE tiles:', err)
-        const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
-        createEarthEngineMap({
-          farm,
-          sceneOpts: sceneOpts ?? {},
-          layer,
-          bandCombination: effectiveCombo,
-          percentileStretch: stretchDra,
-        }, controller.signal).then(result => {
-          if (controller.signal.aborted) return
-          setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
-          setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
-        }).catch(fallbackErr => {
-          if (controller.signal.aborted) return
-          setEarthEngineOverlay(null)
-          setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
-          console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', fallbackErr)
-        })
-      })
-    } else {
-      const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
-      createEarthEngineMap({
-        farm,
-        sceneOpts: sceneOpts ?? {},
-        layer,
-        bandCombination: effectiveCombo,
-        percentileStretch: stretchDra,
-      }, controller.signal).then(result => {
-        if (controller.signal.aborted) return
-        setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
-        setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
-      }).catch(error => {
-        if (controller.signal.aborted) return
-        setEarthEngineOverlay(null)
-        setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
-        console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', error)
-      })
-    }
+    const effectiveCombo = layer.rgb ? (layerToBandCombo[layer.id] || activeBandCombo || 'natural') : undefined
+    createEarthEngineMap({
+      farm,
+      sceneOpts: sceneOpts ?? {},
+      layer,
+      bandCombination: effectiveCombo,
+      percentileStretch: stretchDra,
+    }, controller.signal).then(result => {
+      if (controller.signal.aborted) return
+      setEarthEngineOverlay({ tileUrl: result.tileUrl, layerId: primaryId!, sceneKey, sceneCount: String(result.sceneCount) })
+      setEarthEngineStatus(`Google Earth Engine · Sentinel-2 L2A (Primary · ${result.sceneCount} scene${result.sceneCount === '1' ? '' : 's'})`)
+    }).catch(error => {
+      if (controller.signal.aborted) return
+      setEarthEngineOverlay(null)
+      setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
+      console.info('Earth Engine unavailable, auto-falling back to Planetary Computer:', error)
+    })
     return () => controller.abort()
   }, [active.join(), hidden.join(), geo, sceneKey, stretchDra, activeBandCombo, JSON.stringify(sceneOpts)])
 
@@ -1051,9 +935,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     if (earthEngineOverlay.imageUrl && earthEngineOverlay.bounds) {
       const overlay = L.imageOverlay(earthEngineOverlay.imageUrl, earthEngineOverlay.bounds, {
         attribution: 'Sentinel-2 L2A · Google Earth Engine (QGIS Ortho)',
-        zIndex: 260,
+        zIndex: 650,
         opacity: opacity[earthEngineOverlay.layerId] ?? 0.95,
         interactive: false,
+        className: 'seva-raster-pixels',
       }).addTo(instance)
       const el = overlay.getElement()
       if (el) {
@@ -1068,6 +953,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         zIndex: 700,
         opacity: opacity[earthEngineOverlay.layerId] ?? 1,
         crossOrigin: true,
+        className: 'seva-raster-pixels',
       })
       eeLayer.addTo(instance)
       earthEngineTiles.current = eeLayer
@@ -1129,6 +1015,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           maxZoom: 21,
           maxNativeZoom: 19,
           crossOrigin: true,
+          className: 'seva-raster-pixels',
         }).addTo(instance)
       }
       hit.layer.setOpacity(opacity[id] ?? 1)
@@ -1144,6 +1031,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     if (!instance) return
     const wanted = new Set<string>()
     active.forEach((id, index) => {
+      // If this layer is directly rendered by Earth Engine (primary or extra), yield and do not draw duplicate client fallback!
+      const isRenderedByGEE = (earthEngineOverlay && earthEngineOverlay.layerId === id && (earthEngineTiles.current != null || earthEngineImageOverlay.current != null)) ||
+                              (eeExtra.current.get(id)?.layer != null)
+      if (isRenderedByGEE) {
+        overlays.current.get(id)?.remove()
+        overlays.current.delete(id)
+        return
+      }
+
       const layer = getCachedLayer(layerKey(id))
       if (!layer || hidden.includes(id)) return
       wanted.add(id)
@@ -2370,7 +2266,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   <div>
                     <span>Khata No.</span>
                     <strong>{displayKhataNo}</strong>
-                    <small>Revenue Circle · {farm.location}</small>
+                    <small>Revenue Circle · {(farm as any).location || 'Registered Cadastre'}</small>
                   </div>
                   <div>
                     <span>14-Digit ULPIN (Bhu-Aadhaar)</span>
@@ -2417,7 +2313,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                           type="text"
                           value={cadastreEditForm.fatherName}
                           onChange={e => setCadastreEditForm({ ...cadastreEditForm, fatherName: e.target.value })}
-                          placeholder="e.g. Ramadhar Vinay"
+                          placeholder="e.g. Parent / Ancestor Name"
                         />
                       </label>
                     </div>
@@ -2449,42 +2345,42 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
                     <div className="ix-cad-input-row">
                       <label>
-                        <span>Elder Brother (North · Sy. 75/2A):</span>
+                        <span>Co-Sharer 1 (North):</span>
                         <input
                           type="text"
                           value={cadastreEditForm.rel1Name}
                           onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel1Name: e.target.value })}
-                          placeholder="e.g. Siddharth Vinay"
+                          placeholder="e.g. Co-sharer Name"
                         />
                       </label>
                       <label>
-                        <span>Paternal Uncle (East · Sy. 75/2B):</span>
+                        <span>Co-Sharer 2 (East):</span>
                         <input
                           type="text"
                           value={cadastreEditForm.rel2Name}
                           onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel2Name: e.target.value })}
-                          placeholder="e.g. Rajeshwar Vinay"
+                          placeholder="e.g. Co-sharer Name"
                         />
                       </label>
                     </div>
 
                     <div className="ix-cad-input-row">
                       <label>
-                        <span>Ancestral Estate (South · Sy. 75/3):</span>
+                        <span>Joint Estate / Khata (South):</span>
                         <input
                           type="text"
                           value={cadastreEditForm.rel3Name}
                           onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel3Name: e.target.value })}
-                          placeholder="e.g. Ramadhar Vinay & Sons Joint Khata"
+                          placeholder="e.g. Joint Estate / Khata Name"
                         />
                       </label>
                       <label>
-                        <span>Cousin / Co-sharer (West · Sy. 75/4):</span>
+                        <span>Co-Sharer 4 (West):</span>
                         <input
                           type="text"
                           value={cadastreEditForm.rel4Name}
                           onChange={e => setCadastreEditForm({ ...cadastreEditForm, rel4Name: e.target.value })}
-                          placeholder="e.g. Aarav Vinay"
+                          placeholder="e.g. Co-sharer Name"
                         />
                       </label>
                     </div>

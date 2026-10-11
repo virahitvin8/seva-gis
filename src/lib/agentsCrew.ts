@@ -82,7 +82,7 @@ export async function runAgentCrewUltrawork(farm: FarmData & { id: string; name:
   })
 
   // 2. 🌱 Precision Agronomist Agent (CoT Decision Architecture)
-  const cropName = farm.crop || 'Field Crop'
+  const cropName = (farm as any).crop || 'Field Crop'
   const isHealthy = ndviVal >= 0.5
   const nitrogenRecom = isHealthy
     ? 'Maintenance dosage: 25 kg/ha urea at tillering/flowering; foliage shows optimum nitrogen uptake.'

@@ -3509,6 +3509,13 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   white-space: nowrap;
 }
 
-
-
-
+/* 100% Authentic Satellite & Earth Engine Raster Pixelation — Zero Cartoon Blur */
+.seva-raster-pixels,
+.leaflet-image-layer,
+.leaflet-tile-container img,
+img.leaflet-tile,
+canvas.seva-raster-canvas {
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+  image-rendering: pixelated !important;
+}

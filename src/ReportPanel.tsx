@@ -21,6 +21,7 @@ import {
   Compass,
   PieChart,
   HeartHandshake,
+  ShieldCheck,
 } from 'lucide-react'
 import EmailOctopusGreetingModal from './EmailOctopusGreetingModal'
 import AoiHealthScorePie from './AoiHealthScorePie'

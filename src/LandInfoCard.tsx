@@ -42,7 +42,7 @@ import {
 export type Farm = {
   id: string
   name: string
-  location?: string
+  location: string
   area?: number
   lat: number
   lon: number
@@ -50,6 +50,9 @@ export type Farm = {
   polygon?: [number, number][]
   soil?: string
   irrigation?: string
+  status?: string
+  sample?: boolean
+  [key: string]: any
 }
 
 export type UserCustomLandRecord = {
@@ -72,8 +75,8 @@ export default function LandInfoCard({
   farm,
   onUpdateFarm
 }: {
-  farm: Farm
-  onUpdateFarm?: (updated: Farm) => void
+  farm: any
+  onUpdateFarm?: (updated: any) => void
 }) {
   const [copySuccess, setCopySuccess] = useState(false)
   const [notice, setNotice] = useState('')
@@ -89,7 +92,7 @@ export default function LandInfoCard({
   const [relocateError, setRelocateError] = useState('')
 
   // Farm geometry & geodesy
-  const polygonPoints = farm.polygon ?? []
+  const polygonPoints: [number, number][] = farm.polygon ?? []
   const hasPolygon = polygonPoints.length >= 3
 
   const measuredHa = useMemo(() => {
@@ -199,19 +202,19 @@ export default function LandInfoCard({
       if (saved) return JSON.parse(saved)
     } catch {}
     return {
-      ownerName: 'Akshit Vinay',
-      fatherName: 'Ramadhar Vinay (Ancestral Estate)',
-      relation: 'Primary Applicant & Certified Pattadar',
-      surveyOrTaxParcelNo: 'Sy. No. 36/1',
-      khataNo: 'Khata No. 104/A',
-      deedOrPassbookNo: 'PB-2024-UP-849201',
-      registrationYear: '2021',
+      ownerName: '',
+      fatherName: '',
+      relation: 'Titleholder',
+      surveyOrTaxParcelNo: '',
+      khataNo: '',
+      deedOrPassbookNo: '',
+      registrationYear: '',
       encumbranceStatus: 'Nil Encumbrance / Clean Title',
-      notes: 'Certified spatial parcel registered in Form 1B (RoR). Adjoining co-sharer ancestral land holdings recorded.',
-      rel1Name: 'Elder Brother / Sah-Khatedar',
-      rel2Name: 'Paternal Uncle / Relative',
-      rel3Name: 'Ancestral Joint Khata',
-      rel4Name: 'Cousin / Family Co-sharer',
+      notes: '',
+      rel1Name: '',
+      rel2Name: '',
+      rel3Name: '',
+      rel4Name: '',
     }
   })
 
@@ -252,7 +255,7 @@ export default function LandInfoCard({
           if (u?.name && u.name !== 'Guest') return u.name
         }
       } catch {}
-      return 'Akshit Vinay'
+      return farm.name || 'Field Parcel'
     })()
 
     const isCustom = !!customRecord.ownerName.trim()
@@ -261,13 +264,9 @@ export default function LandInfoCard({
       : (osmOwner || userFromStorage)
 
     const defaultSurvey = customRecord.surveyOrTaxParcelNo.trim()
-      ? customRecord.surveyOrTaxParcelNo.trim()
-      : 'Sy. No. 36/1'
-    const defaultKhata = customRecord.khataNo?.trim() || 'Khata No. 104/A'
-    const defaultFather = customRecord.fatherName?.trim() || 'Ramadhar Vinay (Ancestral Estate)'
+    const defaultKhata = customRecord.khataNo?.trim() || ''
+    const defaultFather = customRecord.fatherName?.trim() || ''
     const defaultPassbook = customRecord.deedOrPassbookNo.trim()
-      ? customRecord.deedOrPassbookNo.trim()
-      : 'PB-2024-UP-849201'
 
     return {
       name: defaultOwner,
@@ -281,70 +280,77 @@ export default function LandInfoCard({
       encumbrance: customRecord.encumbranceStatus,
       notes: customRecord.notes
     }
-  }, [customRecord, osmParcels, calculatedCentroid, plusCode, farm.lat, farm.lon])
+  }, [customRecord, osmParcels, calculatedCentroid, plusCode, farm.lat, farm.lon, farm.name])
 
-  // Family and Ancestral Landholdings Breakdown (Exact official demo & ancestral estate ledger)
-  const isDefaultOrDemo = !farm.polygon || farm.polygon.length < 3 || Math.abs(farm.area - 0.66) < 0.05 || (farm as any).sample
-  const primaryHa = isDefaultOrDemo ? 0.66 : Number((farm.area || (farm.polygon ? areaHa(farm.polygon) : 0.66)).toFixed(2))
-  const scale = primaryHa / 0.66
+  // Landholdings Breakdown (Purely user-registered holdings, zero synthetic or fake demo data)
+  const primaryHa = Number((farm.area || (farm.polygon ? areaHa(farm.polygon) : 0)).toFixed(2))
   const familyHoldings = useMemo(() => {
-    return [
+    const list = [
       {
         id: 'self',
         role: 'Primary Titleholder',
-        name: `${activeTitleholder.name} (Self)`,
-        relation: 'Primary Applicant & Certified Pattadar',
-        surveyNo: activeTitleholder.surveyNo || 'Sy. No. 36/1',
+        name: `${activeTitleholder.name} (Primary)`,
+        relation: 'Primary Applicant & Registered Holding',
+        surveyNo: activeTitleholder.surveyNo || 'Registered AOI',
         areaHa: primaryHa,
         color: '#10b981',
         desc: 'Certified Spatial Parcel · Registered AOI',
-      },
-      {
-        id: 'rel1',
-        role: 'Co-sharer (North)',
-        name: customRecord.rel1Name?.trim() || 'Elder Brother / Sah-Khatedar',
-        relation: 'Elder Brother / Sah-Khatedar',
-        surveyNo: 'Sy. 75/2A',
-        areaHa: isDefaultOrDemo ? 0.87 : Number((0.87 * scale).toFixed(2)),
-        color: '#0284c7',
-        desc: 'North Adjoining Agricultural Holding',
-      },
-      {
-        id: 'rel2',
-        role: 'Co-sharer (East)',
-        name: customRecord.rel2Name?.trim() || 'Paternal Uncle / Relative',
-        relation: 'Paternal Uncle / Relative',
-        surveyNo: 'Sy. 75/2B',
-        areaHa: isDefaultOrDemo ? 0.75 : Number((0.75 * scale).toFixed(2)),
-        color: '#f59e0b',
-        desc: 'East Adjoining Agricultural Holding',
-      },
-      {
-        id: 'rel3',
-        role: 'Ancestral Joint Khata',
-        name: customRecord.rel3Name?.trim() || 'Ancestral Joint Khata',
-        relation: 'Ancestral Joint Estate & Well',
-        surveyNo: 'Sy. 75/3',
-        areaHa: isDefaultOrDemo ? 0.98 : Number((0.98 * scale).toFixed(2)),
-        color: '#8b5cf6',
-        desc: 'South Ancestral Well, Pump & Irrigated Land',
-      },
-      {
-        id: 'rel4',
-        role: 'Family Member (West)',
-        name: customRecord.rel4Name?.trim() || 'Cousin / Family Co-sharer',
-        relation: 'Cousin / Family Co-sharer',
-        surveyNo: 'Sy. 75/4',
-        areaHa: isDefaultOrDemo ? 0.72 : Number((0.72 * scale).toFixed(2)),
-        color: '#ec4899',
-        desc: 'West Agricultural Holding',
-      },
+      }
     ]
-  }, [activeTitleholder, customRecord, primaryHa, isDefaultOrDemo, scale])
+    if (customRecord.rel1Name?.trim()) {
+      list.push({
+        id: 'rel1',
+        role: 'Co-sharer (1)',
+        name: customRecord.rel1Name.trim(),
+        relation: 'Registered Co-sharer',
+        surveyNo: 'Co-holding 1',
+        areaHa: 0,
+        color: '#0284c7',
+        desc: 'Adjoining Agricultural Holding',
+      })
+    }
+    if (customRecord.rel2Name?.trim()) {
+      list.push({
+        id: 'rel2',
+        role: 'Co-sharer (2)',
+        name: customRecord.rel2Name.trim(),
+        relation: 'Registered Co-sharer',
+        surveyNo: 'Co-holding 2',
+        areaHa: 0,
+        color: '#f59e0b',
+        desc: 'Adjoining Agricultural Holding',
+      })
+    }
+    if (customRecord.rel3Name?.trim()) {
+      list.push({
+        id: 'rel3',
+        role: 'Joint Khata Partner',
+        name: customRecord.rel3Name.trim(),
+        relation: 'Joint Estate',
+        surveyNo: 'Joint Khata',
+        areaHa: 0,
+        color: '#8b5cf6',
+        desc: 'Joint Holding',
+      })
+    }
+    if (customRecord.rel4Name?.trim()) {
+      list.push({
+        id: 'rel4',
+        role: 'Family Member',
+        name: customRecord.rel4Name.trim(),
+        relation: 'Family Co-sharer',
+        surveyNo: 'Co-holding 4',
+        areaHa: 0,
+        color: '#ec4899',
+        desc: 'Adjoining Agricultural Holding',
+      })
+    }
+    return list
+  }, [activeTitleholder, customRecord, primaryHa])
 
   const totalFamilyAreaHa = useMemo(() => {
-    return isDefaultOrDemo ? 3.98 : Number(familyHoldings.reduce((sum, h) => sum + h.areaHa, 0).toFixed(2))
-  }, [familyHoldings, isDefaultOrDemo])
+    return Number(familyHoldings.reduce((sum, h) => sum + h.areaHa, 0).toFixed(2))
+  }, [familyHoldings])
 
   // Relocate farm parcel to new geodetic coordinates (e.g. Uttar Pradesh)
   const handleRelocate = async (targetLat: number, targetLon: number, targetName: string) => {
@@ -1022,7 +1028,7 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
                   type="text"
                   value={customRecord.fatherName || ''}
                   onChange={e => setCustomRecord({ ...customRecord, fatherName: e.target.value })}
-                  placeholder="e.g. Ramadhar Vinay"
+                  placeholder="e.g. Parent / Ancestor Name"
                   className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                 />
               </div>
@@ -1087,42 +1093,42 @@ Powered by SEVA·GIS (https://sevagis.dpdns.org)
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="text-slate-400 block text-[11px] mb-1">Elder Brother (North · Sy. 75/2A)</label>
+                  <label className="text-slate-400 block text-[11px] mb-1">Co-Sharer 1 (North)</label>
                   <input
                     type="text"
                     value={customRecord.rel1Name || ''}
                     onChange={e => setCustomRecord({ ...customRecord, rel1Name: e.target.value })}
-                    placeholder="e.g. Siddharth Vinay"
+                    placeholder="e.g. Co-sharer Name"
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-400 block text-[11px] mb-1">Paternal Uncle (East · Sy. 75/2B)</label>
+                  <label className="text-slate-400 block text-[11px] mb-1">Co-Sharer 2 (East)</label>
                   <input
                     type="text"
                     value={customRecord.rel2Name || ''}
                     onChange={e => setCustomRecord({ ...customRecord, rel2Name: e.target.value })}
-                    placeholder="e.g. Rajeshwar Vinay"
+                    placeholder="e.g. Co-sharer Name"
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-400 block text-[11px] mb-1">Ancestral Joint Estate (South · Sy. 75/3)</label>
+                  <label className="text-slate-400 block text-[11px] mb-1">Joint Estate / Khata (South)</label>
                   <input
                     type="text"
                     value={customRecord.rel3Name || ''}
                     onChange={e => setCustomRecord({ ...customRecord, rel3Name: e.target.value })}
-                    placeholder="e.g. Ramadhar Vinay &amp; Sons Joint Estate"
+                    placeholder="e.g. Joint Estate / Khata Name"
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-400 block text-[11px] mb-1">Cousin / Co-sharer (West · Sy. 75/4)</label>
+                  <label className="text-slate-400 block text-[11px] mb-1">Co-Sharer 4 (West)</label>
                   <input
                     type="text"
                     value={customRecord.rel4Name || ''}
                     onChange={e => setCustomRecord({ ...customRecord, rel4Name: e.target.value })}
-                    placeholder="e.g. Aarav Vinay"
+                    placeholder="e.g. Co-sharer Name"
                     className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
                   />
                 </div>

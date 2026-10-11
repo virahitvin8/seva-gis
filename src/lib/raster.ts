@@ -177,104 +177,18 @@ export function paintClipped(
   outCanvas.height = H
   const ctx = outCanvas.getContext('2d')!
 
-  ctx.imageSmoothingEnabled = smooth
-  if (smooth) {
-    ctx.imageSmoothingQuality = 'high'
-  }
+  // Pure, authentic satellite pixel rendering matching Earth Engine grid
+  ctx.imageSmoothingEnabled = false
   ctx.drawImage(srcCanvas, 0, 0, W, H)
 
-  if (smooth && sharpen > 0) {
-    applyUnsharp(ctx, W, H, sharpen)
-  }
-
-  // Exact subpixel vector clipping and internal farmpond sub-plot synthesis (matching QGIS reference)
+  // Exact subpixel vector clipping strictly to farm polygon boundary
   const [west, south, east, north] = bbox
-  let minPx = W, maxPx = 0, minPy = H, maxPy = 0
   const ringPx: [number, number][] = ring.map(([lon, lat]) => {
     const px = ((lon - west) / (east - west)) * W
     const py = ((north - lat) / (north - south)) * H
-    if (px < minPx) minPx = px
-    if (px > maxPx) maxPx = px
-    if (py < minPy) minPy = py
-    if (py > maxPy) maxPy = py
     return [px, py]
   })
 
-  // Sub-meter internal farmpond & parcel structure synthesis (matching QGIS extent reference)
-  const cX = (minPx + maxPx) / 2
-  const cY = (minPy + maxPy) / 2
-  const pW = maxPx - minPx
-  const pH = maxPy - minPy
-
-  if (pW > 24 && pH > 24) {
-    ctx.save()
-    ctx.beginPath()
-    ringPx.forEach(([px, py], i) => {
-      if (i === 0) ctx.moveTo(px, py)
-      else ctx.lineTo(px, py)
-    })
-    ctx.closePath()
-    ctx.clip()
-
-    // 1. Four Agricultural Sub-plots / Farm Ponds (QGIS reference extent)
-    // NW Pond: Shallow water / sediment reflection
-    const nwGrad = ctx.createRadialGradient(cX - pW * 0.22, cY - pH * 0.22, 2, cX - pW * 0.22, cY - pH * 0.22, pW * 0.35)
-    nwGrad.addColorStop(0, 'rgba(125, 178, 198, 0.38)')
-    nwGrad.addColorStop(0.7, 'rgba(75, 120, 140, 0.28)')
-    nwGrad.addColorStop(1, 'rgba(40, 70, 85, 0.15)')
-    ctx.fillStyle = nwGrad
-    ctx.fillRect(minPx, minPy, cX - minPx, cY - minPy)
-
-    // NE Pond: Deep dark pond absorption
-    const neGrad = ctx.createRadialGradient(cX + pW * 0.25, cY - pH * 0.22, 2, cX + pW * 0.25, cY - pH * 0.22, pW * 0.35)
-    neGrad.addColorStop(0, 'rgba(30, 41, 59, 0.45)')
-    neGrad.addColorStop(0.8, 'rgba(15, 23, 42, 0.6)')
-    ctx.fillStyle = neGrad
-    ctx.fillRect(cX, minPy, maxPx - cX, cY - minPy)
-
-    // SW Pond: Deepest dark water pond
-    const swGrad = ctx.createRadialGradient(cX - pW * 0.22, cY + pH * 0.25, 2, cX - pW * 0.22, cY + pH * 0.25, pW * 0.35)
-    swGrad.addColorStop(0, 'rgba(15, 23, 42, 0.55)')
-    swGrad.addColorStop(1, 'rgba(5, 10, 20, 0.7)')
-    ctx.fillStyle = swGrad
-    ctx.fillRect(minPx, cY, cX - minPx, maxPy - cY)
-
-    // SE Pond: Blue-gray water reflection
-    const seGrad = ctx.createRadialGradient(cX + pW * 0.25, cY + pH * 0.25, 2, cX + pW * 0.25, cY + pH * 0.25, pW * 0.35)
-    seGrad.addColorStop(0, 'rgba(71, 95, 122, 0.35)')
-    seGrad.addColorStop(0.8, 'rgba(35, 55, 78, 0.45)')
-    ctx.fillStyle = seGrad
-    ctx.fillRect(cX, cY, maxPx - cX, maxPy - cY)
-
-    // 2. High-contrast parcel bunds & ridges dividing internal plots (matching QGIS white bund lines)
-    ctx.lineWidth = Math.max(2, Math.round(W / 260))
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.65)'
-    ctx.lineCap = 'round'
-
-    // Horizontal dividing bund
-    ctx.beginPath()
-    ctx.moveTo(minPx, cY)
-    ctx.lineTo(maxPx, cY)
-    ctx.stroke()
-
-    // Vertical dividing bund
-    ctx.beginPath()
-    ctx.moveTo(cX, minPy)
-    ctx.lineTo(cX, maxPy)
-    ctx.stroke()
-
-    // Diagonal access track / ridge across north plot
-    ctx.lineWidth = Math.max(1.5, Math.round(W / 340))
-    ctx.strokeStyle = 'rgba(226, 232, 240, 0.5)'
-    ctx.beginPath()
-    ctx.moveTo(minPx + pW * 0.05, cY - pH * 0.08)
-    ctx.lineTo(maxPx - pW * 0.08, cY - pH * 0.45)
-    ctx.stroke()
-
-    ctx.restore()
-  }
-
-  // Exact subpixel vector clipping using canvas hardware anti-aliasing
   ctx.save()
   ctx.globalCompositeOperation = 'destination-in'
   ctx.beginPath()

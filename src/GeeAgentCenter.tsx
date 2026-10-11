@@ -134,7 +134,7 @@ export default function GeeAgentCenter({
 
   const generatedScript = useMemo(() => {
     if (scriptMode === 'thesis') {
-      return buildThesisMapScript()
+      return buildThesisMapScript('dem', farm)
     }
     return buildEarthEngineScript(farm, 'ndvi', bandCombo, {})
   }, [scriptMode, farm, bandCombo])

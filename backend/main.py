@@ -132,7 +132,7 @@ def _s2col(field: ee.Geometry, start: date, end: date, cloud: int) -> ee.ImageCo
         .filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", cloud)).map(_scl_mask))
 
 def _dem_layers(field: ee.Geometry) -> dict:
-    dem = ee.ImageCollection("COPERNICUS/DEM/GLO30").filterBounds(field).select("DEM").mosaic().clip(field)
+    dem = ee.ImageCollection("COPERNICUS/DEM/GLO30").filterBounds(field).select("DEM").mosaic().clip(field).rename("elevation")
     t = ee.Terrain.products(dem)
     hs = ee.Terrain.hillshade(dem, 315, 45).clip(field)
     return {

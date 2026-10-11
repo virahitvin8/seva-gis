@@ -26,6 +26,6 @@ __pycache__/
 *.pyc
 *.pyo
 scratch/
-*.key.json
 *service-account*.json
 ShellShock/
+prjyproj/

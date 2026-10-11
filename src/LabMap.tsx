@@ -28,7 +28,7 @@ function niceScale(widthM: number) {
   return m * p
 }
 
-export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 1, marks, caption, highlightAoi = false, crisp = false }: { farm: Farm; scene?: Scene; overlay?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean; crisp?: boolean }) {
+export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend, opacity = 1, marks, caption, highlightAoi = false, crisp = false }: { farm: Farm; scene?: Scene; overlay?: string; geeTileUrl?: string; title: string; note: string; legend?: LegendRow[]; opacity?: number; marks?: Patch[]; caption?: string; highlightAoi?: boolean; crisp?: boolean }) {
   const { zoom: syncedZoom, padFactor } = useGlobalZoom(15)
   const spots = useWeakSpots(farm, scene), weak = marks ?? spots
   const [w, s, e, n] = farmBBox(farm)
@@ -49,7 +49,8 @@ export function MapFrame({ farm, scene, overlay, title, note, legend, opacity = 
       <div className="lab-zoom-indicator" title={`Synchronized from main map zoom (${syncedZoom.toFixed(1)}x)`}>
         Zoom {syncedZoom.toFixed(1)}x · Synced
       </div>
-      {overlay && <img className={`lab-over ${crisp ? 'crisp' : ''}`} src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
+      {geeTileUrl && <GeeTileCanvas tileUrl={geeTileUrl} bb={bb} W={W} H={H} ring={ring} opacity={opacity} />}
+      {!geeTileUrl && overlay && <img className={`lab-over ${crisp ? 'crisp' : ''}`} src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="lab-svg">
         <defs>
           <mask id={maskId}>
@@ -127,3 +128,105 @@ function CtxImage({ url, bb, W, H }: { url: string; bb: number[]; W: number; H: 
   const src = level === 0 ? url : url.replace(/size=\d+,\d+/, `size=800,${Math.round((800 * H) / W)}`)
   return <img className="lab-ctx" src={src} alt="" onError={() => setLevel(l => (l < 2 ? l + 1 : l))}/>
 }
+
+function GeeTileCanvas({
+  tileUrl,
+  bb,
+  W,
+  H,
+  ring,
+  opacity = 1
+}: {
+  tileUrl: string
+  bb: number[]
+  W: number
+  H: number
+  ring?: [number, number][]
+  opacity?: number
+}) {
+  const cv = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const c = cv.current
+    if (!c || !tileUrl) return
+    const ctx = c.getContext('2d')!
+    c.width = W
+    c.height = H
+    ctx.clearRect(0, 0, W, H)
+
+    const [w, s, e, n] = bb
+    let z = 16
+    while (z > 8 && (tileX(e, z) - tileX(w, z) + 1) * (tileY(s, z) - tileY(n, z) + 1) > 25) z--
+
+    const startX = tileX(w, z), endX = tileX(e, z)
+    const startY = tileY(n, z), endY = tileY(s, z)
+
+    for (let x = startX; x <= endX; x++) {
+      for (let y = startY; y <= endY; y++) {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          const x0 = ((lonOf(x, z) - w) / (e - w)) * W
+          const x1 = ((lonOf(x + 1, z) - w) / (e - w)) * W
+          const slices = 32
+          for (let row = 0; row < slices; row++) {
+            const lat0 = latOf(y + row / slices, z)
+            const lat1 = latOf(y + (row + 1) / slices, z)
+            const y0 = ((n - lat0) / (n - s)) * H
+            const y1 = ((n - lat1) / (n - s)) * H
+            const sourceY = (row / slices) * img.naturalHeight
+            ctx.drawImage(
+              img,
+              0,
+              sourceY,
+              img.naturalWidth,
+              img.naturalHeight / slices,
+              x0,
+              y0,
+              x1 - x0 + 1,
+              y1 - y0 + 1
+            )
+          }
+
+          // If farm polygon vector clipping is requested, clip to boundary
+          if (ring && ring.length >= 3) {
+            ctx.save()
+            ctx.globalCompositeOperation = 'destination-in'
+            ctx.beginPath()
+            ring.forEach(([lon, lat], idx) => {
+              const px = ((lon - w) / (e - w)) * W
+              const py = ((n - lat) / (n - s)) * H
+              if (idx === 0) ctx.moveTo(px, py)
+              else ctx.lineTo(px, py)
+            })
+            ctx.closePath()
+            ctx.fillStyle = '#ffffff'
+            ctx.fill()
+            ctx.restore()
+          }
+        }
+        const resolved = tileUrl
+          .replace('{z}', String(z))
+          .replace('{x}', String(x))
+          .replace('{y}', String(y))
+        img.src = resolved
+      }
+    }
+  }, [tileUrl, bb[0], bb[1], bb[2], bb[3], W, H, ring])
+
+  return (
+    <canvas
+      ref={cv}
+      className="lab-over"
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 2,
+        opacity
+      }}
+    />
+  )
+}
+

@@ -1,20 +1,25 @@
 import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
-import { Download, RefreshCw, Sprout, Layers, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { Download, RefreshCw, Sprout, Layers, SlidersHorizontal, Sparkles, Globe } from 'lucide-react'
 import { LANDCOVER } from './lib/gee'
 import { autoClassify, sharpTrueColour, download, landCoverLabels, vectorize, predictYield, BAND_COMBINATIONS, SENTINEL_BANDS, renderBandComposite } from './lib/geoai'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { MapFrame } from './LabMap'
+import GeeCartographicStudio from './GeeCartographicStudio'
+import { createEarthEngineMap } from './lib/earthEngineClient'
 
 type Farm = FarmData & { id: string; name: string; crop?: string; rain?: number }
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
+  const [studioView, setStudioView] = useState<'interactive' | 'gee_carto'>('interactive')
   const [g, setG] = useState<Awaited<ReturnType<typeof loadScene>> | null>(null)
   const [err, setErr] = useState('')
   const [k, setK] = useState(4)
   const [sharp, setSharp] = useState('')
-  const [picMode, setPicMode] = useState<'4k' | 'clipped' | 'raw'>('clipped')
+  const [picMode, setPicMode] = useState<'4k' | 'clipped' | 'raw' | 'gee'>('clipped')
+  const [geeTileUrl, setGeeTileUrl] = useState<string>('')
+  const [geeLoading, setGeeLoading] = useState<boolean>(false)
   const [yieldKey, setYieldKey] = useState(0)
   const [yieldSpinning, setYieldSpinning] = useState(false)
   const [selectedCombo, setSelectedCombo] = useState<string>('natural')
@@ -51,6 +56,40 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
     sharpTrueColour(ring).then(u => { if (!dead) setSharp(u) }).catch(() => {})
     return () => { dead = true }
   }, [picMode, farm.id, ring])
+
+  // Stream authentic Earth Engine tiles directly from Google Cloud Run
+  useEffect(() => {
+    if (picMode !== 'gee') return
+    let dead = false
+    setGeeLoading(true)
+    const layer = {
+      id: 'rgb',
+      name: 'RGB',
+      desc: '',
+      source: 'S2' as const,
+      rgb: true,
+      group: 'RGB' as any
+    }
+    createEarthEngineMap({
+      farm,
+      sceneOpts: { mode: 'latest', date: scene?.datetime.slice(0, 10) },
+      layer: layer as any,
+      bandCombination: selectedCombo === 'custom' ? undefined : selectedCombo,
+      compositing: 'median',
+      percentileStretch: stretchMode === 'gee_percentile'
+    })
+      .then(res => {
+        if (!dead) {
+          setGeeTileUrl(res.tileUrl)
+          setGeeLoading(false)
+        }
+      })
+      .catch(err => {
+        console.warn('[Studio] Earth Engine tile error:', err)
+        if (!dead) setGeeLoading(false)
+      })
+    return () => { dead = true }
+  }, [picMode, farm.id, selectedCombo, stretchMode, scene?.datetime])
 
   const activeCombo = useMemo(() => {
     return BAND_COMBINATIONS.find(c => c.id === selectedCombo) || null
@@ -112,48 +151,126 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
   const exportRule = () => download(`${slug}-landcover.geojson`, JSON.stringify(vectorize(g, landCoverLabels(g), LANDCOVER, { farm: farm.name, scene: date, method: 'rule-based' })))
   const exportAuto = () => { if (auto) download(`${slug}-spectral-groups.geojson`, JSON.stringify(vectorize(g, auto.labels, auto.clusters, { farm: farm.name, scene: date, method: 'k-means' }))) }
   return <>
-    <p className="ge-note">Group pixels with similar Sentinel-2 reflectance. The clusters describe spectral similarity; they are not confirmed crop types or field diagnoses.</p>
-    <div className="st-classes"><span>Number of spectral groups</span>{[3, 4, 5].map(n => <button key={n} className={k === n ? 'on' : ''} onClick={() => setK(n)}>{n}</button>)}</div>
-    <div className="ge-cols">
-      <div>
-        <MapFrame
-          farm={farm}
-          scene={scene}
-          overlay={picMode === '4k' ? (sharp || undefined) : photo}
-          title={picMode === '4k' ? 'Esri World Imagery' : picMode === 'raw' ? `Unclipped Sentinel-2 (${activeCombo ? activeCombo.name : activeBands.join('·')})` : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
-          note={picMode === '4k' ? 'Esri basemap imagery clipped to the farm. Its capture date and resolution vary by location; it is separate from the selected Sentinel-2 scene.' : picMode === 'raw' ? 'Sentinel-2 band composite outside the farm boundary on a black background.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
-          caption={picMode === '4k' ? 'Esri World Imagery · capture date varies' : picMode === 'raw' ? `Sentinel-2 scene tile (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 (${activeBands.join('·')})`}
-          highlightAoi={false}
-          crisp={clarityMode === 'crisp'}
-        />
-        <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Picture mode</span>
-            <button
-              className={picMode === '4k' ? 'on' : ''}
-              onClick={() => setPicMode('4k')}
-              title="Show Esri World Imagery clipped to this farm; capture dates vary by location"
-            >
-              <Sparkles size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-              Esri basemap
-            </button>
-            <button
-              className={picMode === 'clipped' ? 'on' : ''}
-              onClick={() => setPicMode('clipped')}
-              title="Sentinel-2 composite clipped to your farm boundary; native band resolution varies"
-            >
-              <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-              🌿 Sentinel-2 view
-            </button>
-            <button
-              className={picMode === 'raw' ? 'on' : ''}
-              onClick={() => setPicMode('raw')}
-              title="Raw Sentinel-2 scene tile on a black background; the display depends on the selected bands and stretch"
-            >
-              <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
-              🛰️ RAW (Black Tile · GEE/QGIS)
-            </button>
-          </div>
+    {/* Studio View Switcher: Interactive Dual-Viewer vs GEE Publication Cartography */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 10,
+        background: '#ffffff',
+        padding: '10px 14px',
+        borderRadius: 10,
+        border: '1px solid #cbd5e1',
+        marginBottom: 14,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setStudioView('interactive')}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: studioView === 'interactive' ? '#15803d' : '#f8fafc',
+            color: studioView === 'interactive' ? '#ffffff' : '#334155',
+            border: studioView === 'interactive' ? '1px solid #15803d' : '1px solid #cbd5e1'
+          }}
+        >
+          <Layers size={14} />
+          <span>🔬 Dual Field Inspection (S2 &amp; Spectral Groups)</span>
+        </button>
+
+        <button
+          onClick={() => setStudioView('gee_carto')}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 7,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: studioView === 'gee_carto' ? '#0369a1' : '#f8fafc',
+            color: studioView === 'gee_carto' ? '#ffffff' : '#334155',
+            border: studioView === 'gee_carto' ? '1px solid #0369a1' : '1px solid #cbd5e1'
+          }}
+        >
+          <Globe size={14} />
+          <span>🌐 GEE Publication Studio (Continuous Surface &amp; Insets)</span>
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 5, background: '#dcfce7', color: '#166534', fontWeight: 600 }}>
+          ● GEE Cloud Run Online
+        </span>
+      </div>
+    </div>
+
+    {studioView === 'gee_carto' ? (
+      <GeeCartographicStudio farm={farm} scene={scene} g={g} auto={auto} />
+    ) : (
+      <>
+        <p className="ge-note">Group pixels with similar Sentinel-2 reflectance. The clusters describe spectral similarity; they are not confirmed crop types or field diagnoses.</p>
+        <div className="st-classes"><span>Number of spectral groups</span>{[3, 4, 5].map(n => <button key={n} className={k === n ? 'on' : ''} onClick={() => setK(n)}>{n}</button>)}</div>
+        <div className="ge-cols">
+          <div>
+            <MapFrame
+              farm={farm}
+              scene={scene}
+              geeTileUrl={picMode === 'gee' ? (geeTileUrl || undefined) : undefined}
+              overlay={picMode === '4k' ? (sharp || undefined) : photo}
+              title={picMode === '4k' ? 'Esri World Imagery' : picMode === 'gee' ? `Live Google Earth Engine (${activeCombo ? activeCombo.name : activeBands.join('·')})` : picMode === 'raw' ? `Unclipped Sentinel-2 (${activeCombo ? activeCombo.name : activeBands.join('·')})` : (activeCombo ? activeCombo.name : `Custom (${activeBands.join('·')})`)}
+              note={picMode === '4k' ? 'Esri basemap imagery clipped to the farm. Its capture date and resolution vary by location; it is separate from the selected Sentinel-2 scene.' : picMode === 'gee' ? 'Live Earth Engine stream directly from Google Cloud Run (COPERNICUS/S2_SR_HARMONIZED) with continuous surface bicubic rendering.' : picMode === 'raw' ? 'Sentinel-2 band composite outside the farm boundary on a black background.' : (activeCombo ? activeCombo.desc : `Custom R-G-B channel composite (Red=${activeBands[0]}, Green=${activeBands[1]}, Blue=${activeBands[2]}).`)}
+              caption={picMode === '4k' ? 'Esri World Imagery · capture date varies' : picMode === 'gee' ? `Live Google Earth Engine Stream (${activeBands.join('·')})` : picMode === 'raw' ? `Sentinel-2 scene tile (${activeBands.join('·')}) on black background` : `${activeCombo ? activeCombo.name : 'Custom composite'} · Sentinel-2 (${activeBands.join('·')})`}
+              highlightAoi={false}
+              crisp={clarityMode === 'crisp'}
+            />
+            <div className="st-classes" style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Picture mode</span>
+                <button
+                  className={picMode === 'gee' ? 'on' : ''}
+                  onClick={() => setPicMode('gee')}
+                  title="Stream authentic Google Earth Engine tiles directly from Google Cloud Run"
+                >
+                  <Globe size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                  {geeLoading ? '🌐 Loading GEE...' : '🌐 Live GEE Stream'}
+                </button>
+                <button
+                  className={picMode === 'clipped' ? 'on' : ''}
+                  onClick={() => setPicMode('clipped')}
+                  title="Sentinel-2 continuous high-definition surface composite clipped to your farm boundary"
+                >
+                  <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                  🌿 S2 HD Surface
+                </button>
+                <button
+                  className={picMode === 'raw' ? 'on' : ''}
+                  onClick={() => setPicMode('raw')}
+                  title="Raw Sentinel-2 scene tile on a black background; the display depends on the selected bands and stretch"
+                >
+                  <Layers size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                  🛰️ RAW (Black Tile · GEE/QGIS)
+                </button>
+                <button
+                  className={picMode === '4k' ? 'on' : ''}
+                  onClick={() => setPicMode('4k')}
+                  title="Show Esri World Imagery clipped to this farm; capture dates vary by location"
+                >
+                  <Sparkles size={13} style={{ marginRight: 4, verticalAlign: -1 }} />
+                  Esri basemap
+                </button>
+              </div>
 
           {picMode !== '4k' && (
             <button
@@ -628,7 +745,9 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
       </small>
     </div>
 
-    <div className="st-export"><button onClick={exportRule}><Download size={14}/>Rule-based land cover (GeoJSON)</button><button disabled={!auto} onClick={exportAuto}><Download size={14}/>Spectral groups (GeoJSON)</button></div>
-    <p className="ge-note">GeoJSON opens in QGIS, ArcGIS, Google Earth Engine and geojson.io. Built on one cloud-masked Sentinel-2 scene. Methods follow scikit-learn, GDAL, Orfeo Toolbox, SNAP and QGIS Semi-Automatic Classification.</p>
+        <div className="st-export"><button onClick={exportRule}><Download size={14}/>Rule-based land cover (GeoJSON)</button><button disabled={!auto} onClick={exportAuto}><Download size={14}/>Spectral groups (GeoJSON)</button></div>
+        <p className="ge-note">GeoJSON opens in QGIS, ArcGIS, Google Earth Engine and geojson.io. Built on one cloud-masked Sentinel-2 scene. Methods follow scikit-learn, GDAL, Orfeo Toolbox, SNAP and QGIS Semi-Automatic Classification.</p>
+      </>
+    )}
   </>
 }

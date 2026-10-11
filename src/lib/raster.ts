@@ -138,6 +138,85 @@ function applyUnsharp(ctx: CanvasRenderingContext2D, W: number, H: number, amoun
 export type Painter = (i: number) => [number, number, number] | null
 
 /**
+ * Resamples a discrete w x h satellite raster into a high-resolution W x H continuous surface
+ * using weighted bilinear interpolation, matching Google Earth Engine's resample('bilinear').
+ */
+function resampleBilinear(
+  w: number,
+  h: number,
+  W: number,
+  H: number,
+  paint: Painter
+): ImageData {
+  const imgData = new ImageData(W, H)
+  const d = imgData.data
+
+  const srcR = new Float32Array(w * h)
+  const srcG = new Float32Array(w * h)
+  const srcB = new Float32Array(w * h)
+  const srcA = new Float32Array(w * h)
+
+  for (let i = 0; i < w * h; i++) {
+    const c = paint(i)
+    if (c) {
+      srcR[i] = c[0]
+      srcG[i] = c[1]
+      srcB[i] = c[2]
+      srcA[i] = 1.0
+    }
+  }
+
+  const denomH = Math.max(1, H - 1)
+  const denomW = Math.max(1, W - 1)
+  const spanH = Math.max(0, h - 1)
+  const spanW = Math.max(0, w - 1)
+
+  for (let Y = 0; Y < H; Y++) {
+    const srcY = (Y / denomH) * spanH
+    const y0 = Math.floor(srcY)
+    const y1 = Math.min(h - 1, y0 + 1)
+    const fy = srcY - y0
+    const rowOffset = Y * W * 4
+
+    const i0_base = y0 * w
+    const i1_base = y1 * w
+
+    for (let X = 0; X < W; X++) {
+      const srcX = (X / denomW) * spanW
+      const x0 = Math.floor(srcX)
+      const x1 = Math.min(w - 1, x0 + 1)
+      const fx = srcX - x0
+
+      const i00 = i0_base + x0
+      const i10 = i0_base + x1
+      const i01 = i1_base + x0
+      const i11 = i1_base + x1
+
+      const w00 = (1 - fx) * (1 - fy)
+      const w10 = fx * (1 - fy)
+      const w01 = (1 - fx) * fy
+      const w11 = fx * fy
+
+      const totalA = srcA[i00] * w00 + srcA[i10] * w10 + srcA[i01] * w01 + srcA[i11] * w11
+      const pixelIdx = rowOffset + (X * 4)
+
+      if (totalA > 0.02) {
+        const r = (srcR[i00] * w00 + srcR[i10] * w10 + srcR[i01] * w01 + srcR[i11] * w11) / totalA
+        const g = (srcG[i00] * w00 + srcG[i10] * w10 + srcG[i01] * w01 + srcG[i11] * w11) / totalA
+        const b = (srcB[i00] * w00 + srcB[i10] * w10 + srcB[i01] * w01 + srcB[i11] * w11) / totalA
+
+        d[pixelIdx] = Math.min(255, Math.max(0, Math.round(r)))
+        d[pixelIdx + 1] = Math.min(255, Math.max(0, Math.round(g)))
+        d[pixelIdx + 2] = Math.min(255, Math.max(0, Math.round(b)))
+        d[pixelIdx + 3] = Math.min(255, Math.max(0, Math.round(totalA * 255)))
+      }
+    }
+  }
+
+  return imgData
+}
+
+/**
  * Renders AOI clipped raster image with subpixel vector boundary anti-aliasing
  * and high-DPI scaling (1024px minimum dimension, matching Earth Engine / QGIS quality).
  */
@@ -150,36 +229,43 @@ export function paintClipped(
   smooth = true,
   sharpen = 0.25
 ): string {
-  const srcCanvas = document.createElement('canvas')
-  srcCanvas.width = w
-  srcCanvas.height = h
-  const srcCtx = srcCanvas.getContext('2d')!
-  const srcImg = srcCtx.createImageData(w, h)
-  for (let i = 0; i < w * h; i++) {
-    const c = paint(i)
-    if (c) {
-      srcImg.data[i * 4] = c[0]
-      srcImg.data[i * 4 + 1] = c[1]
-      srcImg.data[i * 4 + 2] = c[2]
-      srcImg.data[i * 4 + 3] = 255
-    }
-  }
-  srcCtx.putImageData(srcImg, 0, 0)
-
-  // Target high-resolution canvas to avoid browser thumbnail stretching and pixel blur
   const targetDim = 1024
-  const scale = Math.max(1, Math.min(16, Math.ceil(targetDim / Math.max(w, h))))
-  const W = w * scale
-  const H = h * scale
+  const scale = Math.max(1, Math.min(32, Math.ceil(targetDim / Math.max(w, h))))
+  const W = Math.max(targetDim, w * scale)
+  const H = Math.max(targetDim, h * scale)
 
   const outCanvas = document.createElement('canvas')
   outCanvas.width = W
   outCanvas.height = H
   const ctx = outCanvas.getContext('2d')!
 
-  // Pure, authentic satellite pixel rendering matching Earth Engine grid
-  ctx.imageSmoothingEnabled = false
-  ctx.drawImage(srcCanvas, 0, 0, W, H)
+  if (smooth) {
+    // High-fidelity continuous surface reconstruction matching Earth Engine bicubic/bilinear processing
+    const continuousData = resampleBilinear(w, h, W, H, paint)
+    ctx.putImageData(continuousData, 0, 0)
+    if (sharpen > 0) {
+      applyUnsharp(ctx, W, H, sharpen)
+    }
+  } else {
+    // Discrete 10m grid cell inspection
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width = w
+    srcCanvas.height = h
+    const srcCtx = srcCanvas.getContext('2d')!
+    const srcImg = srcCtx.createImageData(w, h)
+    for (let i = 0; i < w * h; i++) {
+      const c = paint(i)
+      if (c) {
+        srcImg.data[i * 4] = c[0]
+        srcImg.data[i * 4 + 1] = c[1]
+        srcImg.data[i * 4 + 2] = c[2]
+        srcImg.data[i * 4 + 3] = 255
+      }
+    }
+    srcCtx.putImageData(srcImg, 0, 0)
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(srcCanvas, 0, 0, W, H)
+  }
 
   // Exact subpixel vector clipping strictly to farm polygon boundary
   const [west, south, east, north] = bbox
@@ -216,31 +302,10 @@ export function paintRaw(
   smooth = false,
   sharpen = 0
 ): string {
-  const srcCanvas = document.createElement('canvas')
-  srcCanvas.width = w
-  srcCanvas.height = h
-  const srcCtx = srcCanvas.getContext('2d')!
-  const srcImg = srcCtx.createImageData(w, h)
-  for (let i = 0; i < w * h; i++) {
-    const c = paint(i)
-    if (c) {
-      srcImg.data[i * 4] = c[0]
-      srcImg.data[i * 4 + 1] = c[1]
-      srcImg.data[i * 4 + 2] = c[2]
-      srcImg.data[i * 4 + 3] = 255
-    } else {
-      srcImg.data[i * 4] = 0
-      srcImg.data[i * 4 + 1] = 0
-      srcImg.data[i * 4 + 2] = 0
-      srcImg.data[i * 4 + 3] = 255
-    }
-  }
-  srcCtx.putImageData(srcImg, 0, 0)
-
   const targetDim = 1024
-  const scale = Math.max(1, Math.min(16, Math.ceil(targetDim / Math.max(w, h))))
-  const W = w * scale
-  const H = h * scale
+  const scale = Math.max(1, Math.min(32, Math.ceil(targetDim / Math.max(w, h))))
+  const W = Math.max(targetDim, w * scale)
+  const H = Math.max(targetDim, h * scale)
 
   const outCanvas = document.createElement('canvas')
   outCanvas.width = W
@@ -249,12 +314,35 @@ export function paintRaw(
   ctx.fillStyle = '#000000'
   ctx.fillRect(0, 0, W, H)
 
-  ctx.imageSmoothingEnabled = smooth
-  if (smooth) ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(srcCanvas, 0, 0, W, H)
-
-  if (smooth && sharpen > 0) {
-    applyUnsharp(ctx, W, H, sharpen)
+  if (smooth) {
+    const continuousData = resampleBilinear(w, h, W, H, paint)
+    ctx.putImageData(continuousData, 0, 0)
+    if (sharpen > 0) {
+      applyUnsharp(ctx, W, H, sharpen)
+    }
+  } else {
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width = w
+    srcCanvas.height = h
+    const srcCtx = srcCanvas.getContext('2d')!
+    const srcImg = srcCtx.createImageData(w, h)
+    for (let i = 0; i < w * h; i++) {
+      const c = paint(i)
+      if (c) {
+        srcImg.data[i * 4] = c[0]
+        srcImg.data[i * 4 + 1] = c[1]
+        srcImg.data[i * 4 + 2] = c[2]
+        srcImg.data[i * 4 + 3] = 255
+      } else {
+        srcImg.data[i * 4] = 0
+        srcImg.data[i * 4 + 1] = 0
+        srcImg.data[i * 4 + 2] = 0
+        srcImg.data[i * 4 + 3] = 255
+      }
+    }
+    srcCtx.putImageData(srcImg, 0, 0)
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(srcCanvas, 0, 0, W, H)
   }
 
   return outCanvas.toDataURL('image/png')

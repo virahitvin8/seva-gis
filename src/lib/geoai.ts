@@ -226,7 +226,90 @@ export function autoClassify(g: Grid, ring: Ring, k = 4): Auto | null {
   const pickName = (r: number) => Math.round((r / Math.max(k - 1, 1)) * 4)
   const ha = (g.dx * g.dy) / 10000
   const clusters: Cluster[] = order.map((o, r) => ({ id: `c${r}`, name: NAMES[pickName(r)], color: COLORS[pickName(r)], ndvi: o.nd, moist: o.mo, pct: (o.n / idx.length) * 100, ha: o.n * ha }))
-  return { labels, clusters, url: paintClipped(g.w, g.h, g.bbox, ring, i => (labels[i] >= 0 ? hex(clusters[labels[i]].color) : null), true, 0.25) }
+
+  // Subpixel continuous thematic surface reconstruction matching Google Earth Engine publication maps
+  const denseMult = Math.max(4, Math.min(16, Math.floor(256 / Math.max(g.w, g.h))))
+  const dw = g.w * denseMult
+  const dh = g.h * denseMult
+  const denseLabels = new Int8Array(dw * dh).fill(-1)
+
+  const z_features = new Array(g.w * g.h)
+  for (let i = 0; i < g.w * g.h; i++) {
+    if (usable(g, i)) {
+      const f = features(g, i)
+      z_features[i] = f.map((v, j) => (v - mean[j]) / (Math.sqrt(sd[j]) || 1))
+    }
+  }
+
+  for (let dy = 0; dy < dh; dy++) {
+    const sy = (dy / Math.max(1, dh - 1)) * (g.h - 1)
+    const y0 = Math.floor(sy), y1 = Math.min(g.h - 1, y0 + 1), fy = sy - y0
+    for (let dx = 0; dx < dw; dx++) {
+      const sx = (dx / Math.max(1, dw - 1)) * (g.w - 1)
+      const x0 = Math.floor(sx), x1 = Math.min(g.w - 1, x0 + 1), fx = sx - x0
+
+      const z00 = z_features[y0 * g.w + x0]
+      const z10 = z_features[y0 * g.w + x1]
+      const z01 = z_features[y1 * g.w + x0]
+      const z11 = z_features[y1 * g.w + x1]
+
+      if (!z00 && !z10 && !z01 && !z11) continue
+
+      const z_interp = new Array(d)
+      for (let j = 0; j < d; j++) {
+        let sum = 0, weight = 0
+        if (z00) { const w = (1 - fx) * (1 - fy); sum += z00[j] * w; weight += w }
+        if (z10) { const w = fx * (1 - fy); sum += z10[j] * w; weight += w }
+        if (z01) { const w = (1 - fx) * fy; sum += z01[j] * w; weight += w }
+        if (z11) { const w = fx * fy; sum += z11[j] * w; weight += w }
+        z_interp[j] = weight > 0 ? sum / weight : 0
+      }
+
+      let bestCent = 0, minDist = Infinity
+      cent.forEach((c, j) => {
+        const dd = dist(z_interp, c)
+        if (dd < minDist) { minDist = dd; bestCent = j }
+      })
+      denseLabels[dy * dw + dx] = rank[bestCent]
+    }
+  }
+
+  // 3x3 majority filter produces smooth organic boundaries without single-pixel staircases
+  const filteredLabels = new Int8Array(dw * dh).fill(-1)
+  for (let dy = 0; dy < dh; dy++) {
+    for (let dx = 0; dx < dw; dx++) {
+      const cur = denseLabels[dy * dw + dx]
+      if (cur < 0) continue
+      const votes = new Array(k).fill(0)
+      for (let ky = -1; ky <= 1; ky++) {
+        const ny = dy + ky
+        if (ny < 0 || ny >= dh) continue
+        for (let kx = -1; kx <= 1; kx++) {
+          const nx = dx + kx
+          if (nx < 0 || nx >= dw) continue
+          const v = denseLabels[ny * dw + nx]
+          if (v >= 0) votes[v]++
+        }
+      }
+      let topV = cur, topCount = votes[cur]
+      for (let v = 0; v < k; v++) {
+        if (votes[v] > topCount) { topCount = votes[v]; topV = v }
+      }
+      filteredLabels[dy * dw + dx] = topV
+    }
+  }
+
+  const denseUrl = paintClipped(
+    dw,
+    dh,
+    g.bbox,
+    ring,
+    i => (filteredLabels[i] >= 0 ? hex(clusters[filteredLabels[i]].color) : null),
+    false,
+    0
+  )
+
+  return { labels, clusters, url: denseUrl }
 }
 
 // Rule-based land cover labels (same thresholds as the Analysis lab map) for vector export.

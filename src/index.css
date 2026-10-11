@@ -3509,13 +3509,17 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   white-space: nowrap;
 }
 
-/* 100% Authentic Satellite & Earth Engine Raster Pixelation — Zero Cartoon Blur */
-.seva-raster-pixels,
+/* High-Fidelity Continuous Surface Rendering matching Google Earth Engine */
+.seva-raster-pixels.crisp-cells {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
 .leaflet-image-layer,
 .leaflet-tile-container img,
 img.leaflet-tile,
-canvas.seva-raster-canvas {
-  image-rendering: -webkit-optimize-contrast !important;
-  image-rendering: crisp-edges !important;
-  image-rendering: pixelated !important;
+canvas.seva-raster-canvas,
+.lab-over {
+  image-rendering: auto !important;
 }

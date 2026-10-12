@@ -144,6 +144,172 @@ export function createGeoTiffBlob(
   return new Blob([buffer], { type: 'image/tiff' })
 }
 
+export type Float32GeoTiffOptions = {
+  /**
+   * Value written where the pixel is outside the area of interest or otherwise
+   * unusable. Defaults to NaN, which QGIS, ArcGIS and GDAL all render as no-data.
+   */
+  nodata?: number
+}
+
+/**
+ * Writes a real, georeferenced **data** GeoTIFF: one or more Float32 bands in
+ * WGS84 (EPSG:4326), with the no-data value declared so GIS software clips the
+ * area of interest instead of drawing the surrounding box.
+ *
+ * This is deliberately different from `createGeoTiffBlob`, which encodes 8-bit
+ * RGBA — a picture. A picture cannot be re-classified, re-scaled or used in a
+ * raster calculator, so it is the wrong thing to hand someone who asked for the
+ * data. Reading the values back is the point of this format.
+ *
+ * Tags written: ImageWidth/Length, BitsPerSample (32), SampleFormat (3 = IEEE
+ * float), Compression (none), PhotometricInterpretation (1 = BlackIsZero),
+ * StripOffsets/ByteCounts, PlanarConfiguration (chunky), ModelPixelScale,
+ * ModelTiepoint, GeoKeyDirectory (EPSG:4326) and GDAL_NODATA.
+ */
+export function createFloat32GeoTiffBlob(
+  width: number,
+  height: number,
+  bbox: [number, number, number, number], // [west, south, east, north]
+  bands: Float32Array[],
+  options: Float32GeoTiffOptions = {}
+): Blob {
+  const [west, south, east, north] = bbox
+  const spp = bands.length
+  if (spp === 0) throw new Error('createFloat32GeoTiffBlob needs at least one band')
+
+  const pixels = width * height
+  for (const band of bands) {
+    if (band.length < pixels) {
+      throw new Error(`band has ${band.length} values but the raster is ${pixels} pixels`)
+    }
+  }
+
+  const scaleX = Math.abs(east - west) / width
+  const scaleY = Math.abs(north - south) / height
+
+  const pixelScale = new Float64Array([scaleX, scaleY, 0])
+  const tiePoint = new Float64Array([0, 0, 0, west, north, 0])
+  const geoKeys = new Uint16Array([1, 1, 0, 3, 1024, 0, 1, 2, 1025, 0, 1, 1, 2048, 0, 1, 4326])
+  const bitsPerSample = new Uint16Array(spp).fill(32)
+  const sampleFormat = new Uint16Array(spp).fill(3) // 3 = IEEE floating point
+
+  const nodata = options.nodata ?? Number.NaN
+  const nodataText = Number.isNaN(nodata) ? 'nan' : String(nodata)
+  const nodataBytes = new TextEncoder().encode(`${nodataText}\0`)
+
+  // Chunky layout: every band of pixel 0, then every band of pixel 1, and so on.
+  const imageBytes = pixels * spp * 4
+
+  const headerSize = 8
+  const numTags = 15
+  const ifdSize = 2 + numTags * 12 + 4
+  let cursor = headerSize + ifdSize
+
+  const asBytes = (arr: ArrayBufferView) => new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength)
+  const bitsPayload = asBytes(bitsPerSample)
+  const sampleFormatPayload = asBytes(sampleFormat)
+  const pixelScalePayload = asBytes(pixelScale)
+  const tiePointPayload = asBytes(tiePoint)
+  const geoKeysPayload = asBytes(geoKeys)
+
+  const align = (to: number) => {
+    if (cursor % to !== 0) cursor += to - (cursor % to)
+  }
+
+  // Only payloads larger than four bytes need file space. A payload of four bytes or
+  // fewer is written directly into the IFD value slot, which is what the TIFF
+  // specification requires and what readers actually look at.
+  const place = (payload: Uint8Array, to: number) => {
+    if (payload.byteLength <= 4) return 0
+    align(to)
+    const at = cursor
+    cursor += payload.byteLength
+    return at
+  }
+
+  const bitsOffset = place(bitsPayload, 2)
+  const sampleFormatOffset = place(sampleFormatPayload, 2)
+  const pixelScaleOffset = place(pixelScalePayload, 8)
+  const tiePointOffset = place(tiePointPayload, 8)
+  const geoKeysOffset = place(geoKeysPayload, 2)
+  const nodataOffset = place(nodataBytes, 1)
+  align(4)
+  const pixelDataOffset = cursor
+
+  const buffer = new ArrayBuffer(pixelDataOffset + imageBytes)
+  const view = new DataView(buffer)
+  const u8 = new Uint8Array(buffer)
+
+  // TIFF header: little-endian, classic 42, IFD at 8.
+  view.setUint8(0, 0x49)
+  view.setUint8(1, 0x49)
+  view.setUint16(2, 42, true)
+  view.setUint32(4, headerSize, true)
+
+  let ifd = headerSize
+  view.setUint16(ifd, numTags, true)
+  ifd += 2
+
+  const SHORT = 3, LONG = 4, ASCII = 2, DOUBLE = 12
+  const writeTag = (
+    tag: number,
+    type: number,
+    count: number,
+    payload: Uint8Array | null,
+    offsetOrValue: number
+  ) => {
+    view.setUint16(ifd, tag, true)
+    view.setUint16(ifd + 2, type, true)
+    view.setUint32(ifd + 4, count, true)
+
+    if (payload && payload.byteLength <= 4) {
+      u8.set(payload, ifd + 8)
+    } else if (payload) {
+      view.setUint32(ifd + 8, offsetOrValue, true)
+    } else {
+      view.setUint32(ifd + 8, offsetOrValue, true)
+    }
+    ifd += 12
+  }
+
+  writeTag(256, LONG, 1, null, width)
+  writeTag(257, LONG, 1, null, height)
+  writeTag(258, SHORT, spp, bitsPayload, bitsOffset)
+  writeTag(259, SHORT, 1, null, 1)
+  writeTag(262, SHORT, 1, null, 1) // BlackIsZero
+  writeTag(273, LONG, 1, null, pixelDataOffset)
+  writeTag(277, SHORT, 1, null, spp)
+  writeTag(278, LONG, 1, null, height)
+  writeTag(279, LONG, 1, null, imageBytes)
+  writeTag(284, SHORT, 1, null, 1)
+  writeTag(339, SHORT, spp, sampleFormatPayload, sampleFormatOffset)
+  writeTag(33550, DOUBLE, 3, pixelScalePayload, pixelScaleOffset)
+  writeTag(33922, DOUBLE, 6, tiePointPayload, tiePointOffset)
+  writeTag(34735, SHORT, geoKeys.length, geoKeysPayload, geoKeysOffset)
+  writeTag(42113, ASCII, nodataBytes.length, nodataBytes, nodataOffset)
+
+  view.setUint32(ifd, 0, true) // no next IFD
+
+  // Payloads that were too large for the value slot.
+  if (pixelScaleOffset) new Float64Array(buffer, pixelScaleOffset, 3).set(pixelScale)
+  if (tiePointOffset) new Float64Array(buffer, tiePointOffset, 6).set(tiePoint)
+  if (geoKeysOffset) new Uint16Array(buffer, geoKeysOffset, geoKeys.length).set(geoKeys)
+  if (bitsOffset) u8.set(bitsPayload, bitsOffset)
+  if (sampleFormatOffset) u8.set(sampleFormatPayload, sampleFormatOffset)
+  if (nodataOffset) u8.set(nodataBytes, nodataOffset)
+
+  // Pixel payload, written explicitly little-endian so the file is correct even on
+  // a big-endian host.
+  for (let i = 0; i < pixels; i++) {
+    for (let band = 0; band < spp; band++) {
+      view.setFloat32(pixelDataOffset + (i * spp + band) * 4, bands[band][i], true)
+    }
+  }
+
+  return new Blob([buffer], { type: 'image/tiff' })
+}
+
 /**
  * Generates an ESRI WorldFile (.tfw) companion text string for the bounding box and resolution.
  */

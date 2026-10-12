@@ -28,7 +28,7 @@ import { createEarthEngineMap, isEarthEngineConfigured, renderFarmSentinel2 } fr
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 import { getGroundTalk } from './lib/plainTalk'
 import { useI18n } from './lib/i18n'
-import { createGeoTiffBlob } from './lib/geoTiffWriter'
+import { createFloat32GeoTiffBlob, createGeoTiffBlob } from './lib/geoTiffWriter'
 
 type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
@@ -77,6 +77,14 @@ const BASE_STORE = 'seva-basemap'
 const dp = (id: string, d: number) => ({ dem: 0, bw: 0, slope: 1, twi: 1, flow: 1, sink: 1 } as Record<string, number>)[id] ?? d
 const fmt = (id: string, v: number) => { const ind = byId(id); return `${v.toFixed(dp(id, 3))}${ind.unit ? ` ${ind.unit}` : ''}` }
 
+/**
+ * Backdrop painted behind the map tiles. Deliberately neutral instead of near-black:
+ * while tiles are still loading, or where one is missing, this is what shows through,
+ * and a near-black backdrop is what made locking or unlocking the map look like the
+ * map had gone dark.
+ */
+const MAP_BACKDROP = '#e9eeea'
+
 export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: { farm: MapFarm; loading: boolean; panelTarget: HTMLDivElement | null; sceneOpts?: SceneOpts }) {
   const { t } = useI18n()
   const element = useRef<HTMLDivElement>(null)
@@ -97,6 +105,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [opacity, setOpacity] = useState<Record<string, number>>({})
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState<string[]>([])
+  /** Result of the last GeoTIFF export, shown in the map HUD. */
+  const [exportNote, setExportNote] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [earthEngineOverlay, setEarthEngineOverlay] = useState<{
     tileUrl?: string
@@ -172,7 +182,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [bufferUnit, setBufferUnit] = useState<'m' | 'km'>('m')
   const [bufferActive, setBufferActive] = useState<boolean>(false)
 
-  const handleDownloadMap = (format: 'png' | 'geotiff' | 'geojson' | 'kml') => {
+  const handleDownloadMap = async (format: 'png' | 'geotiff' | 'geojson' | 'kml') => {
     const farmRingCoords = farmRing(farm)
     if (format === 'geojson') {
       const geojson = {
@@ -217,56 +227,51 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       return
     }
     if (format === 'geotiff') {
-      const [w, s, e, n] = farmBBox(farm)
-      const exportCanvas = document.createElement('canvas')
-      exportCanvas.width = 512
-      exportCanvas.height = 512
-      const eCtx = exportCanvas.getContext('2d')
-      if (eCtx) {
-        eCtx.fillStyle = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
-        eCtx.fillRect(0, 0, 512, 512)
-
-        const topId = [...active].reverse().find(id => !hidden.includes(id))
-        const layer = topId ? getCachedLayer(layerKey(topId)) : undefined
-        if (layer && layer.url) {
-          const img = new Image()
-          img.crossOrigin = 'anonymous'
-          img.onload = () => {
-            eCtx.drawImage(img, 0, 0, 512, 512)
-            const imgData = eCtx.getImageData(0, 0, 512, 512)
-            const blob = createGeoTiffBlob(512, 512, [w, s, e, n], imgData.data)
-            const a = document.createElement('a')
-            a.href = URL.createObjectURL(blob)
-            a.download = `${farm.name.replace(/\W+/g, '_')}_${topId}.tif`
-            document.body.appendChild(a)
-            a.click()
-            document.body.removeChild(a)
-          }
-          img.src = layer.url
-          return
+      // Export the real thing: the actual per-pixel values of the selected layer,
+      // clipped to the area of interest, as a Float32 GeoTIFF in EPSG:4326.
+      //
+      // The previous code drew a dark 512x512 screenshot of the polygon and wrote
+      // that out. A picture cannot be re-classified or used in a raster calculator,
+      // which is the whole reason someone asks for a .tif, so it was the wrong
+      // artefact to hand back.
+      const topId = [...active].reverse().find(id => !hidden.includes(id))
+      const indId = topId ?? 'ndvi'
+      const ind = byId(indId)
+      if (!scene) {
+        setExportNote('No satellite scene is loaded yet. Pick a date, then export again.')
+        return
+      }
+      if (!ind?.value) {
+        setExportNote(`${indId.toUpperCase()} cannot be exported as a raster. Choose a satellite layer.`)
+        return
+      }
+      setExportNote(`Exporting ${indId.toUpperCase()} GeoTIFF…`)
+      setBusy(b => (b.includes('geotiff') ? b : [...b, 'geotiff']))
+      try {
+        const g = await loadScene(scene, farm)
+        const n = g.w * g.h
+        const values = new Float32Array(n)
+        for (let i = 0; i < n; i++) {
+          values[i] = g.inside[i] && g.ok[i] ? ind.value(g.b, i) : Number.NaN
         }
-
-        eCtx.strokeStyle = '#22c55e'
-        eCtx.lineWidth = 3
-        eCtx.beginPath()
-        farmRingCoords.forEach(([lon, lat], i) => {
-          const cx = ((lon - w) / (e - w || 0.001)) * 512
-          const cy = ((n - lat) / (n - s || 0.001)) * 512
-          if (i === 0) eCtx.moveTo(cx, cy); else eCtx.lineTo(cx, cy)
-        })
-        eCtx.closePath()
-        eCtx.stroke()
-        eCtx.fillStyle = 'rgba(34, 197, 94, 0.35)'
-        eCtx.fill()
-
-        const imgData = eCtx.getImageData(0, 0, 512, 512)
-        const blob = createGeoTiffBlob(512, 512, [w, s, e, n], imgData.data)
+        const blob = createFloat32GeoTiffBlob(g.w, g.h, g.bbox, [values], { nodata: Number.NaN })
+        const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = `${farm.name.replace(/\W+/g, '_')}_AOI.tif`
+        a.href = url
+        a.download = `${farm.name.replace(/\W+/g, '_')}_${indId}_EPSG4326.tif`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        setExportNote(
+          `Exported ${indId.toUpperCase()} GeoTIFF · ${g.w} × ${g.h} px · real values · EPSG:4326 · ` +
+            `${(blob.size / 1024).toFixed(0)} KB. Open it in QGIS, ArcGIS or python-rasterio.`
+        )
+      } catch (err) {
+        console.warn('GeoTIFF export failed:', err)
+        setExportNote('GeoTIFF export failed. Check the connection and try again.')
+      } finally {
+        setBusy(b => b.filter(x => x !== 'geotiff'))
       }
       return
     }
@@ -275,10 +280,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     canvas.height = 800
     const ctx = canvas.getContext('2d')
     if (ctx) {
-      ctx.fillStyle = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+      ctx.fillStyle = bgMode === 'black' ? '#000000' : '#ffffff'
       ctx.fillRect(0, 0, 1200, 800)
       ctx.font = 'bold 22px Inter, sans-serif'
-      ctx.fillStyle = bgMode === 'white' ? '#0f172a' : '#ffffff'
+      ctx.fillStyle = bgMode === 'black' ? '#ffffff' : '#0f172a'
       ctx.fillText(`${customCartoTitle || 'SEVA·GIS Precision Cartographic Map'} · ${farm.name}`, 40, 50)
       ctx.font = '14px Inter, sans-serif'
       ctx.fillStyle = '#64748b'
@@ -703,7 +708,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
 
     if (element.current) {
-      element.current.style.backgroundColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+      element.current.style.backgroundColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : MAP_BACKDROP
     }
 
     if (bgMode === 'black') {
@@ -768,7 +773,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       group = L.layerGroup().addTo(instance)
       frame.current = group
 
-      const bgMapColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+      const bgMapColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : MAP_BACKDROP
       if (element.current) {
         element.current.style.backgroundColor = bgMapColor
       }
@@ -1299,8 +1304,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             </span>
           </div>
         </div>
-
-        {/* The Layers & Symbology Box: cleanly docked over map when open, or portaled to body when detached */}
+        {exportNote && (
+          <div className="ix-export-note" role="status">
+            <span>{exportNote}</span>
+            <button type="button" aria-label="Dismiss export message" onClick={() => setExportNote('')}>×</button>
+          </div>
+        )}
         {layersBoxOpen && (() => {
           const boxContent = (
             <div

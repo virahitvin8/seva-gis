@@ -910,3 +910,76 @@ theme. `.au-node b` was the only live defect; the after-fix screenshot confirms 
 Verification for Batch 14 (final): theme selector audit **35/35 bound** · contrast scan
 **38 light-text rules reviewed, 1 live defect found and fixed** · live deploy **success** ·
 post-fix screenshot committed.
+
+### 2026-10-12 — Batch 15: real GeoTIFF export, scrollable toolbar, and the dark map
+
+Three things you reported, each traced to its cause before changing anything.
+
+**1. Export produced a wallpaper, not data (item 62).** Pressing Export wrote a dark 512 × 512
+*picture* of the polygon outline. A picture cannot be re-classified, re-scaled or used in a
+raster calculator — which is the entire reason someone asks for a `.tif`. The old code path did
+this:
+
+```js
+eCtx.fillStyle = '#0b131a'          // dark backdrop
+eCtx.strokeStyle = '#22c55e'        // green outline
+createGeoTiffBlob(512, 512, bbox, imgData.data)   // 8-bit RGBA picture
+```
+
+Replaced with a real data raster:
+
+| | Before | Now |
+|---|---|---|
+| Content | 8-bit RGBA screenshot of the outline | **Float32 per-pixel values** of the selected layer |
+| Clipping | none | **NaN outside the area of interest**, declared as `GDAL_NODATA`, so GIS software clips it |
+| Size | fixed 512 × 512 | the actual analysis grid (up to 900 × 900) |
+| Files | `…_AOI.tif` | `…_ndvi_EPSG4326.tif` |
+| Usable in a raster calculator | no | **yes** |
+
+New writer `createFloat32GeoTiffBlob()` in `src/lib/geoTiffWriter.ts` emits BitsPerSample 32,
+SampleFormat 3 (IEEE float), PhotometricInterpretation BlackIsZero, chunky band layout, plus
+ModelPixelScale, ModelTiepoint and a GeoKeyDirectory declaring **EPSG:4326**. The map now shows
+a dismissible confirmation line with the raster size, value type and file size.
+
+**Verified by parsing the file back, not by trusting the writer.** A new
+`src/lib/__tests__/geoTiffWriter.test.ts` contains an independent TIFF reader and **10 tests**
+covering byte order, the float declarations, exact georeferencing maths, value round-tripping
+including NaN, the no-data tag, multi-band chunky layout, and tag ordering. **It caught two real
+bugs**: array payloads of exactly four bytes (two 16-bit samples, and the four-byte `nan\0`
+string) were being written to an offset instead of into the IFD value slot, so a reader saw
+`0` for BitsPerSample and nothing for the no-data value. Fixed, and the tests now pass.
+
+**2. The toolbar did not look scrollable (item 43 area).** `.ix-main-toolbar` already had
+`overflow-x: auto`, but it also had `scrollbar-width: none` and
+`::-webkit-scrollbar { display: none }` — so the row looked like it simply ended. On a
+desktop mouse there was nothing to grab and no hint that Layers, Symbology, Base map and
+Clip AOI existed off the left edge. The scrollbar is now **visible and draggable**: a 9 px
+styled thumb with a track, `scrollbar-color` for Firefox, and a grab cursor.
+
+**3. The map went dark on lock/unlock (items 53, 54).** Root cause found in CSS, not in the
+lock logic: **three near-black backdrops** sat behind the tiles.
+
+| Selector | Was | Now |
+|---|---|---|
+| `.ix-wrap` | `radial-gradient(circle at 30% 20%, #14382a, #07110c)` | neutral `#e9eeea` |
+| `.map-wrap` | `#0b1410` | neutral `#e9eeea` |
+| `.field-map.leaflet-container` | `#0b1410` | neutral `#e9eeea` |
+| inline default backdrop in `IndicatorMap` | `#0b131a` | `MAP_BACKDROP` constant, `#e9eeea` |
+
+Any gap — a tile still loading, a transparent raster overlay, the moment `fit75PercentAoi()`
+re-fits the view on lock — showed that backdrop. Black showing through is what read as "the map
+went black". Explicit black/white canvas choices are still honoured; only the *default* changed.
+The exported PNG also gained a readable light background with dark text instead of white text on
+a near-black sheet.
+
+**Still not solved, and stated plainly:** the Earth Engine backend reports
+`engineReady: false` and `/api/earth-engine/map` returns **422**, so a **server-side GEE export
+is not possible right now**. The GeoTIFF above is computed from the same Copernicus Sentinel-2
+L2A surface reflectance the app already analyses, so the values are real and georeferenced — but
+it is not produced by Earth Engine. Fixing that needs the backend's service account and a
+redeploy, which I cannot do from here. A server-rendered GeoTIFF
+(`…/item/bbox/…/{w}x{h}.tif`) was probed and **does** return `image/tiff` (787 KB), so it is a
+viable second route if you want a server-side export before Earth Engine is repaired.
+
+Verification for Batch 15: `tsc --noEmit` **pass** · `npm test` **45/45 pass** (was 35) ·
+`vite build` **pass (3.5 s)** · TIFF conformance **10/10, 2 writer bugs caught and fixed**.

@@ -485,7 +485,7 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .ix-wrap{background:radial-gradient(circle at 30% 20%,#14382a,#07110c)}
 .ix-tools{overflow:auto}
 .leaflet-control-scale, .leaflet-control-scale-line { display: none !important; }
-.field-map.leaflet-container { background: #0b1410; }
+.field-map.leaflet-container { background: #e9eeea; }
 .field-map.bg-black, .field-map.bg-black.leaflet-container, .field-map.bg-black .leaflet-tile-pane {
   background: #000000 !important;
   background-color: #000000 !important;
@@ -1180,7 +1180,9 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   position: relative;
   width: 100%;
   min-height: 580px;
-  background: #0b1410;
+  /* Neutral, not near-black: while tiles load, or where a tile is missing, this is
+     what shows through. A dark backdrop reads as "the map went black". */
+  background: #e9eeea;
   overflow: hidden;
 }
 .ix-outer {
@@ -1198,7 +1200,10 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   min-height: 540px;
   flex: 1 0 540px;
   overflow: hidden;
-  background: radial-gradient(circle at 30% 20%, #14382a, #07110c);
+  /* Was a dark radial gradient. Any gap in the tiles or a transparent raster overlay
+     showed it, which is why locking or unlocking the map looked like the map had gone
+     dark. A neutral surface shows the same gap without reading as a failure. */
+  background: #e9eeea;
 }
 .field-map {
   width: 100%;
@@ -1218,13 +1223,36 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   background: #0f241a;
   border-bottom: 1px solid rgba(52, 211, 153, 0.2);
   overflow-x: auto;
-  scrollbar-width: none;
+  overflow-y: hidden;
   white-space: nowrap;
   width: 100%;
   box-sizing: border-box;
+  /* Visible, draggable scrollbar. It used to be hidden with `scrollbar-width:none`,
+     so the row looked like it simply ended at the right edge: on a desktop mouse
+     there was nothing to grab and no hint that more controls existed off-screen. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(52, 211, 153, 0.7) rgba(255, 255, 255, 0.08);
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+}
+.ix-main-toolbar:active {
+  cursor: grabbing;
 }
 .ix-main-toolbar::-webkit-scrollbar {
-  display: none;
+  height: 9px;
+}
+.ix-main-toolbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+.ix-main-toolbar::-webkit-scrollbar-thumb {
+  background: rgba(52, 211, 153, 0.7);
+  border-radius: 6px;
+  border: 2px solid #0f241a;
+}
+.ix-main-toolbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 211, 153, 1);
 }
 
 .ix-tb-btn {
@@ -1299,6 +1327,35 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
   align-items: center;
   gap: 8px;
   pointer-events: auto;
+}
+
+/* GeoTIFF export result, shown under the map toolbar. */
+.ix-export-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #dff3e6;
+  background: #10302a;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.35);
+}
+.ix-export-note button {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  border-radius: 5px;
+  color: #a7f3d0;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 15px;
+  line-height: 1;
+}
+.ix-export-note button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  filter: none;
 }
 
 .ix-unified-hud {

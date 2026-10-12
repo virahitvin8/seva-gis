@@ -692,3 +692,33 @@ entries (SWAT land-use classes, soil associations, monitoring network, SUFI-2 do
 
 Verification for Batch 10: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
 `vite build` **pass (5.9 s)** · `npm run i18n:coverage` **13.4%, up from 8.3%**.
+
+### 2026-10-12 — Batch 11: the map component is fully translated
+
+The remaining 40 `IndicatorMap.tsx` strings are wired — the whole cartographic legend (SWAT
+land-use classes, FAO soil associations, monitoring network, hydrological stations, SUFI-2
+dotty plots), the metered tape, borewell marking, the basemap selector, zoom stretch, local
+contrast, the Earth Engine hand-off and the resampling control.
+
+`src/IndicatorMap.tsx` **no longer appears in the untranslated list at all.**
+
+| | Before Batch 10 | After Batch 11 |
+|---|---|---|
+| Strings still hard-coded | 899 | **810** |
+| `t()` call sites | 81 | **171** |
+| Distinct catalogue keys | 80 | **169** |
+| **Coverage** | 8.3% | **17.4%** |
+
+**One wording change that satisfies a standing instruction.** The cartographic banner read
+`SEVA·GIS SPATIAL WATERSHED SUITE · AREA OF INTEREST (AOI) · …`. You asked for the
+"watershed suite" framing to go, so it is now `SEVA·GIS · AREA OF INTEREST (AOI) · …`.
+
+**A mistake avoided by making the script idempotent.** The first run of this batch wrote the 40
+catalogue keys and *then* found one unmatched string (the source uses `&amp;`, my literal used
+`&`), so it refused to touch the component. Re-running naively would have inserted the 40 keys
+a second time. The script now checks whether each key already exists before inserting, and
+reported "added 0 keys (40 already present)" — so the recovery was safe rather than lucky.
+
+Verification for Batch 11: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
+`vite build` **pass (4.8 s)** · duplicate-key scan **clean** ·
+`npm run i18n:coverage` **17.4%, up from 13.4%**.

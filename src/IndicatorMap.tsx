@@ -1769,7 +1769,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
                       {MEANING[topLayer.ind.id] && (
                         <div className="ix-lb-classes-list">
-                          <h4>Agronomic Classes &amp; Calibrated Benchmarks</h4>
+                          <h4>{t('map.agroClasses')}</h4>
                           {MEANING[topLayer.ind.id].map((b, i) => (
                             <div key={b.label} className="ix-lb-class-row">
                               <span className="ix-lb-color-dot" style={{ background: b.color }} />
@@ -1801,9 +1801,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                               {gt.friendConcept}
                             </p>
                             <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '8px 10px', borderLeft: '3px solid #10b981' }}>
-                              <strong style={{ fontSize: 10.5, color: '#a7f3d0', display: 'block', marginBottom: 2 }}>
-                                Practical Field Action:
-                              </strong>
+                              <strong style={{ fontSize: 10.5, color: '#a7f3d0', display: 'block', marginBottom: 2 }}>{t('map.fieldAction')}</strong>
                               <span style={{ fontSize: 10.5, color: '#f8fafc', lineHeight: 1.4 }}>
                                 {interp.groundAction}
                               </span>
@@ -1824,14 +1822,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 <div className="ix-lb-tool-card">
                   <div className="ix-lb-tool-head">
                     <Ruler size={16} className="text-amber-400" />
-                    <strong>Metered Tape &amp; Elevation Slope Ruler</strong>
+                    <strong>{t('map.tapeTitle')}</strong>
                     <span className={`ix-tool-badge ${rulerOpen ? 'on' : ''}`}>
                       {rulerOpen ? 'Active on Map' : 'Off'}
                     </span>
                   </div>
-                  <p className="ix-tool-desc">
-                    Measure field distances, boundary perimeters, elevation deltas, and geodesic slopes with interactive drag handles.
-                  </p>
+                  <p className="ix-tool-desc">{t('map.tapeNote')}</p>
                   <div className="ix-tool-actions">
                     <button
                       className={`ix-sett-btn ${rulerOpen ? 'on' : ''}`}
@@ -1853,9 +1849,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <Droplets size={16} className="text-blue-400" />
                     <strong>Water Points &amp; Borewells ({mine.b.length + mine.p.length})</strong>
                   </div>
-                  <p className="ix-tool-desc">
-                    Pin active borewells, irrigation pumps, drip lines, and recharge points directly onto your parcel.
-                  </p>
+                  <p className="ix-tool-desc">{t('map.borewellNote')}</p>
                   <div className="ix-tool-actions">
                     <button
                       className={`ix-sett-btn ${tool === 'borewell' ? 'on' : ''}`}
@@ -1894,7 +1888,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                         <button aria-label={`Remove ${pipeline.name}`} title={`Remove ${pipeline.name}`} onClick={() => removePipeline(pipeline.id)}><Trash2 size={14}/></button>
                       </div>
                     ))}
-                    {!mine.b.length && !mine.p.length && <small className="ix-assets-empty">No borewells or pipelines added for this parcel.</small>}
+                    {!mine.b.length && !mine.p.length && <small className="ix-assets-empty">{t('map.noBorewells')}</small>}
                   </div>
                 </div>
 
@@ -1902,14 +1896,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 <div className="ix-lb-tool-card">
                   <div className="ix-lb-tool-head">
                     <Box size={16} className="text-amber-400" />
-                    <strong>Geodesic Buffer Zone Creator</strong>
+                    <strong>{t('map.bufferTitle')}</strong>
                     <span className={`ix-tool-badge ${bufferActive ? 'on' : ''}`}>
                       {bufferActive ? `${bufferDist} ${bufferUnit} Active` : 'Off'}
                     </span>
                   </div>
-                  <p className="ix-tool-desc">
-                    Specify custom perimeter buffer distance in meters or kilometers to analyze surrounding buffer zones, spray setbacks, and canal easements.
-                  </p>
+                  <p className="ix-tool-desc">{t('map.bufferNote')}</p>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '8px 0', background: 'rgba(255,255,255,0.06)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <label style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>Distance:</label>
                     <input
@@ -1948,8 +1940,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               <div className="ix-lb-content">
                 {/* Basemap Imagery Picker */}
                 <div className="ix-lb-settings-group">
-                  <h4>Basemap Imagery &amp; Tiles</h4>
-                  <p className="ix-settings-desc">Select high-resolution satellite imagery or topological reference layers.</p>
+                  <h4>{t('map.basemap')}</h4>
+                  <p className="ix-settings-desc">{t('map.basemapNote')}</p>
                   <div className="ix-basemap-grid">
                     {BASES.map(b => (
                       <button
@@ -1967,29 +1959,29 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   </div>
                 </div>
                 <div className="ix-lb-settings-group">
-                  <h4>Zoom & Bounds Stretch</h4>
-                  <p className="ix-settings-desc">Stretch the farm to occupy 100% of the canvas view without wasted exterior borders.</p>
+                  <h4>{t('map.zoomStretchTitle')}</h4>
+                  <p className="ix-settings-desc">{t('map.zoomStretchNote')}</p>
                   <div className="ix-settings-btns">
                     <button
                       className={`ix-sett-btn ${aoiOnly ? 'on' : ''}`}
                       onClick={handleZoomStretch}
                     >
                       <Maximize2 size={13} />
-                      <span>Zoom Stretch Farm Only</span>
+                      <span>{t('map.zoomStretchBtn')}</span>
                     </button>
                     <button
                       className={`ix-sett-btn ${!aoiOnly ? 'on' : ''}`}
                       onClick={handleResetView}
                     >
                       <Move size={13} />
-                      <span>Standard Whole Map</span>
+                      <span>{t('map.wholeMapBtn')}</span>
                     </button>
                   </div>
                 </div>
 
                 <div className="ix-lb-settings-group">
-                  <h4>Local image contrast</h4>
-                  <p className="ix-settings-desc">Adjust the contrast of the locally rendered Sentinel-2 preview. These settings do not change an Earth Engine Code Editor script or guarantee a pixel-for-pixel match.</p>
+                  <h4>{t('map.contrast')}</h4>
+                  <p className="ix-settings-desc">{t('map.contrastNote')}</p>
                   <button
                     className={`ix-sett-btn full ${stretchDra ? 'on' : ''}`}
                     onClick={() => setStretchDra(!stretchDra)}
@@ -2000,8 +1992,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 </div>
 
                 <div className="ix-lb-settings-group">
-                  <h4>Raster Resampling (Anti-Pixelation)</h4>
-                  <p className="ix-settings-desc">Controls interpolation for small parcels. Cubic Spline or Bilinear eliminates blocky pixel squares (Layer Properties &rarr; Symbology &rarr; Resampling).</p>
+                  <h4>{t('map.resamplingTitle')}</h4>
+                  <p className="ix-settings-desc">{t('map.resamplingNote')}</p>
                   <div className="ix-settings-btns">
                     <button
                       className={`ix-sett-btn ${resamplingMethod === 'cubic' ? 'on' : ''}`}
@@ -2031,7 +2023,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 </div>
 
                 <div className="ix-lb-settings-group">
-                  <h4>Earth Engine service</h4>
+                  <h4>{t('map.eeService')}</h4>
                   <p className="ix-settings-desc">{earthEngineStatus} Summary values and terrain layers still use their separately labelled public data sources.</p>
                 </div>
               </div>
@@ -2039,9 +2031,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
             {/* Footer Status Bar */}
             <div className="ix-gee-handoff">
-              <div><strong>Continue in Google Earth Engine</strong><small>Copies this field outline and the selected date, cloud limit, band view, and index style into JavaScript. The Code Editor runs the request under your signed-in Earth Engine account.</small></div>
+              <div><strong>{t('map.eeContinue')}</strong><small>{t('map.eeCopyNote')}</small></div>
               <small className="ix-ee-status" role="status">{earthEngineStatus}</small>
-              <button onClick={openEarthEngine}><ExternalLink size={14}/>Copy script &amp; open</button>
+              <button onClick={openEarthEngine}><ExternalLink size={14}/>{t('map.eeCopyOpen')}</button>
               {earthEngineNotice && <p role="status">{earthEngineNotice}</p>}
             </div>
             <div className="ix-lb-footer">
@@ -2113,7 +2105,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             </div>
           )}
           <div className="ix-carto-subtitle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span>SEVA·GIS SPATIAL WATERSHED SUITE · AREA OF INTEREST (AOI) · SRTM / SENTINEL-2 PROCESSING OUTPUT</span>
+            <span>{t('map.cartoBanner')}</span>
             <span style={{ display: 'inline-flex', gap: '4px', marginLeft: 8 }}>
               <button
                 onClick={e => { e.stopPropagation(); handleDownloadMap('png') }}
@@ -2205,9 +2197,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Compass size={14} className="text-emerald-700" />
-              <strong style={{ fontSize: 11, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Cartographic Legend
-              </strong>
+              <strong style={{ fontSize: 11, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('map.cartoLegend')}</strong>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <button
@@ -2236,13 +2226,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 <button className={thesisTheme === 'soil' ? 'active' : ''} onClick={() => setThesisTheme('soil')}>Soil</button>
                 <button className={thesisTheme === 'stations' ? 'active' : ''} onClick={() => setThesisTheme('stations')}>Stations</button>
                 <button className={thesisTheme === 'discharge' ? 'active' : ''} onClick={() => setThesisTheme('discharge')}>Reaches</button>
-                <button className={thesisTheme === 'dotty' ? 'active' : ''} onClick={() => setThesisTheme('dotty')}>Dotty Plots</button>
+                <button className={thesisTheme === 'dotty' ? 'active' : ''} onClick={() => setThesisTheme('dotty')}>{t('map.dottyPlots')}</button>
               </div>
 
               {/* Exact Swatches Matching MAPS REF */}
               {thesisTheme === 'dem' && (
                 <div className="ix-carto-legend-list">
-                  <div className="ix-legend-title">Elevation Gradient (SRTM 30m)</div>
+                  <div className="ix-legend-title">{t('map.elevGradient')}</div>
                   <div className="ix-dem-ramp-bar">
                     <span style={{ background: 'linear-gradient(to right, #1a9850, #ffffbf, #fc8d59, #8c510a, #ffffff)' }} />
                   </div>
@@ -2255,7 +2245,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
               {thesisTheme === 'lulc' && (
                 <div className="ix-carto-legend-list">
-                  <div className="ix-legend-title">SWAT Land Use / Land Cover (9 Classes)</div>
+                  <div className="ix-legend-title">{t('map.lulcLegend')}</div>
                   {[
                     { code: 'WATR', label: 'Water', color: '#2b83ba' },
                     { code: 'URMD', label: 'Residential-Medium Density', color: '#d7191c' },
@@ -2278,7 +2268,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
               {thesisTheme === 'soil' && (
                 <div className="ix-carto-legend-list">
-                  <div className="ix-legend-title">FAO Soil Association (5 Classes)</div>
+                  <div className="ix-legend-title">{t('map.soilLegend')}</div>
                   {[
                     { code: 'Bv12-3b-3696', label: 'Vertic Cambisols', color: '#d73027' },
                     { code: 'I-Bc-Lc-3714', label: 'Lithosols & Chromic Luvisols', color: '#fc8d59' },
@@ -2297,47 +2287,45 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
               {thesisTheme === 'stations' && (
                 <div className="ix-carto-legend-list">
-                  <div className="ix-legend-title">Monitoring Network (Fig 3.5)</div>
+                  <div className="ix-legend-title">{t('map.monitoringLegend')}</div>
                   <div className="ix-legend-item">
                     <span className="swatch" style={{ background: '#e11d48', transform: 'rotate(45deg)', width: 10, height: 10 }} />
-                    <b>Rain Gauge</b>
+                    <b>{t('map.rainGauge')}</b>
                     <span>Precipitation (PREC)</span>
                   </div>
                   <div className="ix-legend-item">
                     <span className="swatch" style={{ background: '#0f172a', clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
                     <b>Temperature</b>
-                    <span>Max/Min Temp Sensors</span>
+                    <span>{t('map.tempSensors')}</span>
                   </div>
                 </div>
               )}
 
               {thesisTheme === 'discharge' && (
                 <div className="ix-carto-legend-list">
-                  <div className="ix-legend-title">Hydrological Stations (Fig 3.6)</div>
+                  <div className="ix-legend-title">{t('map.hydroStations')}</div>
                   <div className="ix-legend-item">
                     <span className="swatch" style={{ background: '#0284c7', height: 4, borderRadius: 2 }} />
-                    <b>Stream Network</b>
-                    <span>SWAT Reach Order 1-4</span>
+                    <b>{t('map.streamNetwork')}</b>
+                    <span>{t('map.reachOrder')}</span>
                   </div>
                   <div className="ix-legend-item">
                     <span className="swatch" style={{ background: '#10b981', borderRadius: '50%' }} />
-                    <b>Deoghat Station</b>
-                    <span>Calibrated Discharge Gauge</span>
+                    <b>{t('map.deoghatStation')}</b>
+                    <span>{t('map.dischargeGauge')}</span>
                   </div>
                   <div className="ix-legend-item">
                     <span className="swatch" style={{ background: '#f59e0b', borderRadius: '50%' }} />
                     <b>Bandol & Ugli</b>
-                    <span>Tributary Outlets</span>
+                    <span>{t('map.tributaryOutlets')}</span>
                   </div>
                 </div>
               )}
 
               {thesisTheme === 'dotty' && (
                 <div className="ix-carto-legend-list">
-                  <div className="ix-legend-title">SUFI-2 Calibration Dotty Plots (Fig 4.4)</div>
-                  <p style={{ fontSize: 10, color: '#64748b', margin: '0 0 6px', lineHeight: 1.35 }}>
-                    Nash-Sutcliffe Efficiency (NSE) response across 2,000 parameter iteration runs. Top clusters define calibrated optima.
-                  </p>
+                  <div className="ix-legend-title">{t('map.sufi2Legend')}</div>
+                  <p style={{ fontSize: 10, color: '#64748b', margin: '0 0 6px', lineHeight: 1.35 }}>{t('map.sufi2Note')}</p>
                   {[
                     { param: '1:R__CN2.mgt', name: 'Curve Number Relative Delta', opt: '-0.12', nse: '0.68', range: '-0.40 to +0.40' },
                     { param: '2:A__GWQMN.gw', name: 'Shallow Aquifer Threshold (mm)', opt: '245 mm', nse: '0.67', range: '210 to 300 mm' },
@@ -2443,7 +2431,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   return null
                 })()}
 
-                {Object.keys(picked.values).length === 0 && <p>No clear pixel here (cloud, shadow, or no data).</p>}
+                {Object.keys(picked.values).length === 0 && <p>{t('map.noPixel')}</p>}
               </>
             )}
           </div>

@@ -57,15 +57,21 @@ function proseIn(text) {
   return [...found]
 }
 
-// `node scripts/i18n-coverage.mjs --list <file>` prints the untranslated strings so
-// they can be turned into catalogue keys without guessing.
+// `node scripts/i18n-coverage.mjs --list <file> [--min N]` prints the untranslated strings
+// so they can be turned into catalogue keys without guessing. `--min` is useful for
+// pulling out only the long paragraphs, which are the ones that get truncated on screen.
 const listIndex = process.argv.indexOf('--list')
+const minIndex = process.argv.indexOf('--min')
+const minLength = minIndex === -1 ? 0 : Number(process.argv[minIndex + 1]) || 0
 if (listIndex !== -1) {
-  for (const target of process.argv.slice(listIndex + 1)) {
+  const targets = process.argv
+    .slice(listIndex + 1)
+    .filter(a => !a.startsWith('--') && (minIndex === -1 || process.argv.indexOf(a) < minIndex || process.argv.indexOf(a) > minIndex + 1))
+  for (const target of targets) {
     const abs = join(ROOT, target)
-    const strings = proseIn(readFileSync(abs, 'utf8'))
-    console.log(`=== ${target} — ${strings.length} untranslated prose strings ===`)
-    strings.forEach((s, i) => console.log(`${String(i + 1).padStart(3)}. [${s.length}] ${s.replace(/\s+/g, ' ').slice(0, 200)}`))
+    const strings = proseIn(readFileSync(abs, 'utf8')).filter(s => s.length >= minLength)
+    console.log(`=== ${target} — ${strings.length} untranslated prose strings (min ${minLength}) ===`)
+    strings.forEach((s, i) => console.log(`${String(i + 1).padStart(3)}. [${s.length}] ${s.replace(/\s+/g, ' ').slice(0, 400)}`))
   }
   process.exit(0)
 }

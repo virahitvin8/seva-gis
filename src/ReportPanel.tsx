@@ -48,13 +48,16 @@ import {
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
 import { openReportPrintView } from './lib/reportPdf'
+import { useI18n } from './lib/i18n'
 
 export default function ReportPanel({ farm }: { farm?: ReportFarm | null }) {
+  // Must be called before the early return below, so the hook order stays stable.
+  const { t } = useI18n()
   if (!farm) {
     return (
       <div style={{ padding: '36px 20px', textAlign: 'center', color: '#94a3b8' }}>
-        <p style={{ margin: '0 0 10px', fontSize: '15px', color: '#cbd5e1', fontWeight: 600 }}>No field selected</p>
-        <p style={{ margin: 0, fontSize: '13px' }}>Please add or select a field boundary first to view or generate farm reports.</p>
+        <p style={{ margin: '0 0 10px', fontSize: '15px', color: '#cbd5e1', fontWeight: 600 }}>{t('rp.noField')}</p>
+        <p style={{ margin: 0, fontSize: '13px' }}>{t('rp.needAoi')}</p>
       </div>
     )
   }
@@ -63,6 +66,7 @@ export default function ReportPanel({ farm }: { farm?: ReportFarm | null }) {
 
 function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const { who } = useAccount()
+  const { t } = useI18n()
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [reports, setReports] = useState<Partial<Record<ReportLang, { html: string; data: unknown; id: string; lang: ReportLang }>>>({})
@@ -399,9 +403,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           className={tab === 'create' ? 'on' : ''}
           onClick={() => setTab('create')}
         >
-          <FileText size={15} style={{ display: 'inline', marginRight: 6 }} />
-          Generate Report
-        </button>
+          <FileText size={15} style={{ display: 'inline', marginRight: 6 }} />{t('rp.generate')}</button>
         <button
           role="tab"
           aria-selected={tab === 'history'}
@@ -417,17 +419,13 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           className={tab === 'health' ? 'on' : ''}
           onClick={() => setTab('health')}
         >
-          <PieChart size={15} style={{ display: 'inline', marginRight: 6 }} />
-          Overall Health Pie &amp; Reporter Briefing
-        </button>
+          <PieChart size={15} style={{ display: 'inline', marginRight: 6 }} />{t('rp.healthPie')}</button>
         <button
           role="tab"
           aria-selected={tab === 'adv'}
           className={tab === 'adv' ? 'on' : ''}
           onClick={() => setTab('adv')}
-        >
-          Cartography Settings
-        </button>
+        >{t('rp.cartoSettings')}</button>
         <button
           role="tab"
           aria-selected={tab === 'craft'}
@@ -435,9 +433,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           onClick={() => setTab('craft')}
           style={{ background: tab === 'craft' ? '#1e1b4b' : undefined, color: tab === 'craft' ? '#c7d2fe' : undefined }}
         >
-          <Sparkles size={15} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />
-          ArtCraft Dossier Workbench
-        </button>
+          <Sparkles size={15} style={{ display: 'inline', marginRight: 6, color: '#818cf8' }} />{t('rp.workbench')}</button>
       </div>
 
       {/* CREATE TAB */}
@@ -447,7 +443,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           <div className="rp-lang-select">
             <div className="rp-lang-header">
               <Languages size={15} />
-              <span>Report Language / भाषा / భాష:</span>
+              <span>{t('rp.language')}</span>
             </div>
             <div className="rp-lang-grid">
               {(['en', 'hi', 'te'] as ReportLang[]).map(l => (
@@ -468,9 +464,9 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13.5px', color: '#1b4332' }}>
                 <Layers size={16} color="#2d6a4f" />
-                <span>Core Report Items</span>
+                <span>{t('rp.coreItems')}</span>
               </div>
-              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select items to include in dossier</span>
+              <span style={{ fontSize: '11.5px', color: '#64748b' }}>{t('rp.coreItemsNote')}</span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '8px' }}>
@@ -482,7 +478,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 />
                 <div>
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>3D Topographic Terrain Model</div>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>Isometric extruded elevation mesh (Fig 1.1)</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{t('rp.item3d')}</div>
                 </div>
               </label>
 
@@ -493,8 +489,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   onChange={() => upd({ ...opts, includeCharts: opts.includeCharts === false })}
                 />
                 <div>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Sensitivity Charts &amp; Dotty Plots</div>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>SUFI-2 parameter calibration scatter plots</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{t('rp.itemSensitivity')}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{t('rp.itemSensitivityNote')}</div>
                 </div>
               </label>
 
@@ -505,8 +501,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   onChange={() => upd({ ...opts, includeTables: opts.includeTables === false })}
                 />
                 <div>
-                  <div style={{ fontWeight: 600, color: '#0f172a' }}>Hydrology &amp; Agronomy Tables</div>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>SCS-CN water budget &amp; spectral indicators</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{t('rp.itemTables')}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{t('rp.itemTablesNote')}</div>
                 </div>
               </label>
             </div>
@@ -520,9 +516,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 <span>Analysis Lab Parameters &amp; Maps ({opts.maps.length}/{MAP_CHOICES.length})</span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="outline sm" onClick={selectAllMaps} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
-                  Select All
-                </button>
+                <button type="button" className="outline sm" onClick={selectAllMaps} style={{ padding: '2px 8px', fontSize: '11.5px' }}>{t('rp.selectAll')}</button>
                 <button type="button" className="outline sm" onClick={defaultMaps} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
                   Defaults
                 </button>
@@ -566,9 +560,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 <span>Band Combination Symbology Images ({(opts.bandSymbologies ?? []).length}/{BAND_SYMBOLOGY_CHOICES.length})</span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="outline sm" onClick={selectAllBands} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
-                  Select All
-                </button>
+                <button type="button" className="outline sm" onClick={selectAllBands} style={{ padding: '2px 8px', fontSize: '11.5px' }}>{t('rp.selectAll')}</button>
                 <button type="button" className="outline sm" onClick={defaultBands} style={{ padding: '2px 8px', fontSize: '11.5px' }}>
                   Defaults
                 </button>
@@ -595,8 +587,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             </div>
           </div>
 
-          <p style={{ margin: '14px 0 10px', fontSize: '13px', color: '#334155' }}>
-            Compiles a complete 3D academic dossier titled <b>{baseFilename}</b> in <b>{selectedLangs.map(l => REPORT_LANG_NAMES[l].native).join(', ')}</b>. All raster layers are ingested from official Sentinel-2 L2A &amp; Copernicus DEM, perfectly centered in geodetic frames without border collision.
+          <p style={{ margin: '14px 0 10px', fontSize: '13px', color: '#334155' }}>{t('rp.compilesIntro')}<b>{baseFilename}</b> in <b>{selectedLangs.map(l => REPORT_LANG_NAMES[l].native).join(', ')}</b>. All raster layers are ingested from official Sentinel-2 L2A &amp; Copernicus DEM, perfectly centered in geodetic frames without border collision.
           </p>
 
           <button className="primary" onClick={make} disabled={!!busy} style={{ width: '100%', justifyContent: 'center', padding: '12px 18px', fontSize: '14.5px' }}>
@@ -612,25 +603,21 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
                   <Mail size={17} color="#059669" />
-                  <span>EmailOctopus Report Delivery</span>
+                  <span>{t('rp.emailTitle')}</span>
                 </div>
                 <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
                   ● EmailOctopus API Connected
                 </span>
               </div>
-              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
-                Enter your email address to receive an official copy with full NDVI &amp; SWAT hydrological telemetry.
-              </p>
+              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>{t('rp.emailNote')}</p>
 
               {/* Email form with input placed ABOVE the send button */}
               <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>
-                    Recipient Email Address:
-                  </label>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>{t('rp.recipient')}</label>
                   <input
                     type="email"
-                    placeholder="Type your email address here (e.g., name@gmail.com)"
+                    placeholder={t('rp.emailPlaceholder')}
                     value={emailInput}
                     onChange={e => setEmailInput(e.target.value)}
                     style={{
@@ -661,9 +648,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   onChange={e => setAutoEmailOnDownload(e.target.checked)}
                   style={{ cursor: 'pointer' }}
                 />
-                <label htmlFor="auto-email-cb" style={{ cursor: 'pointer' }}>
-                  Automatically send copy to this email address whenever I click "Download Dossier"
-                </label>
+                <label htmlFor="auto-email-cb" style={{ cursor: 'pointer' }}>{t('rp.autoSend')}</label>
               </div>
 
               {emailSuccess && (
@@ -685,7 +670,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             <>
               {selectedLangs.length > 1 && (
                 <div className="rp-preview-bar">
-                  <span className="rp-preview-label">Preview language:</span>
+                  <span className="rp-preview-label">{t('rp.previewLanguage')}</span>
                   <div className="rp-preview-pills">
                     {selectedLangs.map(l => (
                       <button
@@ -728,19 +713,17 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   <FileJson size={16} />
                   Data (JSON)
                 </button>
-                <button className="outline" onClick={print} title="Open browser print preview">
-                  <Printer size={16} />
-                  Print Dossier
-                </button>
+                <button className="outline" onClick={print} title={t('rp.printPreview')}>
+                  <Printer size={16} />{t('rp.print')}</button>
               </div>
 
               <p className="rp-note" style={{ margin: '10px 0 14px', fontSize: '12.5px', color: '#475569' }}>
-                <b>Download PDF</b> opens your browser's print dialog with this exact report. Choose{' '}
+                <b>{t('rp.downloadPdf')}</b> opens your browser's print dialog with this exact report. Choose{' '}
                 <b>Destination &rarr; Save as PDF</b> — the saved file is the document you previewed here, with maps,
                 legends, scale bars and page breaks intact.
               </p>
 
-              <iframe id="report-frame" className="rp-frame" title="Report preview" src={url} />
+              <iframe id="report-frame" className="rp-frame" title={t('rp.previewTitle')} src={url} />
             </>
           )}
         </>
@@ -752,12 +735,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div>
               <h4 style={{ margin: 0, fontSize: '15px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <FolderOpen size={17} color="#2d6a4f" />
-                Device Storage Vault (OPFS &amp; IndexedDB)
-              </h4>
-              <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                All generated reports saved locally on this device. Re-download, preview, or delete at any time.
-              </p>
+                <FolderOpen size={17} color="#2d6a4f" />{t('rp.vault')}</h4>
+              <p style={{ margin: '3px 0 0', fontSize: '12.5px', color: '#64748b' }}>{t('rp.vaultNote')}</p>
             </div>
             {historyList.length > 0 && (
               <button
@@ -769,18 +748,16 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   }
                 }}
               >
-                <Trash2 size={13} />
-                Clear All
-              </button>
+                <Trash2 size={13} />{t('rp.clearAll')}</button>
             )}
           </div>
 
           {historyList.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '36px 12px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
               <History size={32} color="#94a3b8" style={{ margin: '0 auto 8px' }} />
-              <p style={{ margin: 0, fontWeight: 600, color: '#475569' }}>No report archives stored on this device yet.</p>
-              <p style={{ margin: '4px 0 12px', fontSize: '12.5px', color: '#64748b' }}>Click "Generate 3D Cartographic Report" to create and archive a report session.</p>
-              <button className="primary sm" onClick={() => setTab('create')}>Generate First Report</button>
+              <p style={{ margin: 0, fontWeight: 600, color: '#475569' }}>{t('rp.noArchives')}</p>
+              <p style={{ margin: '4px 0 12px', fontSize: '12.5px', color: '#64748b' }}>{t('rp.noArchivesNote')}</p>
+              <button className="primary sm" onClick={() => setTab('create')}>{t('rp.generateFirst')}</button>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '10px' }}>
@@ -816,7 +793,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
                       className="outline sm"
-                      title="Preview in new window"
+                      title={t('rp.previewNewWindow')}
                       onClick={() => {
                         const blob = new Blob([entry.htmlContent], { type: 'text/html' })
                         const u = URL.createObjectURL(blob)
@@ -828,7 +805,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                     </button>
                     <button
                       className="primary sm"
-                      title="Re-download report"
+                      title={t('rp.redownload')}
                       onClick={() => downloadHistoricalReport(entry)}
                     >
                       <ArrowDownToLine size={13} />
@@ -836,7 +813,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                     </button>
                     <button
                       className="outline sm"
-                      title="Delete from device storage"
+                      title={t('rp.deleteStorage')}
                       onClick={async () => {
                         await deleteReportHistory(entry.id)
                         await loadHistory()
@@ -855,8 +832,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
       {/* ADVANCED CARTOGRAPHY SETTINGS TAB */}
       {tab === 'adv' && (
         <div className="rp-adv">
-          <h4>Maps &amp; Cartography Layers to Include</h4>
-          <p>Select spatial layers for high-resolution 300 DPI inclusion:</p>
+          <h4>{t('rp.mapsToInclude')}</h4>
+          <p>{t('rp.mapsNote')}</p>
           <div className="rp-checks">
             {MAP_CHOICES.map(m => (
               <label key={m.id}>
@@ -872,7 +849,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
               </label>
             ))}
           </div>
-          <h4>Cartographic Frame Elements</h4>
+          <h4>{t('rp.frameElements')}</h4>
           <div className="rp-checks">
             {CART.map(([k, n, w]) => (
               <label key={k}>
@@ -889,9 +866,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             ))}
           </div>
           <p className="rp-tip">
-            <b>Cartographic Guarantee.</b> All exported maps include exact geodetic coordinate grids (lat/lon tick marks), dual-tone metric scale bars, 4-point compass rose, and neatline neatness adhering to academic publishing standards without overlapping the farm AOI.
-          </p>
-          <button className="outline" onClick={() => upd(DEFAULT_OPTS)}>Reset Cartography Defaults</button>
+            <b>{t('rp.guarantee')}</b>{t('rp.guaranteeNote')}</p>
+          <button className="outline" onClick={() => upd(DEFAULT_OPTS)}>{t('rp.resetCarto')}</button>
         </div>
       )}
 
@@ -917,73 +893,68 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
-                SPECIAL INVESTIGATIVE DOSSIER
-              </span>
-              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Reporter Desk: Agro-Spatial Analytics</span>
+              <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>{t('rp.specialDossier')}</span>
+              <span style={{ fontSize: '11.5px', color: '#64748b' }}>{t('rp.reporterDesk')}</span>
             </div>
 
-            <h3 style={{ margin: '0 0 10px', fontSize: '16px', fontWeight: 800, color: '#064e3b' }}>
-              Overall Health Pie Chart Synthesis &amp; Multi-Parameter Differences Investigation
-            </h3>
+            <h3 style={{ margin: '0 0 10px', fontSize: '16px', fontWeight: 800, color: '#064e3b' }}>{t('rp.pieSynthesis')}</h3>
 
             <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#334155', margin: '0 0 14px' }}>
-              <b>Investigative Context:</b> Traditional farm surveys present a single aggregate figure that obscures critical localized risks. This whole-field health diagnostic synthesizes five distinct remote sensing bands—measuring the exact differences, additions, and combinations between photosynthetic chlorophyll and leaf internal hydration.
-            </p>
+              <b>{t('rp.context')}</b>{t('rp.contextBody')}</p>
 
             {/* Parameter Differences Table */}
             <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#1e293b' }}>
-                    <th style={{ padding: '8px 10px' }}>Multi-Spectral Parameter</th>
+                    <th style={{ padding: '8px 10px' }}>{t('rp.colParam')}</th>
                     <th style={{ padding: '8px 10px' }}>Observed</th>
-                    <th style={{ padding: '8px 10px' }}>Baseline Ref</th>
+                    <th style={{ padding: '8px 10px' }}>{t('rp.colBaseline')}</th>
                     <th style={{ padding: '8px 10px' }}>Difference (Δ)</th>
-                    <th style={{ padding: '8px 10px' }}>Additive / Deductive Role</th>
-                    <th style={{ padding: '8px 10px' }}>Reporter Verdict</th>
+                    <th style={{ padding: '8px 10px' }}>{t('rp.colRole')}</th>
+                    <th style={{ padding: '8px 10px' }}>{t('rp.colVerdict')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>NDVI (Canopy Chlorophyll)</td>
+                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowNdvi')}</td>
                     <td style={{ padding: '8px 10px', color: '#047857', fontWeight: 700 }}>{(farm.analysis?.ndvi?.mean ?? 0.65).toFixed(2)}</td>
                     <td style={{ padding: '8px 10px' }}>0.60</td>
                     <td style={{ padding: '8px 10px', fontWeight: 700, color: (farm.analysis?.ndvi?.mean ?? 0.65) >= 0.60 ? '#047857' : '#dc2626' }}>
                       {((farm.analysis?.ndvi?.mean ?? 0.65) - 0.60 >= 0 ? '+' : '') + ((farm.analysis?.ndvi?.mean ?? 0.65) - 0.60).toFixed(2)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>Additive (+45% Weight)</td>
-                    <td style={{ padding: '8px 10px', color: '#475569' }}>Robust foliar cover intercepting photosynthetic light.</td>
+                    <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowNdviNote')}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>NDMI (Cellular Hydration)</td>
+                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowNdmi')}</td>
                     <td style={{ padding: '8px 10px', color: '#0284c7', fontWeight: 700 }}>{(farm.analysis?.ndmi?.mean ?? 0.32).toFixed(2)}</td>
                     <td style={{ padding: '8px 10px' }}>0.30</td>
                     <td style={{ padding: '8px 10px', fontWeight: 700, color: (farm.analysis?.ndmi?.mean ?? 0.32) >= 0.30 ? '#0284c7' : '#dc2626' }}>
                       {((farm.analysis?.ndmi?.mean ?? 0.32) - 0.30 >= 0 ? '+' : '') + ((farm.analysis?.ndmi?.mean ?? 0.32) - 0.30).toFixed(2)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>Additive (+35% Weight)</td>
-                    <td style={{ padding: '8px 10px', color: '#475569' }}>Optimum mesophyll hydration and transpiration flow.</td>
+                    <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowNdmiNote')}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>SAVI (Soil-Adjusted Biomass)</td>
+                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowSavi')}</td>
                     <td style={{ padding: '8px 10px', color: '#65a30d', fontWeight: 700 }}>{((farm.analysis?.ndvi?.mean ?? 0.65) * 0.9).toFixed(2)}</td>
                     <td style={{ padding: '8px 10px' }}>0.50</td>
                     <td style={{ padding: '8px 10px', fontWeight: 700, color: '#047857' }}>
                       +{(((farm.analysis?.ndvi?.mean ?? 0.65) * 0.9) - 0.50).toFixed(2)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>Additive (+20% Weight)</td>
-                    <td style={{ padding: '8px 10px', color: '#475569' }}>Cancels background soil optical noise; true crop mass.</td>
+                    <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowSaviNote')}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>Foliar Stress Penalty</td>
+                    <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowStress')}</td>
                     <td style={{ padding: '8px 10px', color: '#dc2626', fontWeight: 700 }}>{(farm.analysis?.stressPct ?? 7.5).toFixed(1)}%</td>
                     <td style={{ padding: '8px 10px' }}>&lt; 5.0%</td>
                     <td style={{ padding: '8px 10px', fontWeight: 700, color: '#dc2626' }}>
                       +{((farm.analysis?.stressPct ?? 7.5) - 5.0).toFixed(1)}%
                     </td>
-                    <td style={{ padding: '8px 10px', color: '#dc2626' }}>Deduction Factor</td>
-                    <td style={{ padding: '8px 10px', color: '#475569' }}>Localized wilting in southern parcel sub-zone.</td>
+                    <td style={{ padding: '8px 10px', color: '#dc2626' }}>{t('rp.colDeduction')}</td>
+                    <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowStressNote')}</td>
                   </tr>
                 </tbody>
               </table>
@@ -991,20 +962,16 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
             {/* Reporter Detailed Narrative */}
             <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '14px', fontSize: '12.5px', lineHeight: 1.6, color: '#334155' }}>
-              <strong style={{ color: '#0f172a', display: 'block', marginBottom: '6px' }}>
-                Reporter Synthesis &amp; Agronomic Diagnosis:
-              </strong>
+              <strong style={{ color: '#0f172a', display: 'block', marginBottom: '6px' }}>{t('rp.synthesis')}</strong>
               <span>
-                <b>Why parameters differ:</b> Plants under mild water stress often keep their green color temporarily even as cellular vacuoles begin to lose internal hydration. If an agronomist relies exclusively on NDVI, this early dehydration goes unnoticed. Combining NDMI reveals this negative divergence early.
+                <b>{t('rp.whyDiffer')}</b>{t('rp.whyDifferBody')}</span>
+              <br /><br />
+              <span>
+                <b>{t('rp.formula')}</b> <code>{t('rp.formulaBody')}</code>. From this sum, stress and moisture deficit penalties are deducted to arrive at the net composite score displayed in the pie chart.
               </span>
               <br /><br />
               <span>
-                <b>The Combination Formula:</b> <code>Gross Capital = (0.45 × Chlorophyll) + (0.35 × Hydration) + (0.20 × Biomass)</code>. From this sum, stress and moisture deficit penalties are deducted to arrive at the net composite score displayed in the pie chart.
-              </span>
-              <br /><br />
-              <span>
-                <b>Actionable Directive:</b> Cultivators should sustain normal irrigation across the prime northern sector, but apply focused drip augmentation (+20% volume) and foliar zinc/potassium to the stressed southern pocket to restore uniform vigor.
-              </span>
+                <b>{t('rp.directive')}</b>{t('rp.directiveBody')}</span>
             </div>
           </div>
         </div>

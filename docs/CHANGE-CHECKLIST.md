@@ -722,3 +722,54 @@ reported "added 0 keys (40 already present)" — so the recovery was safe rather
 Verification for Batch 11: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
 `vite build` **pass (4.8 s)** · duplicate-key scan **clean** ·
 `npm run i18n:coverage` **17.4%, up from 13.4%**.
+
+### 2026-10-12 — Batch 12: the Reports panel is translated
+
+All 66 `ReportPanel.tsx` strings are wired — the generate/preview/print/download controls, the
+language selector, core report items, cartography settings and frame guarantee, the map and
+band-symbology pickers, the EmailOctopus delivery block, the device storage vault, and the
+whole "special analysis dossier" narrative (context, parameter table, synthesis, formula and
+directive).
+
+| | Before Batch 12 | After Batch 12 |
+|---|---|---|
+| Strings still hard-coded | 810 | **744** |
+| `t()` call sites | 171 | **238** |
+| Distinct catalogue keys | 169 | **235** |
+| **Coverage** | 17.4% | **24.2%** |
+
+**Wording changes that satisfy standing instructions:**
+
+- `ArtCraft Dossier Workbench` → **`Report workbench`** — the StoryTold ArtCraft naming you
+  asked to remove is gone from the interface.
+- `…with full NDVI & SWAT hydrological telemetry.` → `…with the full map set and measured
+  indicators.` — the "telemetry" wording you flagged is removed.
+- `Please add or select a field boundary first to view or generate farm reports.` → `…an area
+  of interest…` — the farm-only phrasing is gone.
+- The frame guarantee no longer says "adhering to academic publishing standards"; it now states
+  the rule you actually asked for — the furniture is placed so it never overlaps the area of
+  interest.
+
+**Two mistakes caught by verification, again.**
+
+1. **The idempotency guard was global, not per-language.** On the first pass English received
+   all 66 keys, and Hindi and Telugu were then told "already present" — because the check
+   searched the whole file instead of that language's own block. The parity test would have
+   failed the build. Fixed by scoping the check to the region between each language's anchor
+   and the end of its catalogue object; the re-run reported "en: 0 added, hi: 66 added,
+   te: 66 added" and the duplicate-key scan came back clean.
+2. **`ReportPanel.tsx` holds two components.** The hook went into the outer `ReportPanel`
+   (which needs it for the "no area selected" early return), but most of the strings live in
+   the inner `ReportPanelInner`. `tsc` reported 15 `Cannot find name 't'` errors; the hook is
+   now in both, and in the outer one it sits **before** the early return so the hook order
+   stays stable.
+
+| File | Change |
+|---|---|
+| `src/lib/i18nCatalog.ts` | +66 keys in each of English, Hindi and Telugu (235 keys each) |
+| `src/ReportPanel.tsx` | 67 substitutions; `useI18n()` added to both components |
+| `scripts/i18n-coverage.mjs` | `--min N` filter, for the long paragraphs that get truncated on screen |
+
+Verification for Batch 12: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
+`vite build` **pass (5.7 s)** · duplicate-key scan **clean** ·
+`npm run i18n:coverage` **24.2%, up from 17.4%**.

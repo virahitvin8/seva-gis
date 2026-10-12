@@ -83,7 +83,7 @@ export default function PopTheTeamModal({
         stack,
         url: typeof window !== 'undefined' ? window.location.href : '',
         userEmail: email.trim() || undefined,
-        userName: propUserName || 'SEVA Farmer Custodian',
+        userName: propUserName || 'SEVA Member',
         userNotes: notes.trim() || undefined,
         farmName,
         farmLocation,

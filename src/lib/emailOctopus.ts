@@ -3,9 +3,12 @@
  * List ID: 15e4d8e2-c4b5-11f1-8441-836e7cd382aa
  */
 
+// Credentials must live in .env (gitignored). Never commit API keys.
+const env = import.meta.env as Record<string, string | undefined>
+
 export const EMAIL_OCTOPUS_CONFIG = {
-  apiKey: 'eo_5f948784821e2b4da262a423736cfe098e358a89fa382f7885f401126a997e58',
-  listId: '15e4d8e2-c4b5-11f1-8441-836e7cd382aa',
+  apiKey: env.VITE_EMAIL_OCTOPUS_API_KEY ?? '',
+  listId: env.VITE_EMAIL_OCTOPUS_LIST_ID ?? '15e4d8e2-c4b5-11f1-8441-836e7cd382aa',
   tagline: 'Thank you for using SEVA·GIS! Visit again, see again — Earth intelligence in the spirit of selfless service.',
 }
 
@@ -71,7 +74,8 @@ export function generateEmailOctopusGreetingCardHtml(params: {
       <p style="margin: 6px 0 0; opacity: 0.9; font-size: 14px;">Autonomous Agro-Geospatial Remote Sensing Sentinel</p>
     </div>
     <div class="body">
-      <h2 style="font-size: 18px; color: #064e3b; margin-top: 0;">Dear Custodian of ${farmName},</h2>
+      <h2 style="font-size: 18px; color: #064e3b; margin-top: 0;">Dear Member,</h2>
+      <p style="margin: 4px 0 0; font-size: 13px; color: #047857;">Selected area of interest: ${farmName}</p>
       <p style="line-height: 1.6; font-size: 14px; color: #334155;">
         Warm greetings from the SEVA·GIS Planetary Observatory! Your official remote sensing dossier has been prepared with selfless service.
         Our automated dispatch protocol has registered your profile on our EmailOctopus list (<code>${EMAIL_OCTOPUS_CONFIG.listId}</code>) and compiled the latest Sentinel-2 L2A satellite analytics.

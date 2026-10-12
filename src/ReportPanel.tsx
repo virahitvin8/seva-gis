@@ -85,7 +85,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     isOpen: false,
     recipientEmail: '',
     farmName: '',
-    custodianName: who.name || 'Agro-Geospatial Custodian',
+    custodianName: who.name || 'SEVA·GIS Member',
     reportId: '',
     filename: '',
     htmlContent: '',
@@ -365,7 +365,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           isOpen: true,
           recipientEmail: emailInput,
           farmName: farm.name,
-          custodianName: who.name || 'Agro-Geospatial Custodian',
+          custodianName: who.name || 'SEVA·GIS Member',
           reportId: current.id,
           filename: `${baseFilename}.html`,
           htmlContent: current.html,
@@ -497,7 +497,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13.5px', color: '#1b4332' }}>
                 <Layers size={16} color="#2d6a4f" />
-                <span>Core Report Items &amp; Land Registry</span>
+                <span>Core Report Items</span>
               </div>
               <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select items to include in dossier</span>
             </div>
@@ -512,18 +512,6 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 <div>
                   <div style={{ fontWeight: 600, color: '#0f172a' }}>3D Topographic Terrain Model</div>
                   <div style={{ fontSize: '11px', color: '#64748b' }}>Isometric extruded elevation mesh (Fig 1.1)</div>
-                </div>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '6px', border: opts.includeCadastre ? '1.5px solid #059669' : '1px solid #e2e8f0', background: opts.includeCadastre ? '#ecfdf5' : '#ffffff', cursor: 'pointer', fontSize: '12.5px' }}>
-                <input
-                  type="checkbox"
-                  checked={!!opts.includeCadastre}
-                  onChange={() => upd({ ...opts, includeCadastre: !opts.includeCadastre })}
-                />
-                <div>
-                  <div style={{ fontWeight: 700, color: '#047857' }}>Cadastral Land Registry (RoR 1B)</div>
-                  <div style={{ fontSize: '11px', color: '#065f46' }}>Khasra, Survey No, ULPIN &amp; Title Verification</div>
                 </div>
               </label>
 
@@ -570,21 +558,30 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '6px' }}>
-              {MAP_CHOICES.map(m => {
-                const checked = opts.maps.includes(m.id)
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {[...new Set(MAP_CHOICES.map(m => m.group))].map(group => {
+                const groupMaps = MAP_CHOICES.filter(m => m.group === group)
+                const selectedCount = groupMaps.filter(m => opts.maps.includes(m.id)).length
                 return (
-                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', border: checked ? '1px solid #a7f3d0' : '1px solid #f1f5f9', background: checked ? '#f0fdf4' : '#fafafa', cursor: 'pointer', fontSize: '12px' }}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleMap(m.id)}
-                    />
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <span style={{ fontWeight: 600, color: '#0f172a' }}>{m.name.split(' (')[0]}</span>
-                      <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>{m.group}</span>
+                  <details key={group} open={selectedCount > 0} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 10px', background: '#fcfdfc' }}>
+                    <summary style={{ cursor: 'pointer', color: '#1b4332', fontSize: '12px', fontWeight: 700 }}>
+                      {group} <span style={{ color: '#64748b', fontWeight: 500 }}>({selectedCount}/{groupMaps.length})</span>
+                    </summary>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '6px', marginTop: '8px' }}>
+                      {groupMaps.map(m => {
+                        const checked = opts.maps.includes(m.id)
+                        return (
+                          <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', border: checked ? '1px solid #a7f3d0' : '1px solid #f1f5f9', background: checked ? '#f0fdf4' : '#fafafa', cursor: 'pointer', fontSize: '12px' }}>
+                            <input type="checkbox" checked={checked} onChange={() => toggleMap(m.id)} />
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontWeight: 600, color: '#0f172a' }}>{m.name.split(' (')[0]}</span>
+                              <span style={{ fontSize: '10.5px', color: '#64748b', display: 'block' }}>{m.note}</span>
+                            </div>
+                          </label>
+                        )
+                      })}
                     </div>
-                  </label>
+                  </details>
                 )
               })}
             </div>

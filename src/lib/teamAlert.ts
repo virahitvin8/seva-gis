@@ -85,7 +85,7 @@ export async function sendPopTeamAlert(payload: PopTeamPayload): Promise<PopTeam
   const stackStr = payload.stack || (payload.error instanceof Error ? payload.error.stack : '')
 
   const senderEmail = payload.userEmail?.trim() || CHAT_HELP_BOT_GMAIL
-  const senderName = payload.userName?.trim() || 'SEVA·GIS Farmer Custodian'
+  const senderName = payload.userName?.trim() || 'SEVA·GIS Member'
   const reasonText = payload.reason || 'Page is not working / feature unresponsive'
 
   // Build structured Markdown diagnostic message for SEVA engineering team

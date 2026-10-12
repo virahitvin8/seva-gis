@@ -1,195 +1,398 @@
-# SEVA·GIS Master Enhancement & Bug Audit Checklist
+# SEVA.GIS Rebuild Plan
 
-This checklist tracks all reported errors, page lag occurrences, UI/UX requests, architectural overhauls, and repo cleanups for **SEVA·GIS**.
+**Status:** Active implementation plan
+**Scope:** Frontend, GIS processing, Earth Engine integration, reports, localization, verification, and release
+**Target repository:** `virahitvin8/seva-gis`
+**Last reviewed:** 2026-10-12
 
----
+This is the single source of truth for the SEVA.GIS rebuild. Older duplicated plans and conflicting counts are intentionally replaced by this document. The plan records what must be built, what must be removed, how each feature will be verified, and which external projects are references rather than runtime dependencies.
 
-## 1. Page Unresponsive & Lag Audit Count
+## 1. Product Direction
 
-The user reported **10 distinct instances of page unresponsive errors and lags**:
+SEVA.GIS is a privacy-conscious, browser-first spatial analysis workspace for any selected **Area of Interest (AOI)**. It is not limited to agricultural farms. It must be usable by:
 
-| # | Lag / Freeze Incident Reported | Root Cause | Resolution Strategy | Status |
-|---|---|---|---|---|
-| **L-01** | *"page is unresponsive, wait or exit"* during general browsing | Heavy synchronous calculations blocking JavaScript main thread | Wrap heavy raster sampling & matrix calculations in `requestIdleCallback` / memoized workers | [x] Resolved |
-| **L-02** | Language selector disabled / lagging | Google Translate DOM script contention and cookie deadlock | Optimized reactive translation loader with non-blocking async mount | [x] Resolved |
-| **L-03** | Language switch English <-> Telugu stuck, didn't revert to English without deep refresh | Residual `googtrans` cookies across subdomains and paths preventing state reset | Aggressive domain/path cookie purge + reactive DOM translation sync without page reload | [x] Resolved |
-| **L-04** | Farm switching freeze (*"page is getting unresponsive all the time while I do shift the farms"*) | Key recreation destroyed Leaflet DOM tree while re-rendering 40+ raster layers synchronously | Decoupled map instance from farm ID key; smooth flyTo + incremental layer update | [x] Resolved |
-| **L-05** | Farm shift unresponsive after switching to Telugu | Double re-render triggered by translation mutations during farm polygon computation | Debounced farm switch state, deferred satellite query | [x] Resolved |
-| **L-06** | GeoAI Studio takes excessive time to open | Dual `loadScene` and unsupervised K-Means clustering executing synchronously on mount | Lazy compute spectral groups with cached raster indices | [x] Resolved |
-| **L-07** | Crop General / AOI Farm 1 to Farm 2 switch freeze | Full timeseries and Open-Meteo weather refetched synchronously | AbortController on in-flight requests + cached weather/satellite metrics | [x] Resolved |
-| **L-08** | Mitra tour guide 5–10 second delay per step transition | `getComputedStyle` and `getBoundingClientRect` called 30x/sec in `requestAnimationFrame` + smooth scroll layout thrash | Replaced with single lightweight element target measurement and fast scroll | [x] Resolved |
-| **L-09** | Report preview generation unresponsive wait dialog | 20+ SVG cartographic maps generated synchronously in one pass | Chunked async report builder yielding to main thread every 3 figures | [x] Resolved |
-| **L-10** | PDF download click freeze / unresponsive | Window print popup blocked or synchronous blob export locking memory | Direct non-blocking client-side PDF synthesizer with instant download | [x] Resolved |
+- Students and research scholars
+- GIS and remote-sensing analysts
+- Agricultural officers and field workers
+- Hydrology, irrigation, civil, and surveying users
+- Non-technical people who want to inspect a place
 
----
+The interface must use neutral language such as “selected area of interest” and “analyzed area”. It must not assume that every user owns a farm, understands GIS, or knows scientific abbreviations.
 
-## 2. Master Feature & Correction Checklist (71 Items)
+### Product principles
 
-### A. Repository & Documentation Cleanup
-- [x] **REQ-01**: Remove Viva defense document file from repository.
-- [x] **REQ-02**: Remove `generate_viva_defense_doc.py` / Python viva generation scripts.
-- [x] **REQ-03**: Retain only code & assets needed for front-end and back-end execution.
-- [x] **REQ-04**: Clean up README: remove multi-language file lists (English, Hindi, etc.).
-- [x] **REQ-05**: Clean up README: remove academic Viva defense link beside backend API docs.
-- [x] **REQ-06**: Clean up README: fix corrupted image link for "Precision agriculture interactive GIS terminal".
-- [x] **REQ-07**: Clean up README: add ArchiFi / Mermaid flowchart for Precision Correction Tool.
-- [x] **REQ-08**: Clean up README: add ArchiFi / Mermaid flowchart for Architecture & How SEVA·GIS works.
-- [x] **REQ-09**: Clean up README: remove project folder structure tree.
-- [x] **REQ-10**: Purge all references to Vayganga / Vaiganga Basin across folders, dashboard, and reports.
+1. **Evidence before claims:** Every result identifies its source, date, resolution, scale, CRS, method, and limitations.
+2. **AOI first:** Maps, statistics, charts, reports, and downloads are derived from the selected AOI, not demo values or unrelated basin data.
+3. **Native resolution honesty:** Zooming cannot create satellite detail that the source sensor does not contain. Sentinel-2 10 m pixels must not be presented as sub-meter analysis.
+4. **One workflow:** Add AOI -> choose analysis intent -> acquire data -> process -> inspect -> explain -> export or report.
+5. **Responsive by design:** Raster calculations, scene requests, report generation, and farm switching must not block the main thread.
+6. **Privacy by default:** AOIs, saved work, and account data remain local unless a user explicitly requests a remote analysis or delivery operation.
+7. **Professional simplicity:** Motion and visual polish support understanding; repository names and implementation slogans do not appear as product captions.
 
-### B. Shell, Layout, Language & Core Interaction
-- [x] **REQ-11**: Footer/Header team: implement 3D Git-style diagram toggle component (`TeamGitDiagram.tsx`).
-- [x] **REQ-12**: Fix Dashboard Layout Customizer so moving modules up/down actively reorders DOM sections and persists.
-- [x] **REQ-13**: Fix Language switching: smooth instant toggle English <-> Telugu <-> Hindi with clean cookie handling.
-- [x] **REQ-14**: Farm switching optimization: instant parcel transitions for smallholdings and 40,000+ ha areas without freezing.
-- [x] **REQ-15**: Remove Land Passbook section completely (no demo data, no land registry).
-- [x] **REQ-16**: Eliminate pixelation on small micro-parcels with high-DPI bicubic spline resampling.
+## 2. Current Repository Baseline
 
-### C. Map Framing, Zoom & Collision Avoidance
-- [x] **REQ-17**: Enforce zoom scale 13x for overview map and fixed zoom scale 19x for Remote Field Review, GeoAI Studio, and report maps.
-- [x] **REQ-18**: Collision avoidance: North arrow, scale bar, title box, legends, and coordinates must auto-resize / reposition so they NEVER overlap the Area of Interest (AOI).
-- [x] **REQ-19**: Strict centering: AOI must always be placed squarely in the center of the viewport at 19x zoom.
-- [x] **REQ-20**: Interactive sliding inspection loupe window & point count controls: sliding window reveals points 1–5, or user can toggle visibility and point count (1 to 5).
-- [x] **REQ-21**: Professional tone: replace "your farm" / "you, you, you" with inclusive academic phrasing ("in the area of interest provided / analyzed").
+### Frontend
 
-### D. Sustainability, Crop Planning & Climate Norms
-- [x] **REQ-22**: Organize sustainability crops by categories: Millets & Cereals, Pulses & Legumes, Cash Crops, Oilseeds, Vegetables, prioritized by agro-climatic zone.
-- [x] **REQ-23**: Clickable scale breakdown: clicking score boxes shows exact mathematical percentage division and limiting factors.
-- [x] **REQ-24**: Interactive climate norm charts: hover tooltips display exact percentages, values, and definitions.
-- [x] **REQ-25**: MATLAB Analytics Suite: integrate matrix computing, spectral decomposition, continuous time series, and Fourier/wavelet filters inspired by mathworks and morluto/rea.
+- Entry: `index.html` -> `src/main.tsx` -> `src/Auth.tsx` -> `src/App.tsx`
+- UI: React 19, Vite 8, Tailwind CSS v4, Leaflet, MapLibre, Motion, Lucide
+- State: React state, localStorage, Dexie/IndexedDB, optional OPFS/File System Access
+- Main map: `src/IndicatorMap.tsx`
+- 3D map: `src/Walk3D.tsx`
+- Panels: `AgroPanel`, `WaterPanel`, `Intelligence`, `GeoTools`, `ReportPanel`, `Studio`, `Guide`, `DataManager`, and related components
 
-### E. Remote Field Review & GeoAI Studio
-- [x] **REQ-26**: Pest & Disease: 7-day weather risk and hotspot map at 19x zoom, centered AOI, with sliding loupe window.
-- [x] **REQ-27**: GeoAI Studio: full feature suite, dual field inspection at 19x zoom, centered AOI, selectable spectral groups (3, 4, 5) with instant re-clustering.
-- [x] **REQ-28**: Universal GIS capabilities: watershed delineation, stream network extraction, lakes, DEM, slope, aspect, contour, radiance to DN, and dark pixel subtraction (DOS1) for water quality.
-- [x] **REQ-29**: Replace "Review field changes from home" with "Review field from remote".
-- [x] **REQ-30**: Crop General graph: interactive SVG with hover values and plain-talk definitions.
-- [x] **REQ-31**: Recent satellite passes: provide visible color legend (green = clear pass, yellow = moderate haze, red = cloud obscured).
-- [x] **REQ-32**: Remove manual "Crop check" section; dynamically adapt layers based on user objective.
-- [x] **REQ-33**: Field intelligence clarity: plain explanations for canopy stress, soil moisture min/max thresholds, and rainfall sufficiency / irrigation guidance.
+### GIS and data processing
 
-### F. Focus Mode & Map Canvas Controls
-- [x] **REQ-34**: Fix Borewell & Pipeline tools: ensure turning on borewell/pipeline does not conflict with or activate the meter tape ruler.
-- [x] **REQ-35**: Rename "Farm background canvas" to "Background canvas". Fix Solid Black (GEE) and Solid White (QGIS) buttons so canvas switches immediately.
-- [x] **REQ-36**: Loading animation: animated train/pulse signal tracing along the AOI boundary during map loading.
-- [x] **REQ-37**: Fix AOI raster clipping so exterior pixels are masked out.
-- [x] **REQ-38**: Parameter symbology & band combinations: custom bands + presets (SWIR, geology, DOS1 dark pixel subtraction for water quality) + DEM, slope, aspect, contour.
-- [x] **REQ-39**: Remove cadastre section from focus mode and layers box.
-- [x] **REQ-40**: Carto frame: display active layer name, allow double-click title editing, direct download in PNG, GeoTIFF, GeoJSON, KML.
-- [x] **REQ-41**: Move/adjust Carto HUD elements so they never overlap the AOI.
-- [x] **REQ-42**: Add visible scroll indicator / controls in focus mode for small screens.
+- Sentinel-2 and DEM acquisition: `src/lib/seva.ts`
+- Raster parsing, masks, resampling, and statistics: `src/lib/raster.ts`
+- Spectral indices and terrain layers: `src/lib/indicators.ts`
+- Hydrology and irrigation calculations: `src/lib/hydro.ts`, `src/lib/agro.ts`
+- Land cover, management zones, change analysis, and time series: `src/lib/gee.ts`
+- Earth Engine client: `src/lib/earthEngineClient.ts`
+- Geometry and AOI utilities: `src/lib/geo.ts`
+- Export and asset helpers: `src/lib/assets.ts`, `src/ProGisExport.tsx`
 
-### G. 3D Playing Card Modals & Plain Explanations
-- [x] **REQ-43**: Explain scientific parameters (NDVI, EVI, canopy cover, MSI, NDRE, BSI) clearly and thoughtfully without raw "explain like a friend" label.
-- [x] **REQ-44**: 3D Animated Playing Card Modal: clicking spectral index, weather, soil, or water boxes opens a floating playing card modal in screen center with smooth flip animation, formulas, and diagrams.
-- [x] **REQ-45**: Water plan & model estimation: make 100% automated based on AOI data (remove manual requirement).
-- [x] **REQ-46**: SWATH hydrological cycle & water balance: dynamic to selected AOI (precipitation, runoff SURQ, ET, GWQ), no Vayganga data.
-- [x] **REQ-47**: Remove official land register & cadastral records completely.
-- [x] **REQ-48**: Remove agronomy season calendar.
-- [x] **REQ-49**: Make yield forecasting model conditional or toggleable (only when agricultural analysis is selected).
-- [x] **REQ-50**: Geo toolkit cleanup: remove variable rate fertilizer, remove point checker, remove offset, move buffer to tools box with custom meter/km input, remove converters, remove WKT reader.
-- [x] **REQ-51**: Dynamic workspace highlight: auto-highlight active section in sidebar navigation while scrolling.
-- [x] **REQ-52**: Mitra quick tour: eliminate 5–10s lag to instant sub-16ms step transitions, update tour steps.
+### Backend and deployment
 
-### H. Reports, PDF Generation & EmailOctopus
-- [x] **REQ-53**: Multi-format exports: HTML, PDF, Word (.doc), and JSON.
-- [x] **REQ-54**: EmailOctopus fix: do not auto-open greeting card before email is sent; use user/guest name instead of "custodian of [farm]"; allow choosing attachment format; remove raw "copy greeting card" button; elevate visual certificate styling; remove Vayganga references.
-- [x] **REQ-55**: PDF Download fix (CRITICAL): Ensure downloaded PDF is NEVER 0 KB. Generate real, high-resolution vector/canvas PDF with complete styling and figures.
-- [x] **REQ-56**: PDF Report header: replace "Farm / Study Area" with "Study Area".
-- [x] **REQ-57**: PDF Report subtitle: remove "confidential and priority hydrological assessment".
-- [x] **REQ-58**: PDF Report audience: address non-technical users, researchers, agronomists, hydrologists, and community stewards.
-- [x] **REQ-59**: PDF Report watermark: make watermark logo and text darker and sharper.
-- [x] **REQ-60**: PDF Report seal: replace stamp with official SEVA·GIS certified seal/logo.
-- [x] **REQ-61**: PDF Report map framing: ensure all maps are at 19x–20x zoom, AOI strictly centered, HUD elements auto-sized to avoid AOI overlap.
-- [x] **REQ-62**: PDF Report LULC map: render true 9-class colored classification raster (not plain image), fix legend title (remove "LSWAT" typo).
-- [x] **REQ-63**: PDF Report Soil & Station maps: render true classified soil series and hydrologic station/stream layers, not plain images.
-- [x] **REQ-64**: PDF Report scale bars: fix corrupt / blurry scale bars across all generated maps.
-- [x] **REQ-65**: PDF Report results & discussion: integrate MATLAB charts, spectral decomposition, and continuous time series.
-- [x] **REQ-66**: PDF Report legends: fix legends for NDVI, BSI, Slope, Contour, TWI, True Color, CIR, SWIR-NIR, Moisture stress, Land/Water contrast, Chlorophyll.
-- [x] **REQ-67**: PDF Report SWAT-CUP calibration: dynamic to user's selected AOI, add collapsible "Why?" taglines.
-- [x] **REQ-68**: PDF Report cadastre removal: remove cadastral land registry section from report.
-- [x] **REQ-69**: Integration of StoryTold ArtCraft suite (PdfCraft, GridCraft, VectorCraft, DesignCraft, EffectCraft).
-- [x] **REQ-70**: Reverse engineering of MATLAB (mathworks, morluto/rea).
-- [x] **REQ-71**: Git commit, build verification, README.md update, and public sharing links.
+- Earth Engine proxy: `backend/main.py`
+- Static/API server: `server.js`
+- Frontend build: `vite.config.ts`, `package.json`
+- Deployment configurations: `Dockerfile`, `backend/Dockerfile`, `firebase.json`, `nginx.conf`, `.github/workflows/`
+- Primary backend routes include render, map, stats, time series, change, DEM, alerts, indicators, cache, and health endpoints.
 
----
+### Reports and language
 
-## 3. Comprehensive Toggle & Feature Verification Checklist (100% Real, Accurate & Functional)
+- Report options and source model: `src/report.ts`
+- Report document generation: `src/reportBuilder.ts`
+- Report UI and delivery: `src/ReportPanel.tsx`
+- PDF generation: `src/lib/pdfGenerator.ts`
+- Report history: `src/lib/reportHistory.ts`
+- Current language mechanism: `src/Lang.tsx` and Google Translate integration
 
-This exhaustive verification matrix certifies that every button, toggle, and analytical module in **SEVA·GIS** connects to authenticated spatial endpoints, operates mathematically accurately, and pulls all primary parameters from the **Google Earth Engine (GEE) API** (`https://seva-gis-backend-419602015618.us-central1.run.app`).
+### Baseline facts
 
-### A. Topbar Navigation & Layout Controls
-| # | Toggle / Feature | Location | Underlying Provider | Verification & Functionality Status | Verified |
-|---|---|---|---|---|---|
-| **TB-01** | **Pop Team** (`.top-pop-team-btn`) | Topbar Right | Local State / Alert Dispatch | Resized to compact small/medium (`padding: 3px 8px`, `height: 28px`, `fontSize: 11px`). Opens direct diagnostics & bug reporting modal without obstructing viewport. | [x] |
-| **TB-02** | **Craft Studio** (`.top-craft-btn`) | Topbar Right | StoryTold ArtCraft Suite | Resized to compact small/medium (`padding: 3px 8px`, `height: 28px`, `fontSize: 11px`). Opens StoryTold 5-tool suite (PdfCraft, GridCraft, VectorCraft, DesignCraft, EffectCraft). | [x] |
-| **TB-03** | **Analytics Terminal** (`.top-terminal-btn`) | Topbar Right | GEE API & Financial Engine | Resized to compact small/medium (`padding: 3px 8px`, `height: 28px`, `fontSize: 11px`). Opens 6-session summary terminal with live crop indices and trading-grade charts. | [x] |
-| **TB-04** | **Layout Customizer** (`.top-layout-btn`) | Topbar Right | DOM Drag/Reorder + LocalStorage | Resized to compact small/medium. Reorders sections dynamically, persists order to `localStorage['seva-dashboard-layout']`, and features Reset Default. | [x] |
-| **TB-05** | **Language Selector** (`<Lang/>`) | Topbar Right | Google Translate Engine | Smooth multilingual switching between English, Telugu, and Hindi with automatic cookie purging. | [x] |
-| **TB-06** | **Mitra Avatar Tour** (`.top-tour`) | Topbar Right | Mitra Interactive Engine | Instant sub-16ms walkthrough of SEVA·GIS features, highlighting real buttons and parcel controls. | [x] |
-| **TB-07** | **Alerts Counter** (`.notification`) | Topbar Right | Zonal Satellitecover Threshold | Real-time notification badge indicating farms requiring attention (stressPct > 20% or NDVI < 0.40). | [x] |
+- TypeScript check currently passes after the initial compatibility fixes.
+- Production Vite build currently passes.
+- No complete automated test suite exists for raster math, browser workflows, reports, or API contracts.
+- The repository has multiple deployment models that must be reduced to one documented production path.
+- A user-owned change may exist in this file or other files at any time. Do not discard unrelated edits.
 
----
+## 3. Architecture Decision
 
-### B. Map Viewport Toolbar & Basemap Controls
-| # | Toggle / Feature | Location | Underlying Provider | Verification & Functionality Status | Verified |
-|---|---|---|---|---|---|
-| **MV-01** | **Layers Box Toggle** | Main Map Toolbar | Dynamic Symbology Manager | Opens docked/detached GIS Table of Contents displaying active spectral parameters, opacity sliders, and blending modes. | [x] |
-| **MV-02** | **Symbology Selector** | Main Map Toolbar | Multispectral Band Combiner | Toggles between 7 calibrated Sentinel-2 band combinations (Natural B4-B3-B2, CIR B8-B4-B3, Agriculture B11-B8-B2, Moisture B12-B8-B4, Atmospheric SWIR B12-B11-B8, Chlorophyll B8-B5-B4, Geology B12-B8-B3). | [x] |
-| **MV-03** | **Base Map Switcher** | Main Map Toolbar | Multi-Tile Provider | Toggles among Google Hybrid (0.3m sub-meter), Google Satellite, Esri World Imagery, OpenStreetMap, Terrain Topo, Light Canvas, Dark Canvas, and Sentinel-2 pass. | [x] |
-| **MV-04** | **Background Canvas** | Main Map Toolbar | Vector Canvas Styler | Toggles through 3 background modes: Natural (Satellite imagery), Solid Black (GEE Studio presentation mode), and Solid White (QGIS cartographic printing). | [x] |
-| **MV-05** | **Clip AOI Mask** | Main Map Toolbar | EvenOdd Polygon Shader | Masks all outer surrounding imagery, exclusively revealing the farm's surveyed Area of Interest (AOI). | [x] |
-| **MV-06** | **Field Tools & Adjustments** | Main Map Toolbar | Vector & Geodesic Toolset | Toggles Tape Measure Ruler, Borewell Marker, Pipeline Tracer, and Custom Geodesic Buffer Zone Creator. | [x] |
-| **MV-07** | **Export Map** | Main Map Toolbar | Client-side GIS Synthesizer | Generates and downloads maps in high-res PNG, GeoTIFF WorldFile package (`.tfw`), GeoJSON (`EPSG:4326`), or Google Earth KML format. | [x] |
-| **MV-08** | **Carto Frame** | Main Map Toolbar | Topographic Neatline Generator | Toggles double-border neatlines with corner coordinates, geodetic north compass rose, metric scale bar, and editable title banner. | [x] |
-| **MV-09** | **GEE Studio** | Main Map Toolbar | GEE Cloud Run Backend | Opens autonomous agent crew studio and streams live Sentinel-2 tiles directly from Google Earth Engine. | [x] |
-| **MV-10** | **75% Lock / Unlock** | Main Map Toolbar | Leaflet FitBounds Ratio | Constrains parcel view to fill 75% of container with 12.5% margins; locks panning/wheel-zoom to avoid disorienting page scroll jumps. | [x] |
-| **MV-11** | **Reset 75% Fit** | Main Map Toolbar | Viewport Calibrator | Restores natural satellite imagery, resets zoom to strict 75% parcel fit, and clears any black-screen artifacts. | [x] |
+The target architecture is **browser-first with an explicit optional Earth Engine service**.
 
----
+```mermaid
+graph TD
+    A[User selects or draws AOI] --> B[AOI validation and analysis intent]
+    B --> C[Scene and source registry]
+    C --> D[Planetary Computer or Earth Engine acquisition]
+    C --> E[Open-Meteo, SoilGrids, Copernicus DEM, optional external sources]
+    D --> F[Worker-based raster processing]
+    E --> F
+    F --> G[Statistics, classifications, explanations, and provenance]
+    G --> H[Leaflet / MapLibre workspace]
+    G --> I[Report document model]
+    I --> J[HTML, PDF, DOCX, JSON, PNG, GeoTIFF, CSV]
+```
 
-### C. Precision Measurement, Buffer & Water Asset Tools
-| # | Tool / Feature | Location | Underlying Provider | Verification & Functionality Status | Verified |
-|---|---|---|---|---|---|
-| **TL-01** | **Tape Measure Ruler** | Tools Panel / Map | Great-Circle Haversine | Interactive click-to-measure tool calculating geodesic distances with metric millimeter precision (`m` / `km`). | [x] |
-| **TL-02** | **Borewell Pinning** | Tools Panel / Map | Local Asset Database (`Dexie`) | Click map to place borewell markers with depth (m), static water level, and yield (m³/h); persists to local storage. | [x] |
-| **TL-03** | **Pipeline Route Drawing** | Tools Panel / Map | Polyline Geodesic Calc | Draw multi-vertex irrigation pipelines, calculating pipe length (m), diameter (mm), and flow rate. | [x] |
-| **TL-04** | **Geodesic Buffer Zone Creator** | Tools Panel / Map | Turf.js / Spherical Geometry | Specify custom distance in meters or kilometers to generate surrounding buffer zones (spray setbacks, canal easements). | [x] |
-| **TL-05** | **Interactive Pixel Inspector** | Map Click Event | GEE / S2 Raster Grid | Clicking any spot displays spectral index values (NDVI, NDMI, NDWI, EVI, BSI) and plain-talk agronomic interpretation. | [x] |
+### Boundaries
 
----
+- The browser owns interaction, local persistence, geometry validation, rendering, and safe client-side processing.
+- The Earth Engine service owns authenticated cloud calculations and tile/statistics requests that cannot safely run in the browser.
+- No API key or service credential may be embedded in frontend bundles.
+- External agent frameworks are development or research references unless a concrete runtime requirement is approved.
 
-### D. Google Earth Engine (GEE) Default Architecture & Spectral Indices
-| # | Parameter / Indicator | Source Endpoint | Computation Formula / Standard | Verification & Accuracy Status | Verified |
-|---|---|---|---|---|---|
-| **GEE-01** | **NDVI** (Normalized Difference Vegetation) | GEE API `/api/earth-engine/map` & `/stats` | `(B08 - B04) / (B08 + B04)` | Pulled from GEE API by default. Verified: Mean 0.69, Min 0.20, Max 0.87. | [x] |
-| **GEE-02** | **NDMI** (Normalized Difference Moisture) | GEE API `/api/earth-engine/stats` | `(B08 - B11) / (B08 + B11)` | Pulled from GEE API by default. Verified: Mean 0.22, Min -0.24, Max 0.41. | [x] |
-| **GEE-03** | **EVI** (Enhanced Vegetation Index) | GEE API `/api/earth-engine/stats` | `2.5 * (B08 - B04) / (B08 + 6*B04 - 7.5*B02 + 1)` | Pulled from GEE API by default. Verified: Mean 0.53, Min 0.12, Max 0.84. | [x] |
-| **GEE-04** | **NDWI** (Water & Flooding Index) | GEE API `/api/earth-engine/stats` | `(B03 - B08) / (B03 + B08)` | Pulled from GEE API by default. Verified: Mean -0.60, Min -0.75, Max -0.21. | [x] |
-| **GEE-05** | **BSI** (Bare Soil Index) | GEE API `/api/earth-engine/stats` | `((B11 + B04) - (B08 + B02)) / ((B11 + B04) + (B08 + B02))` | Pulled from GEE API by default. Verified: Mean -0.17, Min -0.38, Max 0.19. | [x] |
-| **GEE-06** | **SAVI** (Soil-Adjusted Vegetation) | GEE API `/api/earth-engine/stats` | `1.5 * (B08 - B04) / (B08 + B04 + 0.5)` | Pulled from GEE API by default. Accounting for soil background reflectance. | [x] |
-| **GEE-07** | **GNDVI** (Green NDVI) | GEE API `/api/earth-engine/stats` | `(B08 - B03) / (B08 + B03)` | Pulled from GEE API by default. Sensitive to canopy chlorophyll concentrations. | [x] |
-| **GEE-08** | **LAI** (Leaf Area Index) | GEE API `/api/earth-engine/stats` | Empirical radiative transfer approximation | Pulled from GEE API by default. Measures total one-sided green leaf area per unit ground surface. | [x] |
-| **GEE-09** | **GLO-30 DEM** (Copernicus 30m Elevation) | GEE API `/api/earth-engine/dem` | `COPERNICUS/DEM/GLO30` | Pulled from GEE API by default. Delivers true geodetic elevation, slope, aspect, and hillshade. | [x] |
-| **GEE-10** | **Multi-Temporal Pass History** | GEE API `/api/earth-engine/timeseries` | `COPERNICUS/S2_SR_HARMONIZED` | Pulled from GEE API by default. 16-day interval time series tracking 12-month vegetation cycle. | [x] |
+## 4. Non-Negotiable GIS Invariants
 
----
+- Coordinates are WGS84 `[longitude, latitude]`.
+- Polygon rings are validated and closed before requests or exports.
+- Degenerate, self-intersecting, and oversized AOIs receive clear validation errors.
+- Spectral denominators use zero-safe guards.
+- Raster dimensions and pixel size remain tied to the source resolution.
+- Masks distinguish invalid pixels, cloudy pixels, outside-AOI pixels, and valid data.
+- Every map and report includes source, acquisition date, resolution, scale, CRS, and processing notes.
+- GeoTIFF exports contain real raster data and georeferencing; a world file alone is not a GeoTIFF.
+- Borewell and pipeline detection is labelled as candidate or suggestion unless verified by authoritative data.
+- SAR is described as a surface moisture/roughness signal, not reliable buried-mineral detection.
+- MATLAB-inspired calculations are reimplemented in JavaScript; MATLAB itself is not assumed to run in the browser.
 
-### E. GeoAI Analysis Modules (All Default to GEE Backend)
-| # | GeoAI Module | Underlying Engine | Verification & Accuracy Status | Verified |
-|---|---|---|---|---|
-| **GA-01** | **Crop & Vegetation Classification** | GEE Multispectral Thresholding | Real 6-class land cover (Dense, Active Crop, Sparse, Fallow, Built-up, Water) with exact hectare counts. | [x] |
-| **GA-02** | **Management Zones** | Unsupervised K-Means (`ee.Clusterer`) | Clusters field into 5 distinct vigour and moisture management zones for precision variable-rate inputs. | [x] |
-| **GA-03** | **Monitoring & Change Detection** | Dual Sentinel-2 Pass Math | Compares two distinct satellite passes pixel-by-pixel, identifying Strong Decline, Decline, Stable, Improvement, and Strong Improvement. | [x] |
-| **GA-04** | **Time-Lapse Film** | Sentinel-2 Multi-Pass Visualizer | Animated playback of seasonal vegetation change over 6–12 months with cloud-filtered scene alignment. | [x] |
-| **GA-05** | **Pest & Disease Advisory** | Agro-Climatic Microclimate Model | Cross-references canopy moisture, temperature, and vegetation density against validated pest risk models. | [x] |
-| **GA-06** | **Suitability & Crop Planning** | FAO EcoCrop / Soil Association Match | Computes seasonal suitability indices and rotation advice for 12 major food and commercial crops. | [x] |
+## 5. External Reference Matrix
 
----
+These projects inform design, verification, or algorithm research. They are not automatically copied into the application and are not all runtime dependencies.
 
-### F. Farm Map Error Prevention Audit
-- [x] **Safe Leaflet Container Life Cycle**: Resolved container collision error (`Map container is already initialized`) by deleting `_leaflet_id` and cleanly unmounting Leaflet instances.
-- [x] **Undeclared State Resolution**: Declared `cartoLegendMinimized` and converted `cartoLegendDragOffset` to `useRef({ x: 0, y: 0 })`.
-- [x] **Coordinate NaN Sanitizer**: All `farmRing` and `farmBBox` coordinates are verified as finite numbers before Leaflet geometry generation, preventing `Invalid LatLng object: (NaN, NaN)` errors.
-- [x] **Safe Fallback Coordinates**: Default fallback `[78.96, 20.59, 78.97, 20.60]` applied whenever coordinates are in transit, guaranteeing `<SectionBoundary>` never trips.
+| Reference | SEVA.GIS use | Boundary |
+|---|---|---|
+| `feitangyuan/motion-web` | Sign-in and focused interaction motion | No visible repository credit captions |
+| `nateherkai/scroll-craft` | Scroll behavior, focus transitions, scroll-spy ideas | Must remain accessible and performant |
+| `dietrichgebert/ponytail` | Responsive layout and viewport fitting ideas | Reimplement only what is needed |
+| StoryTold `pdfcraft`, `gridcraft`, `vectorcraft`, `designcraft`, `effectcraft` | Report composition, grids, vectors, visual treatment, effects | Reports-only workbench; no dashboard branding |
+| QGIS repositories | Raster/vector processing, symbology, clipping, export behavior | Use compatible open algorithms and document differences |
+| Esri repositories | Cartographic conventions and map furniture | No assumption of proprietary service access |
+| Google Earth Engine and `gee-community` | Cloud imagery, indices, masking, tile patterns | Credentials remain server-side |
+| Microsoft Planetary Computer | Public STAC/COG fallback and browser ingestion | Preserve source and license metadata |
+| MathWorks | Numerical, time-series, and hydrology algorithm references | Reimplement validated algorithms; do not claim MATLAB execution |
+| `morluto/rea` | Reverse-engineering method | Study behavior and rebuild transparently |
+| `front-end-checklist`, `mattpocock/skills`, `ecc` | Quality, type safety, accessibility, and review gates | Verification standards, not runtime code |
+| `browser-use` | Browser journey verification where available | Test tooling only |
+| `addyosmani/agent-skills` | Performance and main-thread guidance | No blind optimization claims |
+| `humanizer`, prompt-engineering guide | Native Telugu/Hindi wording review | Human review required |
+| Supabase skills | Optional sync/auth/storage | Add only after a documented multi-device requirement |
+| Firecrawl, LangChain, CrewAI, Apify, agent orchestration projects | Optional research/development tooling | Not required for the core GIS runtime |
 
+## 6. Master Work Breakdown
+
+### Phase 0: Baseline and governance
+
+- [ ] Keep this file as the single active plan.
+- [ ] Freeze unrelated user edits before each implementation slice.
+- [ ] Create a requirement-to-test matrix with owner, source, acceptance test, and status.
+- [ ] Decide one supported frontend/backend deployment path.
+- [ ] Record explicit data-source and attribution requirements.
+- [ ] Rotate any credentials that were exposed in source, chat, or bundles.
+
+### Phase 1: Repository and documentation hygiene
+
+- [ ] Remove Viva-defense artifacts and generator scripts only after confirming they are not runtime inputs.
+- [ ] Remove stale academic links and unsupported README claims.
+- [ ] Remove the raw folder tree from README.
+- [ ] Replace the broken interactive-terminal media reference.
+- [ ] Add verified Mermaid/ArchiFi diagrams for ingestion, processing, reporting, and deployment.
+- [ ] Document target users and analysis intents.
+- [ ] Keep repository credits in README/CREDITS documentation, not product UI.
+- [ ] Remove stale basin, cadastral, passbook, and demo-data claims from documentation.
+
+### Phase 2: Authentication and sign-in experience
+
+- [x] Remove the visible “Motion-First WebGL / Real Physics” caption.
+- [x] Rename the methodology heading to “SEVA.GIS Methodology & Research”.
+- [ ] Apply motion-web-inspired motion to the full sign-in composition without blocking form use.
+- [ ] Convert the four knowledge cards into accessible 3D tilt/glare cards with reduced-motion support.
+- [ ] Make the Full Web Guide describe the complete journey from AOI creation to report delivery.
+- [ ] Keep implementation credits out of visible product copy.
+- [ ] Add keyboard, mobile, and reduced-motion checks.
+
+### Phase 3: Application shell and navigation
+
+- [x] Remove Craft Studio from the dashboard navigation and standalone dashboard section.
+- [x] Hide the non-functional header Craft and Layout controls.
+- [x] Remove the duplicate Data Manager sign-out button and hide the duplicate navigation logout.
+- [ ] Keep one canonical profile-footer logout target and update Mitra to target it.
+- [ ] Implement reliable sidebar scroll-spy with `IntersectionObserver` and section IDs.
+- [ ] Fix Mitra targets for hydrology, Analysis Lab, GeoAI Studio, reports, and logout.
+- [ ] Remove tour layout thrashing and verify transitions under 100 ms after target availability.
+- [ ] Rename terminal “Multi-Session Candlestick Trends” to “Multi-Session Trends”.
+- [ ] Replace “Review field from home” with neutral remote/AOI language.
+- [ ] Preserve the Pop the Team action while removing misleading implementation language.
+
+### Phase 4: Performance and lifecycle
+
+- [ ] Add request cancellation for scene, weather, soil, DEM, report, and farm-switch operations.
+- [ ] Move heavy raster loops, histogram work, clustering, and export preparation to Web Workers.
+- [ ] Dispose old Leaflet/MapLibre layers and object URLs on AOI or layer changes.
+- [ ] Bound all caches by AOI, source, scene, layer, resolution, and options.
+- [ ] Lazy-load heavy map/report modules without duplicating provider requests.
+- [ ] Add progress states for scene search, raster processing, report generation, and downloads.
+- [ ] Measure farm switching, report generation, and first interactive render in browser tests.
+- [ ] Keep focus mode scrollable and usable on mobile.
+
+### Phase 5: AOI, map viewport, and cartography
+
+- [ ] Validate AOI geometry, close rings, reject invalid coordinates, and show clear errors.
+- [ ] Use zoom 13 as the overview default where the AOI and source support it.
+- [ ] Use AOI-fit detail views for remote analysis; do not promise sharper detail than the source.
+- [ ] Fit the AOI to roughly 75% of the available viewport while preserving aspect ratio.
+- [ ] Keep the AOI centroid centered across map, analysis, and report views.
+- [ ] Fix large-AOI coverage so the complete selected area is represented.
+- [ ] Separate basemap detail from analytical raster resolution.
+- [ ] Remove black/white canvas modes that hide spatial context; provide explicit background modes.
+- [ ] Implement polygon and extent clipping with transparent, satellite, white, and black background options.
+- [ ] Add a QGIS-style layer tree with add raster, add vector, visibility, opacity, symbology, and clip-to-AOI controls.
+- [ ] Implement collision-aware title, legend, scale, north arrow, coordinate, and AOI placement.
+- [ ] Make cartographic titles reflect the selected layer and allow safe editing.
+- [ ] Add per-map point visibility and point-count controls.
+- [ ] Add an optional movable loupe for inspection points instead of permanently cluttering maps.
+- [ ] Add a restrained loading tracer around the AOI boundary.
+- [ ] Ensure measurement mode is disabled when mutually exclusive borewell/pipeline drawing begins.
+- [ ] Add candidate infrastructure identification with explicit uncertainty and manual confirmation.
+
+### Phase 6: Analysis model and parameter library
+
+- [ ] Introduce a typed `AnalysisIntent` such as agriculture, water, drainage, terrain, land cover, change, geology, or general.
+- [ ] Order panels and recommendations according to the selected intent.
+- [ ] Centralize source metadata, units, thresholds, explanations, and limitations.
+- [ ] Add band-combination guidance for each supported analysis.
+- [ ] Support indicators and layers only when their data source and interpretation are documented.
+- [ ] Expand terrain, drainage, streams, lakes, SAR, water-quality, and change tools incrementally.
+- [ ] Remove unsupported crop-check manual workflows.
+- [ ] Move buffer into the tools panel with explicit metres/kilometres units.
+- [ ] Remove unhelpful converters, WKT reader, point checker, offset, and unsupported VRA controls.
+- [ ] Remove land registry, cadastral, passbook, and unrelated demo data from UI, reports, and domain modules.
+- [ ] Show yield forecasts only for an agricultural analysis intent.
+
+### Phase 7: Insight cards and plain-language explanations
+
+- [ ] Keep metric fronts compact: value, unit, status, and source date.
+- [ ] Use an accessible 3D flip or modal detail state with reduced-motion fallback.
+- [ ] Explain thresholds, minimum/maximum meaning, uncertainty, and practical next steps.
+- [ ] Explain NDVI, EVI, MSI, canopy cover, stress percentage, and all other scientific terms at first use.
+- [ ] Add source/date disclosure for weather, soil, terrain, and satellite values.
+- [ ] Provide GeoTIFF download for raster products and CSV/JSON download for time-series/weather data.
+- [ ] Make charts interactive with exact values, units, and definitions.
+- [ ] Add satellite-pass color legends for green, yellow, and red statuses.
+- [ ] Group crop suitability by crop category and prioritize by documented regional context.
+- [ ] Keep wording neutral and avoid role-play or “explain like a friend” labels.
+
+### Phase 8: Hydrology and infrastructure
+
+- [ ] Remove every Vaiganga/Vayganga basin reference from UI, reports, source, and generated text.
+- [ ] Remove water-plan sliders unless they become fully data-driven and explainable.
+- [ ] Compute precipitation, runoff, ET, percolation, recharge, and balance figures from the selected AOI and documented assumptions.
+- [ ] Keep simplified models labelled as estimates; do not present them as validated SWAT-CUP outputs.
+- [ ] Generate sensitivity/calibration figures from actual AOI inputs rather than static demo images.
+- [ ] Explain all alpha factors, parameters, and formulas behind a user-controlled details disclosure.
+- [ ] Treat borewell and pipeline results as candidates unless confirmed by authoritative data.
+- [ ] Keep all hydrology figures and tables dynamic when the selected AOI changes.
+
+### Phase 9: Reports and exports
+
+- [ ] Keep the report workbench inside Reports, not the dashboard.
+- [ ] Group every report map and parameter under selectable parent categories.
+- [ ] Include remote review outputs when explicitly selected.
+- [ ] Use one canonical report document model for preview, HTML, PDF, DOCX, and JSON.
+- [ ] Fix empty/zero-byte PDF downloads.
+- [ ] Ensure downloaded PDF matches the preview content and selected language.
+- [ ] Add visible loading and disabled states for HTML/PDF/DOCX downloads.
+- [ ] Let users select an email attachment format.
+- [ ] Show email success only after confirmed dispatch; never expose secrets in the browser.
+- [ ] Use the logged-in or guest display name in greetings and remove “custodian” wording.
+- [ ] Remove copy-greeting-card and unsupported telemetry language.
+- [ ] Use “Study Area” terminology and include non-technical users in audience copy.
+- [ ] Use the SEVA.GIS logo as a readable watermark/seal.
+- [ ] Fit every report map to the selected AOI, with readable scale, legend, title, north arrow, and coordinates that do not overlap the AOI.
+- [ ] Implement real clipped DEM, LULC, soil, water, hydrology, and spectral maps.
+- [ ] Implement real LULC classification and disclose the classifier/source and confidence.
+- [ ] Correct legends, units, ramps, contour/TWI labels, and unclear terminology.
+- [ ] Remove cadastral and basin sections from reports.
+- [ ] Add real GeoTIFF, PNG, GeoJSON, JSON, CSV, and DOCX outputs where data supports them.
+
+### Phase 10: Localization
+
+- [ ] Replace Google Translate DOM mutation with explicit English, Telugu, and Hindi message catalogs.
+- [ ] Translate headers, controls, errors, explanations, reports, and cover pages consistently.
+- [ ] Preserve scientific values, units, names, dates, and source citations.
+- [ ] Use human-reviewed Telugu and Hindi agronomic vocabulary.
+- [ ] Persist language without requiring a full page refresh.
+- [ ] Test switching English -> Telugu -> Hindi -> English during an active map/report session.
+
+### Phase 11: Security, quality, and release
+
+- [ ] Remove credentials from frontend source, request payloads, and committed files.
+- [ ] Enforce configured backend CORS origins rather than wildcard CORS.
+- [ ] Move cache/rate-limit state to a suitable shared mechanism if multi-instance deployment requires it.
+- [ ] Confirm ignored service-account files are never tracked or bundled.
+- [ ] Add unit tests for geometry, raster parsing, index formulas, masks, resampling, hydrology, classification, and report data.
+- [ ] Add API contract tests for FastAPI routes.
+- [ ] Add browser smoke tests for login, AOI creation, farm switching, map loading, analysis, reports, language, logout, and downloads.
+- [ ] Add accessibility, mobile, reduced-motion, and keyboard checks.
+- [ ] Run typecheck, build, backend syntax/tests, and browser tests before release.
+- [ ] Verify no console exceptions in supported journeys.
+- [ ] Update README from verified behavior only.
+- [ ] Commit and push only after the user-visible checklist is green.
+- [ ] Deploy only after explicit release approval and provide the tested public URL.
+
+## 7. Acceptance Tests
+
+### AOI and map
+
+- A valid polygon remains centered and fully visible after switching layers, locking, unlocking, refreshing, and entering focus mode.
+- Invalid or self-intersecting polygons are rejected with a clear message.
+- The map never turns into a contextless black/white canvas when changing background options.
+- Map furniture does not overlap the AOI or each other.
+- A generated raster export opens in QGIS with correct extent, CRS, dimensions, and values.
+
+### Performance
+
+- Switching between small and very large AOIs does not freeze the page.
+- Stale requests are aborted and cannot overwrite the newly selected AOI.
+- Raster work is not performed in long blocking main-thread loops.
+- Report generation exposes progress and remains cancellable.
+
+### Reports
+
+- Preview and downloaded PDF contain the same selected sections, maps, language, legends, and AOI.
+- PDF is non-empty and has nonzero byte size.
+- Every selected report map is clipped to the AOI and carries source metadata.
+- Telugu and Hindi reports translate the entire document, not only the heading.
+- Email success appears only after a confirmed server response.
+
+### Hydrology and interpretation
+
+- Changing the AOI changes all AOI-dependent hydrology values and figures.
+- No Vaiganga/Vayganga references remain in generated output.
+- Estimates disclose source, assumptions, scale, and limitations.
+- Candidate infrastructure is never presented as confirmed infrastructure.
+
+## 8. Current Implementation Status
+
+Completed and validated in the current working tree:
+
+- Removed the sign-in implementation slogan from visible UI.
+- Renamed the methodology heading.
+- Removed Craft Studio from dashboard navigation and standalone dashboard rendering.
+- Hid the topbar Craft and Layout controls.
+- Removed duplicate visible logout actions while preserving account-wipe sign-out behavior.
+- Fixed the terrain insight value to display a safe string.
+- Aligned the MATLAB analysis panel with the canonical `Candle` history type and scalar NDVI means.
+- `npm exec -- tsc --noEmit` passes.
+- `npm run build` passes.
+
+Not yet complete:
+
+- The majority of the map, performance, report, localization, hydrology, security, and automated-verification checklist remains open.
+- No deployment has been performed by this plan.
+- No commit or push is authorized by this plan unless the release checklist is green and the user explicitly requests it.
+
+## 9. Change Control
+
+For every implementation slice:
+
+1. Read the owning module and nearby test/call site.
+2. State the local hypothesis and acceptance check.
+3. Make the smallest focused edit.
+4. Run the narrowest executable validation immediately.
+5. Update this checklist only when the behavior is verified.
+6. Do not revert unrelated user changes.
+7. Do not claim external repository behavior without inspecting the relevant source.
+8. Do not deploy, commit, or push from an intermediate failed state.
+
+## 10. Release Gate
+
+SEVA.GIS is ready for public deployment only when:
+
+- The canonical build and typecheck pass.
+- Critical browser journeys pass on desktop and mobile.
+- AOI clipping, centering, native-resolution handling, exports, and report generation pass.
+- Localization passes for English, Telugu, and Hindi.
+- No secrets are present in source or built assets.
+- Documentation matches the implemented product.
+- The final checklist is reviewed and approved.
+
+## 11. Phase Update Log
+
+### 2026-10-12 — Phase 1 hygiene slice (verified)
+
+- Removed the StoryTold ArtCraft / Craft Studio from the application shell: lazy import,
+  `craft-studio` modal render, `go('Craft Studio')` route, and both `SECTION_TITLES`
+  entries in `src/App.tsx`. The PDF workbench remains available inside Reports
+  (`ReportPanel` -> `ArtCraftStudio initialTab="pdfcraft"`), as requested.
+- Moved the hard-coded EmailOctopus API key out of source into `.env`
+  (`VITE_EMAIL_OCTOPUS_API_KEY`, `VITE_EMAIL_OCTOPUS_LIST_ID`); `.env` is gitignored and
+  `.env.example` documents the variables. The already-committed key should be rotated.
+- Replaced "Dear Custodian of <farm>" with neutral "Dear Member" wording in the email card.
+- Removed the remaining "custodian" defaults from `ReportPanel`, `teamAlert`, and
+  `PopTheTeamModal`.
+- Confirmed no Vaiganga/Vayganga references remain in `src/`.
+- Confirmed the terminal already reads "Multi-Session Trends".
+
+Verification: `npm exec -- tsc --noEmit` passes; `npm run build` passes.
+
+Open decisions before Phases 2–10: see `docs/CHANGE-CHECKLIST.md` Section 6 (Q1–Q8).

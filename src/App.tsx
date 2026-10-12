@@ -32,7 +32,6 @@ const ReportPanel = lazy(() => import('./ReportPanel'))
 const CropLibrary = lazy(() => import('./CropLibrary'))
 const ProGisExport = lazy(() => import('./ProGisExport'))
 const VillageView = lazy(() => import('./VillageView'))
-const ArtCraftStudio = lazy(() => import('./ArtCraftStudio'))
 
 function AoiShape({ farm }: { farm: Parameters<typeof farmRing>[0]; good?: boolean }) {
   const ring = farmRing(farm), k = Math.cos((ring[0][1] * Math.PI) / 180)
@@ -60,7 +59,6 @@ const DEFAULT_SECTION_ORDER = [
   'crop-journal',
   'health-score',
   'field-intelligence',
-  'craft-studio',
   'numbers-guide',
   'advice-grid',
   'agro-water',
@@ -78,8 +76,6 @@ const SECTION_TITLES: Record<string, string> = {
   health: 'Field Health Score',
   'field-intelligence': 'Spectral Indices & Atmosphere',
   intelligence: 'Spectral Indices & Atmosphere',
-  'craft-studio': 'StoryTold ArtCraft Suite (PdfCraft · GridCraft · VectorCraft · DesignCraft · EffectCraft)',
-  craft: 'StoryTold ArtCraft Suite (PdfCraft · GridCraft · VectorCraft · DesignCraft · EffectCraft)',
   'numbers-guide': 'Vegetation & Index Guide',
   'advice-grid': 'Irrigation & Drainage Advisory',
   advice: 'Irrigation & Drainage Advisory',
@@ -356,7 +352,6 @@ export default function App() {
     if (text === 'Alerts') return setModal('alerts')
     if (text === 'Reports') return setModal('reports')
     if (text === 'Terminal') return setShowTerminal(true)
-    if (text === 'Craft Studio') return setModal('craft-studio')
     const id = text === 'Overview' ? 'top' : text === 'My farms' ? 'my-farms' : 'crop-journal'
     requestAnimationFrame(() => (id === 'top' ? window.scrollTo({ top: 0, behavior: 'smooth' }) : document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })))
   }
@@ -388,11 +383,11 @@ export default function App() {
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>Personal · Free forever*</small></div><ChevronDown size={16}/></div>
       <div className="nav-label">WORKSPACE</div>
-      <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Craft Studio', icon: Wand2 }, { text: 'Terminal', icon: Activity }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
-      <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button><button className="nav-logout" onClick={signOut}><LogOut size={19}/>Log out</button></nav>
+      <nav>{[{ text: 'Overview', icon: Layers }, { text: 'My farms', icon: MapPinned }, { text: 'Terminal', icon: Activity }, { text: 'Crop journal', icon: Sprout },{ text: 'Alerts', icon: Bell }, { text: 'Reports', icon: ArrowDownToLine }].map(({text,icon: Icon}) => <button key={text} className={nav === text ? 'active' : ''} onClick={() => go(text)}><Icon size={19}/>{text}{text === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
+      <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>Data sources<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Quick tour with Mitra</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>Field guide</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>Data manager</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>Built for the ground.<br/>Open to everyone.</h4><p>Earth intelligence, in the spirit of selfless service.</p><span>OPEN DATA. REAL PURPOSE. <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>Page not working? Pop the team</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title="Log out" onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-pop-team-btn notranslate" title="Page or satellite data not working? Let SEVA Team Know: Pop the Team" onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid #ef4444', color: '#fca5a5', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 4px rgba(239, 68, 68, 0.15)' }}><AlertTriangle size={12} color="#f87171" /><span>Pop Team</span></button><button className="top-craft-btn notranslate" title="StoryTold ArtCraft Suite: PdfCraft · GridCraft · VectorCraft · DesignCraft · EffectCraft" onClick={() => setModal('craft-studio')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', border: '1px solid #6366f1', color: '#e0e7ff', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 6px rgba(99, 102, 241, 0.2)' }}><Wand2 size={12} color="#a5b4fc" /><span>Craft</span></button><button className="top-terminal-btn notranslate" title="Financial Analytics & 6-Session Summary Terminal (TradingView Style)" onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><button className="top-layout-btn" title="Rearrange dashboard layout" onClick={() => setEditLayout(!editLayout)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: editLayout ? '#2d6a4f' : 'transparent', border: '1px solid #cbd5e1', color: editLayout ? '#fff' : '#475569', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}><SlidersHorizontal size={12} /><span>{editLayout ? 'Done' : 'Layout'}</span></button><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label="Open navigation" onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-pop-team-btn notranslate" title="Page or satellite data not working? Let SEVA Team Know: Pop the Team" onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid #ef4444', color: '#fca5a5', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 4px rgba(239, 68, 68, 0.15)' }}><AlertTriangle size={12} color="#f87171" /><span>Pop Team</span></button><button className="top-terminal-btn notranslate" title="Financial Analytics & 6-Session Summary Terminal" onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><span className="open-badge"><span/> Powered by open data</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Quick tour with Mitra" title="Quick tour with Mitra" onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>Add your first farm</h2><p>Add an outline for any field you want to review from home. SEVA·GIS will show the latest available clear Sentinel-2 pass so you can compare dates, layers, and visible changes remotely.</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>Add a farm</button></div> : <>
@@ -455,7 +450,7 @@ export default function App() {
               <>
                 <div className="intelligence-heading">
                   <h2>Field intelligence <span>{farm.analysis ? 'Live Sentinel-2 metrics' : 'Awaiting satellite analysis'}</span></h2>
-                  <button onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>Create report</button>
+                  <button id="create-report-button" onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>Create report</button>
                 </div>
                 <div className="intelligence-grid">
                   {(() => {
@@ -511,7 +506,7 @@ export default function App() {
                       {
                         title: 'Terrain & elevation',
                         icon: Mountain,
-                        value: farm.elevation,
+                        value: farm.elevation?.toFixed(1) ?? '—',
                         unit: 'm',
                         label: `${slopeVal.toFixed(1)}% Surface Slope (GLO-30)`,
                         color: 'brown',
@@ -529,13 +524,13 @@ export default function App() {
                         key={title}
                         onClick={() => setActiveInsightCard({
                           title,
-                          value,
-                          unit,
-                          label,
-                          color,
-                          benchmarks,
-                          reasoning,
-                          metricCode: title.startsWith('Vegetation') ? 'NDVI / EVI' : title.startsWith('Surface') ? 'NDMI / SMAP' : title.startsWith('Rainfall') ? 'CHIRPS / ERA5' : 'Copernicus DEM'
+                          value: String(value ?? '—'),
+                          status: color === 'green' ? 'good' : color === 'red' ? 'bad' : color === 'amber' ? 'warn' : 'neutral',
+                          category: title.startsWith('Vegetation') ? 'Spectral Index' : title.startsWith('Surface') ? 'Soil Water' : title.startsWith('Rainfall') ? 'Weather & Atmosphere' : 'Terrain',
+                          thresholds: benchmarks,
+                          meaning: reasoning,
+                          acronym: title.startsWith('Vegetation') ? 'NDVI' : title.startsWith('Surface') ? 'NDMI' : title.startsWith('Rainfall') ? 'RAIN' : 'DEM',
+                          actionRecommendation: reasoning
                         })}
                         style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}
                         title="Click to view 3D playing card insight"
@@ -572,18 +567,6 @@ export default function App() {
               </>
             )
             break
-          case 'craft-studio':
-          case 'craft':
-            content = (
-              <Reveal defer>
-                <SectionBoundary name="ArtCraft Studio Suite">
-                  <Suspense fallback={<div className="reveal-loading" role="status">Loading ArtCraft Creative Engines…</div>}>
-                    <ArtCraftStudio farm={farm as any} isModal={false} />
-                  </Suspense>
-                </SectionBoundary>
-              </Reveal>
-            )
-            break
           case 'numbers-guide':
             content = <NumbersGuide/>
             break
@@ -609,6 +592,7 @@ export default function App() {
           case 'agro-water':
           case 'panels':
             content = (
+              <div id="section-agro-water">
               <Reveal defer>
                 <SectionBoundary name="Field panels">
                   <Suspense fallback={<div className="reveal-loading" role="status">Loading field panels…</div>}>
@@ -617,11 +601,13 @@ export default function App() {
                   </Suspense>
                 </SectionBoundary>
               </Reveal>
+              </div>
             )
             break
           case 'crop-library':
           case 'cropLib':
             content = (
+              <div id="section-gis-export">
               <Reveal defer>
                 <SectionBoundary name="Crop library">
                   <Suspense fallback={<div className="reveal-loading" role="status">Loading crop library…</div>}>
@@ -629,11 +615,13 @@ export default function App() {
                   </Suspense>
                 </SectionBoundary>
               </Reveal>
+              </div>
             )
             break
           case 'village-view':
           case 'village':
             content = (
+              <div id="section-intelligence-lab">
               <Reveal defer>
                 <SectionBoundary name="Map tools">
                   <Suspense fallback={<div className="reveal-loading" role="status">Loading map tools…</div>}>
@@ -641,11 +629,13 @@ export default function App() {
                   </Suspense>
                 </SectionBoundary>
               </Reveal>
+              </div>
             )
             break
           case 'gis-export':
           case 'gisExport':
             content = (
+              <div id="section-measurement-tools">
               <Reveal defer>
                 <SectionBoundary name="GIS export tools">
                   <Suspense fallback={<div className="reveal-loading" role="status">Loading GIS export tools…</div>}>
@@ -653,6 +643,7 @@ export default function App() {
                   </Suspense>
                 </SectionBoundary>
               </Reveal>
+              </div>
             )
             break
           case 'intelligence-lab':
@@ -696,7 +687,7 @@ export default function App() {
         }
 
         return (
-          <div key={secId} className={`dashboard-section-wrapper ${editLayout ? 'layout-edit-mode' : ''}`} style={editLayout ? { border: '2px dashed #16a34a', borderRadius: '14px', padding: '12px', margin: '14px 0', background: 'rgba(22, 163, 74, 0.03)', position: 'relative' } : {}}>
+          <div key={secId} id={`section-${secId}`} data-section={secId} className={`dashboard-section-wrapper ${editLayout ? 'layout-edit-mode' : ''}`} style={editLayout ? { border: '2px dashed #16a34a', borderRadius: '14px', padding: '12px', margin: '14px 0', background: 'rgba(22, 163, 74, 0.03)', position: 'relative' } : {}}>
             {editLayout && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a', color: '#f8fafc', padding: '8px 14px', borderRadius: '8px', marginBottom: '10px', fontSize: '13px', fontWeight: 600 }}>
                 <span>{SECTION_TITLES[secId] || secId}</span>
@@ -722,12 +713,7 @@ export default function App() {
       </main>
     </div>
     {message && <div className="toast" role="status"><ShieldCheck size={19}/>{message}<button aria-label="Dismiss" onClick={() => setMessage('')}><X size={17}/></button></div>}
-    {modal === 'craft-studio' && farm && (
-      <Suspense fallback={<div className="reveal-loading">Loading StoryTold ArtCraft Studio…</div>}>
-        <ArtCraftStudio farm={farm as any} onClose={() => setModal('')} isModal={true} />
-      </Suspense>
-    )}
-    {modal && modal !== 'craft-studio' && <div className="modal-backdrop" onClick={() => setModal('')}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={event => event.stopPropagation()}><button className="modal-close" aria-label="Close dialog" onClick={() => setModal('')}><X size={20}/></button><span className="modal-icon"><BrandLogo/></span><div className="eyebrow">SEVA · LAND INTELLIGENCE</div><h2 id="modal-title">{modal === 'add' ? 'Set up a field for remote review.' : modal === 'zone' ? 'Understand this spot.' : modal === 'sources' ? 'Open data. Transparent limits.' : modal === 'alerts' ? 'Your field advisories.' : modal === 'reports' ? 'Take your insights with you.' : modal === 'data' ? 'Your account and data.' : modal === 'settings' ? 'Your personal workspace.' : 'From coordinates to clarity.'}</h2>
+    {modal && <div className="modal-backdrop" onClick={() => setModal('')}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={event => event.stopPropagation()}><button className="modal-close" aria-label="Close dialog" onClick={() => setModal('')}><X size={20}/></button><span className="modal-icon"><BrandLogo/></span><div className="eyebrow">SEVA · LAND INTELLIGENCE</div><h2 id="modal-title">{modal === 'add' ? 'Set up a field for remote review.' : modal === 'zone' ? 'Understand this spot.' : modal === 'sources' ? 'Open data. Transparent limits.' : modal === 'alerts' ? 'Your field advisories.' : modal === 'reports' ? 'Take your insights with you.' : modal === 'data' ? 'Your account and data.' : modal === 'settings' ? 'Your personal workspace.' : 'From coordinates to clarity.'}</h2>
       {modal === 'data' ? <Suspense fallback={<div className="reveal-loading">Loading data manager…</div>}><DataManager/></Suspense> : modal === 'add' ? <AddFarm onAdd={addBoundary} onError={setMessage}/> : modal === 'zone' ? (() => {
         const verdict = classify(zone ? zone.ndvi : farm?.analysis?.ndvi.mean)
         return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm?.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Farm average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm?.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm?.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm?.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>What should I do?</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>Satellite values are not pixel cloud-masked and are not field-validated. Confirm on the ground before acting.</div></>

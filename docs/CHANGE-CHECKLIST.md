@@ -832,3 +832,56 @@ languages, and the duplicate-key scan came back clean.
 Verification for Batch 13: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
 `vite build` **pass (9.0 s)** · duplicate-key scan **clean** ·
 `npm run i18n:coverage` **30.4%, up from 24.2%**.
+
+### 2026-10-12 — Batch 14: the SEVA.GIS premium design kit
+
+Implemented exactly as specified, as an opt-in theme scoped to `.seva-premium`.
+
+| # | Step | Done |
+|---|---|---|
+| 1 | `src/seva-premium.css` added; imported in `src/main.tsx` immediately after `./index.css` | ✅ |
+| 2 | `seva-premium` class on the `au-wrap` root in `src/Auth.tsx` and the `app-shell` root in `src/App.tsx` | ✅ |
+| 3 | Animated-letter heading replaced with `<h2 className="au-brand-title">SEVA.GIS</h2>`; `au-cherish` paragraph replaced with the new copy | ✅ |
+| 4 | `<Aurora …>` element and its import removed; `<form>` reduced to `className="au-card" onSubmit={submit}`; `cardRef`, `tiltStyle`, `handleCardPointerMove`, `handleCardPointerLeave` deleted; `useRef` kept for `pw` | ✅ |
+| 5 | Inline styles removed from the `au-remember-box` label, its checkbox, the `Star` icon and the "How it works" button; span text now **"Remember this device"**; the false `✓ Auto-remember active` line deleted; the plain on-device-storage `<small>` kept | ✅ |
+
+**Verification I added, because a stylesheet that matches nothing looks identical to one
+that works.** `scratch/verify-premium-selectors.mjs` extracts every `.seva-premium .x`
+selector from the CSS and checks for a matching `className` in `src/`:
+
+| | |
+|---|---|
+| Scoped class selectors in the theme | **35** |
+| Selectors that bind to a real element | **35** |
+| Selectors that match nothing | **0** |
+
+So the theme genuinely reaches the sign-in hero, stats, flow nodes, card, tabs, guest button,
+card links, knowledge section and the workspace sidebar/topbar/heading/metric cards — it is not
+silently inert.
+
+**One extra change, consistent with an earlier instruction.** The "How it works" button's
+tooltip read `How SEVA.GIS works (Scientific Thesis & Methodology)`. You previously asked for
+the "Scientific" / "Thesis" wording to go, so it is now `How SEVA.GIS works (methodology &
+workflow)`. Flagged here because it was not part of the kit's snippet list.
+
+**Deliberately NOT done — the kit lists these as recommendations, not as part of the theme,
+and says they were "not silently implemented":**
+
+- moving Pop Team into Help; renaming the overview heading to "Field overview"; collapsing
+  support while a welcome tour is open; regrouping the map layer selector / date / cloud cover /
+  legend in `IndicatorMap.tsx`; matching typography in `VillageView.tsx` and `GeoTools.tsx`.
+
+These are behavioural and layout changes rather than styling, so they are left for you to
+approve rather than slipped in behind a CSS change.
+
+**Also noted, not acted on:**
+
+- `src/Aurora.tsx` is now **unreferenced** (its only usage was the element removed in step 4).
+  The file is intentionally **kept**, because the kit's own Undo section depends on being able
+  to restore that element; deleting it would make the undo incomplete.
+- `src/index.css` still contains now-orphaned rules for `.au-full`, `.au-w` and `.au-full b`
+  (lines ~817–876). They render nothing because no element carries those classes any more.
+  Left in place rather than editing the 210 KB stylesheet for no visible gain.
+
+Verification for Batch 14: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
+`vite build` **pass (6.4 s)** · theme selector audit **35/35 bound, 0 orphans**.

@@ -4,6 +4,7 @@ import App from './App'
 import AuthGate from './Auth'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './index.css'
+import './seva-premium.css'
 
 import PopTheTeamModal from './PopTheTeamModal'
 import { I18nProvider } from './lib/i18n'

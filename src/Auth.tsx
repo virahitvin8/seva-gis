@@ -1,5 +1,4 @@
 import LogoLoader from './LogoLoader'
-import Aurora from './Aurora'
 import { MitraBye } from './Mitra'
 import { clearGreeting } from './lib/greet'
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -46,35 +45,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [guideModalOpen, setGuideModalOpen] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const pw = useRef<HTMLInputElement>(null)
-  const cardRef = useRef<HTMLFormElement>(null)
-  const [tiltStyle, setTiltStyle] = useState<React.CSSProperties>({})
-
-  const handleCardPointerMove = (e: React.PointerEvent<HTMLFormElement>) => {
-    const el = cardRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
-    const rotX = -((y - centerY) / centerY) * 8
-    const rotY = ((x - centerX) / centerX) * 8
-    const glareX = (x / rect.width) * 100
-    const glareY = (y / rect.height) * 100
-    setTiltStyle({
-      transform: `perspective(1000px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) translateZ(8px)`,
-      transition: 'transform 0.08s ease-out',
-      backgroundImage: `radial-gradient(circle at ${glareX.toFixed(1)}% ${glareY.toFixed(1)}%, rgba(255, 255, 255, 0.12) 0%, transparent 65%)`,
-    })
-  }
-
-  const handleCardPointerLeave = () => {
-    setTiltStyle({
-      transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)',
-      transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-      backgroundImage: 'none',
-    })
-  }
 
   async function enter(w: Who) {
     sessionStorage.removeItem('seva-bye')
@@ -151,8 +121,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   )
   if (who) return <Ctx.Provider value={{ who, signOut }}>{children}</Ctx.Provider>
 
-  return <div className="au-wrap" style={{ position: 'relative' }}>
-    <Aurora style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
+  return <div className="au-wrap seva-premium" style={{ position: 'relative' }}>
     <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 100 }}>
       <Lang />
     </div>
@@ -161,8 +130,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <section className="au-hero">
         <div className="au-hero-copy">
           <div className="au-logo"><img src={logo} alt="SEVA·GIS logo" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark/></div>
-          <h2 className="au-full notranslate" translate="no" aria-label="Spatial Evaluation & Vegetation Analytics">{['Spatial', 'Evaluation', '&', 'Vegetation', 'Analytics'].map((w, wi) => <span className="au-w" key={w}>{[...w].map((ch, ci) => <b key={ci} className={ci === 0 && w !== '&' ? 'cap' : ''} style={{ animationDelay: `${(wi * 6 + ci) * 45}ms` }}>{ch}</b>)}</span>)}</h2>
-          <p className="au-cherish">Every field you walk and every season you wait matters. We are glad you are here. Your land deserves to be seen, and you deserve to see it grow.</p>
+          <h2 className="au-brand-title notranslate" translate="no">SEVA.GIS</h2>
+          <p className="au-cherish">
+            Spatial Evaluation &amp; Vegetation Analytics.
+            Explore Sentinel-2 observations, vegetation signals,
+            and moisture patterns for your fields.
+          </p>
           <ul className="au-stats"><li><i className="fa-solid fa-satellite"/><b>10 m</b><span>satellite detail</span></li><li><i className="fa-solid fa-cloud-sun-rain"/><b>Live</b><span>weather and soil</span></li><li><i className="fa-solid fa-hand-holding-heart"/><b>$0</b><span>no keys, no fees</span></li></ul>
 
           <div className="au-flow" aria-label="How SEVA.GIS works: satellite, bands, indices, advice">
@@ -171,14 +144,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </section>
 
-      <form
-        ref={cardRef}
-        className="au-card"
-        onSubmit={submit}
-        onPointerMove={handleCardPointerMove}
-        onPointerLeave={handleCardPointerLeave}
-        style={{ ...tiltStyle, willChange: 'transform' }}
-      >
+      <form className="au-card" onSubmit={submit}>
         <h1>{mode === 'in' ? 'Welcome back' : 'Start for free'}</h1>
         <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
         {mode === 'in' && saved.length > 0 && <div className="au-known"><span>Welcome back, tap your name</span>{saved.map(k => <div className="au-chip" key={k.email}><button type="button" onClick={() => { setForm({ ...form, email: k.email, password: '' }); setTimeout(() => pw.current?.focus(), 30) }}><b>{(k.name || k.email)[0].toUpperCase()}</b><span>{k.name}<small>{k.email}</small></span></button><button type="button" aria-label={`Forget ${k.name}`} onClick={() => { forget(k.email); setSaved(known()) }}>×</button></div>)}</div>}
@@ -186,20 +152,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         {mode === 'up' && <label>Your name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="name" placeholder="Your name"/></label>}
         <label>Email<input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} autoComplete="email" placeholder="you@example.com"/></label>
         <label>Password<input ref={pw} required type="password" minLength={mode === 'up' ? 8 : 1} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} placeholder={mode === 'up' ? 'At least 8 characters' : ''}/></label>
-        <label className="au-remember-box" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px', fontSize: 12.5, color: '#e2e8f0', cursor: 'pointer', userSelect: 'none' }}>
+        <label className="au-remember-box">
           <input
             type="checkbox"
             checked={rememberMe}
             onChange={e => setRememberMe(e.target.checked)}
-            style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
           />
-          <span>Remember me on this device (direct portal access on next visit)</span>
+          <span>Remember this device</span>
         </label>
         {error && <div className="au-err" role="alert">{error}</div>}
         <button className="au-go" disabled={busy}>{busy ? <LogoLoader inline size={18} text="Please wait…" /> : mode === 'in' ? <><LogIn size={16}/>Sign in</> : <><UserPlus size={16}/>Create free account</>}</button>
         <div className="au-or"><span>or</span></div>
         <button type="button" className="au-guest" onClick={() => enterGuest()}><UserIcon size={15}/>Continue as Guest · Instant access</button>
-        <small style={{ display: 'block', textAlign: 'center', marginTop: 6, fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ Auto-remember active: Only log in once. Direct access to SEVA·GIS on every visit.</small>
         <small>Your account is saved on this device. Passwords are hashed locally and never transmitted. Back up or restore anytime from Data manager.</small>
 
         {/* Quick Documentation Links in Sign-in Card */}
@@ -211,15 +175,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             className="au-card-link-item"
             title="Open GitHub repository"
           >
-            <Star size={12} style={{ color: '#b6f36a' }} />
+            <Star size={12} />
             <span>GitHub</span>
           </a>
           <button
             type="button"
             onClick={() => setGuideModalOpen(true)}
             className="au-card-link-item"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', cursor: 'pointer' }}
-            title="How SEVA.GIS works (Scientific Thesis & Methodology)"
+            title="How SEVA.GIS works (methodology & workflow)"
           >
             <BookOpen size={12} />
             <span>How it works</span>

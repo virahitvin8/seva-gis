@@ -380,7 +380,7 @@ export default function App() {
     }
   }
 
-  return <div className="app-shell">
+  return <div className="app-shell seva-premium">
     <aside className={`sidebar ${menu ? 'mobile-open' : ''}`}>
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>{t('shell.planBadge')}</small></div><ChevronDown size={16}/></div>

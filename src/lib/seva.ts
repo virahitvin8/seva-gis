@@ -1,6 +1,7 @@
 import { INDICATORS, byId, makeGrid, terrainBands, type Bands, type Grid } from './indicators'
 import { hydroBands } from './hydro'
 import { insideMask, parseNpy, rasterSize, statsOf, type Bbox, type Raster, type Ring, type Stat } from './raster'
+import { statsOfAsync } from './rasterWorker'
 import { getEarthEngineStats, getEarthEngineTimeseries } from './earthEngineClient'
 
 export type { Bbox, Stat }
@@ -222,6 +223,20 @@ export function indexStat(g: Grid, id: string): Stat | null {
   return statsOf(values, i => !!g.inside[i] && !!g.ok[i], ind.valid ?? [-1, 1])
 }
 
+// Same result as indexStat, but the pixel scan + sort runs in a Web Worker so a
+// large AOI does not block the main thread.
+export async function indexStatAsync(g: Grid, id: string): Promise<Stat | null> {
+  const ind = byId(id)
+  const n = g.w * g.h
+  const values = new Float32Array(n)
+  const mask = new Uint8Array(n)
+  for (let i = 0; i < n; i++) {
+    values[i] = ind.value!(g.b, i)
+    mask[i] = g.inside[i] && g.ok[i] ? 1 : 0
+  }
+  return statsOfAsync({ values, range: ind.valid ?? [-1, 1], mask })
+}
+
 function stressShare(g: Grid) {
   const ind = byId('ndvi')
   let total = 0, low = 0
@@ -436,7 +451,9 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
   const ndvi = indexStat(g, 'ndvi'), ndwi = indexStat(g, 'ndwi'), ndmi = indexStat(g, 'ndmi')
   if (!ndvi || !ndwi || !ndmi) throw new Error('No valid pixels inside the farm (cloud or edge of scene).')
   const means: Record<string, number> = {}
-  for (const ind of INDICATORS) if (ind.source === 'S2' && ind.value) { const s = indexStat(g, ind.id); if (s) means[ind.id] = s.mean }
+  const screened = INDICATORS.filter(ind => ind.source === 'S2' && ind.value)
+  const screenedStats = await Promise.all(screened.map(async ind => [ind.id, await indexStatAsync(g, ind.id)] as const))
+  for (const [id, s] of screenedStats) if (s) means[id] = s.mean
   let slopeDeg: number | undefined, slopePct: number | undefined, elevMean: number | undefined
   if (dem) {
     slopeDeg = indexStat(dem, 'slope')?.mean

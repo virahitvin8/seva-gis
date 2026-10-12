@@ -10,7 +10,8 @@
     "start": "node server.js",
     "set-domain": "node scripts/set-domain.js",
     "deploy:firebase": "npm run build && npx firebase-tools deploy --only hosting",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "test": "node --import ./scripts/test-run.mjs --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

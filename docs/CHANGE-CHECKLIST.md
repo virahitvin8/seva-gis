@@ -486,3 +486,70 @@ string inventory, not a quick patch.
 
 Verification for Batch 6: `tsc --noEmit` **pass** · `npm test` **21/21 pass** ·
 `vite build` **pass (7.5 s)**.
+
+### 2026-10-12 — Batch 7: the freeze, measured · and a correction to my own record
+
+**A. Correction first — I under-reported the progress.** The status column above was stale.
+Re-reading the code before changing it, several items I had marked "not started" are in fact
+implemented and working. Corrected status, with the file that proves it:
+
+| ID | I had said | Actually |
+|---|---|---|
+| 43 | ☐ Remote-review maps zoom 19 | ✅ `src/LabMap.tsx` — fixed 19× framing, `pad = 0.075`, documented in the source |
+| 45 | ☐ AOI ≈75% of screen | ✅ `src/IndicatorMap.tsx` — `fit75PercentAoi()`, 12.5% padding each edge |
+| 46 | 🚧 AOI always centred | ✅ same function enforces the centre with a minimum-zoom boundary |
+| 51 | ☐ Sliding loupe window | ✅ `src/LabMap.tsx` — `pointsMode: 'off' \| 'window' \| 'show'` with pointer-tracked loupe |
+| 58 | ☐ Per-map point count | ✅ `src/LabMap.tsx` — `pointCount` selector |
+| 62 | 🚧 GeoTIFF download | ✅ `src/lib/geoTiffWriter.ts` used by `IndicatorMap`, `AgroPanel`, `InsightPlayingCardModal` |
+| 96 | 🚧 Buffer in tools with m/km | ✅ `src/IndicatorMap.tsx` — "Geodesic Buffer Zone Creator" with m/km units |
+
+This is the honest position: the *build* is further along than the checklist said, and the
+checklist is the thing that was wrong. It is corrected above by this note, and I will keep the
+tick column in step from here rather than leaving stale ☐ marks.
+
+**B. The freeze — root cause found, fixed, and measured.** Two real defects, both verified by
+reading the code path `analyze()` → `indexStat()` → `statsOf()`:
+
+1. **`statsOf` sorted every pixel.** For a 900 × 900 grid that is 810,000 values, and
+   `Float32Array.prototype.sort` over that costs roughly 16 million comparisons **per
+   indicator**, on the main thread, for ~13 indicators per analysis. That is the
+   "page is unresponsive" dialog. Replaced with an O(n) 2048-bin histogram for large rasters;
+   small samples still use exact order statistics, so nothing is approximated where it matters.
+   `mean`, `min` and `max` stay exact at every size.
+
+2. **A small area of interest collapsed to 8 × 8 pixels.** `rasterSize()` floored the grid at 8
+   cells and never raised it. A 0.25 ha field became 8 × 8 — 64 pixels — magnified on screen.
+   That is the "blurriness / pixel clarity" complaint. `rasterSize()` now enforces a **minimum**
+   long side of 256 px (`MIN_GRID_PX`) while keeping the existing maximum cap, so the tile
+   service resamples smoothly instead of the map magnifying a handful of blocks.
+
+3. **Buffers are transferred, not cloned.** Each indicator posted a 3.2 MB `Float32Array` to
+   the worker by structured clone — tens of megabytes of main-thread copying per analysis.
+   `statsOfAsync(req, transfer)` now moves the buffers instead.
+
+**Measured on the real grid size** (`scratch/bench-stats.mjs`, 900 × 900, 13 indicators):
+
+| | Time |
+|---|---|
+| Before (sort path) | **2430 ms** of blocked main thread |
+| After (histogram path) | **273 ms** |
+| **Improvement** | **8.9×, ~2.2 s saved per analysis** |
+
+Accuracy at the same grid: `mean`, `min`, `max` **identical**; `p10`, `p50`, `p90` differ by at
+most `1.0e-4` — far below anything a legend or dashboard tile can render.
+
+| File | Change |
+|---|---|
+| `src/lib/raster.ts` | `statsOf` histogram path + `EXACT_QUANTILE_LIMIT`; `rasterSize` gains `MIN_GRID_PX` |
+| `src/lib/rasterWorker.ts` | `statsOfAsync(req, transfer)` moves buffers; documented fallback when transferred |
+| `src/lib/seva.ts` | `indexStatAsync` transfers its buffers (they are built here and never re-read) |
+| `src/lib/__tests__/raster.test.ts` | 3 new tests: small-AOI grid floor, exactness on small samples, large-raster accuracy **and** a time bound |
+| `scratch/bench-stats.mjs` | The benchmark above, so the number can be re-checked |
+
+Verification for Batch 7: `tsc --noEmit` **pass** · `npm test` **24/24 pass** (was 21) ·
+benchmark **2430 ms → 273 ms**.
+
+**Still genuinely open, stated plainly:** the programme-wide freeze on *login* with several
+large saved areas (35) and the report-generation hang (39) are separate causes and are not
+fixed by the above. Item 31/32 — full English/Telugu/Hindi coverage — remains the single
+largest gap: `src/lib/i18n.tsx` holds only 14 keys, so most of the app never translates.

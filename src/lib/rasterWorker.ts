@@ -27,7 +27,16 @@ function getWorker(): Worker | null {
   return worker
 }
 
-export function statsOfAsync(req: RasterStatRequest): Promise<Stat | null> {
+/**
+ * Runs the per-pixel scan and statistics off the main thread.
+ *
+ * @param transfer When true, the value and mask buffers are *moved* to the worker
+ *   instead of being structurally cloned. A 900 x 900 grid is 3.2 MB of floats per
+ *   indicator, so cloning a dozen of them costs tens of megabytes of main-thread
+ *   copying on every analysis. Only pass `true` when the caller does not need the
+ *   arrays again — transferring detaches them on this side.
+ */
+export function statsOfAsync(req: RasterStatRequest, transfer = false): Promise<Stat | null> {
   const w = getWorker()
   if (!w) return Promise.resolve(statsOf(req.values, okFromMask(req.mask), req.range))
 
@@ -43,13 +52,22 @@ export function statsOfAsync(req: RasterStatRequest): Promise<Stat | null> {
       resolve(event.data.stat)
     }
     // On worker failure, degrade to the main thread instead of failing the analysis.
+    // When the buffers were transferred they no longer exist here, so the only honest
+    // answer is null: the caller reports the indicator as unavailable rather than wrong.
     const onError = () => {
       cleanup()
-      resolve(statsOf(req.values, okFromMask(req.mask), req.range))
+      resolve(transfer ? null : statsOf(req.values, okFromMask(req.mask), req.range))
     }
     w.addEventListener('message', onMessage)
     w.addEventListener('error', onError, { once: true })
     const message: WorkerRequest = { id, values: req.values, range: req.range, mask: req.mask }
-    w.postMessage(message)
+
+    if (transfer) {
+      const buffers: ArrayBuffer[] = [req.values.buffer as ArrayBuffer]
+      if (req.mask) buffers.push(req.mask.buffer as ArrayBuffer)
+      w.postMessage(message, buffers)
+    } else {
+      w.postMessage(message)
+    }
   })
 }

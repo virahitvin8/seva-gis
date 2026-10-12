@@ -223,8 +223,9 @@ export function indexStat(g: Grid, id: string): Stat | null {
   return statsOf(values, i => !!g.inside[i] && !!g.ok[i], ind.valid ?? [-1, 1])
 }
 
-// Same result as indexStat, but the pixel scan + sort runs in a Web Worker so a
-// large AOI does not block the main thread.
+// Same result as indexStat, but the pixel scan and statistics run in a Web Worker so
+// a large AOI does not block the main thread, and the buffers are transferred rather
+// than cloned. The arrays are built here and never read again, so moving them is safe.
 export async function indexStatAsync(g: Grid, id: string): Promise<Stat | null> {
   const ind = byId(id)
   const n = g.w * g.h
@@ -234,7 +235,7 @@ export async function indexStatAsync(g: Grid, id: string): Promise<Stat | null> 
     values[i] = ind.value!(g.b, i)
     mask[i] = g.inside[i] && g.ok[i] ? 1 : 0
   }
-  return statsOfAsync({ values, range: ind.valid ?? [-1, 1], mask })
+  return statsOfAsync({ values, range: ind.valid ?? [-1, 1], mask }, true)
 }
 
 function stressShare(g: Grid) {

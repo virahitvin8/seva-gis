@@ -100,12 +100,33 @@ export function pixelAt(w: number, h: number, bbox: Bbox, lon: number, lat: numb
   return x < 0 || y < 0 || x >= w || y >= h ? -1 : y * w + x
 }
 
-export function rasterSize(bbox: Bbox, res: number, maxPx: number) {
+/**
+ * Longest side a raster grid may have, and the shortest side it must have.
+ *
+ * `maxPx` keeps a very large area of interest from requesting an enormous grid.
+ * `minPx` exists because of a real defect: a small area of interest used to
+ * collapse to the hard floor of 8 x 8 cells, so a 0.5 ha field was analysed from
+ * ~64 pixels and then magnified on screen — that is the "blurry / pixelated"
+ * complaint. Asking the tile service for a denser grid resamples the source
+ * smoothly (the same thing QGIS bilinear resampling does) instead of magnifying
+ * a handful of blocks.
+ */
+export const MIN_GRID_PX = 256
+
+export function rasterSize(bbox: Bbox, res: number, maxPx: number, minPx = MIN_GRID_PX) {
   const [west, south, east, north] = bbox
   const wm = (east - west) * 111320 * Math.cos((((south + north) / 2) * Math.PI) / 180), hm = (north - south) * 111320
   let w = Math.max(Math.round(wm / res), 8), h = Math.max(Math.round(hm / res), 8)
-  const k = Math.min(1, maxPx / Math.max(w, h))
-  w = Math.max(Math.round(w * k), 8); h = Math.max(Math.round(h * k), 8)
+  const longest = Math.max(w, h)
+
+  if (longest > maxPx) {
+    const k = maxPx / longest
+    w = Math.max(Math.round(w * k), 8); h = Math.max(Math.round(h * k), 8)
+  } else if (longest < minPx) {
+    const k = minPx / longest
+    w = Math.max(Math.round(w * k), 8); h = Math.max(Math.round(h * k), 8)
+  }
+
   return { w, h, wm, hm }
 }
 
@@ -117,21 +138,82 @@ export function rampColor(ramp: string[], t: number): [number, number, number] {
 }
 
 export type Stat = { mean: number; min: number; max: number; p10: number; p50: number; p90: number; n: number; stdDev?: number }
+/**
+ * Samples at or below this size use an exact order-statistic sort. Above it, a
+ * histogram is used instead, because sorting is what froze the page: a 900 x 900
+ * grid is 810,000 values, and `Float32Array.prototype.sort` over that costs
+ * roughly 16 million comparisons *per indicator*, on the main thread, for a
+ * dozen indicators at once.
+ */
+const EXACT_QUANTILE_LIMIT = 4096
+
+/** Histogram resolution for the large-raster path. */
+const QUANTILE_BINS = 2048
+
 export function statsOf(values: Float32Array | Float64Array, ok: (i: number) => boolean, range: [number, number]): Stat | null {
-  const xs = new Float32Array(values.length)
+  const inRange = (v: number) => Number.isFinite(v) && v >= range[0] && v <= range[1]
+
+  // Pass 1 — exact count, sum, min and max. Always exact, never approximated.
   let n = 0, sum = 0, min = Infinity, max = -Infinity
   for (let i = 0; i < values.length; i++) {
     const v = values[i]
-    if (!ok(i) || !Number.isFinite(v) || v < range[0] || v > range[1]) continue
-    xs[n++] = v
+    if (!ok(i) || !inRange(v)) continue
+    n++
     sum += v
     if (v < min) min = v
     if (v > max) max = v
   }
   if (!n) return null
-  const sorted = xs.subarray(0, n).sort()
-  const q = (p: number) => sorted[Math.min(n - 1, Math.floor(p * n))]
-  return { mean: sum / n, min, max, p10: q(0.1), p50: q(0.5), p90: q(0.9), n }
+  const mean = sum / n
+
+  let p10: number, p50: number, p90: number
+
+  if (n <= EXACT_QUANTILE_LIMIT) {
+    // Small samples (unit tests, tiny areas): exact order statistics.
+    const xs = new Float32Array(n)
+    let k = 0
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i]
+      if (!ok(i) || !inRange(v)) continue
+      xs[k++] = v
+    }
+    xs.sort()
+    const q = (p: number) => xs[Math.min(n - 1, Math.floor(p * n))]
+    p10 = q(0.1); p50 = q(0.5); p90 = q(0.9)
+  } else if (max <= min) {
+    p10 = min; p50 = min; p90 = min
+  } else {
+    // Large rasters: O(n) histogram instead of an O(n log n) sort. The bin width
+    // is (max - min) / 2048, which is far finer than any legend or dashboard tile
+    // can render, and the exact mean, min and max are still reported above.
+    const span = max - min
+    const binWidth = span / QUANTILE_BINS
+    const scale = QUANTILE_BINS / span
+    const hist = new Uint32Array(QUANTILE_BINS)
+
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i]
+      if (!ok(i) || !inRange(v)) continue
+      let b = Math.floor((v - min) * scale)
+      if (b < 0) b = 0
+      else if (b >= QUANTILE_BINS) b = QUANTILE_BINS - 1
+      hist[b]++
+    }
+
+    const quantile = (p: number) => {
+      const target = Math.floor(p * n)
+      let cumulative = 0
+      for (let b = 0; b < QUANTILE_BINS; b++) {
+        cumulative += hist[b]
+        if (cumulative > target) return Math.min(max, min + (b + 0.5) * binWidth)
+      }
+      return max
+    }
+
+    p10 = quantile(0.1); p50 = quantile(0.5); p90 = quantile(0.9)
+  }
+
+  return { mean, min, max, p10, p50, p90, n }
 }
 
 function applyUnsharp(ctx: CanvasRenderingContext2D, W: number, H: number, amount: number) {

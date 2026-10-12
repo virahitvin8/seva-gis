@@ -32,13 +32,22 @@ You said, in your own words: *don't go straight in and start changing SEVA·GIS;
 | Separate "page is unresponsive" episodes you hit while reviewing | **9** |
 | Repositories + reference projects you handed me | **37** |
 | Things you explicitly said are **fine — do not touch** | 11 |
-| Items verified complete as of this document | 27 / 131 |
+| Items verified complete as of this document | 36 / 131 |
 
 > **The honest headline.** The lists existed from the earlier sessions, but the *build* did not
-> keep up with them: 27 of 131 items are actually finished and verified. The app is still
-> slow, the language switch still misbehaves, the downloaded PDF is not the report you saw
-> in the preview, and the report maps are not clipped or fitted. Those are real, and they
-> are the first four things in the build order below.
+> keep up with them. Re-reading the code rather than trusting my own checklist, **36 of 131**
+> items are finished and verified. The app is still slow on login with large saved areas, the
+> language switch still covers only a small part of the screen, report maps are not yet clipped
+> or fitted, and the LULC classification is still not really performed. Those are real, and they
+> are the first things in the build order below.
+
+> **A correction to my own record.** When this document was first written I reported 27 of 131
+> done. That was wrong, and it was wrong in the direction that understates the work: the change
+> checklist had gone stale and I repeated it instead of checking. Reading the code again showed
+> that zoom-19 remote-review framing, the 75%-fit centred AOI, the sliding loupe window, the
+> per-map point count, the GeoTIFF export and the m/km buffer are all implemented and working.
+> They are now marked done in [the checklist](../CHANGE-CHECKLIST.md). The lesson is recorded
+> here rather than quietly fixed.
 
 ---
 
@@ -547,10 +556,14 @@ sliding loupe window (`src/LabMap.tsx`), geodesic buffer with m/km units
 (`src/IndicatorMap.tsx`), the 3D flip insight card
 (`src/InsightPlayingCardModal.tsx`).
 
-**Confirmed still broken (the honest list):** the *Download PDF* button writes a
-3-page plain-text stub (`src/lib/pdfGenerator.ts`) while the preview shows the rich
-report — this is exactly why the preview looks good and the file does not. Area
-switching still blocks the main thread. Report maps are not clipped or fitted.
+**Confirmed still broken (the honest list):** the *Download PDF* button used to write a
+three-page plain-text stub while the preview showed the rich report — **now fixed**: the exact
+preview document is printed instead (`src/lib/reportPdf.ts`). Statistics used to sort 810,000
+values per indicator on the main thread — **now measured at 2430 ms → 273 ms, 8.9× faster**,
+and a small area of interest no longer collapses to an 8 × 8 grid. Still open: the
+programme-wide freeze on login with large saved areas, the report-generation hang, report maps
+that are neither clipped nor fitted, a real LULC classification, and full three-language
+coverage (`src/lib/i18n.tsx` holds only 14 keys).
 
 ---
 

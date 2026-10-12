@@ -210,77 +210,13 @@ export default function GeoTools({ farm, farms }: Props) {
         </div>
       </section>
 
-      {/* awesome-agriculture Variable-Rate Fertilizer Prescription (VRA) */}
-      <section className="ag-card"><div className="ag-head"><Sparkles size={17}/><h3>Variable-rate fertilizer (VRA)</h3><small>awesome-agriculture · 3-zone precision N</small><BoxRefresh title="Variable-rate fertilizer" onRefresh={() => setCalcKey(k => k + 1)}/></div>
-        <details className="gt-how"><summary>How does Variable-Rate Application save fertilizer?</summary>
-          <p>Precision agriculture prescriptions classify canopy vigor into 3 operational management zones (low vigor recovery, baseline maintenance, dense vigor safe-rate). Rather than blanket-applying 120 kg N/ha everywhere, VRA cuts nitrogen in lush zones to stop lodging and shifts nutrients to stressed areas.</p>
-        </details>
-        <div className="ag-grid">
-          <div className="ag-item good"><span>Total Urea needed</span><b>{vra.totalBagsUrea} bags</b><small>50 kg bags (46% N) · {vra.totalFertilizerKg} kg N</small></div>
-          <div className="ag-item neutral"><span>Blanket uniform need</span><b>{Math.ceil((vra.uniformFertilizerKg / 0.46) / 50)} bags</b><small>{vra.uniformFertilizerKg} kg N at standard 120 kg/ha</small></div>
-          <div className="ag-item good"><span>Nutrient saved</span><b>{vra.savingPct}%</b><small>reduces fertilizer runoff &amp; input costs</small></div>
-        </div>
-        <table className="gt-table" style={{ marginTop: 10 }}>
-          <thead><tr><th>Zone</th><th>Area</th><th>Rate</th><th>Urea</th><th>Objective</th></tr></thead>
-          <tbody>
-            {vra.zones.map(z => (
-              <tr key={z.id}>
-                <td><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: z.color, marginRight: 6 }}/>{z.name}</td>
-                <td>{z.areaHa} ha ({z.areaPct}%)</td>
-                <td><b>{z.targetRateKgHa} kg N/ha</b></td>
-                <td>{z.bagsUrea50kg} bags</td>
-                <td style={{ fontSize: 11, color: 'var(--muted)' }}>{z.rationale}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 10 }}>
-          <button className="gt-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-            onClick={() => download(`${slug}-vra-prescription.json`, JSON.stringify(vra, null, 2), 'application/json')}>
-            <ArrowDownToLine size={14}/>Download Prescription (JSON)
-          </button>
-        </div>
-      </section>
-
-      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small><BoxRefresh title="Nearby farms" onRefresh={() => setCalcKey(k => k + 1)}/></div>
+            <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small><BoxRefresh title="Nearby farms" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         {near.length ? <table className="gt-table"><thead><tr><th>Farm</th><th>Distance</th><th>Bearing</th><th>Direction</th></tr></thead>
           <tbody>{near.map(n => <tr key={n.o.id} className={nearest?.id === n.o.id ? 'on' : ''}><td>{n.o.name}{nearest?.id === n.o.id && <em> nearest</em>}</td><td>{km(n.d)}</td><td>{f(n.bearing, 0)}°</td><td>{n.dir}</td></tr>)}</tbody></table> : <div className="ag-empty">Add a second farm to see distances between your farms.</div>}
         <small className="ag-note">Bearing is measured clockwise from true north: 0° N, 90° E, 180° S, 270° W.</small>
       </section>
 
-      <section className="ag-card"><div className="ag-head"><Crosshair size={17}/><h3>Point checker</h3><small>is it inside my boundary?</small><BoxRefresh title="Point checker" onRefresh={() => setCalcKey(k => k + 1)}/></div>
-        <div className="gt-form"><label>Latitude<input value={q.lat} onChange={e => setQ({ ...q, lat: e.target.value })}/></label><label>Longitude<input value={q.lon} onChange={e => setQ({ ...q, lon: e.target.value })}/></label><label>Radius (m)<input value={q.radius} onChange={e => setQ({ ...q, radius: e.target.value })}/></label></div>
-        {!valid ? <div className="ag-empty">Enter a valid latitude (−90 to 90) and longitude (−180 to 180).</div> : probe && <div className="ag-grid">
-          <div className={`ag-item ${probe.inside ? 'good' : 'warn'}`}><span>Inside the farm</span><b>{probe.inside ? 'Yes' : 'No'}</b><small>{probe.inside ? `${f(probe.edge, 0)} m from the nearest boundary` : `${f(probe.edge, 0)} m outside the boundary`}</small></div>
-          <div className="ag-item neutral"><span>From the centroid</span><b>{km(probe.d)}</b><small>{f(probe.bearing, 0)}° {probe.dir}</small></div>
-          <div className={`ag-item ${probe.within ? 'good' : 'neutral'}`}><span>Within {q.radius || 0} m of centroid</span><b>{probe.within ? 'Yes' : 'No'}</b><small>useful to check wells or pumps</small></div>
-        </div>}
-      </section>
-
-      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Offset &amp; buffer</h3><small>destination point and search box</small><BoxRefresh title="Offset & buffer" onRefresh={() => setCalcKey(k => k + 1)}/></div>
-        <details className="gt-how"><summary>How do I use this?</summary><p><b>Offset</b> answers "where do I end up if I walk from the farm centre?". Type a compass bearing (0 = north, 90 = east, 180 = south, 270 = west) and a distance in metres. You get the exact latitude and longitude, useful for placing a well, a sample point or a boundary stone.</p><p><b>Buffer</b> draws a safety box around the farm centre. Type a radius in metres to see how much land it covers and its corner coordinates. In the Analysis lab, the numbered red spots show a distance and bearing from the farm centre, so you can type those two numbers here to get their coordinates.</p></details>
-        <div className="gt-form"><label>Bearing °<input value={dest.bearing} onChange={e => setDest({ ...dest, bearing: e.target.value })}/></label><label>Distance m<input value={dest.dist} onChange={e => setDest({ ...dest, dist: e.target.value })}/></label></div>
-        <div className="ag-grid"><div className="ag-item neutral"><span>Point {dest.dist || 0} m at {dest.bearing || 0}° from the centroid</span><b>{f(dp.latitude, 6)}°, {f(dp.longitude, 6)}°</b><small>{dirOf(Number(dest.bearing) || 0)} of the farm centre</small></div></div>
-        <div className="gt-form"><label>Buffer radius m<input value={buf} onChange={e => setBuf(e.target.value)}/></label></div>
-        <div className="ag-grid"><div className="ag-item neutral"><span>Box around the centroid</span><b>{f(bb[0].latitude, 5)}, {f(bb[0].longitude, 5)}</b><small>to {f(bb[1].latitude, 5)}, {f(bb[1].longitude, 5)} · covers {f(Math.PI * (Number(buf) || 0) ** 2 / 10000, 2)} ha as a circle</small></div></div>
-      </section>
-
-      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>Converters</h3><small>coordinates, area, distance</small><BoxRefresh title="Converters" onRefresh={() => setCalcKey(k => k + 1)}/></div>
-        <div className="gt-form"><label>Latitude<input value={conv.lat} onChange={e => setConv({ ...conv, lat: e.target.value })}/></label><label>Longitude<input value={conv.lon} onChange={e => setConv({ ...conv, lon: e.target.value })}/></label></div>
-        <div className="ag-grid"><div className="ag-item neutral"><span>Degrees, minutes, seconds</span><b>{latDms} N/S</b><small>{lonDms} E/W</small></div></div>
-        <div className="gt-form"><label>DMS to decimal<input placeholder={'14° 26′ 6″ N'} value={conv.dms} onChange={e => setConv({ ...conv, dms: e.target.value })}/></label>{dmsOut && <b className="gt-out">{dmsOut}</b>}</div>
-        <div className="gt-form"><label>Area<input value={conv.area} onChange={e => setConv({ ...conv, area: e.target.value })}/></label><label>unit<select value={conv.areaU} onChange={e => setConv({ ...conv, areaU: e.target.value })}>{AREA_UNITS.map(u => <option key={u[0]} value={u[0]}>{u[1]}</option>)}</select></label></div>
-        <div className="gt-chips">{AREA_UNITS.filter(u => u[0] !== conv.areaU).map(u => <span key={u[0]}>{f(toArea(m2, u[0]), toArea(m2, u[0]) < 10 ? 3 : 1)} {u[1]}</span>)}</div>
-        <div className="gt-form"><label>Distance<input value={conv.dist} onChange={e => setConv({ ...conv, dist: e.target.value })}/></label><label>unit<select value={conv.distU} onChange={e => setConv({ ...conv, distU: e.target.value })}>{DIST_UNITS.map(u => <option key={u[0]} value={u[0]}>{u[1]}</option>)}</select></label></div>
-        <div className="gt-chips">{DIST_UNITS.filter(u => u[0] !== conv.distU).map(u => <span key={u[0]}>{f(convertDistance(m, u[0]), 2)} {u[1]}</span>)}</div>
-      </section>
-
-      <section className="ag-card"><div className="ag-head"><Ruler size={17}/><h3>WKT reader</h3><small>paste a polygon from QGIS or PostGIS</small><BoxRefresh title="WKT reader" onRefresh={() => setCalcKey(k => k + 1)}/></div>
-        <details className="gt-how"><summary>What is WKT and how do I use it?</summary><p>WKT (Well-Known Text) is a plain-text way to write a shape, for example <code>POLYGON((78.1 14.4, 78.2 14.4, 78.2 14.5, 78.1 14.5, 78.1 14.4))</code>. Each pair is longitude then latitude. GIS programs like QGIS, PostGIS and Google Earth Engine can copy shapes this way.</p><p>Paste it in the box below and SEVA.GIS shows its area and centre. To make it a farm, open <b>Add farm</b> then <b>Upload file</b> and choose a .wkt or .txt file containing the same text. The Analysis lab then maps exactly that shape.</p></details>
-        <textarea className="gt-wkt" value={wkt} onChange={e => setWkt(e.target.value)} rows={3} spellCheck={false}/>
-        {wktRes ? <div className="ag-grid"><div className="ag-item good"><span>Parsed polygon</span><b>{f(wktRes.area / 10000, 2)} ha</b><small>{wktRes.n} points · centre {f(wktRes.c ? Number(wktRes.c.latitude) : NaN, 5)}°, {f(wktRes.c ? Number(wktRes.c.longitude) : NaN, 5)}°. Use Add farm → upload to analyse it.</small></div></div> : <div className="ag-empty">Not a valid POLYGON((lon lat, …)) yet.</div>}
-      </section>
-    </div>
+                            </div>
     <small className="ag-note">Distances and areas are geodesic (curved Earth), so they match a GPS walk-around, not a flat map ruler. Powered by the geolib library (MIT).</small>
   </section>
 }

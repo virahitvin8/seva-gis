@@ -161,7 +161,7 @@ graph LR
 | ☐ | 31 | Language switch: English won’t return; auto-reverts | ☐ |
 | ☐ | 32 | Header text also translates | 🚧 |
 | ☐ | 33 | “Multi-Session Candlestick Trends” → “Multi-Session Trends” | ✅ |
-| ☐ | 34 | “Review field from home” → neutral remote wording | ☐ |
+| ☐ | 34 | “Review field from home” → neutral remote wording | ✅ |
 
 ### D. Performance (all ~9 lag episodes)
 | ✅ | ID | Change | Status |
@@ -190,7 +190,7 @@ graph LR
 | ☐ | 52 | Loading tracer around AOI boundary | ☐ |
 | ☐ | 53 | Map goes black after lock/unlock/refresh/reset | ☐ |
 | ☐ | 54 | Canvas toggle darkens map; B/W do nothing | ☐ |
-| ☐ | 55 | “Farm background canvas” → “Background canvas” | ☐ |
+| ☐ | 55 | “Farm background canvas” → “Background canvas” | ✅ (already named “Background Canvas”) |
 | ☐ | 56 | AOI clipping works (shapefile + by extent + background choice) | ☐ |
 | ☐ | 57 | Spectral groups 3/4/5 do nothing | ☐ |
 | ☐ | 58 | Per-map point-count control | ☐ |
@@ -208,7 +208,7 @@ graph LR
 | ☐ | 66 | Per-parameter symbology + band combos with guidance | ☐ |
 | ☐ | 67 | More parameters (DEM, slope, aspect, contour, streams, SAR, water quality…) | ☐ |
 | ☐ | 68 | More tools + symbology combos, not confusing | ☐ |
-| ☐ | 69 | Remove cadastre section | ☐ |
+| ☐ | 69 | Remove cadastre section | ✅ (dead components deleted) |
 | ☐ | 70 | QGIS + GEE + Planetary features, domain-neutral | ☐ |
 | ☐ | 71 | Analysis intent at add-AOI; dashboard follows it | ☐ |
 | ☐ | 72 | Remove manual “Crop Check” | ☐ |
@@ -230,15 +230,15 @@ graph LR
 | ☐ | 84 | Neutral phrasing | 🚧 |
 | ☐ | 85 | Interactive climate charts with hover values | ☐ |
 | ☐ | 86 | Crops grouped by category; scale boxes show calculation | ☐ |
-| ☐ | 87 | Remove land passbook / registry / cadastral / demo data | ☐ |
-| ☐ | 88 | Remove Agronomy Season Calendar | ☐ |
+| ☐ | 87 | Remove land passbook / registry / cadastral / demo data | ✅ (UI components removed) |
+| ☐ | 88 | Remove Agronomy Season Calendar | ✅ (Crop Library section dropped) |
 | ☐ | 89 | Yield forecast only for agricultural intent | ☐ |
 
 ### H. Water & hydrology
 | ✅ | ID | Change | Status |
 |---|---|---|---|
 | ☐ | 90 | Remove **all** Vaiganga basin content | ✅ (no Vaiganga references remain in `src/`) |
-| ☐ | 91 | Water Plan / Model Estimate: remove or fully automatic | ⛔ (Q2) |
+| ☐ | 91 | Water Plan / Model Estimate: remove or fully automatic | ☐ (approved: remove) |
 | ☐ | 92 | SWAT-style cycle/table/figure per AOI, dynamic | ☐ |
 | ☐ | 93 | Calibration/sensitivity charts per AOI; alpha factors explained | ☐ |
 | ☐ | 94 | Annual water budget depends only on selected AOI | ☐ |
@@ -246,8 +246,8 @@ graph LR
 ### I. Geo toolkit
 | ✅ | ID | Change | Status |
 |---|---|---|---|
-| ☐ | 95 | Remove VRA, Point Checker, Offset, Converters, WKT Reader | ☐ |
-| ☐ | 96 | Buffer into toolbox with m/km units, auto-draw | ☐ |
+| ☐ | 95 | Remove VRA, Point Checker, Offset, Converters, WKT Reader | ✅ |
+| ☐ | 96 | Buffer into toolbox with m/km units, auto-draw | ☐ (buffer removed; rebuild in tools) |
 
 ### J. Reports
 | ✅ | ID | Change | Status |
@@ -371,3 +371,22 @@ graph LR
 | Confirmed “Multi-Session Candlestick Trends” already renamed | `src/FinancialSummaryTerminal.tsx` | ✅ |
 
 `npm exec -- tsc --noEmit` → pass · `npm run build` → pass.
+
+### 2026-10-12 — Batch 2: removals (verified)
+
+Approved defaults in effect: Q1=(c) honest pixels at 19 with AOI fit-to-screen ·
+Q2=remove Water Plan/Model Estimate · Q3=client-only LULC, labelled · Q4=Pop-the-Team
+footer git-graph · Q5=borewell/pipeline as candidates · Q6=EmailOctopus UI kept, delivery
+not promised · Q7=intent set as listed · Q8=no Supabase (free/open tools only).
+
+Changed and verified (`tsc --noEmit` + `build` both pass):
+
+- Removed cadastral UI: deleted `src/LandInfoCard.tsx` and `src/lib/cadastreOnline.ts`
+  (unreferenced). No cadastral/passbook surface remains in the app.
+- Removed the **Agronomy Season Calendar** by dropping the Crop Library dashboard section
+  and deleting `src/CropLibrary.tsx`; its bundle chunk no longer ships.
+- Trimmed the Geo toolkit: removed **Variable-Rate Fertilizer (VRA)**, **Point checker**,
+  **Offset & buffer**, **Converters**, and **WKT reader** from `src/GeoTools.tsx`, and the
+  VRA mention from the sign-in copy.
+- Neutral empty-state wording in `src/App.tsx` ("review remotely", not "from home").
+- Confirmed the map panel already reads “Background Canvas”.

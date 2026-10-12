@@ -151,14 +151,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   )
   if (who) return <Ctx.Provider value={{ who, signOut }}>{children}</Ctx.Provider>
 
-  return <div className="au-wrap">
+  return <div className="au-wrap" style={{ position: 'relative' }}>
+    <Aurora style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }} />
     <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 100 }}>
       <Lang />
     </div>
     {sessionStorage.getItem('seva-bye') && <MitraBye/>}
-    <div className="au-main-split">
+    <div className="au-main-split" style={{ position: 'relative', zIndex: 1 }}>
       <section className="au-hero">
-        <Aurora/>
         <div className="au-hero-copy">
           <div className="au-logo"><img src={logo} alt="SEVA·GIS logo" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark/></div>
           <h2 className="au-full notranslate" translate="no" aria-label="Spatial Evaluation & Vegetation Analytics">{['Spatial', 'Evaluation', '&', 'Vegetation', 'Analytics'].map((w, wi) => <span className="au-w" key={w}>{[...w].map((ch, ci) => <b key={ci} className={ci === 0 && w !== '&' ? 'cap' : ''} style={{ animationDelay: `${(wi * 6 + ci) * 45}ms` }}>{ch}</b>)}</span>)}</h2>
@@ -179,10 +179,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         onPointerLeave={handleCardPointerLeave}
         style={{ ...tiltStyle, willChange: 'transform' }}
       >
-        <div className="au-motion-badge">
-          <span className="au-motion-dot" />
-          <span>Motion-First WebGL · Real Physics</span>
-        </div>
         <h1>{mode === 'in' ? 'Welcome back' : 'Start for free'}</h1>
         <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
         {mode === 'in' && saved.length > 0 && <div className="au-known"><span>Welcome back, tap your name</span>{saved.map(k => <div className="au-chip" key={k.email}><button type="button" onClick={() => { setForm({ ...form, email: k.email, password: '' }); setTimeout(() => pw.current?.focus(), 30) }}><b>{(k.name || k.email)[0].toUpperCase()}</b><span>{k.name}<small>{k.email}</small></span></button><button type="button" aria-label={`Forget ${k.name}`} onClick={() => { forget(k.email); setSaved(known()) }}>×</button></div>)}</div>}
@@ -305,7 +301,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#b4c8b9', lineHeight: 1.6 }}>
               <li>Step-by-step farm boundary capture</li>
               <li>Sentinel-2 band math and 10 m raster grids</li>
-              <li>Tractor swath routing &amp; VRA fertilizer zones</li>
+              <li>Tractor swath routing &amp; field operation zones</li>
             </ul>
           </div>
           <div className="au-hub-card-foot">

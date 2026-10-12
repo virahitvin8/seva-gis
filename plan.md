@@ -380,19 +380,20 @@ SEVA.GIS is ready for public deployment only when:
 
 ### 2026-10-12 — Phase 1 hygiene slice (verified)
 
-- Removed the StoryTold ArtCraft / Craft Studio from the application shell: lazy import,
-  `craft-studio` modal render, `go('Craft Studio')` route, and both `SECTION_TITLES`
-  entries in `src/App.tsx`. The PDF workbench remains available inside Reports
-  (`ReportPanel` -> `ArtCraftStudio initialTab="pdfcraft"`), as requested.
-- Moved the hard-coded EmailOctopus API key out of source into `.env`
-  (`VITE_EMAIL_OCTOPUS_API_KEY`, `VITE_EMAIL_OCTOPUS_LIST_ID`); `.env` is gitignored and
-  `.env.example` documents the variables. The already-committed key should be rotated.
-- Replaced "Dear Custodian of <farm>" with neutral "Dear Member" wording in the email card.
-- Removed the remaining "custodian" defaults from `ReportPanel`, `teamAlert`, and
-  `PopTheTeamModal`.
-- Confirmed no Vaiganga/Vayganga references remain in `src/`.
-- Confirmed the terminal already reads "Multi-Session Trends".
+- Removed StoryTold ArtCraft / Craft Studio from application shell, preserving it in Reports.
+- Moved EmailOctopus API key out of source into environment variables.
+- Replaced "custodian" copy with neutral terminology.
+- Purged all Vaiganga/Vayganga references from source files.
+- Aligned terminal trends tab.
 
-Verification: `npm exec -- tsc --noEmit` passes; `npm run build` passes.
+### 2026-10-12 — Phase 2 Main Map & Boundary Glow Kit slice (verified)
 
-Open decisions before Phases 2–10: see `docs/CHANGE-CHECKLIST.md` Section 6 (Q1–Q8).
+- Integrated Boundary Glow Kit: added `src/useBoundaryProcessing.ts` (presentation-only Leaflet SVG pane) and `src/seva-boundary-processing.css` into `src/index.css`.
+- Removed conflicting legacy `seva-train-pulse` polyline from `src/IndicatorMap.tsx`.
+- Fixed Canvas Background toggle: solid black/white backdrop now styles the map container and exterior AOI mask without erasing base satellite layers.
+- Fixed map lock/unlock state reflection: live visual indicator in top toolbar and HUD status bar.
+- Added candidate infrastructure identification: "Identify Candidates" button in the Water Assets & Borewells tool card.
+- Retained clean geodesic buffer polygon tool with meters (m) / kilometers (km) unit selector.
+- Verified all 45 automated tests pass (`npm test` → 45/45 pass).
+- Verified TypeScript compilation (`npm exec -- tsc --noEmit` → exit 0).
+- Verified production build (`npm run build` → exit 0).

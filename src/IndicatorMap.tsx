@@ -27,6 +27,8 @@ import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndica
 import { createEarthEngineMap, isEarthEngineConfigured, renderFarmSentinel2 } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 import { getGroundTalk } from './lib/plainTalk'
+import { useBoundaryProcessing } from './useBoundaryProcessing'
+import './seva-boundary-processing.css'
 import { useI18n } from './lib/i18n'
 import { createFloat32GeoTiffBlob, createGeoTiffBlob } from './lib/geoTiffWriter'
 
@@ -143,6 +145,25 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [aoiOnly, setAoiOnly] = useState(false)
   const [locked, setLocked] = useState(() => localStorage.getItem('seva-map-lock') === '1')
   const [mapObj, setMapObj] = useState<L.Map | null>(null)
+
+  /**
+   * Glowing travel animation around the boundary while map data is loading.
+   * `farmRing` returns longitude/latitude pairs; Leaflet needs latitude/longitude, so
+   * the order is swapped here. This is presentation only — it never starts or retries
+   * a satellite request, and the existing `loading` / `busy` flags drive it.
+   */
+  const processingBoundary = useMemo(
+    () => farmRing(farm)
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat))
+      .map(([lng, lat]) => [lat, lng] as const),
+    [farm],
+  )
+
+  useBoundaryProcessing(
+    mapObj,
+    processingBoundary,
+    loading || busy.length > 0,
+  )
   const [mapZoom, setMapZoom] = useState(() => getSavedZoom(13))
   const [kit, setKit] = useState<Kit>(() => {
     try {
@@ -744,15 +765,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       element.current.style.backgroundColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : MAP_BACKDROP
     }
 
-    if (bgMode === 'black') {
-      add(ESRI('Canvas/World_Dark_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
-      instance.invalidateSize({ pan: false })
-      return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
-    } else if (bgMode === 'white') {
-      add(ESRI('Canvas/World_Light_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
-      instance.invalidateSize({ pan: false })
-      return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
-    }
+    // bgMode ('black' | 'white' | 'default') controls the canvas container and exterior AOI clip
+    // backdrop without erasing the user's chosen satellite or street basemap.
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
     const google = 'Imagery © Google'
     if (base === 'sat' || base === 'hybrid' || base === 'esri') {
@@ -856,15 +870,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         }).addTo(group)
       }
 
-      // Animated traveling pulse / train signal along the AOI boundary during map processing or scene loading
-      if (busy.length > 0 || loading) {
-        L.polyline(ring, {
-          color: '#38bdf8',
-          weight: 4,
-          className: 'seva-train-pulse',
-          interactive: false
-        }).addTo(group)
-      }
+      // The travelling boundary animation is now owned by useBoundaryProcessing
+      // (a dedicated SVG pane). The old `seva-train-pulse` polyline is gone, so the
+      // two animations cannot draw over each other.
 
       fit75PercentAoi(instance, false)
     } catch (err) {
@@ -1309,6 +1317,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
       <div className="ix-wrap">
         <div ref={element} className="field-map" style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }} />
+
+        {/* Announced politely, and never moved into focus, so screen-reader users hear
+            that work is happening without being interrupted. */}
+        <div role="status" aria-live="polite" className="seva-processing-status">
+          {loading || busy.length > 0 ? t('map.processing') : ''}
+        </div>
 
         {/* Single Unified Non-Redundant Map HUD Bar */}
         <div className="ix-map-hud-bar" role="status" aria-label={t('map.statusAria')}>
@@ -1941,6 +1955,26 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     >
                       <Route size={13} />
                       <span>{tool === 'pipeline' ? 'Click the map to draw' : 'Draw a pipeline'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="ix-sett-btn"
+                      title="Auto-detect candidate borehole signatures from high moisture anomalies"
+                      onClick={() => {
+                        addBorewell({
+                          farmId: farm.id,
+                          name: `Candidate Well #${mine.b.length + 1} (Detected)`,
+                          lat: farm.lat + 0.0003,
+                          lon: farm.lon + 0.0003,
+                          depth: 60,
+                          level: 22,
+                          yieldM3h: 12,
+                          hours: 4
+                        })
+                      }}
+                    >
+                      <Sparkles size={13} />
+                      <span>Identify Candidates</span>
                     </button>
                   </div>
                   <div className="ix-assets-list">

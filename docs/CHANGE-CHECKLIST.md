@@ -1050,3 +1050,39 @@ means removing the Suspense boundary around `IndicatorMap`, which is a separate 
 Verification for Batch 16: `tsc --noEmit` **pass** · `npm test` **45/45 pass** ·
 `vite build` **pass** · **`npm run grill` 123/123 checks, 0 runtime errors** ·
 screenshots in `docs/ANALYSIS/grill/`.
+
+### 2026-10-12 — Batch 17: the boundary-glow kit, integrated and actually tested
+
+`SEVA-GIS-Boundary-Glow-Kit/` was dropped into the workspace with exact instructions. Its two
+source files had been copied into `src/` and an `@import` added to `index.css`, but **the
+component was never wired** — `IndicatorMap.tsx` still had no import and still drew the old
+`seva-train-pulse`. Completed per the kit:
+
+| Step | Done |
+|---|---|
+| 1–2 | `useBoundaryProcessing.ts` + `seva-boundary-processing.css` live in `src/`; imported by `IndicatorMap.tsx` (its only consumer). The duplicate `@import` was removed from `index.css` and replaced with a comment saying where it actually lives. |
+| 3 | `processingBoundary` memo swaps `farmRing`'s longitude/latitude into Leaflet's latitude/longitude, and `useBoundaryProcessing(mapObj, processingBoundary, loading \|\| busy.length > 0)` sits at component scope, after the `mapObj` state. |
+| 4 | The old `seva-train-pulse` polyline block is **deleted**, so two boundary animations cannot draw over each other. |
+| 5 | Added the polite `role="status"` line, localised as `map.processing` in English, Hindi and Telugu. It never moves focus. |
+
+**One defect found and fixed in the kit's own hook.** Its cleanup removed the polylines and the
+renderer but left the Leaflet pane `<div>` behind — one empty SVG pane accumulated per farm
+visit. The hook now removes the pane too, and only when it created it.
+
+**Tested, because the kit says so itself** ("the integration hook has not been deployed or
+tested inside your authenticated production map"). The grill now checks all three halves:
+the glow is drawn during the initial map load, the old duplicate animation is gone, and the
+pane is cleaned up once loading settles. The phase trace is the evidence:
+`panes=11` at boot, back to `panes=10` after loading — drawn, then removed.
+
+| File | Change |
+|---|---|
+| `src/IndicatorMap.tsx` | Hook wired; `seva-train-pulse` removed; processing status line |
+| `src/useBoundaryProcessing.ts` | Pane removal in cleanup |
+| `src/index.css` | Duplicate `@import` removed |
+| `src/lib/i18nCatalog.ts` | `map.processing` in three languages |
+| `scripts/grill.mjs` | Three boundary-animation checks + phase probes |
+
+Verification for Batch 17: `tsc --noEmit` **pass** · `npm test` **45/45 pass** ·
+`vite build` **pass** · duplicate-key scan **clean** ·
+**`npm run grill` 126/126 checks, 0 runtime errors**.

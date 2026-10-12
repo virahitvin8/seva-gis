@@ -351,6 +351,7 @@ const en: Catalog = {
   'meth.bibliography': 'Selected bibliography:',
   'meth.footer': 'Open-source precision agronomy for everyone who loves the land.',
   'meth.openThesis': 'Open the complete web guide',
+  'map.processing': 'Processing map layers…',
 }
 
 const hi: Catalog = {
@@ -672,6 +673,7 @@ const hi: Catalog = {
   'meth.bibliography': 'चयनित ग्रंथ सूची:',
   'meth.footer': 'खुला स्रोत सटीक कृषि — ज़मीन से प्यार करने वाले सबके लिए।',
   'meth.openThesis': 'पूरी वेब मार्गदर्शिका खोलें',
+  'map.processing': 'नक्शा लेयर संसाधित हो रही हैं…',
 }
 
 const te: Catalog = {
@@ -992,6 +994,7 @@ const te: Catalog = {
   'meth.bibliography': 'ఎంపిక చేసిన గ్రంథ సూచిక:',
   'meth.footer': 'ఓపెన్ సోర్స్ ఖచ్చిత వ్యవసాయం — నేలను ప్రేమించే వారందరికీ.',
   'meth.openThesis': 'పూర్తి వెబ్ మార్గదర్శిని తెరవండి',
+  'map.processing': 'మ్యాప్ లేయర్లు ప్రాసెస్ అవుతున్నాయి…',
 }
 
 export const CATALOGS: Record<Lang, Catalog> = { en, hi, te }

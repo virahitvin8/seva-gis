@@ -297,6 +297,20 @@ window.__grill = {
     return 'watching'
   },
   classWrites: () => JSON.stringify(window.__grillClassWrites || []),
+  /**
+   * Records whether the processing pane ever appeared. Polling misses it when a load
+   * finishes between two samples, so watch the DOM instead.
+   */
+  watchProcessingPane() {
+    window.__grillPaneSeen = !!document.querySelector('.seva-processing-pane')
+    if (window.__grillPaneObserver) return 'already watching'
+    window.__grillPaneObserver = new MutationObserver(() => {
+      if (document.querySelector('.seva-processing-pane')) window.__grillPaneSeen = true
+    })
+    window.__grillPaneObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+    return 'watching'
+  },
+  processingPaneSeen: () => !!window.__grillPaneSeen,
   /** Is the map container still the same DOM node we hooked at boot? */
   mapNodeIdentity() {
     const now = document.querySelector('.field-map')
@@ -383,6 +397,26 @@ async function main() {
     }
 
     // --- boot with a seeded guest session -------------------------------
+    // Install the processing-pane observer before any page script runs, so a short
+    // loading window during the very first render cannot be missed.
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        window.__grillPaneSeen = false;
+        (function () {
+          var check = function () {
+            if (document.querySelector('.seva-processing-pane')) window.__grillPaneSeen = true;
+          };
+          var start = function () {
+            new MutationObserver(check).observe(document.documentElement, {
+              childList: true, subtree: true, attributes: true, attributeFilter: ['class']
+            });
+            check();
+          };
+          if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+          else start();
+        })();
+      `,
+    })
     await cdp.send('Page.navigate', { url: `http://127.0.0.1:${sitePort}/` })
     await sleep(1200)
     await cdp.eval(`
@@ -480,6 +514,18 @@ async function main() {
 
     await cdp.eval(`window.__grill.watchClassWrites? window.__grill.watchClassWrites() : 'na'`)
     await probe('boot')
+
+    // The glow is drawn only while the map is loading. It is present at first paint
+    // and must be gone once loading settles, so both halves are checked here rather
+    // than by racing a click.
+    const paneAtBoot = await cdp.eval(`!!document.querySelector('.seva-processing-pane')`).catch(() => false)
+    findings.push({
+      check: 'boundary processing glow is drawn during the initial map load',
+      ok: paneAtBoot,
+      detail: paneAtBoot ? 'seva-processing-pane present at first paint' : 'not present at first paint',
+    })
+    if (paneAtBoot) await shot('09-boundary-processing')
+    collect()
     await shot('01-workspace')
 
     // --- toolbar horizontal scroll --------------------------------------
@@ -765,6 +811,28 @@ async function main() {
     await shot('08-reports')
     const reportsUp = await cdp.eval(`!!document.body.innerText.match(/Generate report|Report workbench|Generate Report/i)`)
     findings.push({ check: 'Reports panel opens', ok: !!reportsUp })
+
+    // --- boundary processing animation cleanliness ----------------------
+    findings.push({
+      check: 'the old duplicate train-pulse animation is gone',
+      ok: !(await cdp.eval(`!!document.querySelector('.seva-train-pulse')`).catch(() => true)),
+      detail: 'seva-train-pulse should no longer be drawn',
+    })
+
+    // Cleanup: once loading has settled the pane must be gone, and the map must still
+    // be healthy. This is what catches a leak that accumulates one pane per visit.
+    let paneCleared = false
+    for (let i = 0; i < 30; i++) {
+      paneCleared = !(await cdp.eval(`!!document.querySelector('.seva-processing-pane')`).catch(() => true))
+      if (paneCleared) break
+      await sleep(700)
+    }
+    findings.push({
+      check: 'boundary processing glow is cleaned up after loading settles',
+      ok: paneCleared,
+      detail: paneCleared ? 'pane removed' : 'pane still present',
+    })
+    collect()
 
     await tryAction('open the Export menu', `
       (() => {

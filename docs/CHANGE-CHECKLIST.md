@@ -885,3 +885,28 @@ approve rather than slipped in behind a CSS change.
 
 Verification for Batch 14: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
 `vite build` **pass (6.4 s)** · theme selector audit **35/35 bound, 0 orphans**.
+
+**Visual check — and the defect it found.** The kit's own checklist asks for a browser check,
+so I rendered the live sign-in page with headless Chrome and read the screenshot
+(`docs/ANALYSIS/signin-premium.png`). It looked right — stable `SEVA.GIS` heading, new copy,
+light canvas, one forest-green action, no Aurora, `Remember this device` as a single line, the
+false auto-remember claim gone — **except for one real defect**:
+
+| | |
+|---|---|
+| Symptom | The four flow-node labels — Satellite, Bands, Crop health, Advice — were unreadable |
+| Cause | `index.css` sets `.au-node b{color:#eaf6df}` (near-white) for the old dark node card `.au-node{background:#0d2a1ecc}`. The theme removes that dark card but never re-inked the label. |
+| Fix | `.seva-premium .au-node b{color:var(--seva-ink);font-size:13px}` added to the theme, with a comment recording the conflict |
+
+This is the same class of problem the kit's step 5 warns about for inline styles; here it was a
+class rule of equal specificity, which is why it slipped through.
+
+**Checked for more of the same, rather than fixing just the one I could see.**
+`scratch/scan-auth-contrast.mjs` lists every `.au-*` rule in `index.css` whose text colour is
+near-white — **38 of them**. Every one is either already overridden by the premium stylesheet or
+belongs to the standalone guide/FAQ pages, which the kit states are outside the root-scoped
+theme. `.au-node b` was the only live defect; the after-fix screenshot confirms it is resolved.
+
+Verification for Batch 14 (final): theme selector audit **35/35 bound** · contrast scan
+**38 light-text rules reviewed, 1 live defect found and fixed** · live deploy **success** ·
+post-fix screenshot committed.

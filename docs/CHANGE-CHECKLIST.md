@@ -527,13 +527,18 @@ reading the code path `analyze()` → `indexStat()` → `statsOf()`:
    the worker by structured clone — tens of megabytes of main-thread copying per analysis.
    `statsOfAsync(req, transfer)` now moves the buffers instead.
 
-**Measured on the real grid size** (`scratch/bench-stats.mjs`, 900 × 900, 13 indicators):
+**Measured on the real grid size** (`scripts/bench-raster-stats.mjs` → `npm run bench:raster`,
+900 × 900, 13 indicators):
 
 | | Time |
 |---|---|
 | Before (sort path) | **2430 ms** of blocked main thread |
 | After (histogram path) | **273 ms** |
 | **Improvement** | **8.9×, ~2.2 s saved per analysis** |
+
+Re-running the same benchmark gives 5.5×–8.9× depending on machine load (a second run measured
+2365 ms → 430 ms, still ~1.9 s saved). The order of magnitude, not the exact figure, is the
+claim.
 
 Accuracy at the same grid: `mean`, `min`, `max` **identical**; `p10`, `p50`, `p90` differ by at
 most `1.0e-4` — far below anything a legend or dashboard tile can render.
@@ -544,8 +549,7 @@ most `1.0e-4` — far below anything a legend or dashboard tile can render.
 | `src/lib/rasterWorker.ts` | `statsOfAsync(req, transfer)` moves buffers; documented fallback when transferred |
 | `src/lib/seva.ts` | `indexStatAsync` transfers its buffers (they are built here and never re-read) |
 | `src/lib/__tests__/raster.test.ts` | 3 new tests: small-AOI grid floor, exactness on small samples, large-raster accuracy **and** a time bound |
-| `scratch/bench-stats.mjs` | The benchmark above, so the number can be re-checked |
-
+| `scripts/bench-raster-stats.mjs` | The benchmark above, so the number can be re-checked (`npm run bench:raster`) |
 Verification for Batch 7: `tsc --noEmit` **pass** · `npm test` **24/24 pass** (was 21) ·
 benchmark **2430 ms → 273 ms**.
 

@@ -628,7 +628,7 @@ user can actually read on screen. The result:
 file through PowerShell text cmdlets (`Get-Content -Raw` → `Set-Content -Encoding UTF8`). This
 host decodes those files as Windows-1252, so the Telugu and Hindi text was **double-encoded and
 destroyed** (mojibake `à¤²à¥‰…`). The transform is exactly reversible, and
-`scratch/recover-encoding.mjs` reverses it — the file was recovered intact, verified by finding
+`scripts/recover-encoding.mjs` reverses it — the file was recovered intact, verified by finding
 real Devanagari (`E0 A4`) and Telugu (`E0 B0`) byte sequences again. **Rule adopted: never
 round-trip a non-ASCII source file through PowerShell text cmdlets; use the file tools.**
 

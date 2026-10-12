@@ -151,23 +151,23 @@ These projects inform design, verification, or algorithm research. They are not 
 
 ### Phase 1: Repository and documentation hygiene
 
-- [ ] Remove Viva-defense artifacts and generator scripts only after confirming they are not runtime inputs.
-- [ ] Remove stale academic links and unsupported README claims.
-- [ ] Remove the raw folder tree from README.
-- [ ] Replace the broken interactive-terminal media reference.
-- [ ] Add verified Mermaid/ArchiFi diagrams for ingestion, processing, reporting, and deployment.
-- [ ] Document target users and analysis intents.
-- [ ] Keep repository credits in README/CREDITS documentation, not product UI.
-- [ ] Remove stale basin, cadastral, passbook, and demo-data claims from documentation.
+- [x] Remove Viva-defense artifacts and generator scripts only after confirming they are not runtime inputs.
+- [x] Remove stale academic links and unsupported README claims.
+- [x] Remove the raw folder tree from README.
+- [x] Replace the broken interactive-terminal media reference.
+- [x] Add verified Mermaid/ArchiFi diagrams for ingestion, processing, reporting, and deployment.
+- [x] Document target users and analysis intents.
+- [x] Keep repository credits in README/CREDITS documentation, not product UI.
+- [x] Remove stale basin, cadastral, passbook, and demo-data claims from documentation.
 
 ### Phase 2: Authentication and sign-in experience
 
 - [x] Remove the visible “Motion-First WebGL / Real Physics” caption.
 - [x] Rename the methodology heading to “SEVA.GIS Methodology & Research”.
-- [ ] Apply motion-web-inspired motion to the full sign-in composition without blocking form use.
-- [ ] Convert the four knowledge cards into accessible 3D tilt/glare cards with reduced-motion support.
+- [x] Apply motion-web-inspired motion to the full sign-in composition without blocking form use.
+- [x] Convert the four knowledge cards into accessible 3D tilt/glare cards with reduced-motion support.
 - [ ] Make the Full Web Guide describe the complete journey from AOI creation to report delivery.
-- [ ] Keep implementation credits out of visible product copy.
+- [x] Keep implementation credits out of visible product copy.
 - [ ] Add keyboard, mobile, and reduced-motion checks.
 
 ### Phase 3: Application shell and navigation
@@ -175,13 +175,13 @@ These projects inform design, verification, or algorithm research. They are not 
 - [x] Remove Craft Studio from the dashboard navigation and standalone dashboard section.
 - [x] Hide the non-functional header Craft and Layout controls.
 - [x] Remove the duplicate Data Manager sign-out button and hide the duplicate navigation logout.
-- [ ] Keep one canonical profile-footer logout target and update Mitra to target it.
-- [ ] Implement reliable sidebar scroll-spy with `IntersectionObserver` and section IDs.
-- [ ] Fix Mitra targets for hydrology, Analysis Lab, GeoAI Studio, reports, and logout.
-- [ ] Remove tour layout thrashing and verify transitions under 100 ms after target availability.
-- [ ] Rename terminal “Multi-Session Candlestick Trends” to “Multi-Session Trends”.
-- [ ] Replace “Review field from home” with neutral remote/AOI language.
-- [ ] Preserve the Pop the Team action while removing misleading implementation language.
+- [x] Keep one canonical profile-footer logout target and update Mitra to target it.
+- [x] Implement reliable sidebar scroll-spy with `IntersectionObserver` and section IDs.
+- [x] Fix Mitra targets for hydrology, Analysis Lab, GeoAI Studio, reports, and logout.
+- [x] Remove tour layout thrashing and verify transitions under 100 ms after target availability.
+- [x] Rename terminal “Multi-Session Candlestick Trends” to “Multi-Session Trends”.
+- [x] Replace “Review field from home” with neutral remote/AOI language.
+- [x] Preserve the Pop the Team action while removing misleading implementation language.
 
 ### Phase 4: Performance and lifecycle
 
@@ -197,21 +197,21 @@ These projects inform design, verification, or algorithm research. They are not 
 ### Phase 5: AOI, map viewport, and cartography
 
 - [ ] Validate AOI geometry, close rings, reject invalid coordinates, and show clear errors.
-- [ ] Use zoom 13 as the overview default where the AOI and source support it.
-- [ ] Use AOI-fit detail views for remote analysis; do not promise sharper detail than the source.
-- [ ] Fit the AOI to roughly 75% of the available viewport while preserving aspect ratio.
-- [ ] Keep the AOI centroid centered across map, analysis, and report views.
+- [x] Use zoom 13 as the overview default where the AOI and source support it.
+- [x] Use AOI-fit detail views for remote analysis; do not promise sharper detail than the source.
+- [x] Fit the AOI to roughly 75% of the available viewport while preserving aspect ratio.
+- [x] Keep the AOI centroid centered across map, analysis, and report views.
 - [ ] Fix large-AOI coverage so the complete selected area is represented.
 - [ ] Separate basemap detail from analytical raster resolution.
-- [ ] Remove black/white canvas modes that hide spatial context; provide explicit background modes.
-- [ ] Implement polygon and extent clipping with transparent, satellite, white, and black background options.
+- [x] Remove black/white canvas modes that hide spatial context; provide explicit background modes.
+- [x] Implement polygon and extent clipping with transparent, satellite, white, and black background options.
 - [ ] Add a QGIS-style layer tree with add raster, add vector, visibility, opacity, symbology, and clip-to-AOI controls.
-- [ ] Implement collision-aware title, legend, scale, north arrow, coordinate, and AOI placement.
-- [ ] Make cartographic titles reflect the selected layer and allow safe editing.
-- [ ] Add per-map point visibility and point-count controls.
-- [ ] Add an optional movable loupe for inspection points instead of permanently cluttering maps.
+- [x] Implement collision-aware title, legend, scale, north arrow, coordinate, and AOI placement.
+- [x] Make cartographic titles reflect the selected layer and allow safe editing.
+- [x] Add per-map point visibility and point-count controls.
+- [x] Add an optional movable loupe for inspection points instead of permanently cluttering maps.
 - [ ] Add a restrained loading tracer around the AOI boundary.
-- [ ] Ensure measurement mode is disabled when mutually exclusive borewell/pipeline drawing begins.
+- [x] Ensure measurement mode is disabled when mutually exclusive borewell/pipeline drawing begins.
 - [ ] Add candidate infrastructure identification with explicit uncertainty and manual confirmation.
 
 ### Phase 6: Analysis model and parameter library
@@ -225,42 +225,42 @@ These projects inform design, verification, or algorithm research. They are not 
 - [ ] Remove unsupported crop-check manual workflows.
 - [ ] Move buffer into the tools panel with explicit metres/kilometres units.
 - [ ] Remove unhelpful converters, WKT reader, point checker, offset, and unsupported VRA controls.
-- [ ] Remove land registry, cadastral, passbook, and unrelated demo data from UI, reports, and domain modules.
+- [x] Remove land registry, cadastral, passbook, and unrelated demo data from UI, reports, and domain modules.
 - [ ] Show yield forecasts only for an agricultural analysis intent.
 
 ### Phase 7: Insight cards and plain-language explanations
 
-- [ ] Keep metric fronts compact: value, unit, status, and source date.
-- [ ] Use an accessible 3D flip or modal detail state with reduced-motion fallback.
-- [ ] Explain thresholds, minimum/maximum meaning, uncertainty, and practical next steps.
+- [x] Keep metric fronts compact: value, unit, status, and source date.
+- [x] Use an accessible 3D flip or modal detail state with reduced-motion fallback.
+- [x] Explain thresholds, minimum/maximum meaning, uncertainty, and practical next steps.
 - [ ] Explain NDVI, EVI, MSI, canopy cover, stress percentage, and all other scientific terms at first use.
 - [ ] Add source/date disclosure for weather, soil, terrain, and satellite values.
-- [ ] Provide GeoTIFF download for raster products and CSV/JSON download for time-series/weather data.
+- [x] Provide GeoTIFF download for raster products and CSV/JSON download for time-series/weather data.
 - [ ] Make charts interactive with exact values, units, and definitions.
 - [ ] Add satellite-pass color legends for green, yellow, and red statuses.
 - [ ] Group crop suitability by crop category and prioritize by documented regional context.
-- [ ] Keep wording neutral and avoid role-play or “explain like a friend” labels.
+- [x] Keep wording neutral and avoid role-play or “explain like a friend” labels.
 
 ### Phase 8: Hydrology and infrastructure
 
-- [ ] Remove every Vaiganga/Vayganga basin reference from UI, reports, source, and generated text.
+- [x] Remove every Vaiganga/Vayganga basin reference from UI, reports, source, and generated text.
 - [ ] Remove water-plan sliders unless they become fully data-driven and explainable.
-- [ ] Compute precipitation, runoff, ET, percolation, recharge, and balance figures from the selected AOI and documented assumptions.
-- [ ] Keep simplified models labelled as estimates; do not present them as validated SWAT-CUP outputs.
+- [x] Compute precipitation, runoff, ET, percolation, recharge, and balance figures from the selected AOI and documented assumptions.
+- [x] Keep simplified models labelled as estimates; do not present them as validated SWAT-CUP outputs.
 - [ ] Generate sensitivity/calibration figures from actual AOI inputs rather than static demo images.
 - [ ] Explain all alpha factors, parameters, and formulas behind a user-controlled details disclosure.
 - [ ] Treat borewell and pipeline results as candidates unless confirmed by authoritative data.
-- [ ] Keep all hydrology figures and tables dynamic when the selected AOI changes.
+- [x] Keep all hydrology figures and tables dynamic when the selected AOI changes.
 
 ### Phase 9: Reports and exports
 
-- [ ] Keep the report workbench inside Reports, not the dashboard.
+- [x] Keep the report workbench inside Reports, not the dashboard.
 - [ ] Group every report map and parameter under selectable parent categories.
 - [ ] Include remote review outputs when explicitly selected.
 - [ ] Use one canonical report document model for preview, HTML, PDF, DOCX, and JSON.
-- [ ] Fix empty/zero-byte PDF downloads.
-- [ ] Ensure downloaded PDF matches the preview content and selected language.
-- [ ] Add visible loading and disabled states for HTML/PDF/DOCX downloads.
+- [x] Fix empty/zero-byte PDF downloads.
+- [x] Ensure downloaded PDF matches the preview content and selected language.
+- [x] Add visible loading and disabled states for HTML/PDF/DOCX downloads.
 - [ ] Let users select an email attachment format.
 - [ ] Show email success only after confirmed dispatch; never expose secrets in the browser.
 - [ ] Use the logged-in or guest display name in greetings and remove “custodian” wording.
@@ -271,8 +271,8 @@ These projects inform design, verification, or algorithm research. They are not 
 - [ ] Implement real clipped DEM, LULC, soil, water, hydrology, and spectral maps.
 - [ ] Implement real LULC classification and disclose the classifier/source and confidence.
 - [ ] Correct legends, units, ramps, contour/TWI labels, and unclear terminology.
-- [ ] Remove cadastral and basin sections from reports.
-- [ ] Add real GeoTIFF, PNG, GeoJSON, JSON, CSV, and DOCX outputs where data supports them.
+- [x] Remove cadastral and basin sections from reports.
+- [x] Add real GeoTIFF, PNG, GeoJSON, JSON, CSV, and DOCX outputs where data supports them.
 
 ### Phase 10: Localization
 

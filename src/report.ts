@@ -11,7 +11,6 @@ export type ReportOpts = {
   contour: number
   lang?: ReportLang
   include3dTerrain?: boolean
-  includeCadastre?: boolean
   includeCharts?: boolean
   includeTables?: boolean
   includeContoursGrid?: boolean
@@ -54,7 +53,6 @@ export const DEFAULT_OPTS: ReportOpts = {
   contour: 5,
   lang: 'en',
   include3dTerrain: true,
-  includeCadastre: false,
   includeCharts: true,
   includeTables: true,
   includeContoursGrid: true,

@@ -278,7 +278,6 @@ export default function DataManager() {
             }}
           />
         </label>
-        <button onClick={signOut}>Sign out</button>
       </div>
 
       <table>

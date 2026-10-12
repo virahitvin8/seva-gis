@@ -1,237 +1,117 @@
-<div align="center">
+# SEVA.GIS
 
-<h1>
-  <img src="public/logo.png" alt="SEVA·GIS Logo" width="48" style="vertical-align: middle; margin-right: 12px;" />
-  SEVA·GIS: Spatial Evaluation & Vegetation Analytics
-</h1>
+**Spatial Evaluation & Vegetation Analytics** is a browser-first geospatial workspace for inspecting any selected Area of Interest (AOI). It combines satellite imagery, terrain, weather, soil, hydrology, spectral indices, map tools, and reports for students, researchers, GIS analysts, agricultural professionals, and curious non-technical users.
 
-### One unified, zero-telemetry GeoAI platform for precision remote sensing, land parcel intelligence, and planetary cartography.
+> **Current status:** Active rebuild. The current application is usable, but the map performance, localization, report-export, GeoTIFF, and automated-verification work described in [plan.md](plan.md) is still in progress.
 
-**Empowering land stewards, agronomists, hydrologists, and geospatial researchers with publication-grade Earth intelligence.**
+## Product Principles
 
-[![Live Web App](https://img.shields.io/badge/Production-sevagis.dpdns.org-2f8f4e?style=flat-square&logo=googlechrome&logoColor=white)](https://sevagis.dpdns.org)
-[![Firebase CDN](https://img.shields.io/badge/Mirror-Firebase_CDN-ffca28?style=flat-square&logo=firebase&logoColor=black)](https://seva-gis-backend-e724a.web.app)
-[![Cloud Run Backend](https://img.shields.io/badge/Google_Cloud_Run-FastAPI_v2-4285f4?style=flat-square&logo=googlecloud&logoColor=white)](https://seva-gis-backend-419602015618.us-central1.run.app/api/docs)
-[![Copernicus Sentinel-2](https://img.shields.io/badge/Copernicus-Sentinel--2_L2A-e05d44?style=flat-square&logo=esa&logoColor=white)](https://dataspace.copernicus.eu/)
-[![Copernicus DEM](https://img.shields.io/badge/Elevation-GLO--30_DEM-009688?style=flat-square)](https://spacedata.copernicus.eu/)
-[![React 19](https://img.shields.io/badge/React-v19.0-61dafb?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.0-38bdf8?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=flat-square)](LICENSE)
+- AOI-first analysis instead of farm-only assumptions
+- Source, date, resolution, scale, CRS, and limitations shown with results
+- Browser-first processing with an optional authenticated Earth Engine service
+- Local persistence through IndexedDB and optional OPFS/File System Access
+- Plain-language explanations alongside scientific values
+- Honest sensor resolution: Sentinel-2 analysis is not sub-meter imagery
+- No credentials in frontend bundles
 
-<br />
-
-**[Production App](https://sevagis.dpdns.org)** · **[Firebase Mirror](https://seva-gis-backend-e724a.web.app)** · **[Backend API Docs](https://seva-gis-backend-419602015618.us-central1.run.app/api/docs)**
-
-[What You Can Analyze](#what-you-can-analyze) · [The Precision Correction Suite](#the-precision-correction-suite) · [HyperFrames Showcase](#interactive-walkthrough--video-showcase-hyperframes) · [Architecture & How SEVA·GIS Works](#architecture--how-sevagis-works) · [Motion-First Design](#motion-first-design-architecture-feitangyuanmotion-web) · [Git Repositories](#git-repositories) · [Credits & QGIS Inspirations](#credits--qgis-inspirations) · [Live Testing Links](#live-testing-links)
-
-<a href="https://sevagis.dpdns.org">
-  <img src="docs/walkthrough_satellite_data.gif" alt="SEVA·GIS Precision Agriculture Interactive GIS Terminal" width="1200" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);" />
-</a>
-<p align="center"><em>▶️ Full HD Walkthrough: <a href="docs/seva_gis_portal_walkthrough.mp4">docs/seva_gis_portal_walkthrough.mp4</a> · Interactive Session: <a href="https://sevagis.dpdns.org">sevagis.dpdns.org</a></em></p>
-
-<br /><br />
-
-<table aria-label="SEVA GIS Community">
-<tr>
-<td align="center" width="460">
-  <a href="https://sevagis.dpdns.org">
-    <img src="public/logo.png" height="42" alt="SEVA GIS" /><br />
-    <strong>Earth Intelligence in the Spirit of Selfless Service</strong>
-  </a><br />
-  <sub>Open-Source · Keyless · Zero-Telemetry · Client-Side GeoAI</sub>
-</td>
-</tr>
-</table>
-
-<br />
-
-</div>
-
----
-
-## What is SEVA·GIS?
-
-**SEVA·GIS** (**S**patial **E**valuation & **V**egetation **A**nalytics) is an open-source, publication-grade geospatial intelligence and spatial analytics platform. Engineered with a strict client-side, zero-telemetry philosophy, SEVA·GIS empowers smallholder farmers, agronomists, remote sensing scientists, and land stewards to assess agricultural parcels and study areas anywhere on Earth with sub-meter geometric clarity, calibrated satellite spectral indices, 3D terrain cartography, and hydrological modeling.
-
-Unlike proprietary software suites that lock users into closed ecosystems and harvest private field data, SEVA·GIS processes rasters locally in the browser using the Origin Private File System (OPFS), WebGL, and direct Google Earth Engine APIs with zero personal tracking.
-
-> ### 🚀 Quick Access: Launch SEVA·GIS Portal
-> Access the live interactive portal with zero setup, keyless satellite ingestion, and local encrypted vault persistence:
-> 
-> ```bash
-> # Direct Browser Access (PWA / WebGL)
-> https://sevagis.dpdns.org
-> 
-> # High-Availability CDN Mirror
-> https://seva-gis-backend-e724a.web.app
-> 
-> # Interactive Earth Engine API Documentation (Swagger)
-> https://seva-gis-backend-419602015618.us-central1.run.app/api/docs
-> ```
-
----
-
-## What You Can Analyze
-
-| Domain & Feature | Input Data Sources | Analytical Outputs & Physical Metrics |
-| :--- | :--- | :--- |
-| **Vegetation Health & Vigor** | Sentinel-2 L2A BOA (10m) | Calibrated NDVI, EVI, GNDVI, and VARI intra-field canopy distribution. |
-| **Canopy Nitrogen & Chlorophyll** | Sharpened Red-Edge (B5, B7, B8A) | NDRE, CIre, and REIP non-saturating dense canopy nitrogen metrics. |
-| **Moisture & Water Stress** | SWIR-1 (B11), SWIR-2 (B12), NIR | NDMI and NDWI canopy equivalent water thickness and drought stress. |
-| **Soil & Emergence Decoupling** | VNIR + SWIR Bands | SAVI, OSAVI, MSAVI2, and BSI eliminating bare soil spectral interference. |
-| **3D Topography & Hydrology** | Copernicus GLO-30 DEM (30m) | Slope, aspect, hillshade, TWI, flow accumulation, and SCS-CN runoff volume. |
-| **All-Weather Cloud Penetration** | Sentinel-1 SAR GRD C-Band | Microwave dual-pol (VV, VH) backscatter and VH-VV dB volume scattering proxy. |
-| **Machinery Navigation & Robotics** | Polygon Boundary & Obstacles | Optimal swath tracks, minimum headland loops, and compaction lanes. |
-| **Input Optimization** | Multi-Spectral Management Zones | Calibrated multi-zone nitrogen and nutrient application boundaries. |
-
----
-
-## The Precision Correction Suite
-
-To bridge the gap between raw 10m/20m satellite observations and ultra-high-resolution aerial or field-grade survey accuracy, SEVA·GIS applies a comprehensive 10-stage correction pipeline in [seva_corrected_pipeline.js](seva_corrected_pipeline.js).
-
-### Correction Specifications & Physical Calibration Methods
-
-| # | Correction Technique | Mathematical & Physical Algorithm | Practical Field Benefit |
-| :-: | :--- | :--- | :--- |
-| **1** | **Cloud & Shadow Penumbra Purging** | Google Cloud Score+ (`cs_cdf >= 0.60`) $\cap$ ESA SCL (4–7) $\rightarrow$ `focalMax(20m)` | Eliminates diffuse shadow rims and thin cirrus that falsely depress NDVI by up to 35%. |
-| **2** | **Sub-Pixel Co-Registration Tracking** | 2D NIR cross-correlation displacement against clear baseline: $\vec{\Delta} = \sqrt{dx^2 + dy^2}$ | Detects orbital shift (> 4.5 m) to prevent neighbor property bleed on micro-parcels. |
-| **3** | **Regression Super-Resolution (20m $\rightarrow$ 10m)** | Multilinear regression using B2, B3, B4, B8 + bilinear residual texture re-injection | Delivers 100 pixels per hectare instead of 25, while strictly preserving radiometric flux. |
-| **4** | **Topographic Normalization (SCS+C)** | Sun-Canopy-Sensor with empirical parameter $C = \text{offset}/\text{scale}$ over Copernicus DEM | Normalizes solar irradiance on sloped terrain, eliminating self-shadowing on hillsides. |
-| **5** | **Boundary Inward Erosion (-10m)** | Negative buffer `AOI.buffer(-10m)` + tri-tier sensitivity testing (core vs nominal vs outer) | Excludes mixed perimeter pixels (bunds, dirt roads, fences) from true crop statistics. |
-| **6** | **Phenological Bi-Temporal Interpolation** | Inverse time-weighted interpolation between clean forward and backward satellite passes | Provides target-date estimates when the specific date is overcast or between passes. |
-| **7** | **All-Weather SAR Microwave Fusion** | Sentinel-1 C-Band (5.405 GHz) dual-pol backscatter + 30m speckle filter $\rightarrow$ $(VH - VV \text{ dB})$ | Penetrates heavy monsoon cloud cover to track canopy structure and biomass volume. |
-| **8** | **Full-Spectrum Agronomic Indices** | Red-Edge indices (NDRE, CIre) + Soil-adjusted (OSAVI, MSAVI2) + Water absorption (NDMI) | Bypasses high-biomass NDVI saturation and eliminates bare soil reflectance in young crops. |
-| **9** | **Spatial Autocorrelation Modeling** | Adjusts degrees of freedom for spatial neighbor autocorrelation: $N_{\text{eff}} \approx N / 4$ | Prevents pseudo-replication and reports statistically honest standard error of the mean. |
-| **10** | **In-Situ Handheld Sensor Calibration** | OLS regression ($Y_{\text{cal}} = a \cdot X + b$) against SPAD meters, soil probes, or quadrat clips | Translates dimensionless satellite ratios into physical, field-calibrated units. |
-
----
-
-## Interactive Walkthrough & Video Showcase (HyperFrames)
-
-Experience SEVA·GIS in motion through our cinematic walkthrough and feature demonstration:
-
-<div align="center">
-  <a href="https://sevagis.dpdns.org">
-    <img src="docs/walkthrough_satellite_data.gif" alt="SEVA·GIS Satellite Telemetry & Crop Health Interactive Terminal" width="900" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.35);" />
-  </a>
-  <p>
-    <b>▶️ Video Walkthrough:</b> <a href="docs/seva_gis_portal_walkthrough.mp4"><code>docs/seva_gis_portal_walkthrough.mp4</code></a> &bull; 
-    <b>Live Production Terminal:</b> <a href="https://sevagis.dpdns.org">sevagis.dpdns.org</a>
-  </p>
-</div>
-
-| Media Asset | Format & Resolution | Highlights Covered | Direct Link |
-| :--- | :--- | :--- | :--- |
-| **Full HD Feature Walkthrough** | MP4 (1080p, 60fps) | Farm polygon drawing, Sentinel-2 spectral indices, 3D DEM hillshading, tractor swath robotics | [seva_gis_portal_walkthrough.mp4](docs/seva_gis_portal_walkthrough.mp4) |
-| **Telemetry & Raster Animation** | Optimized GIF (800x450) | Real-time band reflectance inspection, NDVI color ramps, instantaneous GEE API responses | [walkthrough_satellite_data.gif](docs/walkthrough_satellite_data.gif) |
-
----
-
-## Architecture & How SEVA·GIS Works
-
-SEVA·GIS operates on a decoupled client-first architecture where intensive spatial rendering, boundary buffering, and local vault persistence occur inside the user's browser, while heavy petabyte-scale planetary raster reductions are dispatched to Google Earth Engine via an authenticated FastAPI proxy.
-
-### ArchiFi Flow: System Architecture & Data Stream
+## Architecture
 
 ```mermaid
-graph TB
-    subgraph Browser ["Client Environment (React 19 + Vite 8 + WebGL)"]
-        UI["SEVA·GIS Web Interface\n(Interactive Leaflet Map + Studio + Agro Panel)"]
-        ENGINE["Client Raster Engine (raster.ts)\n• Bicubic Spline (Keys a=-0.5)\n• Bilinear & Nearest-Neighbour\n• DRA Contrast & Sub-pixel Clipping"]
-        VAULT["Matcha OPFS Vault\nZero-Telemetry Encrypted Browser Storage"]
-        REPORT["Report Engine (reportBuilder.ts)\nHigh-Res PDF & Word Export"]
-    end
-
-    subgraph Backend ["Cloud Run Proxy Engine (FastAPI + Python 3.12)"]
-        API["FastAPI REST Endpoints\n• /api/earth-engine/map\n• /api/earth-engine/stats\n• /api/earth-engine/dem\n• /api/earth-engine/change"]
-        AUTH["ADC / Service Account Auth Handler"]
-    end
-
-    subgraph Satellite ["Planetary Cloud Data Providers"]
-        GEE["Google Earth Engine API\n• COPERNICUS/S2_SR_HARMONIZED\n• GOOGLE/CLOUD_SCORE_PLUS/V1\n• COPERNICUS/DEM/GLO30\n• COPERNICUS/S1_GRD"]
-        MPC["Microsoft Planetary Computer\nSTAC Planetary Catalog"]
-        ESRI["Esri World Imagery\nHigh-Res Cartographic Base Tiles"]
-    end
-
-    UI <--> ENGINE
-    UI <--> VAULT
-    UI --> REPORT
-    ENGINE <--> API
-    API <--> AUTH
-    AUTH <--> GEE
-    UI -. Direct WMS / WMTS .-> MPC
-    UI -. Basemap Tiles .-> ESRI
+graph TD
+    A[Draw, upload, or select AOI] --> B[Validate geometry and choose analysis intent]
+    B --> C[Select scenes and data sources]
+    C --> D[Planetary Computer or Earth Engine]
+    C --> E[Open-Meteo, SoilGrids, Copernicus DEM]
+    D --> F[Raster processing and spectral math]
+    E --> F
+    F --> G[Statistics, classifications, explanations, provenance]
+    G --> H[Leaflet and MapLibre workspace]
+    G --> I[Report document model]
+    I --> J[HTML, PDF, DOCX, JSON, PNG, GeoTIFF, CSV]
 ```
 
----
+### Main code areas
 
-## Motion-First Design Architecture ([feitangyuan/motion-web](https://github.com/feitangyuan/motion-web))
+| Area | Files |
+|---|---|
+| React entry and shell | `src/main.tsx`, `src/Auth.tsx`, `src/App.tsx` |
+| 2D and 3D maps | `src/IndicatorMap.tsx`, `src/Walk3D.tsx` |
+| Satellite and DEM ingestion | `src/lib/seva.ts` |
+| Raster and index processing | `src/lib/raster.ts`, `src/lib/indicators.ts` |
+| Hydrology and agronomy | `src/lib/hydro.ts`, `src/lib/agro.ts` |
+| Earth Engine client | `src/lib/earthEngineClient.ts` |
+| Earth Engine service | `backend/main.py` |
+| Reports and exports | `src/report.ts`, `src/reportBuilder.ts`, `src/ReportPanel.tsx`, `src/lib/pdfGenerator.ts` |
+| Local storage | `src/lib/db.ts`, `src/lib/fs-vault.ts` |
 
-SEVA·GIS adheres to the design principles pioneered in **[feitangyuan/motion-web](https://github.com/feitangyuan/motion-web)**: building high-touch, motion-first creative experiences powered by vanilla Canvas 2D, WebGL, and CSS physics with zero heavy third-party animation runtimes:
+## Current Capabilities
 
-- **Damped Harmonic Physics:** The interactive ambient landing experience in [`src/Aurora.tsx`](src/Aurora.tsx) implements second-order damped harmonic oscillators ($F = -k \cdot \Delta x - c \cdot v$) running on `requestAnimationFrame` with frame-rate decoupled delta-time integration ($\Delta t$).
-- **Gravitational Cursor Attraction Well:** Dynamic pointer position tracking creates an inverse-distance gravitational well that gently bends ambient aurora nodes towards the user's cursor ($F_{\text{pull}} = (1 - r/R) \cdot 0.45 \cdot m^{-1}$).
-- **Orbital Keplerian Satellite Rings:** Ambient concentric orbital paths simulate Copernicus Sentinel-2 orbital passes with elliptical eccentricity, node inclination, and periodic phase pulses.
-- **Wave Propagation & Decelerating Shockwaves:** Interactive pointer-down events trigger dynamic radial wave rings that physically dissipate and decelerate outwards across the canvas.
-- **3D Perspective Glare Card Dynamics:** The authentication card in [`src/Auth.tsx`](src/Auth.tsx) tracks cursor offset to produce real-time 3D perspective rotation (`perspective(1000px) rotateX/rotateY`) with dynamic radial specular glare reflection.
-- **Sub-16ms Frame Budget:** All physics routines run in vanilla Canvas 2D with zero GC pressure, pre-allocated particle buffers, and CSS spring cubic-bezier transitions (`cubic-bezier(0.16, 1, 0.3, 1)`).
+- AOI creation and local persistence
+- Leaflet basemaps and MapLibre terrain views
+- Sentinel-2 spectral indices including NDVI, EVI, SAVI, MSAVI, GNDVI, NDRE, NDMI, NDWI, MSI, BSI, LAI, and chlorophyll-related signals
+- Copernicus DEM elevation, slope, aspect, hillshade, TWI, flow, ponding, and terrain proxies
+- Open-Meteo weather and SoilGrids soil estimates
+- Irrigation, drainage, crop, and hydrology panels
+- Earth Engine map tiles, zonal statistics, time series, change analysis, DEM, and alerts
+- Land-cover and management-zone analysis
+- GeoJSON/KML and report-oriented export workflows
+- Local account, guest mode, report history, and guided Mitra tour
 
----
+All estimates must be interpreted with their source and limitations. A candidate borewell or pipeline is not a confirmed infrastructure survey, and a simplified hydrology result is not automatically a validated SWAT-CUP calibration.
 
-## Git Repositories
+## Data Sources
 
-| Repository | Description | Link |
-| :--- | :--- | :--- |
-| **Frontend Web App & Monorepo** | Main React 19, Vite, Leaflet, and client GeoAI application codebase | [virahitvin8/seva-gis](https://github.com/virahitvin8/seva-gis) |
-| **Cloud Run Backend Engine** | FastAPI Earth Engine proxy service with Cloud ADC authentication | [virahitvin8/seva-gis/tree/main/backend](https://github.com/virahitvin8/seva-gis/tree/main/backend) |
-| **Production Branch** | Canonical deployment branch powering live production instances | [virahitvin8/seva-gis (branch: main)](https://github.com/virahitvin8/seva-gis/tree/main) |
+- ESA Copernicus Sentinel-2 L2A through Microsoft Planetary Computer and Google Earth Engine
+- Copernicus GLO-30 DEM
+- Open-Meteo weather services
+- ISRIC SoilGrids
+- Esri and OpenStreetMap basemaps and nearby features where enabled
 
----
+## Local Development
 
-## Vibe Coding & Agentic Engineering
+```bash
+npm install
+npm run dev
+```
 
-SEVA·GIS is engineered using **Vibe Coding** principles and advanced agentic pair-programming workflows:
+The repository also contains a `pnpm-lock.yaml`; use the package manager selected by the project environment and keep the lockfile consistent. Validate changes with:
 
-- **Human-in-the-Loop Domain Mastery:** Bridging deep agronomic field experience, spatial geometry, and remote sensing theory with real-time AI code generation.
-- **Strict Invariant Verification:** Every mathematical routine—from Sun-Canopy-Sensor topographic angles to Moran's I spatial degrees of freedom—is verified against live API telemetry before deployment.
-- **Zero-Dependency Native Architecture:** Choosing lightweight native web capabilities (Canvas, WebGL, CSS Grid, OPFS) over heavy external dependencies to maintain lightning-fast load times.
-- **Agent Skill Orchestration:** Custom `.agents/skills` managing precision spatial pipelines, coverage robotics math, and code review guardrails.
+```bash
+npm exec -- tsc --noEmit
+npm run build
+```
 
----
+The Earth Engine proxy can be run separately:
 
-## Credits & QGIS Inspirations
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --port 8080 --reload
+```
 
-SEVA·GIS stands upon the shoulders of giants in the free and open-source geospatial software (FOSS4G) community:
+See [backend/README.md](backend/README.md) for service configuration. Never commit `.env` files, service-account keys, or API credentials.
 
-- **Gary Sherman & the QGIS Community:** For pioneering free, open-source desktop GIS and proving that spatial analysis belongs to everyone, not just proprietary software monopolies.
-- **Frank Warmerdam & OSGeo (GDAL/OGR):** The foundational translator library for raster and vector geospatial data formats that powers planetary mapping.
-- **Gerald Evenden & the PROJ Project:** For open-source cartographic projections and geodetic coordinate transformations.
-- **GRASS GIS:** For forty years of open-source algorithmic rigor in raster neighborhood analysis, terrain hydrology, and watershed science.
-- **Vladimir Agafonkin & the Leaflet Team:** For creating the world's most elegant, lightweight, mobile-friendly interactive mapping library.
-- **Fields2Cover Robotics Team:** For groundbreaking open-source coverage path planning algorithms designed for precision agricultural vehicles.
-- **European Space Agency (ESA) Copernicus Programme:** For open, unrestricted access to the Sentinel-2 multispectral and Sentinel-1 radar constellations.
-- **Google Earth Engine Team:** For petabyte-scale planetary earth observation infrastructure and cloud geoprocessing APIs.
-- **MathWorks MATLAB:** For mathematical and algorithmic inspirations in matrix operations, polynomial curve fitting, and agricultural signal processing for vegetation phenology time-series.
-- **StoryTold & the ArtCraft Team:** For pioneering clean-room open-source creative workbenches ([PdfCraft](https://github.com/storytold/pdfcraft), [GridCraft](https://github.com/storytold/gridcraft), [VectorCraft](https://github.com/storytold/vectorcraft), [DesignCraft](https://github.com/storytold/designcraft), [EffectCraft](https://github.com/storytold/effectcraft)) inspiring SEVA·GIS's unified document compiling, agricultural data grids, vector pathfinder geometry, editorial publishing, and satellite motion compositing.
+## Rebuild Plan
 
----
+The authoritative requirements, phased checklist, acceptance tests, and release gate are in [plan.md](plan.md).
 
-## Live Testing Links
+Important planned work includes:
 
-| Service | Environment / Host | Direct Testing URL | Verification Status |
-| :--- | :--- | :--- | :--- |
-| **SEVA·GIS Web App (Production)** | Cloudflare DNS / Web Host | [sevagis.dpdns.org](https://sevagis.dpdns.org) | ![Active](https://img.shields.io/badge/status-active-brightgreen) |
-| **Firebase Production Mirror** | Google Cloud CDN | [seva-gis-backend-e724a.web.app](https://seva-gis-backend-e724a.web.app) | ![Active](https://img.shields.io/badge/status-active-brightgreen) |
-| **Earth Engine Cloud Run Proxy** | Google Cloud Run (`us-central1`) | [seva-gis-backend-419602015618.us-central1.run.app](https://seva-gis-backend-419602015618.us-central1.run.app) | ![Active](https://img.shields.io/badge/status-active-brightgreen) |
-| **Interactive API Documentation** | FastAPI Swagger UI | [seva-gis-backend-419602015618.us-central1.run.app/api/docs](https://seva-gis-backend-419602015618.us-central1.run.app/api/docs) | ![Swagger](https://img.shields.io/badge/docs-OpenAPI_3.0-teal) |
-| **Live Backend Health Check** | Cloud Run Liveness Probe | [seva-gis-backend-419602015618.us-central1.run.app/health](https://seva-gis-backend-419602015618.us-central1.run.app/health) | ![Health](https://img.shields.io/badge/health-200_OK-blue) |
-| **GEE Active Indicators API** | Cloud Run REST Endpoint | [seva-gis-backend-419602015618.us-central1.run.app/api/earth-engine/indicators](https://seva-gis-backend-419602015618.us-central1.run.app/api/earth-engine/indicators) | ![API](https://img.shields.io/badge/API-200_OK-brightgreen) |
+- Web Worker raster processing and cancellable AOI switching
+- AOI-centered map fitting, clipping, collision-free cartography, and real GeoTIFF export
+- Explicit English, Telugu, and Hindi localization without DOM-mutating Google Translate
+- A single report document model shared by preview and downloads
+- Dynamic AOI-specific hydrology and classifications
+- Security cleanup, API contracts, browser smoke tests, and release verification
 
----
+## Credits and Reference Projects
+
+SEVA.GIS uses open geospatial standards and takes design or algorithmic inspiration from QGIS, Esri cartography, Google Earth Engine, Microsoft Planetary Computer, MathWorks numerical methods, `morluto/rea`, `motion-web`, and the projects listed in [docs/CREDITS.md](docs/CREDITS.md). These references are not automatically runtime dependencies.
+
+## Deployment
+
+Deployment is intentionally not described as complete until the release gate in [plan.md](plan.md) passes. The repository contains Firebase, Docker, Cloud Run, and static-hosting configurations; one supported production path must be selected and verified before public release.
 
 ## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-
-*Earth intelligence in the spirit of selfless service.*
+MIT. See [LICENSE](LICENSE).

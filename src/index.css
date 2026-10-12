@@ -1,6 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Caveat:wght@500;700&family=Dancing+Script:wght@700&family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import 'tailwindcss';
 
+.top-craft-btn,
+.top-layout-btn,
+.nav-logout {
+  display: none !important;
+}
+
 .brand-logo-image{display:block;width:40px;height:40px;object-fit:contain;border-radius:7px;flex-shrink:0}
 .service-card>.brand-logo-image{width:38px;height:38px;margin-bottom:10px}
 .modal-icon .brand-logo-image{width:48px;height:48px;border-radius:10px}
@@ -372,9 +378,9 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .au-hub-title{font:800 clamp(24px,3.5vw,38px)/1.15 'Manrope',sans-serif;letter-spacing:-.02em;margin:0;color:#fff}
 .au-hub-desc{font-size:15px;color:#9fb5a5;line-height:1.55;margin:0}
 
-.au-hub-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:18px}
-.au-hub-card{background:linear-gradient(145deg,#0d1f17,#07140e);border:1px solid #ffffff18;border-radius:18px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .2s,border-color .2s,box-shadow .2s;box-shadow:0 12px 30px rgba(0,0,0,.4)}
-.au-hub-card:hover{transform:translateY(-3px);border-color:#b6f36a55;box-shadow:0 16px 40px rgba(0,0,0,.6)}
+.au-hub-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:20px;perspective:1000px}
+.au-hub-card{background:linear-gradient(145deg,#0d1f17,#07140e);border:1px solid #ffffff18;border-radius:18px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .28s cubic-bezier(0.16,1,0.3,1),border-color .28s,box-shadow .28s;box-shadow:0 12px 30px rgba(0,0,0,.4);transform-style:preserve-3d;will-change:transform}
+.au-hub-card:hover{transform:translateY(-6px) rotateX(4deg) rotateY(-2deg) translateZ(8px);border-color:#38f2d088;box-shadow:0 24px 50px rgba(0,0,0,.7),0 0 25px rgba(56,242,208,0.12)}
 .au-hub-card-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
 .au-hub-card-icon{width:40px;height:40px;border-radius:10px;background:#b6f36a1c;border:1px solid #b6f36a33;color:#b6f36a;display:grid;place-items:center}
 .au-hub-card-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:#ffffff14;color:#c5dda0}
@@ -411,6 +417,36 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .ct-spin{animation:ctspin 1s linear infinite}@keyframes ctspin{to{transform:rotate(360deg)}}
 .ct-note{margin:0;padding:12px 14px;border-radius:12px;font-size:15px!important}.ct-note.ok{background:#b6f36a26;color:#d9ffa8!important}.ct-note.err{background:#f46d4333;color:#ffc9b8!important}
 @media(max-width:900px){.ct{grid-template-columns:1fr;padding:36px 20px}.ct-row{grid-template-columns:1fr}}
+
+/* Shared 3D treatment for live analysis cards. */
+.ag-grid,
+.intelligence-grid {
+  perspective: 1100px;
+}
+
+.ag-item,
+.intelligence-card {
+  transform: translateZ(0) rotateX(0deg) rotateY(0deg);
+  transform-style: preserve-3d;
+  transition: transform .28s cubic-bezier(.16, 1, .3, 1), box-shadow .28s ease, border-color .28s ease;
+  will-change: transform;
+}
+
+.ag-item:hover,
+.ag-item:focus-within,
+.intelligence-card:hover,
+.intelligence-card:focus-within {
+  transform: translateY(-4px) rotateX(2deg) rotateY(-2deg) translateZ(10px);
+  box-shadow: 0 14px 28px rgba(15, 35, 24, .16), 0 0 0 1px rgba(56, 242, 208, .2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-item,
+  .intelligence-card {
+    transition: none;
+    transform: none;
+  }
+}
 
 /* Toolbar: Tools panel, move toggle (16+ friendly sizes) */
 .ix-top{flex-wrap:wrap;align-items:center}

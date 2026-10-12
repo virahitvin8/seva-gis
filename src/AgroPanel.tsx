@@ -5,7 +5,8 @@ import SourceNote, { type SourceKey } from './SourceNote'
 import { fetchSoil, fetchWeather, ndviClass, regionalSoilFallback, soilParams, soilWaterParams, weatherParams, kidFriendlyIndicator, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { INDICATORS } from './lib/indicators'
 import { ScaleBox, spectralIds } from './Scale'
-import { loadDem, type FarmData } from './lib/seva'
+import { loadDem, farmBBox, farmRing, type FarmData } from './lib/seva'
+import { createGeoTiffBlob } from './lib/geoTiffWriter'
 
 type Props = { farm: FarmData & { id: string; name: string } }
 type Remote<T> = { key: string; data?: T; error?: string }
@@ -134,6 +135,45 @@ export default function AgroPanel({ farm }: Props) {
     })
   }
 
+  const handleDownloadGeoTiff = (card: InsightCardData) => {
+    try {
+      const [w, s, e, n] = farmBBox(farm)
+      const canvas = document.createElement('canvas')
+      canvas.width = 256
+      canvas.height = 256
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+      ctx.fillStyle = '#0f172a'
+      ctx.fillRect(0, 0, 256, 256)
+
+      const ring = farmRing(farm)
+      ctx.beginPath()
+      ring.forEach(([lon, lat], i) => {
+        const cx = ((lon - w) / (e - w || 0.001)) * 256
+        const cy = ((n - lat) / (n - s || 0.001)) * 256
+        if (i === 0) ctx.moveTo(cx, cy)
+        else ctx.lineTo(cx, cy)
+      })
+      ctx.closePath()
+      ctx.fillStyle = card.status === 'good' ? '#16a34a' : card.status === 'warn' ? '#d97706' : '#2563eb'
+      ctx.fill()
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      const imgData = ctx.getImageData(0, 0, 256, 256)
+      const blob = createGeoTiffBlob(256, 256, [w, s, e, n], imgData.data)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${farm.name.replace(/\W+/g, '_')}_${card.acronym || 'PARAM'}_GeoTIFF.tif`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    } catch (err) {
+      console.warn('GeoTIFF download error:', err)
+    }
+  }
+
   return <section className="ag-wrap">
     <div className="intelligence-heading"><h2>Agronomy parameters <span>Sentinel-2 · Open-Meteo · SoilGrids · Copernicus DEM · Click any box for 3D card analysis</span></h2></div>
     <div className="ag-cols">
@@ -148,7 +188,11 @@ export default function AgroPanel({ farm }: Props) {
     <small className="ag-note">Weather, soil water, and soil properties are broad-area estimates, not readings from your field. Satellite maps use clear pixels; check unusual patches on the ground.</small>
 
     {activeCard && (
-      <InsightPlayingCardModal card={activeCard} onClose={() => setActiveCard(null)} />
+      <InsightPlayingCardModal
+        card={activeCard}
+        onClose={() => setActiveCard(null)}
+        onDownloadGeoTiff={handleDownloadGeoTiff}
+      />
     )}
   </section>
 }

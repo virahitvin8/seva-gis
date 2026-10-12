@@ -1,10 +1,15 @@
 import React, { useState, useMemo } from 'react'
 import { LineChart, Sparkles, Terminal, Copy, Check, Download, Layers, Activity } from 'lucide-react'
-import type { HistoryRow } from './lib/gee'
-import type { FarmData } from './lib/seva'
+import type { Candle, FarmData } from './lib/seva'
+
+export type HistoryItem = {
+  scene: { id?: string; datetime: string; cloud?: number }
+  ndvi: number | { mean: number }
+  ndmi?: number | { mean: number }
+}
 
 interface Props {
-  rows: HistoryRow[]
+  rows: (Candle | HistoryItem | any)[]
   farm: FarmData & { id: string; name: string }
 }
 
@@ -15,11 +20,13 @@ export default function MatlabAnalysisSuite({ rows, farm }: Props) {
 
   // Extract time (days from t0) and NDVI
   const fitData = useMemo(() => {
-    if (rows.length < 4) return null
+    if (!rows || rows.length < 4) return null
     const t0 = new Date(rows[0].scene.datetime).getTime()
     const points = rows.map(r => {
       const tDays = (new Date(r.scene.datetime).getTime() - t0) / 86400000
-      return { tDays, date: r.scene.datetime.slice(0, 10), ndvi: r.ndvi, ndmi: r.ndmi }
+      const val = typeof r.ndvi === 'object' && r.ndvi !== null ? r.ndvi.mean : Number(r.ndvi)
+      const moist = typeof r.ndmi === 'object' && r.ndmi !== null ? r.ndmi.mean : (r.ndmi !== undefined ? Number(r.ndmi) : undefined)
+      return { tDays, date: r.scene.datetime.slice(0, 10), ndvi: val, ndmi: moist }
     })
 
     const n = points.length
@@ -204,7 +211,7 @@ legend('Growth Velocity (dNDVI/dt)', 'Inflection (Senescence Threshold)', 'Locat
               Numerical Curve Fitting &amp; Phenology Synthesis (MathWorks Protocol)
             </h4>
             <span style={{ fontSize: 11, color: '#64748b' }}>
-              Polynomial regression ($R^2$, RMSE) · Biomass rate of change ($d\text{NDVI}/dt$) · Autonomous script synthesis
+              Polynomial regression (R², RMSE) · Biomass rate of change (dNDVI/dt) · Autonomous script synthesis
             </span>
           </div>
         </div>

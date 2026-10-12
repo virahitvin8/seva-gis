@@ -364,7 +364,7 @@ export default function FinancialSummaryTerminal({
                 }}
               >
                 <BarChart3 size={14} color={activeTab === 'comparison' ? '#ffffff' : '#4ade80'} />
-                <span>Multi-Session Candlestick / Trends</span>
+                <span>Multi-Session Trends</span>
               </button>
               <button
                 onClick={() => setActiveTab('matrix')}

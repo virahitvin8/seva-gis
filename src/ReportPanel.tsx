@@ -47,7 +47,7 @@ import {
   type ReportHistoryEntry,
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
-import { generateReportPdfBlob } from './lib/pdfGenerator'
+import { openReportPrintView } from './lib/reportPdf'
 
 export default function ReportPanel({ farm }: { farm?: ReportFarm | null }) {
   if (!farm) {
@@ -248,51 +248,22 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     URL.revokeObjectURL(u)
   }
 
+  /**
+   * Downloads the report as a PDF by handing the *same document that is being
+   * previewed* to the browser's print-to-PDF engine. The old code wrote a
+   * three-page text stub instead, which is why the download never matched the
+   * preview. See `src/lib/reportPdf.ts`.
+   */
   const handleDownloadPdf = () => {
     const cur = reports[previewLang]
     if (!cur) return
-    const pdfBlob = generateReportPdfBlob(
-      farm.name,
-      farm.location,
-      farm.area ?? 2.4,
-      farm.crop ?? 'Paddy',
-      farm.analysis?.ndvi?.mean ?? 0.65,
-      farm.analysis?.ndmi?.mean ?? 0.32,
-      farm.analysis?.stressPct ?? 14.5,
-      farm.elevation ?? 245,
-      cur.id
-    )
-    const u = URL.createObjectURL(pdfBlob)
-    const a = document.createElement('a')
-    a.href = u
-    a.download = `${baseFilename}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(u)
+    openReportPrintView(cur.html, `${baseFilename}.pdf`)
   }
 
   const print = () => {
     const cur = reports[previewLang]
     if (!cur) return
-    const printWin = window.open('', '_blank')
-    if (printWin) {
-      printWin.document.open()
-      printWin.document.write(cur.html)
-      printWin.document.close()
-      printWin.focus()
-      setTimeout(() => {
-        try {
-          printWin.print()
-        } catch {
-          // fallback to iframe
-        }
-      }, 600)
-    } else {
-      const fr = document.getElementById('report-frame') as HTMLIFrameElement | null
-      fr?.contentWindow?.focus()
-      fr?.contentWindow?.print()
-    }
+    openReportPrintView(cur.html, `${baseFilename}.pdf`)
   }
 
   const handleDownloadWord = () => {
@@ -762,6 +733,12 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   Print Dossier
                 </button>
               </div>
+
+              <p className="rp-note" style={{ margin: '10px 0 14px', fontSize: '12.5px', color: '#475569' }}>
+                <b>Download PDF</b> opens your browser's print dialog with this exact report. Choose{' '}
+                <b>Destination &rarr; Save as PDF</b> — the saved file is the document you previewed here, with maps,
+                legends, scale bars and page breaks intact.
+              </p>
 
               <iframe id="report-frame" className="rp-frame" title="Report preview" src={url} />
             </>

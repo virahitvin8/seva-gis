@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
  * Motion-First Canvas 2D Ambient Physics Engine (feitangyuan/motion-web pattern)
  * Real spring damping, gravitational cursor well, orbital satellite rings, and click shockwave dynamics.
  */
-export default function Aurora() {
+export default function Aurora({ style, className }: { style?: React.CSSProperties; className?: string } = {}) {
   const ref = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -263,6 +263,6 @@ export default function Aurora() {
     }
   }, [])
 
-  return <canvas ref={ref} className="au-canvas" aria-hidden="true" />
+  return <canvas ref={ref} className={`au-canvas ${className || ''}`} style={style} aria-hidden="true" />
 }
 

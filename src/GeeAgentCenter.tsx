@@ -324,7 +324,7 @@ export default function GeeAgentCenter({
                 <div>
                   <b style={{ fontSize: 12, color: '#f8fafc' }}>Autonomous Agricultural GIS Squad</b>
                   <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>
-                    4 collaborative agents orchestrate satellite, agronomic, cadastre, and mandi intelligence.
+                    4 collaborative agents orchestrate satellite, agronomic, hydrology, and mandi intelligence.
                   </p>
                 </div>
                 <button

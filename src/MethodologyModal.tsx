@@ -97,7 +97,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     fontFamily: "'Syne', 'Manrope', sans-serif"
                   }}
                 >
-                  SEVA·GIS Scientific Methodology &amp; Research Thesis
+                  SEVA·GIS Methodology &amp; Research
                 </h2>
                 <span
                   style={{

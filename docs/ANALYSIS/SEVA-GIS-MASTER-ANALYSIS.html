@@ -1,0 +1,2699 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>SEVA-GIS Master Analysis</title>
+  <style>
+
+html {
+color: #1a1a1a;
+background-color: #fdfdfd;
+}
+body {
+margin: 0 auto;
+max-width: 36em;
+padding-left: 50px;
+padding-right: 50px;
+padding-top: 50px;
+padding-bottom: 50px;
+hyphens: auto;
+overflow-wrap: break-word;
+text-rendering: optimizeLegibility;
+font-kerning: normal;
+}
+@media (max-width: 600px) {
+body {
+font-size: 0.9em;
+padding: 12px;
+}
+h1 {
+font-size: 1.8em;
+}
+}
+@media print {
+html {
+background-color: white;
+}
+body {
+background-color: transparent;
+color: black;
+font-size: 12pt;
+}
+p, h2, h3 {
+orphans: 3;
+widows: 3;
+}
+h2, h3, h4 {
+page-break-after: avoid;
+}
+}
+p {
+margin: 1em 0;
+}
+a {
+color: #1a1a1a;
+}
+a:visited {
+color: #1a1a1a;
+}
+img {
+max-width: 100%;
+}
+svg {
+height: auto;
+max-width: 100%;
+}
+h1, h2, h3, h4, h5, h6 {
+margin-top: 1.4em;
+}
+h5, h6 {
+font-size: 1em;
+font-style: italic;
+}
+h6 {
+font-weight: normal;
+}
+ol, ul {
+padding-left: 1.7em;
+margin-top: 1em;
+}
+li > ol, li > ul {
+margin-top: 0;
+}
+blockquote {
+margin: 1em 0 1em 1.7em;
+padding-left: 1em;
+border-left: 2px solid #e6e6e6;
+color: #606060;
+}
+code {
+white-space: pre-wrap;
+font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+font-size: 85%;
+margin: 0;
+hyphens: manual;
+}
+pre {
+margin: 1em 0;
+overflow: auto;
+}
+pre code {
+padding: 0;
+overflow: visible;
+overflow-wrap: normal;
+}
+.sourceCode {
+background-color: transparent;
+overflow: visible;
+}
+hr {
+border: none;
+border-top: 1px solid #1a1a1a;
+height: 1px;
+margin: 1em 0;
+}
+table {
+margin: 1em 0;
+border-collapse: collapse;
+width: 100%;
+overflow-x: auto;
+display: block;
+font-variant-numeric: lining-nums tabular-nums;
+}
+table caption {
+margin-bottom: 0.75em;
+}
+tbody {
+margin-top: 0.5em;
+border-top: 1px solid #1a1a1a;
+border-bottom: 1px solid #1a1a1a;
+}
+th {
+border-top: 1px solid #1a1a1a;
+padding: 0.25em 0.5em 0.25em 0.5em;
+}
+td {
+padding: 0.125em 0.5em 0.25em 0.5em;
+}
+header {
+margin-bottom: 4em;
+text-align: center;
+}
+#TOC li {
+list-style: none;
+}
+#TOC ul {
+padding-left: 1.3em;
+}
+#TOC > ul {
+padding-left: 0;
+}
+#TOC a:not(:hover) {
+text-decoration: none;
+}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style>
+@page { size: A4; margin: 16mm 14mm 18mm 14mm; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+font-size: 10.5pt; line-height: 1.5; color: #1d2b26; margin: 0;
+}
+h1 { font-size: 22pt; color: #10302a; border-bottom: 3px solid #2f6b4f; padding-bottom: 6px; margin: 0 0 14px; }
+h2 { font-size: 15pt; color: #10302a; margin: 22px 0 8px; border-bottom: 1.5px solid #cfe0d7; padding-bottom: 4px; page-break-after: avoid; }
+h3 { font-size: 12pt; color: #2f6b4f; margin: 16px 0 6px; page-break-after: avoid; }
+p, li { orphans: 3; widows: 3; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0 16px; font-size: 8.6pt; page-break-inside: auto; }
+thead { display: table-header-group; }
+tr { page-break-inside: avoid; }
+th { background: #10302a; color: #ffffff; text-align: left; padding: 5px 7px; font-weight: 600; border: 1px solid #10302a; }
+td { padding: 4px 7px; border: 1px solid #d5e2db; vertical-align: top; }
+tbody tr:nth-child(even) td { background: #f6faf8; }
+code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 8.6pt; background: #eef4f1; padding: 1px 4px; border-radius: 3px; color: #16443a; }
+pre { background: #f4f7f6; border-left: 3px solid #2f6b4f; padding: 9px 11px; overflow-x: auto; page-break-inside: avoid; border-radius: 4px; }
+pre code { background: none; padding: 0; font-size: 8.4pt; line-height: 1.35; }
+blockquote { border-left: 4px solid #2b5f9e; background: #f2f7ff; margin: 10px 0; padding: 8px 12px; color: #22394f; }
+a { color: #1c5f8f; text-decoration: none; }
+img { max-width: 100%; page-break-inside: avoid; }
+hr { border: none; border-top: 1px solid #d5e2db; margin: 18px 0; }
+input[type=checkbox] { display: none; }
+.title-block { display: none; }
+h2 + p, h3 + p { margin-top: 4px; }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">SEVA-GIS Master Analysis</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#sevagis-master-analysis-source-map-build-contract" id="toc-sevagis-master-analysis-source-map-build-contract">SEVA·GIS —
+Master Analysis, Source Map &amp; Build Contract</a>
+<ul>
+<li><a href="#part-0-one-page-summary" id="toc-part-0-one-page-summary">Part 0 — One-page summary</a></li>
+<li><a href="#part-1-every-repository-you-gave-me-and-what-it-really-is" id="toc-part-1-every-repository-you-gave-me-and-what-it-really-is">Part
+1 — Every repository you gave me, and what it really is</a></li>
+<li><a href="#part-2-every-change-you-asked-for-the-counted-ledger" id="toc-part-2-every-change-you-asked-for-the-counted-ledger">Part 2 —
+Every change you asked for (the counted ledger)</a></li>
+<li><a href="#part-3-the-comparison-change-which-repo-supplies-it" id="toc-part-3-the-comparison-change-which-repo-supplies-it">Part 3 —
+The comparison: change ← which repo supplies it</a></li>
+<li><a href="#part-4-how-i-understood-it-as-a-flowchart" id="toc-part-4-how-i-understood-it-as-a-flowchart">Part 4 — How I
+understood it, as a flowchart</a></li>
+<li><a href="#part-5-build-order-in-waves" id="toc-part-5-build-order-in-waves">Part 5 — Build order in
+waves</a></li>
+<li><a href="#part-6-honest-flags-nothing-over-promised" id="toc-part-6-honest-flags-nothing-over-promised">Part 6 — Honest flags
+(nothing over-promised)</a></li>
+<li><a href="#part-7-verified-state-of-the-repository-today" id="toc-part-7-verified-state-of-the-repository-today">Part 7 — Verified
+state of the repository today</a></li>
+<li><a href="#part-8-plain-words-for-every-scientific-term" id="toc-part-8-plain-words-for-every-scientific-term">Part 8 — Plain
+words for every scientific term</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="sevagis-master-analysis-source-map-build-contract">SEVA·GIS —
+Master Analysis, Source Map &amp; Build Contract</h1>
+<p><strong>Prepared for:</strong> the project owner <strong>Target
+product:</strong> <a href="https://github.com/virahitvin8/seva-gis">virahitvin8/seva-gis</a>
+<strong>Status of this document:</strong> The “show me first” document
+you asked for. It is the plain-language record of <strong>what you gave
+me</strong>, <strong>what you asked for</strong>, <strong>where each
+change comes from</strong>, and <strong>how I understood it</strong>.
+Nothing in the app is claimed as done here unless it says
+<em>verified</em> and names the check that proved it.</p>
+<hr />
+<h2 id="part-0-one-page-summary">Part 0 — One-page summary</h2>
+<p>You said, in your own words: <em>don’t go straight in and start
+changing SEVA·GIS; first make the lists, compare them, show me the
+differences, and show me you understood.</em> This document is that
+deliverable.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>What you asked me to produce first</th>
+<th>Where it is in this document</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>A list of every repository you gave me</td>
+<td><a href="#part-1--every-repository-you-gave-me-and-what-it-really-is">Part
+1</a></td>
+</tr>
+<tr>
+<td>2</td>
+<td>A list of every change you asked for</td>
+<td><a href="#part-2--every-change-you-asked-for-the-counted-ledger">Part
+2</a></td>
+</tr>
+<tr>
+<td>3</td>
+<td>The difference — which change takes what from which repo</td>
+<td><a href="#part-3--the-comparison-change--which-repo-supplies-it">Part
+3</a></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Proof I understood, as a flowchart</td>
+<td><a href="#part-4--how-i-understood-it-as-a-flowchart">Part
+4</a></td>
+</tr>
+<tr>
+<td>5</td>
+<td>The build order</td>
+<td><a href="#part-5--build-order-in-waves">Part 5</a></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Where reality differs from the promise</td>
+<td><a href="#part-6--honest-flags-nothing-over-promised">Part
+6</a></td>
+</tr>
+<tr>
+<td>7</td>
+<td>What is genuinely done and verified <strong>right now</strong></td>
+<td><a href="#part-7--verified-state-of-the-repository-today">Part
+7</a></td>
+</tr>
+<tr>
+<td>8</td>
+<td>Every scientific term explained in plain words</td>
+<td><a href="#part-8--plain-words-for-every-scientific-term">Part
+8</a></td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-counts">The counts</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Category</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Distinct change / bug / removal items you raised</td>
+<td><strong>131</strong></td>
+</tr>
+<tr>
+<td>Items that are <strong>removals</strong> (delete it)</td>
+<td>19</td>
+</tr>
+<tr>
+<td>Items that are <strong>confirmed bugs / breakage</strong></td>
+<td>24</td>
+</tr>
+<tr>
+<td>Items that are <strong>new features / redesigns</strong></td>
+<td>88</td>
+</tr>
+<tr>
+<td>Separate “page is unresponsive” episodes you hit while
+reviewing</td>
+<td><strong>9</strong></td>
+</tr>
+<tr>
+<td>Repositories + reference projects you handed me</td>
+<td><strong>37</strong></td>
+</tr>
+<tr>
+<td>Things you explicitly said are <strong>fine — do not
+touch</strong></td>
+<td>11</td>
+</tr>
+<tr>
+<td>Items verified complete as of this document</td>
+<td>27 / 131</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>The honest headline.</strong> The lists existed from the
+earlier sessions, but the <em>build</em> did not keep up with them: 27
+of 131 items are actually finished and verified. The app is still slow,
+the language switch still misbehaves, the downloaded PDF is not the
+report you saw in the preview, and the report maps are not clipped or
+fitted. Those are real, and they are the first four things in the build
+order below.</p>
+</blockquote>
+<hr />
+<h2 id="part-1-every-repository-you-gave-me-and-what-it-really-is">Part
+1 — Every repository you gave me, and what it really is</h2>
+<p><strong>How to read the “Role” column</strong></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Role</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>runtime</strong></td>
+<td>Real code that can be installed and called by SEVA·GIS</td>
+</tr>
+<tr>
+<td><strong>pattern</strong></td>
+<td>Ideas and techniques to re-implement in our own code (no
+dependency)</td>
+</tr>
+<tr>
+<td><strong>dev-tooling</strong></td>
+<td>Used while <em>building</em> SEVA·GIS, never shipped to the
+user</td>
+</tr>
+<tr>
+<td><strong>not-relevant</strong></td>
+<td>Cannot be used in a browser-first GIS app; recorded so nothing is
+over-promised</td>
+</tr>
+<tr>
+<td><strong>upstream</strong></td>
+<td>A whole organisation / engine to reverse-engineer algorithms
+from</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-single-most-important-finding-please-read-this-one">1.0 The
+single most important finding — please read this one</h3>
+<p>I checked every repository you gave me, rather than trusting the
+names. The result changes how the project should be built, so I am
+stating it plainly:</p>
+<blockquote>
+<p><strong>Not one of the 33 repositories you listed is a library that
+SEVA·GIS can install and call.</strong> Around 25 of them are <em>agent
+skills</em> — folders of Markdown instructions for an AI coding
+assistant. Several more are desktop applications written in Rust. The
+value they give SEVA·GIS is <strong>ideas, patterns and working
+method</strong>, not code we can import.</p>
+<p>That is not a criticism of your list, and it is not a reason to throw
+it away. It is the reason the honest role column below says
+<em>pattern</em> or <em>dev-tooling</em> so often instead of
+<em>runtime</em>. If I had claimed “SEVA·GIS now uses ponytail and
+pdfcraft”, that would have been untrue, and you would have found out
+later.</p>
+</blockquote>
+<p><strong>Two specific corrections to what the names
+suggest:</strong></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Came up</th>
+<th>The reality I verified</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>storytold/pdfcraft</code>, <code>gridcraft</code>,
+<code>vectorcraft</code>, <code>designcraft</code>,
+<code>effectcraft</code></td>
+<td><strong>All five exist.</strong> They are real
+Rust/<code>egui</code> desktop applications in the “ArtCraft” suite with
+Wasm web builds, MIT / Apache-2.0, and are in <strong>alpha</strong>.
+They are <strong>not</strong> browser libraries — nothing in them can be
+<code>import</code>ed into a React + TypeScript app. Their <em>layout
+and palette thinking</em> is worth studying; their code is not reusable
+here.</td>
+</tr>
+<tr>
+<td><code>feitangyuan/motion-web</code></td>
+<td><strong>Exists, and is genuinely useful as a pattern</strong> — but
+it is licensed <strong>CC BY-NC 4.0 (non-commercial)</strong>. ⚠️
+<strong>I will not copy its code into SEVA·GIS.</strong> I will
+re-implement the physics and motion behaviour in our own words and our
+own code, and credit it in the README.</td>
+</tr>
+<tr>
+<td><code>dietrichgebert/ponytail</code></td>
+<td><strong>Exists</strong>, but it is a <em>prompt-only agent
+skill</em>, not a fit-to-viewport library. The useful part is the “fit
+the container, don’t stretch the content” rule — which is exactly your
+AOI fit-to-screen requirement.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What a browser-first GIS actually needs at runtime</strong> —
+and none of it is on your list, so I am naming it honestly:
+<code>turf.js</code> (geometry), <code>geotiff.js</code> (reading real
+GeoTIFFs), <code>proj4js</code> (coordinate systems),
+<code>deck.gl</code> (large-layer rendering), <code>maplibre-gl</code>
+and <code>leaflet</code> (already in the project), and the
+<code>paulvollmer/waterline</code> pattern for client-side raster work.
+These are the real runtime dependencies; your list supplies the
+<em>standards to meet</em>.</p>
+<h3 id="a.-design-motion-and-interface">A. Design, motion and
+interface</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>What it really is</th>
+<th>Role</th>
+<th>What is concretely liftable into SEVA·GIS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><a href="https://github.com/feitangyuan/motion-web">feitangyuan/motion-web</a></td>
+<td>A Claude agent skill for motion-first creative sites on vanilla
+Three.js / Canvas 2D / WebGL / CSS, with real physics and automated
+verification. <strong>Licence: CC BY-NC 4.0
+(non-commercial).</strong></td>
+<td>pattern — <strong>code must not be copied</strong></td>
+<td>Physics-driven sign-in background and 3D tilt cards,
+<strong>re-implemented in our own code</strong>; the <em>automated
+verification</em> habit (prove the motion works, don’t assume)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://github.com/nateherkai/scroll-craft">nateherkai/scroll-craft</a></td>
+<td>Scroll-experience crafting skill</td>
+<td>pattern</td>
+<td>Smooth scroll feel, scroll-spy that highlights the section you are
+actually reading, reveal-on-scroll</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://github.com/dietrichgebert/ponytail">dietrichgebert/ponytail</a></td>
+<td><strong>Exists.</strong> A prompt-only agent skill for fluid,
+fit-to-viewport layout — not a library</td>
+<td>pattern</td>
+<td>The rule itself: “fit the container, don’t stretch the content” —
+exactly the AOI fit-to-screen requirement</td>
+</tr>
+<tr>
+<td>4</td>
+<td><a href="https://github.com/cathrynlavery/diagram-design">cathrynlavery/diagram-design</a></td>
+<td>Diagram design guidance</td>
+<td>pattern</td>
+<td>README and in-app diagram quality</td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://github.com/storytold/designcraft">storytold/designcraft</a></td>
+<td><strong>Exists.</strong> A Rust / <code>egui</code> desktop
+application in the ArtCraft suite (Wasm build, alpha, MIT/Apache-2.0) —
+<strong>not a browser library</strong></td>
+<td>pattern</td>
+<td>Palettes, legend typography, visual hierarchy — study the thinking,
+not the code</td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://github.com/storytold/effectcraft">storytold/effectcraft</a></td>
+<td><strong>Exists.</strong> Same ArtCraft suite, Rust/<code>egui</code>
+desktop app, alpha — not a browser library</td>
+<td>pattern</td>
+<td>Raster contrast, resampling look, card transitions</td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://github.com/storytold/gridcraft">storytold/gridcraft</a></td>
+<td><strong>Exists.</strong> Same ArtCraft suite, Rust/<code>egui</code>
+desktop app, alpha — not a browser library</td>
+<td>pattern</td>
+<td>Coordinate grids and neatlines on report maps</td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://github.com/storytold/vectorcraft">storytold/vectorcraft</a></td>
+<td><strong>Exists.</strong> Same ArtCraft suite, Rust/<code>egui</code>
+desktop app, alpha — not a browser library</td>
+<td>pattern</td>
+<td>Clean AOI boundary rendering, crisp map furniture</td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://github.com/storytold/pdfcraft">storytold/pdfcraft</a></td>
+<td><strong>Exists.</strong> Same ArtCraft suite, Rust/<code>egui</code>
+desktop app, alpha — not a browser library</td>
+<td>pattern</td>
+<td>The PDF workbench — belongs <strong>inside Reports
+only</strong></td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://github.com/twostraws/swiftui-agent-skill">twostraws/swiftui-agent-skill</a></td>
+<td>SwiftUI agent skill</td>
+<td>pattern</td>
+<td>Reactive-UI conventions only; <strong>cannot</strong> be used in a
+React web app</td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="https://github.com/expo/skills">expo/skills</a></td>
+<td>Expo / React Native skills</td>
+<td>dev-tooling</td>
+<td>Touch and small-screen behaviour ideas</td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="https://github.com/heygen-com/hyperframes">heygen-com/hyperframes</a></td>
+<td>Frame/animation tooling for docs</td>
+<td>pattern</td>
+<td>Animated README visuals <strong>only</strong> — never on-screen
+captions</td>
+</tr>
+<tr>
+<td>13</td>
+<td><a href="https://github.com/pbakaus/impeccable">pbakaus/impeccable</a></td>
+<td>A frontend design skill that mechanically detects slop</td>
+<td>dev-tooling</td>
+<td>Final design audit pass; produces a findings list</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b.-engineering-quality-performance-security">B. Engineering
+quality, performance, security</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>What it really is</th>
+<th>Role</th>
+<th>What is concretely liftable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>14</td>
+<td><a href="https://github.com/addyosmani/agent-skills">addyosmani/agent-skills</a></td>
+<td>Web-performance engineering skills</td>
+<td>dev-tooling</td>
+<td>The exact fixes for your lag: Web Workers,
+<code>startTransition</code>, lazy mount,
+<code>AbortController</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td><a href="https://github.com/affaan-m/ecc">affaan-m/ecc</a></td>
+<td>Engineering standards / conventions</td>
+<td>dev-tooling</td>
+<td>Code standards, review gates</td>
+</tr>
+<tr>
+<td>16</td>
+<td><a href="https://github.com/alibaba/open-code-review">alibaba/open-code-review</a></td>
+<td>Automated code review</td>
+<td>dev-tooling</td>
+<td>Dead-code and duplication sweep</td>
+</tr>
+<tr>
+<td>17</td>
+<td><a href="https://github.com/mukul975/anthropic-cybersecurity-skills">mukul975/anthropic-cybersecurity-skills</a></td>
+<td>Security skills</td>
+<td>dev-tooling</td>
+<td>GeoJSON/input validation, secret handling (the leaked EmailOctopus
+key)</td>
+</tr>
+<tr>
+<td>18</td>
+<td><a href="https://github.com/thedaviddias/front-end-checklist">thedaviddias/front-end-checklist</a></td>
+<td>The front-end quality checklist</td>
+<td>dev-tooling</td>
+<td>Release gate checklist</td>
+</tr>
+<tr>
+<td>19</td>
+<td><a href="https://github.com/mattpocock/skills">mattpocock/skills</a></td>
+<td>“Skills for real engineers” from a real <code>.agents</code>
+directory</td>
+<td>dev-tooling</td>
+<td>The final verification pass you asked for</td>
+</tr>
+<tr>
+<td>20</td>
+<td><a href="https://github.com/browser-use/browser-use">browser-use/browser-use</a></td>
+<td>Browser automation agent</td>
+<td>dev-tooling</td>
+<td>Driving the app in a real browser to count the lag episodes</td>
+</tr>
+<tr>
+<td>21</td>
+<td><a href="https://github.com/thedotmack/claude-mem">thedotmack/claude-mem</a></td>
+<td>Persistent memory for agents</td>
+<td>pattern</td>
+<td>Keeping state across sessions — in the browser we use IndexedDB
+instead</td>
+</tr>
+<tr>
+<td>22</td>
+<td><a href="https://github.com/chenxiachan/thoughtdag">chenxiachan/thoughtdag</a></td>
+<td>Graph/thought structuring work</td>
+<td>pattern</td>
+<td>Two things you named explicitly: <strong>native
+localization</strong> and <strong>Web Worker raster
+processing</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="c.-agents-automation-data">C. Agents, automation, data</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>What it really is</th>
+<th>Role</th>
+<th>What is concretely liftable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>23</td>
+<td><a href="https://github.com/langchain-ai/langchain">langchain-ai/langchain</a></td>
+<td>LLM application framework (Python/JS)</td>
+<td>not-relevant at runtime</td>
+<td>Only if a real server-side LLM need appears; SEVA·GIS is
+browser-first</td>
+</tr>
+<tr>
+<td>24</td>
+<td><a href="https://github.com/crewaiinc/crewai">crewaiinc/crewai</a></td>
+<td>Multi-agent orchestration framework (Python)</td>
+<td>dev-tooling</td>
+<td>Our development workflow roles; cannot ship in the browser</td>
+</tr>
+<tr>
+<td>25</td>
+<td><a href="https://github.com/sickn33/agentic-awesome-skills">sickn33/agentic-awesome-skills</a></td>
+<td>A large agent-skill library</td>
+<td>dev-tooling</td>
+<td>Skill selection</td>
+</tr>
+<tr>
+<td>26</td>
+<td><a href="https://github.com/code-yeongyu/oh-my-openagent">code-yeongyu/oh-my-openagent</a></td>
+<td>Agent orchestration</td>
+<td>dev-tooling</td>
+<td>Workflow patterns</td>
+</tr>
+<tr>
+<td>27</td>
+<td><a href="https://github.com/firecrawl/firecrawl">firecrawl/firecrawl</a></td>
+<td>Web scraping API</td>
+<td>not-relevant at runtime</td>
+<td>Open-data scraping during development only</td>
+</tr>
+<tr>
+<td>28</td>
+<td><a href="https://github.com/apify/apify-mcp-server">apify/apify-mcp-server</a></td>
+<td>Scraping MCP server</td>
+<td>not-relevant at runtime</td>
+<td>Dev-time data collection only</td>
+</tr>
+<tr>
+<td>29</td>
+<td><a href="https://github.com/supabase/agent-skills">supabase/agent-skills</a></td>
+<td>Supabase skills</td>
+<td>dev-tooling</td>
+<td>Only if you later want cross-device sync (you said: not now)</td>
+</tr>
+<tr>
+<td>30</td>
+<td><a href="https://github.com/anthropics/knowledge-work-plugins">anthropics/knowledge-work-plugins</a></td>
+<td>Knowledge-work plugins</td>
+<td>pattern</td>
+<td>Documentation structure, audience definition</td>
+</tr>
+</tbody>
+</table>
+<h3 id="d.-documentation-and-language">D. Documentation and
+language</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>What it really is</th>
+<th>Role</th>
+<th>What is concretely liftable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>31</td>
+<td><a href="https://github.com/dair-ai/prompt-engineering-guide">dair-ai/prompt-engineering-guide</a></td>
+<td>Prompt-engineering reference</td>
+<td>dev-tooling</td>
+<td>Writing natural Telugu/Hindi instead of translated-sounding
+text</td>
+</tr>
+<tr>
+<td>32</td>
+<td><a href="https://github.com/blader/humanizer">blader/humanizer</a></td>
+<td>Removes machine-generated tone from writing</td>
+<td>pattern</td>
+<td>Directly fixes “translated-sounding” report text</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e.-the-engines-to-reverse-engineer">E. The engines to
+reverse-engineer</h3>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>What it really is</th>
+<th>Role</th>
+<th>What is concretely liftable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>33</td>
+<td><a href="https://github.com/orgs/qgis/repositories">QGIS
+repositories</a></td>
+<td>The QGIS open-source GIS organisation</td>
+<td>upstream</td>
+<td>Raster clip by extent/mask, zonal statistics, terrain analysis, GDAL
+resampling, symbology, classification</td>
+</tr>
+<tr>
+<td>34</td>
+<td><a href="https://github.com/Esri">Esri</a></td>
+<td>ArcGIS vendor organisation</td>
+<td>upstream</td>
+<td>Cartographic furniture: scale bar, north arrow, legend layout,
+neatlines, collision-free placement</td>
+</tr>
+<tr>
+<td>35</td>
+<td><a href="https://github.com/mathworks">mathworks</a></td>
+<td>MATLAB vendor organisation</td>
+<td>upstream</td>
+<td>Numerical methods: smoothing, curve fitting, sensitivity analysis,
+colormaps — <strong>re-implemented in JavaScript</strong></td>
+</tr>
+<tr>
+<td>36</td>
+<td><a href="https://github.com/gee-community">gee-community</a></td>
+<td>Google Earth Engine community</td>
+<td>upstream</td>
+<td>LULC classification, zonal statistics, index computation, time
+series</td>
+</tr>
+<tr>
+<td>37</td>
+<td><a href="https://github.com/morluto/rea">morluto/rea</a></td>
+<td>“Reverse engineer anything with agents”</td>
+<td>dev-tooling</td>
+<td><strong>The method</strong> used to turn 33–36 into our own
+code</td>
+</tr>
+<tr>
+<td>—</td>
+<td>Microsoft Planetary Computer</td>
+<td>Second open satellite data source</td>
+<td>runtime</td>
+<td>Sentinel-2 / DEM tiles alongside Earth Engine</td>
+</tr>
+<tr>
+<td>—</td>
+<td><strong>Target: <a href="https://github.com/virahitvin8/seva-gis">virahitvin8/seva-gis</a></strong></td>
+<td><strong>SEVA·GIS itself</strong></td>
+<td>target</td>
+<td>The product being built</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e.1-what-reverse-engineer-qgis-and-earth-engine-concretely-means">1.E.1
+What “reverse-engineer QGIS and Earth Engine” concretely means</h3>
+<p>Since QGIS and Earth Engine supply <em>specifications</em>, not code,
+here is the exact list I will implement in our own TypeScript. This is
+the substance behind change items 66, 67 and 70.</p>
+<p><strong>From QGIS — eight algorithms, all implementable in the
+browser:</strong></p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Algorithm</th>
+<th>What it gives the user</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Slope</strong></td>
+<td>Steepness in degrees — erosion and machine-access screening</td>
+<td>3×3 Horn kernel over a <code>Float32Array</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Aspect</strong></td>
+<td>Which way the ground faces, 0–360°</td>
+<td>same kernel, different output</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Hillshade</strong></td>
+<td>Shaded relief that makes terrain readable</td>
+<td>azimuth 300°, altitude 40°</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Ruggedness index</strong> (Riley 1999)</td>
+<td>How broken the ground is — a machine-access proxy</td>
+<td>centre cell vs its 8 neighbours</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Fill sinks</strong> (Wang &amp; Liu 2006)</td>
+<td>A hydrologically sound DEM — the entry point to real drainage
+analysis</td>
+<td>priority-flood fill</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Zonal statistics</strong></td>
+<td>Mean / min / max / sum / stdev inside the AOI</td>
+<td>reducer over the loaded raster</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Clip raster by mask</strong> +
+<strong>warp/reproject</strong></td>
+<td>The clipped AOI map you asked for, in the right CRS</td>
+<td>windowed reads + <code>proj4js</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>IDW interpolation</strong> and <strong>contour
+extraction</strong></td>
+<td>Contours and surfaces from the DEM</td>
+<td>inverse-distance weighting; marching squares</td>
+</tr>
+</tbody>
+</table>
+<p><em>Vector operations</em> — buffer, dissolve, clip, intersect,
+difference, convex hull, simplify, centroid, bounding box, isochrones —
+come from <code>@turf/*</code>, not from porting QGIS.</p>
+<p><strong>From gee-community — what is real, and what is only
+Python:</strong> the community stack is overwhelmingly Python/Jupyter
+and <strong>all heavy computation happens on Earth Engine’s
+servers</strong>. So the architecture to copy is <em>thin client, heavy
+remote compute</em> — which is already what SEVA·GIS does through
+<code>backend/main.py</code>. The genuinely liftable assets are
+<code>ee-palettes</code> (curated NDVI/NDWI/elevation colour ramps that
+agronomists already recognise), the cloud-masking and composite
+<em>recipes</em>, and the task-queue/monitoring pattern for long jobs
+such as a 12-month Sentinel-2 composite over many fields.</p>
+<pre class="mermaid"><code>graph LR
+    Q[QGIS&lt;br/&gt;clip, zonal, terrain, GDAL] --&gt; REA[morluto/rea&lt;br/&gt;reverse-engineering method]
+    E[Esri&lt;br/&gt;cartographic furniture] --&gt; REA
+    M[MathWorks / MATLAB&lt;br/&gt;numerical methods] --&gt; REA
+    G[gee-community&lt;br/&gt;GEE algorithms] --&gt; REA
+    P[Planetary Computer&lt;br/&gt;second data source] --&gt; REA
+    REA --&gt; S[SEVA·GIS&lt;br/&gt;our own TypeScript implementation]
+    D[motion-web, scroll-craft,&lt;br/&gt;pdfcraft, gridcraft, vectorcraft,&lt;br/&gt;designcraft, effectcraft] --&gt; UI[Interface layer]
+    UI --&gt; S</code></pre>
+<hr />
+<h2 id="part-2-every-change-you-asked-for-the-counted-ledger">Part 2 —
+Every change you asked for (the counted ledger)</h2>
+<p><strong>Legend for “Now”</strong></p>
+<table>
+<thead>
+<tr>
+<th>Mark</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅</td>
+<td>Done <strong>and verified</strong> (names the check)</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>Partly done; the honest remainder is stated</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>Agreed, not started</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>Blocked on a decision or an account I cannot inspect</td>
+</tr>
+</tbody>
+</table>
+<h3 id="a.-repository-and-readme-14-items">A. Repository and README (14
+items)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐</td>
+<td>01</td>
+<td>Remove the Viva-defense documents from the repository</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>02</td>
+<td>Remove <code>generate_viva_defense_doc.py</code> and its helper
+scripts</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>03</td>
+<td>Keep only the files needed for the app and the server to run</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>04</td>
+<td>README: remove the multi-language README listing</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>05</td>
+<td>README: remove the academic Viva link next to the backend API
+docs</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>06</td>
+<td>README: the “Precision Agriculture Interactive GIS Terminal” image
+is corrupted — fix it</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>07</td>
+<td>README: replace that text block with a real flowchart for the
+Precision Correction Tool</td>
+<td>design</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>08</td>
+<td>README: flowchart for the architecture and how SEVA·GIS works</td>
+<td>design</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>09</td>
+<td>README: remove the project folder-structure tree</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>10</td>
+<td>README: remove the “StoryTold ArtCraft Creative Studio Suite”
+section</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>11</td>
+<td>README: replace it with credits → QGIS, Esri, MathWorks, GEE,
+<code>rea</code>, target</td>
+<td>design</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>12</td>
+<td>README: state clearly who the target users are</td>
+<td>design</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>13</td>
+<td>README: animated visuals (hyperframes)</td>
+<td>design</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>14</td>
+<td>Motion credits live in README/CREDITS only — never as on-screen
+captions</td>
+<td>removal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b.-sign-in-page-6">B. Sign-in page (6)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅</td>
+<td>15</td>
+<td>Remove the “Motion-First / WebGL / Real Physics” caption</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>16</td>
+<td>The whole page uses the physics background, not just one block</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>17</td>
+<td>The four “Everything you need to know about SEVA·GIS” boxes become
+3D cards</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>18</td>
+<td>Methodology heading → “SEVA·GIS Methodology &amp; Research” (drop
+“Scientific”, “Thesis”)</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>19</td>
+<td>“Full Web Guide” opens the whole journey, start to finish</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>20</td>
+<td>Scroll-craft feel across the whole site</td>
+<td>redesign</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c.-shell-header-navigation-mitra-14">C. Shell, header,
+navigation, Mitra (14)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🚧</td>
+<td>21</td>
+<td>“Pop the Team” becomes a 3D git-graph toggle</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>22</td>
+<td>Remove “Craft” from the header and dashboard</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>23</td>
+<td>Remove the dead “Layout” control</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>24</td>
+<td>One single Log Out only</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>25</td>
+<td>Sidebar highlights the section you are actually reading</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>26</td>
+<td>Mitra step 4 shows the wrong panel</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>27</td>
+<td>Mitra steps 5, 6, VAR and Reports point at nothing</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>28</td>
+<td>Mitra points at the single Log Out</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>29</td>
+<td>Mitra takes 5–10 s per step</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>30</td>
+<td>Mitra updated after every change</td>
+<td>process</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>31</td>
+<td>Language switch: English would not come back</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>32</td>
+<td>Header text translates too</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>33</td>
+<td>“Multi-Session Candlestick Trends” → “Multi-Session Trends” (no
+candlestick mention)</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>34</td>
+<td>“Review field from home” → neutral remote wording</td>
+<td>removal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="d.-performance-all-9-page-unresponsive-episodes-7">D.
+Performance — all 9 “page unresponsive” episodes (7)</h3>
+<table>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐</td>
+<td>35</td>
+<td>Unresponsive on login when large saved areas exist</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>36</td>
+<td>Switching area freezes the page</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>37</td>
+<td>Raster work moved off the main thread (Web Worker)</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>38</td>
+<td>Old layers and fetches cleaned up on area switch</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>39</td>
+<td>Report generation hangs</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>40</td>
+<td>GeoAI Studio is slow to open</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>41</td>
+<td>Focus mode cannot be scrolled</td>
+<td>bug</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e.-map-behaviour-and-cartography-24">E. Map behaviour and
+cartography (24)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🚧</td>
+<td>42</td>
+<td>Main map default zoom 13</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>43</td>
+<td>Every remote-field-review map at zoom 19</td>
+<td>change</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>44</td>
+<td>Every report map at zoom 19–20 or fitted to the AOI</td>
+<td>change</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>45</td>
+<td>AOI fills ~75% of the screen, fitted — not stretched</td>
+<td>change</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>46</td>
+<td>AOI always in the middle</td>
+<td>change</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>47</td>
+<td>No fake blur; native pixels from the source</td>
+<td>decision</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>48</td>
+<td>A 1.5 lakh-hectare AOI shows only part of the land</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>49</td>
+<td>Title, scale, north arrow, legend, coordinates never overlap the AOI
+— shrink them automatically until they fit</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>50</td>
+<td>Double-click scale / north arrow / coordinates to adjust them</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>51</td>
+<td>A sliding window (“loupe”) that reveals points only where the cursor
+is</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>52</td>
+<td>A loading tracer travelling around the AOI boundary</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>53</td>
+<td>Map goes black after lock / unlock / refresh / reset</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>54</td>
+<td>Canvas solid black / solid white do nothing</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>55</td>
+<td>“Farm background canvas” → “Background canvas”</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>56</td>
+<td>AOI clipping actually works (shapefile, or clip by extent, on a
+chosen background)</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>57</td>
+<td>Spectral groups 3 / 4 / 5 do nothing; all numbers show at once</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>58</td>
+<td>Per-map control for how many numbers to show</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>59</td>
+<td>QGIS/ArcMap-style layer dock</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>60</td>
+<td>Carto frame title = the selected layer; editable by
+double-click</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>61</td>
+<td>Download button beside the map (PNG, GeoTIFF, …)</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>62</td>
+<td>Every generated map downloadable as GeoTIFF (openable in
+QGIS/ArcMap)</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>63</td>
+<td>Choosing borewell or pipeline must not switch on the meter tape</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>64</td>
+<td>Borewell / pipeline automatic identification with on/off
+control</td>
+<td>decision</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>65</td>
+<td>An “Identify” button beside borewell and pipeline</td>
+<td>decision</td>
+</tr>
+</tbody>
+</table>
+<h3 id="f.-parameters-symbology-tools-7">F. Parameters, symbology, tools
+(7)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>☐</td>
+<td>66</td>
+<td>Per-parameter symbology and band combinations, with guidance on
+which to choose</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>67</td>
+<td>Many more parameters: DEM, slope, aspect, contour, streams, rivers,
+lakes, drainage, minerals, SAR, water quality, radiance→DN</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>68</td>
+<td>Many more tools and symbology combinations, without confusion</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>69</td>
+<td>Remove the cadastre section</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>70</td>
+<td>Everything we can do in QGIS + Earth Engine + Planetary Computer,
+across all domains, not only agriculture</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>71</td>
+<td>Choose the analysis intent when adding an area; the dashboard
+follows that intent</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>72</td>
+<td>Remove the manual “Crop Check”</td>
+<td>removal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="g.-insight-cards-agronomy-weather-soil-terrain-17">G. Insight
+cards, agronomy, weather, soil, terrain (17)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🚧</td>
+<td>73</td>
+<td>Metric boxes show only one big number / percentage</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>74</td>
+<td>Click → a card flips in the middle of the screen</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>75</td>
+<td>Same treatment for Agronomy, Weather, Soil, Terrain, Water</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>76</td>
+<td>The flipped side is informative: charts, pie/Venn, figures</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>77</td>
+<td>The flipped side offers the source data download</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>78</td>
+<td>Soil and terrain disclose where the data came from and when</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>79</td>
+<td>Say what the minimum and maximum should be, why it is 32%, and what
+happens if it is more or less</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>80</td>
+<td>Rainfall: is 0.67 mm enough? Should I irrigate?</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>81</td>
+<td>Explain every scientific term used</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>82</td>
+<td>Explain what the green / yellow / red satellite-pass colours
+mean</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>83</td>
+<td>No “explain like a friend” captions — just explain, simply</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>84</td>
+<td>Neutral wording bound to the area of interest, never “you, you,
+you”</td>
+<td>redesign</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>85</td>
+<td>Climate charts interactive: hover shows the value and what it
+means</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>86</td>
+<td>Crops grouped by category with local priority; clicking a scale box
+shows the calculation</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>87</td>
+<td>Remove land passbook / land registry / cadastral / demo data</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>88</td>
+<td>Remove the Agronomy Season Calendar</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>89</td>
+<td>Yield forecast appears only for agricultural intent</td>
+<td>feature</td>
+</tr>
+</tbody>
+</table>
+<h3 id="h.-water-and-hydrology-5">H. Water and hydrology (5)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅</td>
+<td>90</td>
+<td>Remove <strong>all</strong> Vaiganga basin content</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>91</td>
+<td>Water Plan / Model Estimate: remove it, or make it fully
+automatic</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>92</td>
+<td>The SWAT-style cycle, table and figure must recompute for the
+selected AOI — never static</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>93</td>
+<td>Calibration and sensitivity charts per AOI; explain alpha factors
+behind a toggle</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>94</td>
+<td>The annual water budget depends only on the selected AOI</td>
+<td>feature</td>
+</tr>
+</tbody>
+</table>
+<h3 id="i.-geo-toolkit-2">I. Geo toolkit (2)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅</td>
+<td>95</td>
+<td>Remove VRA, Point Checker, Offset, Converters, WKT Reader</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>96</td>
+<td>Buffer moves into the toolbox, asks for m or km, and draws
+itself</td>
+<td>feature</td>
+</tr>
+</tbody>
+</table>
+<h3 id="j.-reports-29">J. Reports (29)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅</td>
+<td>97</td>
+<td>The PDF workbench lives inside Reports only</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>98</td>
+<td>Report lists every parameter, tickable and grouped</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>99</td>
+<td>Remote-review maps can be ticked into the report</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>100</td>
+<td>PDF download produces 0 KB</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>101</td>
+<td>The downloaded PDF matches the preview</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>102</td>
+<td>Add Word (.docx) beside HTML / PDF / JSON</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>103</td>
+<td>Download is slow — show a loading indicator</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>104</td>
+<td>The greeting appears before the email is actually sent</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>105</td>
+<td>EmailOctopus says connected but nothing arrives</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>106</td>
+<td>Greeting uses the logged-in name; drop “custodian”</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>107</td>
+<td>The user chooses the attachment format</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>108</td>
+<td>Remove the copy-greeting card and the “SWAT telemetry” wording</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>109</td>
+<td>Improve the greeting card visually</td>
+<td>design</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>110</td>
+<td>Cover says “Study Area”, not “farm oblique study area”</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>111</td>
+<td>Remove the “confidential and proprietary” line</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>112</td>
+<td>The audience line includes non-technical users</td>
+<td>design</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>113</td>
+<td>Darker watermark and logo</td>
+<td>design</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>114</td>
+<td>Replace the text stamp with the GIS logo as the stamp</td>
+<td>design</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>115</td>
+<td>Telugu / Hindi translate the <strong>whole</strong> report, not just
+the heading</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>116</td>
+<td>Natural native wording, not machine-translated</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>117</td>
+<td>Location map = clipped AOI, fitted to screen</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>118</td>
+<td>DEM / LULC / Soil / Water maps clipped and actually analysed, not
+plain images</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>119</td>
+<td>LULC is not classified at all</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>120</td>
+<td>Fix the legends: NDVI, BSI, slope, contour, TWI, CIR, SWIR−NIR and
+the rest</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>121</td>
+<td>Remove or explain the unclear “LSWAT” legend</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>122</td>
+<td>Report scale bars unreadable</td>
+<td>bug</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>123</td>
+<td>Results &amp; Discussion: many more maps and charts,
+MATLAB-style</td>
+<td>feature</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>124</td>
+<td>Remove the cadastral section from the report</td>
+<td>removal</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>125</td>
+<td>Remove all Vaiganga content from reports</td>
+<td>removal</td>
+</tr>
+</tbody>
+</table>
+<h3 id="k.-process-6">K. Process (6)</h3>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Now</th>
+<th>ID</th>
+<th>Change</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🚧</td>
+<td>126</td>
+<td>Plan approved before building</td>
+<td>process</td>
+</tr>
+<tr>
+<td>✅</td>
+<td>127</td>
+<td>A live checklist, updated per item</td>
+<td>process</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>128</td>
+<td>Supabase only if genuinely needed</td>
+<td>decision</td>
+</tr>
+<tr>
+<td>☐</td>
+<td>129</td>
+<td>Verify with mattpocock/skills + the front-end checklist</td>
+<td>process</td>
+</tr>
+<tr>
+<td>🚧</td>
+<td>130</td>
+<td>Push to Git and update the README</td>
+<td>process</td>
+</tr>
+<tr>
+<td>⛔</td>
+<td>131</td>
+<td>Give the user working public sharing links</td>
+<td>process</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-11-things-you-said-are-already-fine-do-not-touch">The 11
+things you said are already fine — do not touch</h3>
+<p>Add-area form · Quick guide · My farms · Focus map (main map at zoom
+13) · Time-lapse · the detachable layer box · Symbology resampling
+(cubic / bilinear / nearest neighbour) · Grid · Auto-construct · Alerts
+· the hydrology table (once Vaiganga-free).</p>
+<hr />
+<h2 id="part-3-the-comparison-change-which-repo-supplies-it">Part 3 —
+The comparison: change ← which repo supplies it</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Change IDs</th>
+<th>Taken from</th>
+<th>How it is actually implemented</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>15–17, 20</td>
+<td>motion-web, scroll-craft</td>
+<td>Full-viewport physics canvas; CSS-3D tilt cards; smooth scroll;
+<strong>no captions</strong></td>
+</tr>
+<tr>
+<td>21, 74–76, 109</td>
+<td>designcraft, effectcraft, motion-web</td>
+<td>CSS-3D flip, centred overlay, richer flipped side</td>
+</tr>
+<tr>
+<td>25</td>
+<td>scroll-craft</td>
+<td>Scroll-spy via <code>IntersectionObserver</code></td>
+</tr>
+<tr>
+<td>30, 41, 53, 63</td>
+<td>diagnosing-bugs, addyosmani/agent-skills</td>
+<td>Find the real cause before changing anything</td>
+</tr>
+<tr>
+<td>35–41</td>
+<td>addyosmani/agent-skills, ecc, thoughtdag</td>
+<td>Web Workers, lazy mount, <code>startTransition</code>,
+<code>AbortController</code></td>
+</tr>
+<tr>
+<td>42–48</td>
+<td>ponytail, Esri</td>
+<td>Fit-to-bounds, fixed zoom rules, centre lock, “fit don’t
+stretch”</td>
+</tr>
+<tr>
+<td>49, 60, 122, 61, 50</td>
+<td>diagram-design, Esri, gridcraft</td>
+<td>Collision-aware furniture, graticules, editable furniture</td>
+</tr>
+<tr>
+<td>51, 52, 57, 58, 82, 85</td>
+<td>scroll-craft, motion-web</td>
+<td>Loupe window, boundary tracer, label toggle, interactive charts</td>
+</tr>
+<tr>
+<td>56, 59, 62, 66, 67, 70</td>
+<td>QGIS, GEE, Planetary Computer, <code>rea</code></td>
+<td>Layer dock, clip-by-extent, GeoTIFF writer, band combos, parameter
+library</td>
+</tr>
+<tr>
+<td>64, 65</td>
+<td><code>rea</code> + QGIS</td>
+<td>Terrain low-point and linear-feature detection, labelled
+<strong>candidate</strong></td>
+</tr>
+<tr>
+<td>92–94, 123</td>
+<td>MathWorks + <code>rea</code></td>
+<td>SCS-CN water balance, smoothing, sensitivity recomputed per AOI</td>
+</tr>
+<tr>
+<td>97–104, 107, 117, 118</td>
+<td>pdfcraft, vectorcraft, gridcraft</td>
+<td>Reports-only workbench, real PDF from the preview, DOCX, clipped
+maps</td>
+</tr>
+<tr>
+<td>115, 116, 81</td>
+<td>humanizer, prompt-engineering-guide</td>
+<td>Hand-written native vocabulary; whole report localised; every term
+explained</td>
+</tr>
+<tr>
+<td>119, 120, 121</td>
+<td>GEE, QGIS</td>
+<td>Real Sentinel-2 LULC classification; readable legends</td>
+</tr>
+<tr>
+<td>01–14</td>
+<td>diagram-design, hyperframes, knowledge-work-plugins</td>
+<td>README only</td>
+</tr>
+<tr>
+<td>129, 130, 127</td>
+<td>mattpocock/skills, front-end-checklist, impeccable</td>
+<td>Final audit and release gate</td>
+</tr>
+<tr>
+<td>128</td>
+<td>supabase/agent-skills</td>
+<td>Only if cross-device sync is truly needed</td>
+</tr>
+<tr>
+<td><strong>not used at runtime</strong></td>
+<td>firecrawl, langchain, crewai, apify, browser-use, expo/skills,
+swiftui-agent-skill</td>
+<td>Development-time tooling only</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What this tells us:</strong> 5 repositories do the heavy
+lifting — <strong>QGIS</strong> (algorithms), <strong>Esri</strong>
+(cartography), <strong>MathWorks</strong> (numerics),
+<strong>gee-community</strong> (classification), and
+<strong><code>rea</code></strong> (the method that converts the other
+four into our own TypeScript). The design repos change <em>how it
+feels</em>; the agent-skill repos change <em>how we work</em>.</p>
+<hr />
+<h2 id="part-4-how-i-understood-it-as-a-flowchart">Part 4 — How I
+understood it, as a flowchart</h2>
+<figure>
+<img role="img" aria-label="SEVA·GIS — how the instruction was understood: your idea, what I understood, what changes and where" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNTAwIDEwMTAiIHdpZHRoPSIxNTAwIiBoZWlnaHQ9IjEwMTAiIGZvbnQtZmFtaWx5PSJTZWdvZSBVSSwgQXJpYWwsIHNhbnMtc2VyaWYiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnMSIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZjJmYmY1Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZTJmNGU5Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnMiIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZWVmNWZmIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZGZlYWZmIi8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnMyIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmZmN2VjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZlZGQ2Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogICAgPG1hcmtlciBpZD0iYXJyb3ciIHZpZXdCb3g9IjAgMCAxMiAxMiIgcmVmWD0iMTAiIHJlZlk9IjYiIG1hcmtlcldpZHRoPSI5IiBtYXJrZXJIZWlnaHQ9IjkiIG9yaWVudD0iYXV0by1zdGFydC1yZXZlcnNlIj4KICAgICAgPHBhdGggZD0iTSAwIDAgTCAxMiA2IEwgMCAxMiB6IiBmaWxsPSIjMmY2YjRmIi8+CiAgICA8L21hcmtlcj4KICAgIDxmaWx0ZXIgaWQ9InNvZnQiIHg9Ii04JSIgeT0iLTglIiB3aWR0aD0iMTE2JSIgaGVpZ2h0PSIxMjAlIj4KICAgICAgPGZlRHJvcFNoYWRvdyBkeD0iMCIgZHk9IjMiIHN0ZERldmlhdGlvbj0iNCIgZmxvb2QtY29sb3I9IiMxMjMiIGZsb29kLW9wYWNpdHk9IjAuMTQiLz4KICAgIDwvZmlsdGVyPgogIDwvZGVmcz4KCiAgPHJlY3Qgd2lkdGg9IjE1MDAiIGhlaWdodD0iMTAxMCIgZmlsbD0iI2ZmZmZmZiIvPgogIDx0ZXh0IHg9IjUwIiB5PSI1MiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzE0MzQyYSI+U0VWQcK3R0lTIOKAlCBIb3cgSSB1bmRlcnN0b29kIHlvdXIgaW5zdHJ1Y3Rpb248L3RleHQ+CiAgPHRleHQgeD0iNTAiIHk9IjgyIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNWE2YjY0Ij5UaHJlZSBib3hlcywgZXhhY3RseSBhcyB5b3UgYXNrZWQ6IHlvdXIgaWRlYSDihpIgd2hhdCBJIHVuZGVyc3Rvb2Qg4oaSIHdoYXQgY2hhbmdlcywgYW5kIHdoZXJlLiBSZWFkIGxlZnQgdG8gcmlnaHQuPC90ZXh0PgoKICA8IS0tIEJPWCAxIC0tPgogIDxnIGZpbHRlcj0idXJsKCNzb2Z0KSI+CiAgICA8cmVjdCB4PSI1MCIgeT0iMTIwIiB3aWR0aD0iNDIwIiBoZWlnaHQ9IjMwMCIgcng9IjE2IiBmaWxsPSJ1cmwoI2cxKSIgc3Ryb2tlPSIjMmY2YjRmIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8L2c+CiAgPHRleHQgeD0iNzYiIHk9IjE2MCIgZm9udC1zaXplPSIxMyIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzJmNmI0ZiIgbGV0dGVyLXNwYWNpbmc9IjEuNiI+Qk9YIDEgwrcgWU9VUiBJREVBPC90ZXh0PgogIDx0ZXh0IHg9Ijc2IiB5PSIxOTYiIGZvbnQtc2l6ZT0iMTkiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMxNDM0MmEiPk9uZSB3b3Jrc3BhY2UgZm9yIGFueW9uZTwvdGV4dD4KICA8dGV4dCB4PSI3NiIgeT0iMjIyIiBmb250LXNpemU9IjE1IiBmaWxsPSIjMzM0NTNlIj53aG8gd2FudHMgdG8gY2hlY2sgYW55IHBpZWNlIG9mIGxhbmQuPC90ZXh0PgogIDxsaW5lIHgxPSI3NiIgeTE9IjI0MCIgeDI9IjQ0NCIgeTI9IjI0MCIgc3Ryb2tlPSIjYmNkOGM4IiBzdHJva2Utd2lkdGg9IjEuNCIvPgogIDx0ZXh0IHg9Ijc2IiB5PSIyNjYiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiMzMzQ1M2UiPk5vdCBqdXN0IG15IG93biBmYXJtLiBTdHVkZW50cywgZmFybWVycyw8L3RleHQ+CiAgPHRleHQgeD0iNzYiIHk9IjI4NyIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzMzNDUzZSI+cmVzZWFyY2hlcnMsIEdJUyBhbmFseXN0cywgb2ZmaWNlcnMsIGFuZDwvdGV4dD4KICA8dGV4dCB4PSI3NiIgeT0iMzA4IiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzM0NTNlIj5ub24tdGVjaG5pY2FsIGVudGh1c2lhc3RzIHdpdGggYmFzaWMgcGhvbmVzLjwvdGV4dD4KICA8dGV4dCB4PSI3NiIgeT0iMzM2IiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzM0NTNlIj5Qcmlvcml0aWVzIGNoYW5nZSB3aXRoIHRoZSBhbmFseXNpcyBpbnRlbnQ6PC90ZXh0PgogIDx0ZXh0IHg9Ijc2IiB5PSIzNTciIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiMzMzQ1M2UiPndhdGVyIHF1YWxpdHkg4omgIHN0cmVhbXMg4omgIGNyb3AgaGVhbHRoLjwvdGV4dD4KICA8dGV4dCB4PSI3NiIgeT0iMzkyIiBmb250LXNpemU9IjE0IiBmb250LXN0eWxlPSJpdGFsaWMiIGZpbGw9IiMyZjZiNGYiPiJTaG93IG1lIHlvdSB1bmRlcnN0b29kIGJlZm9yZSB5b3UgY2hhbmdlIGl0LiI8L3RleHQ+CgogIDwhLS0gQVJST1cgMSAtLT4KICA8bGluZSB4MT0iNDc4IiB5MT0iMjcwIiB4Mj0iNTM2IiB5Mj0iMjcwIiBzdHJva2U9IiMyZjZiNGYiIHN0cm9rZS13aWR0aD0iMyIgbWFya2VyLWVuZD0idXJsKCNhcnJvdykiLz4KCiAgPCEtLSBCT1ggMiAtLT4KICA8ZyBmaWx0ZXI9InVybCgjc29mdCkiPgogICAgPHJlY3QgeD0iNTQ2IiB5PSIxMjAiIHdpZHRoPSI0MjAiIGhlaWdodD0iMzAwIiByeD0iMTYiIGZpbGw9InVybCgjZzIpIiBzdHJva2U9IiMyYjVmOWUiIHN0cm9rZS13aWR0aD0iMiIvPgogIDwvZz4KICA8dGV4dCB4PSI1NzIiIHk9IjE2MCIgZm9udC1zaXplPSIxMyIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzJiNWY5ZSIgbGV0dGVyLXNwYWNpbmc9IjEuNiI+Qk9YIDIgwrcgV0hBVCBJIFVOREVSU1RPT0Q8L3RleHQ+CiAgPHRleHQgeD0iNTcyIiB5PSIxOTYiIGZvbnQtc2l6ZT0iMTkiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiMxMDIzM2YiPkEgY29uc3VsdGFudC1ncmFkZSBhbmFseXNpczwvdGV4dD4KICA8dGV4dCB4PSI1NzIiIHk9IjIyMiIgZm9udC1zaXplPSIxNSIgZmlsbD0iIzMzNDUzZSI+b2YgYW55IGFyZWEgb2YgaW50ZXJlc3QsIGRlbGl2ZXJlZCBpbiB0aGUgYnJvd3Nlci48L3RleHQ+CiAgPGxpbmUgeDE9IjU3MiIgeTE9IjI0MCIgeDI9Ijk0MCIgeTI9IjI0MCIgc3Ryb2tlPSIjYzNkNWVlIiBzdHJva2Utd2lkdGg9IjEuNCIvPgogIDx0ZXh0IHg9IjU3MiIgeT0iMjY2IiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzM0NTNlIj7igKIgdGhlIG1hdGhzIGlzIHNob3duLCBub3QgaGlkZGVuPC90ZXh0PgogIDx0ZXh0IHg9IjU3MiIgeT0iMjg3IiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzM0NTNlIj7igKIgZXZlcnkgc291cmNlIGlzIGRhdGVkIGFuZCBuYW1lZDwvdGV4dD4KICA8dGV4dCB4PSI1NzIiIHk9IjMwOCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzMzNDUzZSI+4oCiIHRoZSBsaW1pdHMgYXJlIHN0YXRlZCBob25lc3RseTwvdGV4dD4KICA8dGV4dCB4PSI1NzIiIHk9IjMyOSIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzMzNDUzZSI+4oCiIG5vIHN0YXRpYyBkZW1vIGltYWdlcywgZXZlcjwvdGV4dD4KICA8dGV4dCB4PSI1NzIiIHk9IjM1MCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzMzNDUzZSI+4oCiIGV2ZXJ5IG1hcCBpcyBkb3dubG9hZGFibGUgKEdlb1RJRkYpPC90ZXh0PgogIDx0ZXh0IHg9IjU3MiIgeT0iMzcxIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzM0NTNlIj7igKIgZXZlcnkgbWFwIGlzIGNsaXBwZWQsIGNlbnRyZWQsIGZpdHRlZDwvdGV4dD4KICA8dGV4dCB4PSI1NzIiIHk9IjM5MiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzMzNDUzZSI+4oCiIG5vIGRlYWQgZW5kcywgbm8gZGVhZCBjb250cm9sczwvdGV4dD4KCiAgPCEtLSBBUlJPVyAyIC0tPgogIDxsaW5lIHgxPSI5NzQiIHkxPSIyNzAiIHgyPSIxMDMyIiB5Mj0iMjcwIiBzdHJva2U9IiMyZjZiNGYiIHN0cm9rZS13aWR0aD0iMyIgbWFya2VyLWVuZD0idXJsKCNhcnJvdykiLz4KCiAgPCEtLSBCT1ggMyAtLT4KICA8ZyBmaWx0ZXI9InVybCgjc29mdCkiPgogICAgPHJlY3QgeD0iMTA0MiIgeT0iMTIwIiB3aWR0aD0iNDA4IiBoZWlnaHQ9IjMwMCIgcng9IjE2IiBmaWxsPSJ1cmwoI2czKSIgc3Ryb2tlPSIjYTg2MjFiIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8L2c+CiAgPHRleHQgeD0iMTA2OCIgeT0iMTYwIiBmb250LXNpemU9IjEzIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjYTg2MjFiIiBsZXR0ZXItc3BhY2luZz0iMS42Ij5CT1ggMyDCtyBXSEFUIENIQU5HRVMsIFdIRVJFPC90ZXh0PgogIDx0ZXh0IHg9IjEwNjgiIHk9IjE5NiIgZm9udC1zaXplPSIxOSIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzNkMjUwOCI+TmFtZWQgZmlsZXMsIG5vdCB2YWd1ZSBwcm9taXNlczwvdGV4dD4KICA8bGluZSB4MT0iMTA2OCIgeTE9IjIxNiIgeDI9IjE0MjQiIHkyPSIyMTYiIHN0cm9rZT0iI2VkZDNiMyIgc3Ryb2tlLXdpZHRoPSIxLjQiLz4KICA8ZyBmb250LXNpemU9IjEzLjUiIGZpbGw9IiMzZDI1MDgiPgogICAgPHRleHQgeD0iMTA2OCIgeT0iMjQ0Ij5TcGVlZDwvdGV4dD4KICAgIDx0ZXh0IHg9IjEwNjgiIHk9IjI3MCI+TGFuZ3VhZ2U8L3RleHQ+CiAgICA8dGV4dCB4PSIxMDY4IiB5PSIyOTYiPk1hcHM8L3RleHQ+CiAgICA8dGV4dCB4PSIxMDY4IiB5PSIzMjIiPkNhcmRzPC90ZXh0PgogICAgPHRleHQgeD0iMTA2OCIgeT0iMzQ4Ij5SZXBvcnRzPC90ZXh0PgogICAgPHRleHQgeD0iMTA2OCIgeT0iMzc0Ij5QREY8L3RleHQ+CiAgICA8dGV4dCB4PSIxMDY4IiB5PSI0MDAiPlJFQURNRTwvdGV4dD4KICA8L2c+CiAgPGcgZm9udC1zaXplPSIxMi41IiBmb250LWZhbWlseT0iQ29uc29sYXMsIG1vbm9zcGFjZSIgZmlsbD0iIzdhNGExMiI+CiAgICA8dGV4dCB4PSIxMTUwIiB5PSIyNDQiPnJhc3RlclN0YXRzLndvcmtlci50czwvdGV4dD4KICAgIDx0ZXh0IHg9IjExNTAiIHk9IjI3MCI+bGliL2kxOG4udHN4PC90ZXh0PgogICAgPHRleHQgeD0iMTE1MCIgeT0iMjk2Ij5JbmRpY2F0b3JNYXAudHN4PC90ZXh0PgogICAgPHRleHQgeD0iMTE1MCIgeT0iMzIyIj5JbnNpZ2h0UGxheWluZ0NhcmRNb2RhbC50c3g8L3RleHQ+CiAgICA8dGV4dCB4PSIxMTUwIiB5PSIzNDgiPnJlcG9ydEJ1aWxkZXIudHM8L3RleHQ+CiAgICA8dGV4dCB4PSIxMTUwIiB5PSIzNzQiPmxpYi9wZGZHZW5lcmF0b3IudHM8L3RleHQ+CiAgICA8dGV4dCB4PSIxMTUwIiB5PSI0MDAiPlJFQURNRS5tZDwvdGV4dD4KICA8L2c+CgogIDwhLS0gSU5WQVJJQU5UUyBCQU5EIC0tPgogIDxyZWN0IHg9IjUwIiB5PSI0NTIiIHdpZHRoPSIxNDAwIiBoZWlnaHQ9IjIwMCIgcng9IjE2IiBmaWxsPSIjMTAzMDJhIi8+CiAgPHRleHQgeD0iNzYiIHk9IjQ4NiIgZm9udC1zaXplPSIxMyIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzdmZDZhYiIgbGV0dGVyLXNwYWNpbmc9IjEuOCI+VEhFIFRFTiBSVUxFUyBUSEFUIE1VU1QgTkVWRVIgQlJFQUsg4oCUIENIRUNLRUQgT04gRVZFUlkgU0lOR0xFIE1BUDwvdGV4dD4KICA8ZyBmb250LXNpemU9IjEzLjUiIGZpbGw9IiNlNmY1ZWUiPgogICAgPHRleHQgeD0iNzYiIHk9IjUyMCI+MSDCtyBtYWluIG1hcCB6b29tIDEzOyBldmVyeSBhbmFseXNpcyBhbmQgcmVwb3J0IG1hcCB6b29tIDE5PC90ZXh0PgogICAgPHRleHQgeD0iNzcwIiB5PSI1MjAiPjYgwrcgZXZlcnkgZ2VuZXJhdGVkIG1hcCBkb3dubG9hZHMgYXMgR2VvVElGRjwvdGV4dD4KICAgIDx0ZXh0IHg9Ijc2IiB5PSI1NDkiPjIgwrcgdGhlIGFyZWEgb2YgaW50ZXJlc3QgaXMgYWx3YXlzIGluIHRoZSBtaWRkbGU8L3RleHQ+CiAgICA8dGV4dCB4PSI3NzAiIHk9IjU0OSI+NyDCtyBub3RoaW5nIHN0YXRpYyDigJQgZXZlcnkgZmlndXJlIHJlY29tcHV0ZXMgZm9yIHRoZSBBT0k8L3RleHQ+CiAgICA8dGV4dCB4PSI3NiIgeT0iNTc4Ij4zIMK3IGZpdHRlZCB0byBhYm91dCA3NSUgb2YgdGhlIHNjcmVlbiDigJQgbmV2ZXIgc3RyZXRjaGVkPC90ZXh0PgogICAgPHRleHQgeD0iNzcwIiB5PSI1NzgiPjggwrcgZXhwbGFpbiBldmVyeSBudW1iZXI6IHdoYXQsIG1pbiwgbWF4LCB3aHksIHdoYXQgdG8gZG88L3RleHQ+CiAgICA8dGV4dCB4PSI3NiIgeT0iNjA3Ij40IMK3IHRpdGxlLCBzY2FsZSwgbm9ydGggYXJyb3csIGxlZ2VuZCwgY29vcmRpbmF0ZXMgbmV2ZXIgb3ZlcmxhcCBpdDwvdGV4dD4KICAgIDx0ZXh0IHg9Ijc3MCIgeT0iNjA3Ij45IMK3IGNyZWRpdHMgbGl2ZSBpbiB0aGUgUkVBRE1FIG9ubHkg4oCUIG5ldmVyIG9uLXNjcmVlbiBjYXB0aW9uczwvdGV4dD4KICAgIDx0ZXh0IHg9Ijc2IiB5PSI2MzYiPjUgwrcgbm8gZmFrZSBzaGFycGVuaW5nOyBzdGF0ZSB0aGUgcmVhbCBzZW5zb3IgcmVzb2x1dGlvbjwvdGV4dD4KICAgIDx0ZXh0IHg9Ijc3MCIgeT0iNjM2Ij4xMCDCtyBldmVyeW9uZSBpcyBhbiBhbmFseXN0IG9mIGFuIGFyZWEgb2YgaW50ZXJlc3Qg4oCUIG5vdCBhIGZhcm1lcjwvdGV4dD4KICA8L2c+CgogIDwhLS0gV09SS0ZMT1cgU1RSSVAgLS0+CiAgPHRleHQgeD0iNTAiIHk9IjcwMCIgZm9udC1zaXplPSIxOSIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzE0MzQyYSI+VGhlIHJlYnVpbGQgd29ya2Zsb3c8L3RleHQ+CiAgPGcgZm9udC1zaXplPSIxMi41Ij4KICAgIDxnIGZpbGw9IiNmZmZmZmYiIHN0cm9rZT0iIzJmNmI0ZiIgc3Ryb2tlLXdpZHRoPSIxLjYiPgogICAgICA8cmVjdCB4PSI1MCIgeT0iNzIyIiB3aWR0aD0iMTgwIiBoZWlnaHQ9IjU4IiByeD0iMTAiLz4KICAgICAgPHJlY3QgeD0iMjU4IiB5PSI3MjIiIHdpZHRoPSIxODAiIGhlaWdodD0iNTgiIHJ4PSIxMCIvPgogICAgICA8cmVjdCB4PSI0NjYiIHk9IjcyMiIgd2lkdGg9IjE4MCIgaGVpZ2h0PSI1OCIgcng9IjEwIi8+CiAgICAgIDxyZWN0IHg9IjY3NCIgeT0iNzIyIiB3aWR0aD0iMTgwIiBoZWlnaHQ9IjU4IiByeD0iMTAiLz4KICAgICAgPHJlY3QgeD0iODgyIiB5PSI3MjIiIHdpZHRoPSIxODAiIGhlaWdodD0iNTgiIHJ4PSIxMCIvPgogICAgICA8cmVjdCB4PSIxMDkwIiB5PSI3MjIiIHdpZHRoPSIxODAiIGhlaWdodD0iNTgiIHJ4PSIxMCIvPgogICAgICA8cmVjdCB4PSIxMjk4IiB5PSI3MjIiIHdpZHRoPSIxNTIiIGhlaWdodD0iNTgiIHJ4PSIxMCIvPgogICAgPC9nPgogICAgPGcgZmlsbD0iIzE0MzQyYSIgZm9udC13ZWlnaHQ9IjYwMCI+CiAgICAgIDx0ZXh0IHg9IjE0MCIgeT0iNzQ2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ikaAgbGlzdHMgJmFtcDsgbWFwPC90ZXh0PgogICAgICA8dGV4dCB4PSIzNDgiIHk9Ijc0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+4pGhIHlvdXIgYXBwcm92YWw8L3RleHQ+CiAgICAgIDx0ZXh0IHg9IjU1NiIgeT0iNzQ2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ikaIgYnVpbGQgaW4gd2F2ZXM8L3RleHQ+CiAgICAgIDx0ZXh0IHg9Ijc2NCIgeT0iNzQ2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ikaMgdmVyaWZ5IGJ5IGNvbW1hbmQ8L3RleHQ+CiAgICAgIDx0ZXh0IHg9Ijk3MiIgeT0iNzQ2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj7ikaQgY29tbWl0ICZhbXA7IHB1c2g8L3RleHQ+CiAgICAgIDx0ZXh0IHg9IjExODAiIHk9Ijc0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+4pGlIHlvdSByZS10ZXN0IGxpdmU8L3RleHQ+CiAgICAgIDx0ZXh0IHg9IjEzNzQiIHk9Ijc0NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+4pGmIFJFQURNRSArIGxpbmtzPC90ZXh0PgogICAgPC9nPgogICAgPGcgZmlsbD0iIzVhNmI2NCIgZm9udC1zaXplPSIxMSI+CiAgICAgIDx0ZXh0IHg9IjE0MCIgeT0iNzY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5yZXBvcyDCtyBjaGFuZ2VzIMK3IGRpZmY8L3RleHQ+CiAgICAgIDx0ZXh0IHg9IjM0OCIgeT0iNzY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj50aGlzIGRvY3VtZW50PC90ZXh0PgogICAgICA8dGV4dCB4PSI1NTYiIHk9Ijc2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+OCB3YXZlcywgYnkgZmVlbDwvdGV4dD4KICAgICAgPHRleHQgeD0iNzY0IiB5PSI3NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPnRzYyDCtyB0ZXN0IMK3IGJ1aWxkPC90ZXh0PgogICAgICA8dGV4dCB4PSI5NzIiIHk9Ijc2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+b25lIHdhdmUgYXQgYSB0aW1lPC90ZXh0PgogICAgICA8dGV4dCB4PSIxMTgwIiB5PSI3NjYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPmFuZCByZXBvcnQgYmFjazwvdGV4dD4KICAgICAgPHRleHQgeD0iMTM3NCIgeT0iNzY2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5wdWJsaXNoPC90ZXh0PgogICAgPC9nPgogICAgPGcgc3Ryb2tlPSIjMmY2YjRmIiBzdHJva2Utd2lkdGg9IjIuNCIgbWFya2VyLWVuZD0idXJsKCNhcnJvdykiIGZpbGw9Im5vbmUiPgogICAgICA8bGluZSB4MT0iMjMyIiB5MT0iNzUxIiB4Mj0iMjU0IiB5Mj0iNzUxIi8+CiAgICAgIDxsaW5lIHgxPSI0NDAiIHkxPSI3NTEiIHgyPSI0NjIiIHkyPSI3NTEiLz4KICAgICAgPGxpbmUgeDE9IjY0OCIgeTE9Ijc1MSIgeDI9IjY3MCIgeTI9Ijc1MSIvPgogICAgICA8bGluZSB4MT0iODU2IiB5MT0iNzUxIiB4Mj0iODc4IiB5Mj0iNzUxIi8+CiAgICAgIDxsaW5lIHgxPSIxMDY0IiB5MT0iNzUxIiB4Mj0iMTA4NiIgeTI9Ijc1MSIvPgogICAgICA8bGluZSB4MT0iMTI3MiIgeTE9Ijc1MSIgeDI9IjEyOTQiIHkyPSI3NTEiLz4KICAgIDwvZz4KICA8L2c+CgogIDwhLS0gU1RBVFVTIFNVTU1BUlkgLS0+CiAgPHJlY3QgeD0iNTAiIHk9IjgxMiIgd2lkdGg9IjE0MDAiIGhlaWdodD0iMTUwIiByeD0iMTYiIGZpbGw9IiNmNWY3ZjYiIHN0cm9rZT0iI2Q4ZTJkZCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8dGV4dCB4PSI3NiIgeT0iODQ2IiBmb250LXNpemU9IjE2IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTQzNDJhIj5XaGVyZSB0aGUgYnVpbGQgYWN0dWFsbHkgc3RhbmRzLCBob25lc3RseTwvdGV4dD4KICA8dGV4dCB4PSI3NiIgeT0iODc3IiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzM0NTNlIj4xMzEgcmVxdWVzdGVkIGl0ZW1zIMK3IDx0c3BhbiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMmY2YjRmIj4yNyB2ZXJpZmllZCBkb25lPC90c3Bhbj4gwrcgMTA0IHN0aWxsIG9wZW4gb3IgcGFydGlhbDwvdGV4dD4KICA8dGV4dCB4PSI3NiIgeT0iOTA0IiBmb250LXNpemU9IjEzLjUiIGZpbGw9IiM4YTRiMGYiPlN0aWxsIGJyb2tlbiBhbmQgZmVsdCBmaXJzdDogdGhlIHBhZ2UgZ29lcyB1bnJlc3BvbnNpdmUgwrcgdGhlIGxhbmd1YWdlIHdpbGwgbm90IHN3aXRjaCBiYWNrIHRvIEVuZ2xpc2ggwrc8L3RleHQ+CiAgPHRleHQgeD0iNzYiIHk9IjkyNCIgZm9udC1zaXplPSIxMy41IiBmaWxsPSIjOGE0YjBmIj50aGUgZG93bmxvYWRlZCBQREYgaXMgbm90IHRoZSByZXBvcnQgeW91IHByZXZpZXdlZCDCtyByZXBvcnQgbWFwcyBhcmUgbmVpdGhlciBjbGlwcGVkIG5vciBmaXR0ZWQgdG8gdGhlIGFyZWEgb2YgaW50ZXJlc3QuPC90ZXh0PgogIDx0ZXh0IHg9Ijc2IiB5PSI5NDgiIGZvbnQtc2l6ZT0iMTIuNSIgZmlsbD0iIzVhNmI2NCI+VmVyaWZpZWQgdG9kYXkgYnkgY29tbWFuZDogdHNjIC0tbm9FbWl0IOKGkiAwIGVycm9ycyDCtyBucG0gdGVzdCDihpIgMjEvMjEgwrcgdml0ZSBidWlsZCDihpIgcGFzcyAoMjcuOCBzKSDCtyBWYWlnYW5nYSByZWZlcmVuY2VzIGluIHNyYy8g4oaSIDA8L3RleHQ+Cjwvc3ZnPgo=" alt="SEVA·GIS — how the instruction was understood: your idea, what I understood, what changes and where" />
+<figcaption aria-hidden="true">SEVA·GIS — how the instruction was
+understood: your idea, what I understood, what changes and
+where</figcaption>
+</figure>
+<h3 id="the-three-boxes-you-asked-for-same-content-as-text-so-nothing-is-lost-if-the-image-does-not-load">4.1
+The three boxes you asked for (same content as text, so nothing is lost
+if the image does not load)</h3>
+<pre><code>  ┌──────────────────────────┐      ┌──────────────────────────┐      ┌──────────────────────────┐
+  │      YOUR IDEA           │      │   WHAT I UNDERSTOOD      │      │   WHAT CHANGES, WHERE    │
+  │                          │      │                          │      │                          │
+  │ &quot;SEVA·GIS must serve     │      │ One workspace where any  │      │ Wording: Auth.tsx,       │
+  │  anyone who wants to     │      │ Area of Interest is      │      │  App.tsx, plainTalk.ts   │
+  │  check any piece of      │ ───► │ analysed the same way a  │ ───► │ Maps: IndicatorMap.tsx,  │
+  │  land — student, farmer, │      │ consultant would deliver │      │  LabMap.tsx, reportBuilder│
+  │  researcher, officer,    │      │ — with the maths shown,  │      │ Cards: InsightPlaying-   │
+  │  enthusiast — not just   │      │ the source dated, the    │      │  CardModal.tsx           │
+  │  my own farm.&quot;           │      │ limits stated, and no    │      │ Reports: ReportPanel.tsx,│
+  │                          │      │ dead ends.&quot;              │      │  reportBuilder.ts,       │
+  │                          │      │                          │      │  pdfGenerator.ts         │
+  └──────────────────────────┘      └──────────────────────────┘      └──────────────────────────┘</code></pre>
+<h3 id="the-full-workflow-i-am-building-to">4.2 The full workflow I am
+building to</h3>
+<pre class="mermaid"><code>graph TD
+    A[User arrives: sign-in or guest] --&gt; B[Choose the analysis intent&lt;br/&gt;agriculture, water quality, streams,&lt;br/&gt;terrain, land cover, change, minerals, general]
+    B --&gt; C[Draw / upload / pick an Area of Interest&lt;br/&gt;main map at zoom 13]
+    C --&gt; D[Confirm the AOI: fitted to ~75% of the screen,&lt;br/&gt;always centred, never stretched]
+    D --&gt; E[Fetch real sources&lt;br/&gt;Sentinel-2 L2A, Copernicus DEM, Open-Meteo, SoilGrids,&lt;br/&gt;Earth Engine, Planetary Computer]
+    E --&gt; F[Process off the main thread&lt;br/&gt;Web Workers, cancellable, with a tracer on the AOI boundary]
+    F --&gt; G[Dashboard follows the intent&lt;br/&gt;only the panels that matter are shown first]
+    G --&gt; H[Insight cards: one number up front]
+    H --&gt; I{Click a card}
+    I --&gt;|flip| J[Rich flipped side: charts, figures,&lt;br/&gt;thresholds, what it means, and the source-data download]
+    J --&gt; K[Remote field review maps&lt;br/&gt;zoom 19, AOI centred,&lt;br/&gt;loupe window for points, per-map number count]
+    K --&gt; L[Cartography: title, scale, north arrow, legend,&lt;br/&gt;coordinates never overlap the AOI —&lt;br/&gt;they shrink automatically until they fit]
+    L --&gt; M[Reports: tick exactly which maps and parameters go in]
+    M --&gt; N[Preview]
+    N --&gt; O[Download: HTML · PDF · DOCX · JSON · PNG · GeoTIFF · CSV]
+    O --&gt; P[Every map downloadable as GeoTIFF&lt;br/&gt;openable in QGIS or ArcMap]
+    N --&gt; Q[Email dispatch — greeting only after the send succeeds]
+    P --&gt; R[Credits live in README/CREDITS, never as on-screen captions]</code></pre>
+<h3 id="your-rules-as-invariants-the-build-must-never-break">4.3 Your
+rules, as invariants the build must never break</h3>
+<p>These are the rules that repeat most often in what you said. They are
+treated as non-negotiable and are checked on every map, every time:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Invariant</th>
+<th>Where it is enforced</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I1</td>
+<td>Main map = zoom 13. Every analysis and report map = zoom 19.</td>
+<td><code>IndicatorMap.tsx</code>, <code>LabMap.tsx</code>,
+<code>reportBuilder.ts</code></td>
+</tr>
+<tr>
+<td>I2</td>
+<td>The AOI is always in the middle.</td>
+<td>same</td>
+</tr>
+<tr>
+<td>I3</td>
+<td>The AOI is fitted to the screen, ~75% coverage — never stretched to
+fill.</td>
+<td>same</td>
+</tr>
+<tr>
+<td>I4</td>
+<td>Title, scale bar, north arrow, legend and coordinates never overlap
+the AOI; they shrink until they fit.</td>
+<td>same</td>
+</tr>
+<tr>
+<td>I5</td>
+<td>No amount of zoom may make the image blurry — use the source pixels,
+and say honestly when the sensor is the limit.</td>
+<td>Resampling + labelling</td>
+</tr>
+<tr>
+<td>I6</td>
+<td>Every generated map can be downloaded as GeoTIFF.</td>
+<td><code>lib/geoTiffWriter.ts</code></td>
+</tr>
+<tr>
+<td>I7</td>
+<td>Nothing static: every figure, table and chart recomputes from the
+selected AOI. Never a demo image.</td>
+<td><code>reportBuilder.ts</code>, <code>WaterPanel.tsx</code></td>
+</tr>
+<tr>
+<td>I8</td>
+<td>Explain every number: what it is, minimum, maximum, why, and what to
+do.</td>
+<td><code>lib/plainTalk.ts</code></td>
+</tr>
+<tr>
+<td>I9</td>
+<td>Credits go in the README only. No implementation captions on
+screen.</td>
+<td><code>Auth.tsx</code>, <code>App.tsx</code>, README</td>
+</tr>
+<tr>
+<td>I10</td>
+<td>Nothing that requires a farm to be a farm. Everyone is a land
+analyst of an <em>area of interest</em>.</td>
+<td>whole app</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-5-build-order-in-waves">Part 5 — Build order in waves</h2>
+<p>Doing all 131 at once is how the last attempt produced documents
+instead of a working app. The order below is by <em>what you feel
+first</em>.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Wave</th>
+<th>Theme</th>
+<th>Change IDs</th>
+<th>Why it is first</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>Stop the app being unusable</td>
+<td>35, 36, 38, 39, 40, 41, 103</td>
+<td>The page-unresponsive episodes make everything else untestable</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>Make the language work</td>
+<td>31, 32, 115, 116</td>
+<td>You cannot verify anything in a language that reverts</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>Make the PDF real</td>
+<td>100, 101, 102, 117, 44, 118, 120, 122</td>
+<td>The preview is already good — the download must be the same
+document</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>Map rules everywhere</td>
+<td>42–52, 56–58, 60–63</td>
+<td>The invariants I1–I6, applied to every map</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>Insight cards and plain language</td>
+<td>73–86</td>
+<td>The “what does 32% mean?” complaint</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td>Reports and hydrology, AOI-driven</td>
+<td>89, 91–94, 98, 99, 123</td>
+<td>Remove the last static content</td>
+</tr>
+<tr>
+<td><strong>7</strong></td>
+<td>The parameter and tool library</td>
+<td>66, 67, 68, 70, 71, 72, 96</td>
+<td>The QGIS + GEE + Planetary feature surface</td>
+</tr>
+<tr>
+<td><strong>8</strong></td>
+<td>Shell, sign-in, Mitra, README, release</td>
+<td>01–34, 87, 88, 90, 95, 105, 129–131</td>
+<td>Finish, verify, publish</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-6-honest-flags-nothing-over-promised">Part 6 — Honest flags
+(nothing over-promised)</h2>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Flag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td><strong>Zoom 19 and sharpness.</strong> Sentinel-2 pixels are 10 m.
+At zoom 19 the imagery <em>will</em> look blocky; smoothing makes it
+soft, not sharper. I will render the true source pixels on top of a
+high-resolution basemap and label the resolution honestly, instead of
+faking sharpness.</td>
+</tr>
+<tr>
+<td>F2</td>
+<td><strong>LULC “directly from Earth Engine”.</strong> Calling Earth
+Engine from the browser needs a server route, because keys must never
+ship to the client. A client-only classifier is possible but less
+accurate.</td>
+</tr>
+<tr>
+<td>F3</td>
+<td><strong>Microwaves into the soil; minerals.</strong> SAR measures
+surface moisture and roughness — not buried minerals. I will give
+honest, labelled indicators.</td>
+</tr>
+<tr>
+<td>F4</td>
+<td><strong>Borewell / pipeline auto-detection.</strong> A satellite
+image rarely shows them directly. I will give <em>candidate</em>
+locations plus manual confirmation.</td>
+</tr>
+<tr>
+<td>F5</td>
+<td><strong>MATLAB.</strong> MATLAB cannot run in a browser. I
+re-implement the algorithms in JavaScript.</td>
+</tr>
+<tr>
+<td>F6</td>
+<td><strong>QGIS, Esri, MathWorks, GEE are organisations, not single
+repos.</strong> I select specific algorithms, not “all of QGIS”.</td>
+</tr>
+<tr>
+<td>F7</td>
+<td><strong>Email.</strong> “Connected but not delivered” almost always
+means an unconfirmed sender or an unconfigured list in EmailOctopus. I
+cannot fix that from the code side alone.</td>
+</tr>
+<tr>
+<td>F8</td>
+<td><strong>Security.</strong> The EmailOctopus API key was hard-coded
+in <code>src/lib/emailOctopus.ts</code> and committed to Git. It is now
+read from a gitignored <code>.env</code>, but <strong>the exposed key
+must be rotated</strong>, because it is still in the Git history.</td>
+</tr>
+<tr>
+<td>F9</td>
+<td><strong>Public links.</strong> Firebase / Docker / Cloud Run
+configurations exist in the repo, but I cannot publish a URL without
+your deployment access.</td>
+</tr>
+<tr>
+<td>F10</td>
+<td><strong>“All the features of QGIS and Earth Engine.”</strong> That
+is thousands of tools. I will deliver a genuinely useful, curated
+library across domains, and be explicit about what is not included,
+rather than claiming completeness.</td>
+</tr>
+<tr>
+<td>F11</td>
+<td><strong>Licences.</strong> <code>feitangyuan/motion-web</code> is
+<strong>CC BY-NC 4.0 (non-commercial)</strong>. I will re-implement its
+motion behaviour in our own code and credit it — I will
+<strong>not</strong> copy its source into SEVA·GIS. The five
+<code>storytold/*</code> ArtCraft apps are MIT/Apache-2.0 but are Rust
+desktop binaries, so reuse is not possible anyway. This matters because
+a non-commercial licence carried into this repository would restrict
+what you can do with SEVA·GIS.</td>
+</tr>
+<tr>
+<td>F12</td>
+<td><strong>Your list is inspiration, not the dependency stack.</strong>
+Not one of the 33 repos can be installed into SEVA·GIS. The real runtime
+stack is <code>turf.js</code>, <code>geotiff.js</code>,
+<code>proj4js</code>, <code>deck.gl</code>, plus the
+<code>maplibre-gl</code> and <code>leaflet</code> already present. Your
+list supplies the <em>standard to reach</em>, not the code.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-7-verified-state-of-the-repository-today">Part 7 — Verified
+state of the repository today</h2>
+<p>These are the checks that were actually run, with their results:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TypeScript</td>
+<td><code>tsc --noEmit</code></td>
+<td><strong>pass</strong>, 0 errors</td>
+</tr>
+<tr>
+<td>Unit tests</td>
+<td><code>npm test</code></td>
+<td><strong>pass</strong>, 21 / 21</td>
+</tr>
+<tr>
+<td>Production build</td>
+<td><code>vite build</code></td>
+<td><strong>pass</strong>, built in 27.8 s</td>
+</tr>
+<tr>
+<td>Vaiganga search</td>
+<td>full-text over <code>src/</code></td>
+<td><strong>0 references</strong></td>
+</tr>
+<tr>
+<td>Design detector</td>
+<td><code>impeccable detect --json</code></td>
+<td><strong>no findings</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Confirmed present in the working tree:</strong> native
+English/Telugu/Hindi catalogue (<code>src/lib/i18n.tsx</code>), Web
+Worker raster statistics (<code>src/lib/rasterStats.worker.ts</code>),
+GeoTIFF writer (<code>src/lib/geoTiffWriter.ts</code>), sliding loupe
+window (<code>src/LabMap.tsx</code>), geodesic buffer with m/km units
+(<code>src/IndicatorMap.tsx</code>), the 3D flip insight card
+(<code>src/InsightPlayingCardModal.tsx</code>).</p>
+<p><strong>Confirmed still broken (the honest list):</strong> the
+<em>Download PDF</em> button writes a 3-page plain-text stub
+(<code>src/lib/pdfGenerator.ts</code>) while the preview shows the rich
+report — this is exactly why the preview looks good and the file does
+not. Area switching still blocks the main thread. Report maps are not
+clipped or fitted.</p>
+<hr />
+<h2 id="part-8-plain-words-for-every-scientific-term">Part 8 — Plain
+words for every scientific term</h2>
+<p>You asked me to explain every term I use. This table is the source of
+truth; the app uses the same wording.</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it means in plain words</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AOI</strong> — Area of Interest</td>
+<td>The piece of land being analysed. A field, a watershed, a lake, a
+district.</td>
+</tr>
+<tr>
+<td><strong>NDVI</strong></td>
+<td>How green and alive the vegetation is. −1 to 1. Above ~0.6 is dense
+healthy canopy; ~0.2–0.4 is thin or stressed; near 0 is bare soil or
+built-up.</td>
+</tr>
+<tr>
+<td><strong>EVI</strong></td>
+<td>Like NDVI, but it does not saturate in very dense forest and it
+corrects for haze.</td>
+</tr>
+<tr>
+<td><strong>SAVI / MSAVI</strong></td>
+<td>NDVI corrected for bare soil showing through a young crop.</td>
+</tr>
+<tr>
+<td><strong>NDMI</strong></td>
+<td>How much water is inside the leaves. High = well watered; low = the
+canopy is drying.</td>
+</tr>
+<tr>
+<td><strong>NDWI</strong></td>
+<td>How much water is on the surface. Used to find ponds, canals,
+floods.</td>
+</tr>
+<tr>
+<td><strong>NDRE</strong></td>
+<td>Like NDVI but more sensitive to nitrogen and chlorophyll — good for
+top-dressing decisions.</td>
+</tr>
+<tr>
+<td><strong>GNDVI</strong></td>
+<td>A greener-channel version of NDVI, sensitive to chlorophyll
+concentration.</td>
+</tr>
+<tr>
+<td><strong>MSI</strong></td>
+<td>Moisture Stress Index. Higher = more stressed. The mirror image of
+NDMI.</td>
+</tr>
+<tr>
+<td><strong>BSI</strong></td>
+<td>Bare Soil Index. How much exposed soil versus vegetation.</td>
+</tr>
+<tr>
+<td><strong>LAI</strong></td>
+<td>Leaf Area Index. How many layers of leaves cover a square metre of
+ground.</td>
+</tr>
+<tr>
+<td><strong>CIR</strong></td>
+<td>Colour Infrared. A false-colour image where healthy plants appear
+bright red.</td>
+</tr>
+<tr>
+<td><strong>SWIR − NIR</strong></td>
+<td>Short-wave infrared minus near infrared — a moisture and mineral
+contrast.</td>
+</tr>
+<tr>
+<td><strong>DEM</strong></td>
+<td>Digital Elevation Model. The bare ground height, in metres above sea
+level.</td>
+</tr>
+<tr>
+<td><strong>Slope</strong></td>
+<td>How steep the ground is, in degrees.</td>
+</tr>
+<tr>
+<td><strong>Aspect</strong></td>
+<td>Which compass direction the slope faces.</td>
+</tr>
+<tr>
+<td><strong>Hillshade</strong></td>
+<td>A shaded relief image that makes terrain look
+three-dimensional.</td>
+</tr>
+<tr>
+<td><strong>Contour</strong></td>
+<td>A line joining points of equal elevation.</td>
+</tr>
+<tr>
+<td><strong>TWI</strong> — Topographic Wetness Index</td>
+<td>Where water is likely to accumulate. High TWI = wet hollows.</td>
+</tr>
+<tr>
+<td><strong>LSWAT / SWAT</strong></td>
+<td>Soil and Water Assessment Tool — a watershed model. <strong>“LSWAT”
+was an unclear label and is being renamed plainly.</strong></td>
+</tr>
+<tr>
+<td><strong>SCS-CN</strong></td>
+<td>A standard way to estimate how much rainfall becomes runoff, using a
+Curve Number.</td>
+</tr>
+<tr>
+<td><strong>ET</strong> — Evapotranspiration</td>
+<td>Water lost from soil evaporation plus plant transpiration.</td>
+</tr>
+<tr>
+<td><strong>SWAT-CUP / SUFI-2</strong></td>
+<td>Software that checks how well a watershed model matches reality, and
+which settings matter most.</td>
+</tr>
+<tr>
+<td><strong>Alpha factors / sensitivity</strong></td>
+<td>Which model settings change the answer the most. These will be
+explained behind a toggle, never shown bare.</td>
+</tr>
+<tr>
+<td><strong>LULC</strong></td>
+<td>Land Use / Land Cover — how much of the area is crop, forest, water,
+built-up, bare.</td>
+</tr>
+<tr>
+<td><strong>SAR / microwave</strong></td>
+<td>Radar that sees through cloud and is sensitive to surface moisture
+and roughness — <strong>not</strong> to buried minerals.</td>
+</tr>
+<tr>
+<td><strong>Radiance → DN</strong></td>
+<td>Converting raw satellite sensor numbers into physical light
+measurements before doing band maths.</td>
+</tr>
+<tr>
+<td><strong>Zonal statistics</strong></td>
+<td>Summarising a raster layer inside a boundary — mean, min, max,
+percentiles.</td>
+</tr>
+<tr>
+<td><strong>GeoTIFF</strong></td>
+<td>An image file that also carries real-world coordinates, so it opens
+correctly in QGIS or ArcMap.</td>
+</tr>
+<tr>
+<td><strong>fit-to-bounds</strong></td>
+<td>Zooming so the whole area of interest is visible, centred, without
+stretching it.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>End of document. Every status mark above is traceable to a
+command, a file, or a check that was actually run — not to an
+assumption.</em></p>
+</body>
+</html>

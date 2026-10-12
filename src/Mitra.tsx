@@ -18,8 +18,8 @@ const STEPS: Step[] = [
   },
   {
     sel: '.page-heading .primary, .page-heading button',
-    title: 'Add a farm boundary',
-    body: 'Draw your cadastral parcel on the satellite basemap, walk the perimeter with mobile GPS, enter coordinates, or upload GeoJSON, KML, GPX, WKT, or ESRI Shapefiles.',
+    title: 'Add a field boundary',
+    body: 'Draw an area of interest on the satellite basemap, walk its boundary with mobile GPS, enter coordinates, or upload GeoJSON, KML, GPX, WKT, or ESRI Shapefiles.',
     action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
   },
   {
@@ -32,52 +32,63 @@ const STEPS: Step[] = [
   },
   {
     sel: '.intelligence-grid',
-    title: '14 Agro & hydrological indices',
-    body: 'Calculated directly from Sentinel-2 L2A BOA surface reflectance: NDVI, EVI, SAVI, MSAVI, GNDVI, NDRE, CIre, NBR, NDWI, MNDWI, NDMI, and MSI with calibrated color-coded benchmarks.',
+    title: 'Field intelligence & spectral metrics',
+    body: 'Live Sentinel-2 BOA metrics: NDVI vegetation vigor, surface soil moisture model, rainfall outlook, and Copernicus DEM surface slope.',
     action: () => {
       document.querySelector('.intelligence-grid')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
-    sel: '.ge-wrap',
-    title: 'Analysis lab & movable legends',
-    body: 'True-colour reflectance, multi-index land cover, seasonal change detection, and pest vulnerability models. Every classified map features an adjustable Floating Legend shortcut you can drag anywhere.',
+    sel: '#section-agro-water',
+    title: 'Agro & hydrology panels',
+    body: 'Soil texture (SoilGrids), plant-available water capacity, hydraulic head loss, pump requirements, and dynamic water budgeting.',
+    action: () => {
+      const el = document.getElementById('section-agro-water')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  },
+  {
+    sel: '#section-intelligence-lab',
+    title: 'Analysis lab',
+    body: 'Inspect true-colour imagery, land cover, spectral indices, seasonal change, and map-based explanations for the selected area.',
     action: () => {
       window.dispatchEvent(new CustomEvent('seva-set-lab-tab', { detail: 'map' }))
-      document.querySelector('.ge-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const el = document.getElementById('section-intelligence-lab')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
     sel: '.ge-wrap',
-    title: 'GeoAI studio & band symbology',
-    body: 'Unsupervised K-Means++ spectral clustering, supervised land classification, harvest yield forecasting, and 5 multispectral band combinations (Natural, False Colour NIR, Agriculture, SWIR Moisture).',
+    title: 'GeoAI studio',
+    body: 'Explore land-cover grouping, management zones, spectral patterns, and GeoAI-assisted interpretation for the selected area.',
     action: () => {
       window.dispatchEvent(new CustomEvent('seva-set-lab-tab', { detail: 'ai' }))
       document.querySelector('.ge-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
-    sel: '.gt-wrap',
-    title: 'Swath robotics & variable-rate (VRA)',
-    body: 'Agricultural robotics suite: Fields2Cover machinery coverage path planning (CPP), turning radius loops, rural reachability isochrones (openrouteservice), and zone-specific fertilizer prescriptions.',
+    sel: '#section-measurement-tools',
+    title: 'Precision tools',
+    body: 'Use measurement, buffers, layer tools, and spatial exports for the selected area. Each tool explains its units and limitations.',
     action: () => {
-      document.querySelector('.gt-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const el = document.getElementById('section-measurement-tools')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
-    sel: '.intelligence-heading button',
-    title: 'Trilingual dossiers (EN / HI / TE)',
-    body: 'Generate official field dossiers in English, Hindi (हिन्दी), or Telugu (తెలుగు) with North arrow, scale bar, Sentinel-2 metadata, and VRA recommendations in print-ready PDF and HTML.',
+    sel: '#create-report-button',
+    title: 'Publication-grade field dossiers',
+    body: 'Generate official field dossiers in English, Hindi (हिन्दी), or Telugu (తెలుగు) with North arrow, scale bar, Sentinel-2 metadata, and VRA recommendations.',
     action: () => {
       document.querySelector('.intelligence-heading button')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   },
   {
-    sel: '.sidebar .logout, .nav-logout, .profile .logout',
+    sel: '.profile .logout, .profile',
     title: 'Privacy & signing out',
     body: 'Sign out securely whenever you are done. Your farm boundaries and local settings stay safely saved on this device.',
     action: () => {
-      const el = document.querySelector('.sidebar .logout, .nav-logout, .profile .logout')
+      const el = document.querySelector('.profile .logout') || document.querySelector('.profile')
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }
@@ -93,12 +104,11 @@ function useTarget(sel: string | null, stepIdx: number) {
     const selectors = sel.split(',').map(s => s.trim())
     let el: HTMLElement | null = null
     for (const s of selectors) {
-      const candidates = Array.from(document.querySelectorAll<HTMLElement>(s))
-      const found = candidates.find(e => {
-        const cs = getComputedStyle(e)
-        return (e.offsetParent !== null || cs.position === 'fixed') && cs.display !== 'none' && cs.visibility !== 'hidden'
-      })
-      if (found) { el = found; break }
+      const found = document.querySelector<HTMLElement>(s)
+      if (found && found.offsetWidth > 0 && found.offsetHeight > 0) {
+        el = found
+        break
+      }
     }
     if (!el) return setRect(null)
     const r = el.getBoundingClientRect()
@@ -111,27 +121,18 @@ function useTarget(sel: string | null, stepIdx: number) {
     const step = STEPS[stepIdx]
     if (step?.action) step.action()
 
-    // Smoothly track element through scrolling and animations
-    let frameId: number
-    let lastM = 0
-    const start = performance.now()
-    const track = (now: number) => {
-      if (now - lastM >= 33) {
-        lastM = now
-        measure()
-      }
-      if (now - start < 1200) {
-        frameId = requestAnimationFrame(track)
-      }
-    }
-    frameId = requestAnimationFrame(track)
+    // Immediate fast measure
+    measure()
+    const timer1 = setTimeout(measure, 120)
+    const timer2 = setTimeout(measure, 400)
 
     const onScrollOrResize = () => measure()
     window.addEventListener('resize', onScrollOrResize, { passive: true })
     window.addEventListener('scroll', onScrollOrResize, { passive: true, capture: true })
 
     return () => {
-      cancelAnimationFrame(frameId)
+      clearTimeout(timer1)
+      clearTimeout(timer2)
       window.removeEventListener('resize', onScrollOrResize)
       window.removeEventListener('scroll', onScrollOrResize, true)
     }

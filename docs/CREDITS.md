@@ -1,51 +1,43 @@
-# Credits
+# SEVA.GIS Credits and Reference Sources
 
-SEVA.GIS stands for **Spatial Evaluation & Vegetation Analytics**. Idea, design and code by N. Akshit Vinay.
+SEVA.GIS means **Spatial Evaluation & Vegetation Analytics**. The project is intended to make spatial inspection and remote-sensing analysis more approachable while preserving source transparency and honest limitations.
 
-## Data (free, no keys)
+## Data providers
 
-| Source | Used for |
+| Source | Use |
 |---|---|
-| ESA Copernicus Sentinel-2 L2A, served by Microsoft Planetary Computer (STAC and TiTiler) | Satellite bands, indices, true colour |
-| Copernicus GLO-30 DEM | Terrain, slope, aspect, hillshade, contours |
-| Open-Meteo | Weather forecast and pest risk |
-| ISRIC SoilGrids | Soil properties |
-| Esri World Imagery, Streets, Topo and Light/Dark Gray | Base maps and sharp true colour |
-| OpenStreetMap contributors via the Overpass API | Nearby water and power features |
-| Google Translate widget | Hindi and Telugu page translation |
+| ESA Copernicus Sentinel-2 L2A | Multispectral imagery and spectral indices |
+| Microsoft Planetary Computer | Public STAC/COG scene discovery and browser fallback |
+| Google Earth Engine | Optional authenticated cloud tiles, statistics, time series, and change analysis |
+| Copernicus GLO-30 DEM | Elevation, slope, aspect, hillshade, and terrain derivatives |
+| Open-Meteo | Weather and forecast inputs |
+| ISRIC SoilGrids | Regional soil-property estimates |
+| Esri and OpenStreetMap | Basemaps and nearby spatial context where enabled |
 
 ## Open-source libraries
 
-React, Vite, Tailwind CSS, Leaflet, Turf.js (`@turf/buffer`), shpjs, Motion, lucide-react, gifenc, and the Playwright/Puppeteer tooling used to record the tour.
+React, Vite, Tailwind CSS, Leaflet, MapLibre GL, Turf, shpjs, Dexie, Motion, Lucide, and the Python FastAPI/Earth Engine service libraries.
 
-## Ideas and methods borrowed
+## Research and design references
 
-| From | What |
+| Reference | Role in SEVA.GIS |
 |---|---|
-| Google Earth Engine code-editor scripts | Index formulas, cloud masking with SCL, land-cover thresholds |
-| Copernicus Browser and USGS EarthExplorer | True-colour stretch, clear imagery, layer toggles |
-| QGIS and ArcGIS | Map layouts with title, legend, north arrow, scale bar and coordinate frame |
-| scikit-learn, GDAL, Orfeo Toolbox, SNAP, QGIS Semi-Automatic Classification, ENVI, ERDAS | K-means, minimum-distance and maximum-likelihood classifiers |
-| Fields2Cover | Autonomous agricultural robotics, boustrophedon swath planning & turn minimization |
-| Archify (`tt-a1i/archify`) | End-to-end geospatial system methodology flowchart |
-| Agent-Reach (`Panniantong/agent-reach`) | Multi-source precision agriculture parameter synthesis & commercial benchmark research |
-| Hyperframes (`heygen-com/hyperframes`) | Declarative, code-driven video walkthrough generation |
-| PPT-Master (`hugohe3/ppt-master`) | Automated precision agriculture presentation deck generation |
-| Brag-Slim (`latent-spaces/brag`) | Single-command launch video, GIF, and social media compilation engine |
-| BurnGuard (`ashmoonori-afk/BurnGuard`) | Agricultural crop residue & stubble fire detection with in-situ mulching advice |
-| Hindsight (`vectorize-io/hindsight`) | Episodic field memory tracking longitudinal NDVI trajectories and resilience |
-| Paperclip (`paperclipai/paperclip`) | Client-side agent task orchestrator for multi-step precision workflows |
-| SlopMonster (`ItsssssJack/SlopMonster`) | Agronomic anti-hallucination and physical boundary guardrails |
-| Matt Pocock Skills (`mattpocock/skills`) | Adversarial design grilling (`grill-me`), code review, and domain modeling |
-| particles.js and vanta.js | Particle-network sign-in backdrop |
-| Handy GPS style apps | Walk-the-boundary farm capture |
+| QGIS and GDAL/OGR | Raster/vector workflows, clipping, georeferencing, symbology, and export behavior |
+| Esri/ArcGIS cartography | Map furniture, legends, scale, north arrows, and layout conventions |
+| Google Earth Engine and `gee-community` | Cloud masking, band math, satellite collections, and tile patterns |
+| MathWorks | Numerical methods, matrix calculations, time-series fitting, and hydrology references |
+| `morluto/rea` | Reverse-engineering methodology for studying observable behavior before reimplementation |
+| `feitangyuan/motion-web` | Motion and physics direction for the sign-in experience |
+| StoryTold Craft projects | Report composition, grids, vector layout, design, and effects; reports-only inspiration |
+| `front-end-checklist` | Accessibility, responsiveness, semantic UI, and production readiness checks |
+| `mattpocock/skills` and local `.agents/skills` | Type safety, review discipline, geospatial invariants, and verification loops |
+| Human-reviewed language guidance | Natural Telugu and Hindi scientific/agricultural terminology |
 
-## Free hosting and domain
+These references are not automatically copied into the runtime and are not claims that SEVA.GIS implements every capability of the referenced projects.
 
-| Service | Role |
-|---|---|
-| GitHub Pages and GitHub Actions | Free public hosting and automatic deploys |
-| DigitalPlat FreeDomain (`dpdns.org`, `qzz.io`) and is-a.dev | Optional free domain names, see `docs/DOMAIN.md` |
-| FormSubmit | Delivers contact-chat messages to the maintainer's inbox |
+## Attribution rules
 
-Domain credentials are never stored in this repository. Registrar logins stay with the owner.
+- Keep repository and tool credits in documentation, not visible implementation-slogan captions.
+- Attribute external data and algorithms near the relevant report or export.
+- Do not claim validation, sensor precision, classification accuracy, or delivery success without a reproducible test.
+- Do not store credentials, service-account files, or private deployment details in this repository.

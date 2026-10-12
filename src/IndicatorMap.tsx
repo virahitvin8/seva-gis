@@ -27,6 +27,7 @@ import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndica
 import { createEarthEngineMap, isEarthEngineConfigured, renderFarmSentinel2 } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 import { getGroundTalk } from './lib/plainTalk'
+import { createGeoTiffBlob } from './lib/geoTiffWriter'
 
 type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
@@ -122,7 +123,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [aoiOnly, setAoiOnly] = useState(false)
   const [locked, setLocked] = useState(() => localStorage.getItem('seva-map-lock') === '1')
   const [mapObj, setMapObj] = useState<L.Map | null>(null)
-  const [mapZoom, setMapZoom] = useState(() => getSavedZoom(15))
+  const [mapZoom, setMapZoom] = useState(() => getSavedZoom(13))
   const [kit, setKit] = useState<Kit>(() => {
     try {
       return { ...KIT_DEFAULT, ...JSON.parse(localStorage.getItem('seva-kit-v3') || '{}') }
@@ -215,12 +216,56 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
     if (format === 'geotiff') {
       const [w, s, e, n] = farmBBox(farm)
-      const tfw = `${((e - w) / 512).toFixed(10)}\n0.0000000000\n0.0000000000\n${(-((n - s) / 512)).toFixed(10)}\n${w.toFixed(10)}\n${n.toFixed(10)}`
-      const blob = new Blob([tfw], { type: 'text/plain' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `${farm.name.replace(/\W+/g, '_')}_WorldFile.tfw`
-      a.click()
+      const exportCanvas = document.createElement('canvas')
+      exportCanvas.width = 512
+      exportCanvas.height = 512
+      const eCtx = exportCanvas.getContext('2d')
+      if (eCtx) {
+        eCtx.fillStyle = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+        eCtx.fillRect(0, 0, 512, 512)
+
+        const topId = [...active].reverse().find(id => !hidden.includes(id))
+        const layer = topId ? getCachedLayer(layerKey(topId)) : undefined
+        if (layer && layer.url) {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => {
+            eCtx.drawImage(img, 0, 0, 512, 512)
+            const imgData = eCtx.getImageData(0, 0, 512, 512)
+            const blob = createGeoTiffBlob(512, 512, [w, s, e, n], imgData.data)
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(blob)
+            a.download = `${farm.name.replace(/\W+/g, '_')}_${topId}.tif`
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+          }
+          img.src = layer.url
+          return
+        }
+
+        eCtx.strokeStyle = '#22c55e'
+        eCtx.lineWidth = 3
+        eCtx.beginPath()
+        farmRingCoords.forEach(([lon, lat], i) => {
+          const cx = ((lon - w) / (e - w || 0.001)) * 512
+          const cy = ((n - lat) / (n - s || 0.001)) * 512
+          if (i === 0) eCtx.moveTo(cx, cy); else eCtx.lineTo(cx, cy)
+        })
+        eCtx.closePath()
+        eCtx.stroke()
+        eCtx.fillStyle = 'rgba(34, 197, 94, 0.35)'
+        eCtx.fill()
+
+        const imgData = eCtx.getImageData(0, 0, 512, 512)
+        const blob = createGeoTiffBlob(512, 512, [w, s, e, n], imgData.data)
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `${farm.name.replace(/\W+/g, '_')}_AOI.tif`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
       return
     }
     const canvas = document.createElement('canvas')
@@ -401,14 +446,14 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         return 16
       }
 
-      const padX = Math.max(30, Math.round(sz.x * 0.125))
-      const padY = Math.max(30, Math.round(sz.y * 0.125))
-      const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, padY * 2))
+      const padX = Math.max(40, Math.round(sz.x * 0.125))
+      const padY = Math.max(40, Math.round(sz.y * 0.125))
+      const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, (padY + 30) * 2))
       const safeAoiZoom = Math.min(18, Math.max(13, computedZoom))
 
       instance.fitBounds(bounds, {
-        paddingTopLeft: [padX, padY],
-        paddingBottomRight: [padX, padY],
+        paddingTopLeft: [padX, padY + 35],
+        paddingBottomRight: [padX, padY + 25],
         maxZoom: 18,
         animate,
       })
@@ -518,7 +563,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     }
     const safeLat = Number.isFinite(farm?.lat) ? farm.lat : 20.5937
     const safeLon = Number.isFinite(farm?.lon) ? farm.lon : 78.9629
-    const initialZoom = getSavedZoom(15)
+    const initialZoom = getSavedZoom(13)
     let instance: L.Map
     try {
       instance = L.map(element.current, {
@@ -636,14 +681,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     localStorage.setItem(BASE_STORE, base)
     baseLayers.current.forEach(l => l.remove()); baseLayers.current = []
 
-    if (bgMode === 'black' || bgMode === 'white') {
-      if (element.current) {
-        element.current.style.backgroundColor = bgMode === 'black' ? '#000000' : '#ffffff'
-      }
-      instance.invalidateSize({ pan: false })
-      return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
-    }
-
     const add = (url: string, attribution: string, o: L.TileLayerOptions = {}) => {
       const l = L.tileLayer(url, { attribution, maxZoom: 21, maxNativeZoom: 18, zIndex: 10 + baseLayers.current.length, ...o }).addTo(instance)
       baseLayers.current.push(l)
@@ -661,6 +698,20 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         }).addTo(instance)
         baseLayers.current.push(fallback)
       })
+    }
+
+    if (element.current) {
+      element.current.style.backgroundColor = bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : '#0b131a'
+    }
+
+    if (bgMode === 'black') {
+      add(ESRI('Canvas/World_Dark_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
+      instance.invalidateSize({ pan: false })
+      return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
+    } else if (bgMode === 'white') {
+      add(ESRI('Canvas/World_Light_Gray_Base'), 'Tiles © Esri, HERE, Garmin', { maxNativeZoom: 16 })
+      instance.invalidateSize({ pan: false })
+      return () => { baseLayers.current.forEach(l => l.remove()); baseLayers.current = [] }
     }
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
     const google = 'Imagery © Google'
@@ -1127,16 +1178,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           <MapIcon size={15}/>
           <span>Base map</span>
           <b className="ix-btn-badge">{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b>
-        </button>
-
-        <button
-          className={`ix-tb-btn ${bgMode !== 'default' ? 'on' : ''}`}
-          onClick={() => { setBgMode(c => c === 'default' ? 'black' : c === 'black' ? 'white' : 'default') }}
-          title="Canvas Mode (Natural, Solid Black GEE, Solid White QGIS)"
-        >
-          <Globe2 size={15}/>
-          <span>Canvas</span>
-          <b className="ix-btn-badge">{bgMode === 'default' ? 'Natural' : bgMode === 'black' ? 'Black' : 'White'}</b>
         </button>
 
         <button
@@ -1822,6 +1863,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                       className={`ix-sett-btn ${tool === 'borewell' ? 'on' : ''}`}
                       onClick={() => {
                         setRulerOpen(false)
+                        setRulerActive(false)
                         setTool(tool === 'borewell' ? 'none' : 'borewell')
                       }}
                     >
@@ -1832,6 +1874,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                       className={`ix-sett-btn ${tool === 'pipeline' ? 'on' : ''}`}
                       onClick={() => {
                         setRulerOpen(false)
+                        setRulerActive(false)
                         setDraft([])
                         setTool(tool === 'pipeline' ? 'none' : 'pipeline')
                       }}
@@ -1925,34 +1968,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     ))}
                   </div>
                 </div>
-                <div className="ix-lb-settings-group">
-                  <h4>Background Canvas</h4>
-                  <p className="ix-settings-desc">Choose solid Black or White background for maximum clarity and high-contrast Area of Interest boundary inspection.</p>
-                  <div className="ix-settings-btns">
-                    <button
-                      className={`ix-sett-btn ${bgMode === 'black' ? 'on' : ''}`}
-                      onClick={() => setBgMode('black')}
-                    >
-                      <span className="dot-blk" />
-                      <span>Solid Black (GEE)</span>
-                    </button>
-                    <button
-                      className={`ix-sett-btn ${bgMode === 'white' ? 'on' : ''}`}
-                      onClick={() => setBgMode('white')}
-                    >
-                      <span className="dot-wht" />
-                      <span>Solid White (QGIS Print)</span>
-                    </button>
-                    <button
-                      className={`ix-sett-btn ${bgMode === 'default' ? 'on' : ''}`}
-                      onClick={() => setBgMode('default')}
-                    >
-                      <Globe2 size={13} />
-                      <span>Map / Satellite</span>
-                    </button>
-                  </div>
-                </div>
-
                 <div className="ix-lb-settings-group">
                   <h4>Zoom & Bounds Stretch</h4>
                   <p className="ix-settings-desc">Stretch the farm to occupy 100% of the canvas view without wasted exterior borders.</p>

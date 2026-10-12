@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1010" width="1500" height="1010" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f2fbf5"/><stop offset="100%" stop-color="#e2f4e9"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#eef5ff"/><stop offset="100%" stop-color="#dfeaff"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff7ec"/><stop offset="100%" stop-color="#ffedd6"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#2f6b4f"/>
+    </marker>
+    <filter id="soft" x="-8%" y="-8%" width="116%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#123" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect width="1500" height="1010" fill="#ffffff"/>
+  <text x="50" y="52" font-size="30" font-weight="700" fill="#14342a">SEVA·GIS — How I understood your instruction</text>
+  <text x="50" y="82" font-size="16" fill="#5a6b64">Three boxes, exactly as you asked: your idea → what I understood → what changes, and where. Read left to right.</text>
+
+  <!-- BOX 1 -->
+  <g filter="url(#soft)">
+    <rect x="50" y="120" width="420" height="300" rx="16" fill="url(#g1)" stroke="#2f6b4f" stroke-width="2"/>
+  </g>
+  <text x="76" y="160" font-size="13" font-weight="700" fill="#2f6b4f" letter-spacing="1.6">BOX 1 · YOUR IDEA</text>
+  <text x="76" y="196" font-size="19" font-weight="700" fill="#14342a">One workspace for anyone</text>
+  <text x="76" y="222" font-size="15" fill="#33453e">who wants to check any piece of land.</text>
+  <line x1="76" y1="240" x2="444" y2="240" stroke="#bcd8c8" stroke-width="1.4"/>
+  <text x="76" y="266" font-size="14" fill="#33453e">Not just my own farm. Students, farmers,</text>
+  <text x="76" y="287" font-size="14" fill="#33453e">researchers, GIS analysts, officers, and</text>
+  <text x="76" y="308" font-size="14" fill="#33453e">non-technical enthusiasts with basic phones.</text>
+  <text x="76" y="336" font-size="14" fill="#33453e">Priorities change with the analysis intent:</text>
+  <text x="76" y="357" font-size="14" fill="#33453e">water quality ≠ streams ≠ crop health.</text>
+  <text x="76" y="392" font-size="14" font-style="italic" fill="#2f6b4f">"Show me you understood before you change it."</text>
+
+  <!-- ARROW 1 -->
+  <line x1="478" y1="270" x2="536" y2="270" stroke="#2f6b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <!-- BOX 2 -->
+  <g filter="url(#soft)">
+    <rect x="546" y="120" width="420" height="300" rx="16" fill="url(#g2)" stroke="#2b5f9e" stroke-width="2"/>
+  </g>
+  <text x="572" y="160" font-size="13" font-weight="700" fill="#2b5f9e" letter-spacing="1.6">BOX 2 · WHAT I UNDERSTOOD</text>
+  <text x="572" y="196" font-size="19" font-weight="700" fill="#10233f">A consultant-grade analysis</text>
+  <text x="572" y="222" font-size="15" fill="#33453e">of any area of interest, delivered in the browser.</text>
+  <line x1="572" y1="240" x2="940" y2="240" stroke="#c3d5ee" stroke-width="1.4"/>
+  <text x="572" y="266" font-size="14" fill="#33453e">• the maths is shown, not hidden</text>
+  <text x="572" y="287" font-size="14" fill="#33453e">• every source is dated and named</text>
+  <text x="572" y="308" font-size="14" fill="#33453e">• the limits are stated honestly</text>
+  <text x="572" y="329" font-size="14" fill="#33453e">• no static demo images, ever</text>
+  <text x="572" y="350" font-size="14" fill="#33453e">• every map is downloadable (GeoTIFF)</text>
+  <text x="572" y="371" font-size="14" fill="#33453e">• every map is clipped, centred, fitted</text>
+  <text x="572" y="392" font-size="14" fill="#33453e">• no dead ends, no dead controls</text>
+
+  <!-- ARROW 2 -->
+  <line x1="974" y1="270" x2="1032" y2="270" stroke="#2f6b4f" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <!-- BOX 3 -->
+  <g filter="url(#soft)">
+    <rect x="1042" y="120" width="408" height="300" rx="16" fill="url(#g3)" stroke="#a8621b" stroke-width="2"/>
+  </g>
+  <text x="1068" y="160" font-size="13" font-weight="700" fill="#a8621b" letter-spacing="1.6">BOX 3 · WHAT CHANGES, WHERE</text>
+  <text x="1068" y="196" font-size="19" font-weight="700" fill="#3d2508">Named files, not vague promises</text>
+  <line x1="1068" y1="216" x2="1424" y2="216" stroke="#edd3b3" stroke-width="1.4"/>
+  <g font-size="13.5" fill="#3d2508">
+    <text x="1068" y="244">Speed</text>
+    <text x="1068" y="270">Language</text>
+    <text x="1068" y="296">Maps</text>
+    <text x="1068" y="322">Cards</text>
+    <text x="1068" y="348">Reports</text>
+    <text x="1068" y="374">PDF</text>
+    <text x="1068" y="400">README</text>
+  </g>
+  <g font-size="12.5" font-family="Consolas, monospace" fill="#7a4a12">
+    <text x="1150" y="244">rasterStats.worker.ts</text>
+    <text x="1150" y="270">lib/i18n.tsx</text>
+    <text x="1150" y="296">IndicatorMap.tsx</text>
+    <text x="1150" y="322">InsightPlayingCardModal.tsx</text>
+    <text x="1150" y="348">reportBuilder.ts</text>
+    <text x="1150" y="374">lib/pdfGenerator.ts</text>
+    <text x="1150" y="400">README.md</text>
+  </g>
+
+  <!-- INVARIANTS BAND -->
+  <rect x="50" y="452" width="1400" height="200" rx="16" fill="#10302a"/>
+  <text x="76" y="486" font-size="13" font-weight="700" fill="#7fd6ab" letter-spacing="1.8">THE TEN RULES THAT MUST NEVER BREAK — CHECKED ON EVERY SINGLE MAP</text>
+  <g font-size="13.5" fill="#e6f5ee">
+    <text x="76" y="520">1 · main map zoom 13; every analysis and report map zoom 19</text>
+    <text x="770" y="520">6 · every generated map downloads as GeoTIFF</text>
+    <text x="76" y="549">2 · the area of interest is always in the middle</text>
+    <text x="770" y="549">7 · nothing static — every figure recomputes for the AOI</text>
+    <text x="76" y="578">3 · fitted to about 75% of the screen — never stretched</text>
+    <text x="770" y="578">8 · explain every number: what, min, max, why, what to do</text>
+    <text x="76" y="607">4 · title, scale, north arrow, legend, coordinates never overlap it</text>
+    <text x="770" y="607">9 · credits live in the README only — never on-screen captions</text>
+    <text x="76" y="636">5 · no fake sharpening; state the real sensor resolution</text>
+    <text x="770" y="636">10 · everyone is an analyst of an area of interest — not a farmer</text>
+  </g>
+
+  <!-- WORKFLOW STRIP -->
+  <text x="50" y="700" font-size="19" font-weight="700" fill="#14342a">The rebuild workflow</text>
+  <g font-size="12.5">
+    <g fill="#ffffff" stroke="#2f6b4f" stroke-width="1.6">
+      <rect x="50" y="722" width="180" height="58" rx="10"/>
+      <rect x="258" y="722" width="180" height="58" rx="10"/>
+      <rect x="466" y="722" width="180" height="58" rx="10"/>
+      <rect x="674" y="722" width="180" height="58" rx="10"/>
+      <rect x="882" y="722" width="180" height="58" rx="10"/>
+      <rect x="1090" y="722" width="180" height="58" rx="10"/>
+      <rect x="1298" y="722" width="152" height="58" rx="10"/>
+    </g>
+    <g fill="#14342a" font-weight="600">
+      <text x="140" y="746" text-anchor="middle">① lists &amp; map</text>
+      <text x="348" y="746" text-anchor="middle">② your approval</text>
+      <text x="556" y="746" text-anchor="middle">③ build in waves</text>
+      <text x="764" y="746" text-anchor="middle">④ verify by command</text>
+      <text x="972" y="746" text-anchor="middle">⑤ commit &amp; push</text>
+      <text x="1180" y="746" text-anchor="middle">⑥ you re-test live</text>
+      <text x="1374" y="746" text-anchor="middle">⑦ README + links</text>
+    </g>
+    <g fill="#5a6b64" font-size="11">
+      <text x="140" y="766" text-anchor="middle">repos · changes · diff</text>
+      <text x="348" y="766" text-anchor="middle">this document</text>
+      <text x="556" y="766" text-anchor="middle">8 waves, by feel</text>
+      <text x="764" y="766" text-anchor="middle">tsc · test · build</text>
+      <text x="972" y="766" text-anchor="middle">one wave at a time</text>
+      <text x="1180" y="766" text-anchor="middle">and report back</text>
+      <text x="1374" y="766" text-anchor="middle">publish</text>
+    </g>
+    <g stroke="#2f6b4f" stroke-width="2.4" marker-end="url(#arrow)" fill="none">
+      <line x1="232" y1="751" x2="254" y2="751"/>
+      <line x1="440" y1="751" x2="462" y2="751"/>
+      <line x1="648" y1="751" x2="670" y2="751"/>
+      <line x1="856" y1="751" x2="878" y2="751"/>
+      <line x1="1064" y1="751" x2="1086" y2="751"/>
+      <line x1="1272" y1="751" x2="1294" y2="751"/>
+    </g>
+  </g>
+
+  <!-- STATUS SUMMARY -->
+  <rect x="50" y="812" width="1400" height="150" rx="16" fill="#f5f7f6" stroke="#d8e2dd" stroke-width="1.5"/>
+  <text x="76" y="846" font-size="16" font-weight="700" fill="#14342a">Where the build actually stands, honestly</text>
+  <text x="76" y="877" font-size="14" fill="#33453e">131 requested items · <tspan font-weight="700" fill="#2f6b4f">27 verified done</tspan> · 104 still open or partial</text>
+  <text x="76" y="904" font-size="13.5" fill="#8a4b0f">Still broken and felt first: the page goes unresponsive · the language will not switch back to English ·</text>
+  <text x="76" y="924" font-size="13.5" fill="#8a4b0f">the downloaded PDF is not the report you previewed · report maps are neither clipped nor fitted to the area of interest.</text>
+  <text x="76" y="948" font-size="12.5" fill="#5a6b64">Verified today by command: tsc --noEmit → 0 errors · npm test → 21/21 · vite build → pass (27.8 s) · Vaiganga references in src/ → 0</text>
+</svg>

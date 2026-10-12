@@ -255,8 +255,8 @@ graph LR
 | ☐ | 97 | PDFCraft workbench lives inside Reports | ✅ (rendered in ReportPanel) |
 | ☐ | 98 | Report lists all parameters, tickable, grouped | ☐ |
 | ☐ | 99 | Remote-review maps tickable into report | ☐ |
-| ☐ | 100 | PDF downloads as 0 KB | ☐ |
-| ☐ | 101 | Downloaded PDF matches preview | ☐ |
+| ✅ | 100 | PDF downloads as 0 KB | ✅ real report document is printed instead of the 3-page text stub (`src/lib/reportPdf.ts`) |
+| ✅ | 101 | Downloaded PDF matches preview | ✅ same document model for preview and PDF; old `lib/pdfGenerator.ts` stub deleted |
 | ☐ | 102 | Add Word (.docx) beside HTML/PDF/JSON | 🚧 (format pills present: html/pdf/doc/json) |
 | ☐ | 103 | HTML download slow; loading indicator | ☐ |
 | ☐ | 104 | Email success shows before sending | ☐ |
@@ -438,3 +438,51 @@ Verification: `tsc --noEmit` pass · `npm test` 21/21 pass · `build` pass.
 | Tests | `npm test` | 21/21 pass |
 | Build | `npm run build` | pass |
 | Design detector | `impeccable detect --json …` | no findings |
+
+### 2026-10-12 — Batch 6: the "show me first" document + the real PDF fix (verified)
+
+**1. The document you asked for, first.** `docs/ANALYSIS/` now holds the deliverable you
+requested before any further building:
+
+| File | What it is |
+|---|---|
+| `SEVA-GIS-MASTER-ANALYSIS.md` | The full analysis: every repository, every change, the comparison, the understanding, the build order |
+| `SEVA-GIS-ANALYSIS.pdf` | The same document as a readable ~29-page PDF |
+| `flowchart.svg` / `flowchart.png` | The three-box flowchart (your idea → what I understood → what changes, where) plus the ten invariants |
+
+**2. Findings from checking the repositories, not trusting their names.** Not one of the 33
+repositories is a runtime dependency for a browser GIS. The five `storytold/*` "craft" repos
+**do exist** — they are Rust/`egui` desktop apps (ArtCraft suite, alpha), not browser
+libraries. `feitangyuan/motion-web` is **CC BY-NC 4.0 (non-commercial)**, so its code must
+not be copied into SEVA·GIS. The real runtime stack is `turf.js`, `geotiff.js`, `proj4js`,
+`deck.gl`, plus the MapLibre and Leaflet already present. Recorded in the analysis document
+as flags F11 and F12.
+
+**3. The 0 KB PDF — fixed.** Root cause found: the preview renders the rich multi-page report
+from `src/reportBuilder.ts`, but **Download PDF** called `generateReportPdfBlob()` in
+`src/lib/pdfGenerator.ts`, which hand-wrote a *three-page plain-text* PDF. That is exactly why
+the preview looked good and the download did not. The stub is deleted.
+
+Replacement: `src/lib/reportPdf.ts` hands the **exact preview document** to the browser's own
+print-to-PDF engine through a hidden same-origin iframe, waits for remote map tiles to settle
+(so map panels are not blank), then opens the print dialog with a visible hint to choose
+*Save as PDF*. Page breaks, maps, legends, scale bars and colours are preserved because it is
+the same document.
+
+| File | Change |
+|---|---|
+| `src/lib/reportPdf.ts` | **New** — `openReportPrintView()`: real report → PDF, waits for assets |
+| `src/ReportPanel.tsx` | Download PDF and Print both use it; added the user-facing hint; dropped the stub import |
+| `src/EmailOctopusGreetingModal.tsx` | PDF attachment download uses it too |
+| **Deleted** `src/lib/pdfGenerator.ts` | The 3-page text stub that caused the 0 KB / wrong-PDF report |
+
+**4. The language complaint, diagnosed.** There is no Google Translate left anywhere — I
+checked `index.html` and all of `src/`. The real reason the language "does not change" is that
+`src/lib/i18n.tsx` holds **only 14 message keys**, so switching to Telugu changes the
+navigation and almost nothing else, and switching back to English appears to do nothing at
+all. The mechanism is correct; the catalogue is far too small. Making the whole app native in
+three languages is a large, separate workstream and is queued as Wave 2 — it needs the full
+string inventory, not a quick patch.
+
+Verification for Batch 6: `tsc --noEmit` **pass** · `npm test` **21/21 pass** ·
+`vite build` **pass (7.5 s)**.

@@ -10,7 +10,7 @@ import {
   HeartHandshake
 } from 'lucide-react'
 import { EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
-import { generateReportPdfBlob } from './lib/pdfGenerator'
+import { openReportPrintView } from './lib/reportPdf'
 
 interface EmailOctopusGreetingModalProps {
   isOpen: boolean
@@ -49,25 +49,9 @@ export default function EmailOctopusGreetingModal({
 
   const handleDownloadAttachment = () => {
     if (downloadFormat === 'pdf') {
-      const pdfBlob = generateReportPdfBlob(
-        farmName,
-        'Study Area Location',
-        areaHa,
-        'Agricultural Study Area',
-        ndvi,
-        ndmi,
-        14.5,
-        245,
-        reportId || 'SEVA-REPORT'
-      )
-      const url = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${baseName}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // Print the real report document rather than a text stub, so the saved PDF
+      // matches what the user previewed. See `src/lib/reportPdf.ts`.
+      openReportPrintView(htmlContent, `${baseName}.pdf`)
       return
     }
 

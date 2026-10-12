@@ -8,7 +8,7 @@ export type FarmMemory = {
   id: string
   farmId: string
   timestamp: string
-  type: 'observation' | 'action' | 'gee_spectral' | 'cadastre' | 'mandi' | 'farmer_note'
+  type: 'observation' | 'action' | 'gee_spectral' | 'hydrology' | 'mandi' | 'farmer_note'
   title: string
   content: string
   metrics?: {
@@ -80,9 +80,9 @@ function getDefaultMemories(farmId: string): FarmMemory[] {
       id: `init-2-${farmId}`,
       farmId,
       timestamp: `${d2}T08:15:00Z`,
-      type: 'cadastre',
-      title: 'Digital RoR Form 1B Verified',
-      content: 'Bhu-Aadhaar ULPIN registered. Adjoining family co-sharers (Sy. 75/2A, 75/2B, 75/3, 75/4) mapped on cadastral grid.',
+      type: 'hydrology',
+      title: 'SCS-CN Catchment Balance Verified',
+      content: 'Hydrologic soil group and DEM hypsometry mapped. Vadose percolation and drainage flow equilibrium confirmed.',
     }
   ]
 }

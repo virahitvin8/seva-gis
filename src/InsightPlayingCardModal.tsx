@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, Sparkles, RefreshCw, Info, ExternalLink, HelpCircle, Layers } from 'lucide-react'
+import { X, Sparkles, RefreshCw, Info, ExternalLink, HelpCircle, Layers, ArrowDownToLine } from 'lucide-react'
 
 export interface InsightCardData {
   title: string
@@ -17,10 +17,12 @@ export interface InsightCardData {
 
 export default function InsightPlayingCardModal({
   card,
-  onClose
+  onClose,
+  onDownloadGeoTiff
 }: {
   card: InsightCardData | null
   onClose: () => void
+  onDownloadGeoTiff?: (card: InsightCardData) => void
 }) {
   const [flipped, setFlipped] = useState(false)
 
@@ -281,9 +283,36 @@ export default function InsightPlayingCardModal({
               )}
             </div>
 
-            {/* Flip Back Button */}
+            {/* Flip Back & GeoTIFF Export Action */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Tap anywhere to flip back</span>
+              {onDownloadGeoTiff ? (
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onDownloadGeoTiff(card)
+                  }}
+                  style={{
+                    background: '#059669',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Download Raw Georeferenced GeoTIFF Raster for this parameter"
+                >
+                  <ArrowDownToLine size={13} />
+                  <span>Download GeoTIFF</span>
+                </button>
+              ) : (
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Tap anywhere to flip back</span>
+              )}
               <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: 700 }}>SEVA·GIS Agro-Lab</span>
             </div>
           </div>

@@ -1,78 +1,64 @@
-# SEVA·GIS — Google Earth Engine Proxy Microservice
+# SEVA.GIS Earth Engine Service
 
-High-performance FastAPI proxy microservice bridging the SEVA·GIS frontend with Google Earth Engine (`COPERNICUS/S2_SR_HARMONIZED` and `COPERNICUS/DEM/GLO30`).
+This FastAPI service is the optional authenticated cloud-processing path for SEVA.GIS. The browser remains responsible for interaction, local persistence, and client-side processing where practical; this service provides Earth Engine-backed tiles and statistics when configured.
 
----
+## Endpoints
 
-## ⚡ Features
+- `GET /health`
+- `POST /api/gee/render`
+- `POST /api/earth-engine/render`
+- `POST /api/earth-engine/map`
+- `POST /api/earth-engine/dem`
+- `POST /api/earth-engine/stats`
+- `POST /api/earth-engine/timeseries`
+- `POST /api/earth-engine/change`
+- `POST /api/earth-engine/alert`
+- `GET /api/earth-engine/indicators`
+- `DELETE /api/cache`
 
-- **Authenticated Earth Engine Session**: Authenticates via Service Account key file, environment variable JSON, or Application Default Credentials (ADC).
-- **Sentinel-2 L2A BOA Reflectance**: Real-time tile rendering with 2%–98% percentile linear stretch matching the Earth Engine Code Editor.
-- **Copernicus DEM (GLO-30)**: High-resolution elevation, slope, aspect, and hillshade layer tiles.
-- **Scene Classification (SCL) Masking**: Bottom-of-Atmosphere cloud, shadow, cirrus, and snow elimination.
-- **Analytical Endpoints**:
-  - `POST /api/earth-engine/map`: Live map tile URL for 10 band combinations or 16 spectral indices.
-  - `POST /api/earth-engine/dem`: Live DEM tile for elevation, slope, aspect, or hillshade.
-  - `POST /api/earth-engine/stats`: Zonal statistics (mean, min, max, stdDev, p25, p75).
-  - `POST /api/earth-engine/timeseries`: Multi-scene temporal interval trend points.
-  - `POST /api/earth-engine/change`: Bi-temporal change detection & loss/gain percentages.
-  - `POST /api/earth-engine/alert`: Crop stress threshold alert tile & stressed area percentage.
-  - `GET /health`: Service health and Earth Engine readiness status.
-  - `DELETE /api/cache`: In-memory tile cache invalidation.
+The service uses Sentinel-2 L2A, SCL masking, Copernicus GLO-30 DEM, spectral-index expressions, map tiles, zonal statistics, time series, change maps, and alert calculations.
 
----
+## Configuration
 
-## 🛠️ Configuration (`.env`)
-
-Copy `.env.example` to `.env`:
+Use environment variables or the deployment platform's secret manager. Do not put credentials in frontend code, request bodies, `.env` files committed to Git, or Docker images.
 
 ```env
-EE_PROJECT_ID=seva-gis-backend
-EE_SERVICE_ACCOUNT_EMAIL=seva-gis-runner@seva-gis-backend.iam.gserviceaccount.com
-EE_SERVICE_ACCOUNT_KEY_FILE=service-account.json
-EE_ALLOWED_ORIGINS=http://localhost:8443,http://localhost:5173,http://localhost:3000,https://seva-gis.web.app
-EE_RATE_LIMIT_RPM=120
+EE_PROJECT_ID=your-earth-engine-project
+EE_ALLOWED_ORIGINS=http://localhost:8443,http://localhost:5173
+EE_RATE_LIMIT_RPM=60
 EE_CACHE_TTL=600
 PORT=8080
 ```
 
-> **Security Note:** Never commit `service-account.json` or `.env` to Git. Both are listed in `.gitignore`.
+Cloud Run should use Application Default Credentials from its attached service identity. A local service-account JSON file may be used only through a protected local environment and must remain ignored and outside version control.
 
----
+`EE_ALLOWED_ORIGINS` must be enforced as an actual CORS allowlist. Do not use wildcard origins for credentialed or production requests.
 
-## 🚀 Running Locally
+## Local Run
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Start with Uvicorn
 python -m uvicorn main:app --port 8080 --reload
 ```
 
-Interactive documentation:
-- Swagger UI: `http://localhost:8080/api/docs`
+Open:
+
+- Swagger: `http://localhost:8080/api/docs`
 - ReDoc: `http://localhost:8080/api/redoc`
 - Health: `http://localhost:8080/health`
 
----
-
-## 🐳 Docker & Cloud Run
-
-Build and run locally with Docker:
+## Docker
 
 ```bash
-docker build -t seva-gis-backend .
-docker run -p 8080:8080 --env-file .env seva-gis-backend
+docker build -t seva-gis-earth-engine .
+docker run --rm -p 8080:8080 --env-file .env seva-gis-earth-engine
 ```
 
-Deploy directly to Google Cloud Run:
+## Operational requirements
 
-```bash
-gcloud run deploy seva-gis-backend \
-  --source . \
-  --project seva-gis-backend \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --set-env-vars EE_PROJECT_ID=seva-gis-backend,EE_ALLOWED_ORIGINS="http://localhost:8443,https://seva-gis.web.app"
-```
+- Validate WGS84 AOI coordinates as `[lon, lat]` and reject invalid rings.
+- Preserve AOI, source, date, scale, resolution, and processing metadata in responses.
+- Keep rate limits and caches bounded; use shared infrastructure if multiple service instances require coordinated limits.
+- Return explicit errors for no scenes, all-masked pixels, invalid indicators, and unavailable Earth Engine.
+- Test every route with representative small, large, concave, and invalid AOIs before deployment.
+- Do not claim that cloud processing creates sub-meter Sentinel-2 analytical detail.

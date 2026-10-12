@@ -1155,7 +1155,7 @@ function EffectCraftWorkbench({ farm }: { farm: FarmLike }) {
           <div className="layer-stack-item">
             <div className="layer-title">
               <span className="layer-tag">Layer 3</span>
-              <strong>Vector Contours & Cadastre</strong>
+              <strong>Vector Contours & Watershed Drainage</strong>
             </div>
             <label>
               <span>Opacity: {contourOpacity}%</span>

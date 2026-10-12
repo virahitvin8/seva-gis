@@ -482,7 +482,7 @@ body{margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap
 .kit-clabel,.kit-glabel{white-space:nowrap;font:600 11px 'JetBrains Mono',monospace;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;transform:translate(-50%,-50%)}
 .kit-glabel{opacity:.85}.kit-glabel.r{transform:translate(0,-50%)}
 .ix-ico.k-hs{background:#64748b}.ix-ico.k-ct{background:#a16207}.ix-ico.k-as{background:#dc2626}.ix-ico.k-dm{background:#16a34a}.ix-ico.k-gr{background:#0ea5e9}.ix-ico.k-lg{background:#7c3aed}
-.ix-wrap{background:radial-gradient(circle at 30% 20%,#14382a,#07110c)}
+.ix-wrap{background:#e9eeea}
 .ix-tools{overflow:auto}
 .leaflet-control-scale, .leaflet-control-scale-line { display: none !important; }
 .field-map.leaflet-container { background: #e9eeea; }

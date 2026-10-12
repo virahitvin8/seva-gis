@@ -27,6 +27,7 @@ import { buildEarthEngineScript, buildThesisMapScript, supportsEarthEngineIndica
 import { createEarthEngineMap, isEarthEngineConfigured, renderFarmSentinel2 } from './lib/earthEngineClient'
 import { getSavedZoom, setGlobalZoom } from './lib/zoomSync'
 import { getGroundTalk } from './lib/plainTalk'
+import { useI18n } from './lib/i18n'
 import { createGeoTiffBlob } from './lib/geoTiffWriter'
 
 type MapFarm = FarmData & { id: string; name: string }
@@ -77,6 +78,7 @@ const dp = (id: string, d: number) => ({ dem: 0, bw: 0, slope: 1, twi: 1, flow: 
 const fmt = (id: string, v: number) => { const ind = byId(id); return `${v.toFixed(dp(id, 3))}${ind.unit ? ` ${ind.unit}` : ''}` }
 
 export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: { farm: MapFarm; loading: boolean; panelTarget: HTMLDivElement | null; sceneOpts?: SceneOpts }) {
+  const { t } = useI18n()
   const element = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map | null>(null)
   const frame = useRef<L.LayerGroup | null>(null)
@@ -1114,7 +1116,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   return (
     <div className="ix-outer">
       {/* 1-Size Full-Window Control Toolbar Above Map */}
-      <div className="ix-main-toolbar" role="toolbar" aria-label="Map Tools and Layers">
+      <div className="ix-main-toolbar" role="toolbar" aria-label={t('map.toolbarAria')}>
         <button
           className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'active' ? 'on' : ''}`}
           onClick={() => {
@@ -1130,7 +1132,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               setRulerOpen(false)
             }
           }}
-          title="Open GIS Section Layer: Active parameters, opacity & blending"
+          title={t('map.layersTitle')}
         >
           <Layers size={15}/>
           <span>Layers</span>
@@ -1152,7 +1154,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               setRulerOpen(false)
             }
           }}
-          title="Multispectral Band Symbology: True colour, False colour NIR, Agriculture & Moisture"
+          title={t('map.bandSymbologyTitle')}
         >
           <Tag size={15}/>
           <span>Symbology</span>
@@ -1173,10 +1175,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               setRulerOpen(false)
             }
           }}
-          title="Select Basemap Imagery in Section Layer"
+          title={t('map.basemapTitle')}
         >
           <MapIcon size={15}/>
-          <span>Base map</span>
+          <span>{t('map.baseMap')}</span>
           <b className="ix-btn-badge">{BASES.find(b => b.id === base)?.name.split(' ')[0]}</b>
         </button>
 
@@ -1186,7 +1188,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           title={aoiOnly ? "Disable AOI clipping: Show full surroundings" : "Clip AOI from boundary: Shapefile mask exclusively displaying all parameters upon farm boundary"}
         >
           <Scissors size={15}/>
-          <span>Clip AOI</span>
+          <span>{t('map.clipAoi')}</span>
           <b className="ix-btn-badge">{aoiOnly ? 'Mask ON' : 'Off'}</b>
         </button>
 
@@ -1202,7 +1204,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               setRulerOpen(false)
             }
           }}
-          title="Field Tools & Adjustments (Ruler, Hotspots, Borewells, Contours, Swath Robotics)"
+          title={t('map.fieldToolsTitle')}
         >
           <Wrench size={15}/>
           <span>Tools</span>
@@ -1212,30 +1214,30 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         <button
           className="ix-tb-btn"
           onClick={() => handleDownloadMap('png')}
-          title="Download precision map output as high-resolution PNG, GeoTIFF, GeoJSON, or KML"
+          title={t('map.downloadTitle')}
         >
           <Save size={15}/>
-          <span>Export Map</span>
+          <span>{t('map.exportMap')}</span>
           <b className="ix-btn-badge">PNG / GIS</b>
         </button>
 
         <button
           className={`ix-tb-btn ${thesisFrameOpen ? 'on' : ''}`}
           onClick={() => setThesisFrameOpen(prev => !prev)}
-          title="Toggle Authentic Cartographic Thesis Print Layout Mode (SRTM DEM, LULC 9-Class, Soil 5-Class, Reaches)"
+          title={t('map.cartoModeTitle')}
         >
           <Compass size={15}/>
-          <span>Carto Frame</span>
+          <span>{t('map.cartoFrameShort')}</span>
           <b className="ix-btn-badge">{thesisFrameOpen ? 'Thesis ON' : 'Off'}</b>
         </button>
 
         <button
           className={`ix-tb-btn ${geeCenterOpen ? 'on' : ''}`}
           onClick={() => setGeeCenterOpen(prev => !prev)}
-          title="Google Earth Engine Live Cloud Stream & Autonomous Agent Crew Studio"
+          title={t('map.geeStudioTitle')}
         >
           <Cpu size={15}/>
-          <span>GEE Studio</span>
+          <span>{t('map.geeStudio')}</span>
           <b className="ix-btn-badge">{earthEngineOverlay?.sceneKey === sceneKey ? 'Live Stream' : 'AI Crew'}</b>
         </button>
 
@@ -1259,7 +1261,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               map.current.invalidateSize({ pan: false })
             }
           }}
-          title="Reset map: Restore natural satellite imagery, center AOI at 75%, and clear black screen"
+          title={t('map.resetTitle')}
         >
           <RotateCcw size={15}/>
           <span>Reset</span>
@@ -1271,10 +1273,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         <div ref={element} className={`field-map${locked ? ' is-locked' : ''} bg-${bgMode}`} style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }} />
 
         {/* Single Unified Non-Redundant Map HUD Bar */}
-        <div className="ix-map-hud-bar" role="status" aria-label="Map status and orientation">
+        <div className="ix-map-hud-bar" role="status" aria-label={t('map.statusAria')}>
           <div
             className="ix-unified-hud"
-            title="Click to open Google Earth Engine AI Crew Studio"
+            title={t('map.openCrewStudio')}
             onClick={() => setGeeCenterOpen(true)}
           >
             <span className="gee-dot" />
@@ -1287,7 +1289,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             <span className="hud-sep">·</span>
             <span
               className="hud-north"
-              title="True Geodetic North. Click to re-center."
+              title={t('map.northTitle')}
               onClick={(e) => {
                 e.stopPropagation()
                 if (map.current) map.current.setView([farm?.lat ?? 20.5937, farm?.lon ?? 78.9629], map.current.getZoom())
@@ -1305,7 +1307,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               className={`ix-layers-box ${panelDetached ? 'detached' : 'docked-map'}`}
               style={panelDetached ? { left: panelPosition.x, top: panelPosition.y } : undefined}
               role="dialog"
-              aria-label="GIS Layers & Symbology Box"
+              aria-label={t('map.layersBox')}
             >
             <div className={`ix-lb-header${panelDetached ? ' draggable' : ''}`} onPointerDown={event => {
               if (!panelDetached || (event.target as HTMLElement).closest('button')) return
@@ -1315,8 +1317,8 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               <div className="ix-lb-title">
                 <Layers size={17} className="text-emerald-400" />
                 <div>
-                  <strong>Layers & Symbology Box</strong>
-                  <small>Satellite layers and map tools</small>
+                  <strong>{t('map.layersBoxShort')}</strong>
+                  <small>{t('map.layersBoxNote')}</small>
                 </div>
               </div>
               <div className="ix-lb-actions">
@@ -1345,7 +1347,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 >
                   {panelMinimized ? <Maximize2 size={13} /> : <Minus size={13} />}
                 </button>
-                <button className="ix-lb-close" onClick={() => setLayersBoxOpen(false)} aria-label="Close Layers Box">
+                <button className="ix-lb-close" onClick={() => setLayersBoxOpen(false)} aria-label={t('map.closeLayers')}>
                   <X size={15} />
                 </button>
               </div>
@@ -1380,7 +1382,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 onClick={() => setLayersBoxTab('tools')}
               >
                 <Wrench size={13} />
-                <span>Field Tools</span>
+                <span>{t('map.fieldTools')}</span>
               </button>
               <button
                 role="tab"
@@ -1434,7 +1436,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                             </button>
                             <button
                               aria-label={`Remove ${ind.name}`}
-                              title="Remove layer"
+                              title={t('map.removeLayer')}
                               onClick={() => toggle(id)}
                             >
                               <X size={14} />
@@ -1457,7 +1459,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                             <small className="ix-lb-rgb-note">{ind.rgb ? 'True RGB Surface Reflectance' : 'Relief Hillshade'}</small>
                           )}
                           <div className="ix-lb-stat-row">
-                            <span>Farm mean: <b>{waiting ? 'waiting for scene' : busy.includes(id) || !layer ? 'loading…' : layer.stat ? fmt(id, layer.stat.mean) : 'composite'}</b></span>
+                            <span>{t('map.aoiMean')}<b>{waiting ? 'waiting for scene' : busy.includes(id) || !layer ? 'loading…' : layer.stat ? fmt(id, layer.stat.mean) : 'composite'}</b></span>
                             {layer?.stat && (
                               <small>min {fmt(id, layer.stat.min)} · max {fmt(id, layer.stat.max)}</small>
                             )}
@@ -1481,7 +1483,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                                   color: '#a7f3d0',
                                   cursor: 'pointer'
                                 }}
-                                title="Change raster resampling method under Layer Properties → Symbology → Resampling"
+                                title={t('map.resamplingHint')}
                               >
                                 Symbology &rarr; Resampling
                               </button>
@@ -1507,10 +1509,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   {active.length === 0 && (
                     <div className="ix-lb-empty">
                       <Layers size={28} className="opacity-40" />
-                      <p>No active layers on the map.</p>
+                      <p>{t('map.noLayers')}</p>
                       <button className="primary compact" onClick={() => setLayersBoxTab('catalog')}>
-                        <Plus size={14} /> Browse Parameters Catalog
-                      </button>
+                        <Plus size={14} />{t('map.browseCatalog')}</button>
                     </div>
                   )}
                 </div>
@@ -1523,7 +1524,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                 <div className="ix-lb-search-bar">
                   <Search size={14} />
                   <input
-                    placeholder="Search NDVI, moisture, DEM, True Colour..."
+                    placeholder={t('map.searchPlaceholder')}
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                   />
@@ -1596,9 +1597,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <SlidersHorizontal size={15} style={{ color: '#34d399' }} />
-                        <strong style={{ fontSize: 13, color: '#f8fafc', letterSpacing: '0.01em' }}>
-                          Layer Properties &rarr; Symbology &rarr; Resampling
-                        </strong>
+                        <strong style={{ fontSize: 13, color: '#f8fafc', letterSpacing: '0.01em' }}>{t('map.layerPropsPath')}</strong>
                       </div>
                       <span
                         style={{
@@ -1615,8 +1614,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                       </span>
                     </div>
 
-                    <p style={{ margin: '0 0 10px', fontSize: 11, color: '#cbd5e1', lineHeight: 1.45 }}>
-                      Removes pixel blockiness on small fields and zoomed parcels. In QGIS / GEE, small areas are smoothed using <b>Cubic</b> (Bicubic Spline Convolution) or <b>Bilinear</b> interpolation instead of raw 10m pixel squares.
+                    <p style={{ margin: '0 0 10px', fontSize: 11, color: '#cbd5e1', lineHeight: 1.45 }}>{t('map.antipixelIntro')}<b>Cubic</b> (Bicubic Spline Convolution) or <b>Bilinear</b> interpolation instead of raw 10m pixel squares.
                     </p>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 6 }}>
@@ -1638,13 +1636,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                           textAlign: 'left'
                         }}
                         onClick={() => setResamplingMethod('cubic')}
-                        title="Bicubic Spline Convolution (Keys a = -0.5 kernel). Recommended for small areas and high-DPI zoomed parcels."
+                        title={t('map.resCubicNote')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                           <span style={{ fontWeight: 700 }}>✨ Cubic (Default)</span>
                           <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#059669', color: '#fff', fontWeight: 700 }}>Smooth</span>
                         </div>
-                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>Bicubic spline convolution, zero pixelation</small>
+                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>{t('map.antipixelCubic')}</small>
                       </button>
 
                       <button
@@ -1665,13 +1663,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                           textAlign: 'left'
                         }}
                         onClick={() => setResamplingMethod('bilinear')}
-                        title="Bilinear interpolation. Continuous linear gradients between cells."
+                        title={t('map.resBilinearNote')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                           <span style={{ fontWeight: 700 }}>📐 Bilinear</span>
                           <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#0284c7', color: '#fff', fontWeight: 700 }}>Linear</span>
                         </div>
-                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>Continuous linear surface interpolation</small>
+                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>{t('map.antipixelBilinear')}</small>
                       </button>
 
                       <button
@@ -1692,20 +1690,20 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                           textAlign: 'left'
                         }}
                         onClick={() => setResamplingMethod('nearest')}
-                        title="Nearest Neighbour. Native discrete 10m satellite cells for pixel-by-pixel inspection."
+                        title={t('map.resNearestNote')}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                           <span style={{ fontWeight: 700 }}>🔲 Nearest Neighbour</span>
                           <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: '#475569', color: '#fff', fontWeight: 700 }}>10m</span>
                         </div>
-                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>Raw discrete 10m grid cell blocks</small>
+                        <small style={{ fontSize: 9.5, color: '#94a3b8', lineHeight: 1.25 }}>{t('map.antipixelNearest')}</small>
                       </button>
                     </div>
                   </div>
 
                   <div className="ix-lb-sym-header">
-                    <strong>Multispectral Band Symbology</strong>
-                    <small>Sentinel-2 band combinations; native band resolution varies</small>
+                    <strong>{t('map.bandSymbology')}</strong>
+                    <small>{t('map.bandSymbologyNote')}</small>
                   </div>
                   <div className="ix-band-combos-grid">
                     {BAND_COMBINATIONS.map(c => {
@@ -2008,7 +2006,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <button
                       className={`ix-sett-btn ${resamplingMethod === 'cubic' ? 'on' : ''}`}
                       onClick={() => setResamplingMethod('cubic')}
-                      title="Bicubic Spline Convolution (Keys a = -0.5 kernel)"
+                      title={t('map.resCubic')}
                     >
                       <Sparkles size={13} />
                       <span>Cubic (Spline)</span>
@@ -2016,7 +2014,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <button
                       className={`ix-sett-btn ${resamplingMethod === 'bilinear' ? 'on' : ''}`}
                       onClick={() => setResamplingMethod('bilinear')}
-                      title="Bilinear linear interpolation"
+                      title={t('map.resBilinear')}
                     >
                       <Sliders size={13} />
                       <span>Bilinear</span>
@@ -2024,7 +2022,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                     <button
                       className={`ix-sett-btn ${resamplingMethod === 'nearest' ? 'on' : ''}`}
                       onClick={() => setResamplingMethod('nearest')}
-                      title="Nearest Neighbour (Raw 10m Cells)"
+                      title={t('map.resNearest')}
                     >
                       <Box size={13} />
                       <span>Nearest (10m)</span>
@@ -2075,7 +2073,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
     {/* Authentic Cartographic Thesis Print Layout Frame Overlay (Exact reproduction of MAPS REF thesis figures) */}
     {thesisFrameOpen && (
-      <div className="ix-carto-neatline-overlay" aria-label="Thesis Cartographic Frame">
+      <div className="ix-carto-neatline-overlay" aria-label={t('map.cartoFrame')}>
         {/* Top Header Publication Banner (Editable on Double Click) */}
         <div className="ix-carto-top-banner" onDoubleClick={() => setEditingCartoTitle(true)}>
           {editingCartoTitle ? (
@@ -2103,7 +2101,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               style={{ background: '#0f172a', color: '#ffffff', border: '1px solid #38bdf8', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', width: '85%', textAlign: 'center', fontWeight: 800 }}
             />
           ) : (
-            <div className="ix-carto-title-main" title="Double-click to edit map title">
+            <div className="ix-carto-title-main" title={t('map.editTitle')}>
               {customCartoTitle || (
                 thesisTheme === 'dem' ? 'DIGITAL ELEVATION MODEL (DEM 30M) OF THE STUDY AREA' :
                 thesisTheme === 'lulc' ? 'LAND USE / LAND COVER (SWAT CLASSIFICATION) MAP' :
@@ -2120,21 +2118,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               <button
                 onClick={e => { e.stopPropagation(); handleDownloadMap('png') }}
                 style={{ background: '#0284c7', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}
-                title="Download Map as PNG"
+                title={t('map.dlPng')}
               >
                 PNG
               </button>
               <button
                 onClick={e => { e.stopPropagation(); handleDownloadMap('geotiff') }}
                 style={{ background: '#059669', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}
-                title="Download GeoTIFF WorldFile Package"
+                title={t('map.dlTiff')}
               >
                 GeoTIFF
               </button>
               <button
                 onClick={e => { e.stopPropagation(); handleDownloadMap('geojson') }}
                 style={{ background: '#475569', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 6px', fontSize: 10, cursor: 'pointer', fontWeight: 700 }}
-                title="Download GeoJSON Boundary"
+                title={t('map.dlGeoJson')}
               >
                 GeoJSON
               </button>
@@ -2162,7 +2160,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         })()}
 
         {/* Authentic Topographic North Arrow Compass Rose */}
-        <div className="ix-carto-north-compass" title="True Geodetic North">
+        <div className="ix-carto-north-compass" title={t('map.north')}>
           <svg viewBox="0 0 40 40" width="38" height="38">
             <circle cx="20" cy="20" r="18" fill="rgba(255,255,255,0.85)" stroke="#0f172a" strokeWidth="1.5" />
             <polygon points="20,4 24,18 20,16 16,18" fill="#0f172a" />
@@ -2194,7 +2192,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           className={`ix-carto-legend-box ${cartoLegendMinimized ? 'minimized' : ''}`}
           style={{ position: 'fixed', left: cartoLegendPos.x, top: cartoLegendPos.y, zIndex: 1100 }}
           role="dialog"
-          aria-label="Publication Legend"
+          aria-label={t('map.legend')}
         >
           <div
             className="ix-carto-legend-head"
@@ -2221,7 +2219,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               </button>
               <button
                 className="ix-win-btn"
-                title="Close Cartographic Frame"
+                title={t('map.closeCarto')}
                 onClick={() => setThesisFrameOpen(false)}
               >
                 <X size={13} />
@@ -2371,7 +2369,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           <div
             className={`ix-data ${dataDetached ? 'detached' : ''} ${dataMinimized ? 'minimized' : ''}`}
             role="dialog"
-            aria-label="Data window"
+            aria-label={t('map.dataWindow')}
             style={dataDetached ? { position: 'fixed', left: dataPos.x, top: dataPos.y, zIndex: 1100 } : undefined}
           >
             <div

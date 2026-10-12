@@ -65,7 +65,7 @@ if (listIndex !== -1) {
     const abs = join(ROOT, target)
     const strings = proseIn(readFileSync(abs, 'utf8'))
     console.log(`=== ${target} — ${strings.length} untranslated prose strings ===`)
-    strings.forEach((s, i) => console.log(`${String(i + 1).padStart(3)}. ${s.replace(/\s+/g, ' ').slice(0, 120)}`))
+    strings.forEach((s, i) => console.log(`${String(i + 1).padStart(3)}. [${s.length}] ${s.replace(/\s+/g, ' ').slice(0, 200)}`))
   }
   process.exit(0)
 }

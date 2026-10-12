@@ -650,3 +650,45 @@ coverage number published after each batch.
 
 Verification for Batch 9: `tsc --noEmit` **pass** · `npm test` **35/35 pass** (was 30) ·
 `vite build` **pass (3.2 s)** · `npm run i18n:coverage` **8.3%, up from 1.4%**.
+
+### 2026-10-12 — Batch 10: the map toolbar and layer controls are translated
+
+The map is the main screen, so it was next. `src/IndicatorMap.tsx` held **90** untranslated
+strings; the first **50** are now wired — every toolbar tooltip, the layers and symbology box,
+the carto frame, field tools, buffer, basemap, zoom/contrast and the resampling control.
+
+| | Before Batch 10 | After Batch 10 |
+|---|---|---|
+| Strings still hard-coded | 899 | **850** |
+| `t()` call sites | 81 | **131** |
+| Distinct catalogue keys | 80 | **129** |
+| **Coverage** | 8.3% | **13.4%** |
+
+**Two real bugs caught by the tooling, and worth recording.**
+
+1. The parity test failed the build with `TS1117: an object literal cannot have multiple
+   properties with the same name`. Adding `map.layersTitle` for the map toolbar collided with
+   an unused key of the same name left over from the shell batch — the App codemod had
+   reported that one as a *miss*, so nothing referenced it. Caught by the compiler and by a
+   duplicate-key scan (`scratch/find-dup-keys.mjs`), which now reports any key that does not
+   appear exactly three times, once per language.
+2. While removing the duplicate I made a mistake — I replaced the Hindi line instead of
+   deleting it, producing two identical Hindi entries. The duplicate scan caught it
+   immediately and a line-asserting cleanup script removed the two leftovers. Verification,
+   not care, is what caught both.
+
+**Wording improved while translating**, per the "area of interest, not your farm" rule:
+`Farm mean:` → `Area mean:`, and `Toggle Authentic Cartographic Thesis Print Layout Mode` →
+`Toggle publication print layout mode`.
+
+| File | Change |
+|---|---|
+| `src/lib/i18nCatalog.ts` | +50 keys in each of English, Hindi and Telugu (129 keys each) |
+| `src/IndicatorMap.tsx` | 50 substitutions; now uses `useI18n()` |
+| `scripts/i18n-coverage.mjs` | Now prints each string's length, so truncated listings cannot be mistaken for full ones |
+
+**Still to do in this file:** the remaining 40 strings, which are the deep cartographic legend
+entries (SWAT land-use classes, soil associations, monitoring network, SUFI-2 dotty plots).
+
+Verification for Batch 10: `tsc --noEmit` **pass** · `npm test` **35/35 pass** ·
+`vite build` **pass (5.9 s)** · `npm run i18n:coverage` **13.4%, up from 8.3%**.

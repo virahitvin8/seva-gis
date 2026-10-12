@@ -16,10 +16,12 @@ import {
   Calculator,
   ArrowRight
 } from 'lucide-react'
+import { useI18n } from './lib/i18n'
 
 type TabKey = 'flowchart' | 'indices' | 'terrain' | 'agro' | 'robotics' | 'thesis'
 
 export default function MethodologyModal({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n()
   const [activeTab, setActiveTab] = useState<TabKey>('flowchart')
   const [copiedCitation, setCopiedCitation] = useState(false)
 
@@ -96,9 +98,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     color: '#fff',
                     fontFamily: "'Syne', 'Manrope', sans-serif"
                   }}
-                >
-                  SEVA·GIS Methodology &amp; Research
-                </h2>
+                >{t('meth.title')}</h2>
                 <span
                   style={{
                     fontSize: 10,
@@ -109,13 +109,9 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     borderRadius: 4,
                     border: '1px solid rgba(182,243,106,0.3)'
                   }}
-                >
-                  Algorithmic Specification
-                </span>
+                >{t('meth.spec')}</span>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>
-                Zero-Backend Client-Side Geospatial Architecture by N. Akshit Vinay
-              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>{t('meth.subtitle')}</p>
             </div>
           </div>
 
@@ -138,9 +134,9 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                 textDecoration: 'none',
                 transition: 'all 0.15s'
               }}
-              title="Open full dedicated documentation page"
+              title={t('meth.openDocs')}
             >
-              <span>Full Web Guide</span>
+              <span>{t('meth.fullGuide')}</span>
               <ExternalLink size={12} />
             </a>
             <button
@@ -156,7 +152,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                 display: 'grid',
                 placeItems: 'center'
               }}
-              aria-label="Close dialog"
+              aria-label={t('common.close')}
             >
               <X size={17} />
             </button>
@@ -237,8 +233,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   color: '#c5dda0'
                 }}
               >
-                <strong>Scientific Thesis Architecture Overview:</strong> SEVA·GIS executes a 7-stage zero-backend geospatial pipeline directly within client browser memory. From WGS84 geodesic boundary ingestion to STAC scene querying, Horn DEM finite differences, radiometric band algebra, FAO-56 Penman-Monteith evapotranspiration, and Fields2Cover agricultural swath robotics.
-              </div>
+                <strong>{t('meth.overview')}</strong>{t('meth.overviewBody')}</div>
 
               {/* Rendered Interactive SVG Pipeline Flowchart */}
               <div
@@ -263,9 +258,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                       padding: '3px 10px',
                       borderRadius: 20
                     }}
-                  >
-                    Interactive Scientific Pipeline Flow Chart
-                  </span>
+                  >{t('meth.flowChart')}</span>
                 </div>
 
                 <svg
@@ -306,23 +299,23 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     <rect width="220" height="85" rx="10" fill="url(#flowGrad1)" stroke="#2dd4bf" strokeWidth="1.5" />
                     <text x="110" y="26" textAnchor="middle" fill="#5eead4" fontSize="12" fontWeight="700">1. Spatial Geodesy</text>
                     <text x="110" y="46" textAnchor="middle" fill="#ccfbf1" fontSize="10.5">WGS84 EPSG:4326 Ring</text>
-                    <text x="110" y="64" textAnchor="middle" fill="#99f6e4" fontSize="9.5">Area (ha) · Vincenty Perimeter</text>
+                    <text x="110" y="64" textAnchor="middle" fill="#99f6e4" fontSize="9.5">{t('meth.stepArea')}</text>
                   </g>
 
                   {/* Level 2: Satellite STAC & Cloud Masking */}
                   <g transform="translate(310, 30)">
                     <rect width="220" height="85" rx="10" fill="url(#flowGrad2)" stroke="#60a5fa" strokeWidth="1.5" />
                     <text x="110" y="26" textAnchor="middle" fill="#93c5fd" fontSize="12" fontWeight="700">2. Sentinel-2 L2A Ingestion</text>
-                    <text x="110" y="46" textAnchor="middle" fill="#dbeafe" fontSize="10.5">STAC Search · Cloud &lt;30%</text>
-                    <text x="110" y="64" textAnchor="middle" fill="#bfdbfe" fontSize="9.5">SCL Scene Masking · BOA Reflectance</text>
+                    <text x="110" y="46" textAnchor="middle" fill="#dbeafe" fontSize="10.5">{t('meth.stepStac')}</text>
+                    <text x="110" y="64" textAnchor="middle" fill="#bfdbfe" fontSize="9.5">{t('meth.stepScl')}</text>
                   </g>
 
                   {/* Level 3: Copernicus DEM 30m Topography */}
                   <g transform="translate(580, 30)">
                     <rect width="220" height="85" rx="10" fill="url(#flowGrad4)" stroke="#facc15" strokeWidth="1.5" />
                     <text x="110" y="26" textAnchor="middle" fill="#fef08a" fontSize="12" fontWeight="700">3. Copernicus GLO-30 DEM</text>
-                    <text x="110" y="46" textAnchor="middle" fill="#fef9c3" fontSize="10.5">Horn 1981 Finite Differences</text>
-                    <text x="110" y="64" textAnchor="middle" fill="#fde047" fontSize="9.5">Slope β · Aspect α · TWI Wetness</text>
+                    <text x="110" y="46" textAnchor="middle" fill="#fef9c3" fontSize="10.5">{t('meth.stepHorn')}</text>
+                    <text x="110" y="64" textAnchor="middle" fill="#fde047" fontSize="9.5">{t('meth.stepTerrain')}</text>
                   </g>
 
                   {/* Connecting Arrows Top Row */}
@@ -337,8 +330,8 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                     <rect width="520" height="110" rx="12" fill="url(#flowGrad3)" stroke="#4ade80" strokeWidth="2" filter="url(#flowGlow)" />
                     <text x="260" y="30" textAnchor="middle" fill="#bbf7d0" fontSize="14" fontWeight="800">4. In-Browser Radiometric Spectral Engine (Float32Array WebGL)</text>
                     <text x="260" y="55" textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="600">NDVI · NDMI · NDWI · NDRE · EVI · SAVI · MSAVI · BSI · REIP · LAI</text>
-                    <text x="260" y="78" textAnchor="middle" fill="#86efac" fontSize="10">Pixel Clipping to Polygon · Statistical Z-Scores · Early Stress Warning Matrix</text>
-                    <text x="260" y="96" textAnchor="middle" fill="#4ade80" fontSize="9.5">Zero-Division Safe Formulations · 10 m Resolution Resampling</text>
+                    <text x="260" y="78" textAnchor="middle" fill="#86efac" fontSize="10">{t('meth.stepClip')}</text>
+                    <text x="260" y="96" textAnchor="middle" fill="#4ade80" fontSize="9.5">{t('meth.stepSafe')}</text>
                   </g>
 
                   {/* Connecting Arrows from Center to Bottom Row */}
@@ -350,17 +343,17 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   <g transform="translate(40, 350)">
                     <rect width="230" height="95" rx="10" fill="url(#flowGrad2)" stroke="#38bdf8" strokeWidth="1.5" />
                     <text x="115" y="26" textAnchor="middle" fill="#7dd3fc" fontSize="12" fontWeight="700">5. Multi-Source Agro Physics</text>
-                    <text x="115" y="48" textAnchor="middle" fill="#e0f2fe" fontSize="10">Open-Meteo FAO-56 Penman-Monteith ET₀</text>
-                    <text x="115" y="66" textAnchor="middle" fill="#bae6fd" fontSize="9.5">ISRIC SoilGrids v2.0 (8 Depths)</text>
-                    <text x="115" y="82" textAnchor="middle" fill="#7dd3fc" fontSize="9">Growing Degree Days (GDD Base 10°C)</text>
+                    <text x="115" y="48" textAnchor="middle" fill="#e0f2fe" fontSize="10">{t('meth.stepEto')}</text>
+                    <text x="115" y="66" textAnchor="middle" fill="#bae6fd" fontSize="9.5">{t('meth.stepSoil')}</text>
+                    <text x="115" y="82" textAnchor="middle" fill="#7dd3fc" fontSize="9">{t('meth.stepGdd')}</text>
                   </g>
 
                   {/* Level 6: Agricultural Robotics & VRA Prescriptions */}
                   <g transform="translate(305, 350)">
                     <rect width="230" height="95" rx="10" fill="url(#flowGrad5)" stroke="#c084fc" strokeWidth="1.5" />
                     <text x="115" y="26" textAnchor="middle" fill="#e9d5ff" fontSize="12" fontWeight="700">6. Fields2Cover Swath Robotics</text>
-                    <text x="115" y="48" textAnchor="middle" fill="#f3e8ff" fontSize="10">Longest-Edge Swath Alignment θ_opt</text>
-                    <text x="115" y="66" textAnchor="middle" fill="#d8b4fe" fontSize="9.5">Dubins Turning Path Integration</text>
+                    <text x="115" y="48" textAnchor="middle" fill="#f3e8ff" fontSize="10">{t('meth.stepSwath')}</text>
+                    <text x="115" y="66" textAnchor="middle" fill="#d8b4fe" fontSize="9.5">{t('meth.stepDubins')}</text>
                     <text x="115" y="82" textAnchor="middle" fill="#c084fc" fontSize="9">3-Zone Jenks Natural Breaks Urea VRA</text>
                   </g>
 
@@ -368,9 +361,9 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   <g transform="translate(570, 350)">
                     <rect width="230" height="95" rx="10" fill="url(#flowGrad1)" stroke="#34d399" strokeWidth="1.5" />
                     <text x="115" y="26" textAnchor="middle" fill="#a7f3d0" fontSize="12" fontWeight="700">7. In-Browser Vault &amp; Storage</text>
-                    <text x="115" y="48" textAnchor="middle" fill="#ecfdf5" fontSize="10">Dexie.js IndexedDB Local Storage</text>
-                    <text x="115" y="66" textAnchor="middle" fill="#6ee7b7" fontSize="9.5">Zero Telemetry · 100% Privacy</text>
-                    <text x="115" y="82" textAnchor="middle" fill="#34d399" fontSize="9">Pro-GIS GeoJSON/SHP/KML Export</text>
+                    <text x="115" y="48" textAnchor="middle" fill="#ecfdf5" fontSize="10">{t('meth.stepStorage')}</text>
+                    <text x="115" y="66" textAnchor="middle" fill="#6ee7b7" fontSize="9.5">{t('meth.stepPrivacy')}</text>
+                    <text x="115" y="82" textAnchor="middle" fill="#34d399" fontSize="9">{t('meth.stepExport')}</text>
                   </g>
                 </svg>
               </div>
@@ -384,22 +377,16 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                 }}
               >
                 <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <b style={{ color: '#b6f36a', fontSize: 12 }}>Zero-Server Privacy Invariant</b>
-                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>
-                    Farm coordinates and spatial polygons never leave the user's browser. STAC assets and COG rasters stream directly to client memory.
-                  </p>
+                  <b style={{ color: '#b6f36a', fontSize: 12 }}>{t('meth.invPrivacy')}</b>
+                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>{t('meth.invPrivacyBody')}</p>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
                   <b style={{ color: '#60a5fa', fontSize: 12 }}>Bottom-of-Atmosphere (BOA) Reflectance</b>
-                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>
-                    Sen2Cor surface reflectance ensures absolute radiometric stability across seasonal cycles and solar angles.
-                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>{t('meth.invRadiometryBody')}</p>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <b style={{ color: '#c084fc', fontSize: 12 }}>Robotics Path Planning Invariant</b>
-                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>
-                    Boustrophedon swaths align with the maximum length boundary vector to minimize non-productive turning distance and headland soil compaction.
-                  </p>
+                  <b style={{ color: '#c084fc', fontSize: 12 }}>{t('meth.invRobotics')}</b>
+                  <p style={{ margin: '4px 0 0', fontSize: 11.5, color: '#9fb5a5' }}>{t('meth.invRoboticsBody')}</p>
                 </div>
               </div>
             </div>
@@ -408,8 +395,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
           {/* TAB 2: SPECTRAL INDICES FORMULATIONS */}
           {activeTab === 'indices' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>
-                Mathematical formulations implemented in <code>src/lib/indicators.ts</code>. All equations utilize Sentinel-2 Multispectral Instrument (MSI) surface reflectance bands normalized between 0.0 and 1.0:
+              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>{t('meth.mathIn')}<code>src/lib/indicators.ts</code>. All equations utilize Sentinel-2 Multispectral Instrument (MSI) surface reflectance bands normalized between 0.0 and 1.0:
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -510,8 +496,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
           {/* TAB 3: DEM & HYDROLOGY */}
           {activeTab === 'terrain' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>
-                Copernicus GLO-30 Digital Surface Model (30 m spatial resolution) processed via finite-difference kernels in <code>src/lib/indicators.ts</code> &amp; <code>src/lib/hydro.ts</code>:
+              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>{t('meth.demBody')}<code>src/lib/indicators.ts</code> &amp; <code>src/lib/hydro.ts</code>:
               </div>
 
               <div
@@ -525,9 +510,8 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   gap: 10
                 }}
               >
-                <b style={{ color: '#fef08a', fontSize: 13 }}>Horn's 8-Neighbor Finite-Difference Slope &amp; Aspect (Horn, 1981)</b>
-                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>
-                  For each grid elevation point <code>z(x, y)</code> with cell size <code>dx, dy</code>:
+                <b style={{ color: '#fef08a', fontSize: 13 }}>{t('meth.hornTitle')}</b>
+                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>{t('meth.hornIntro')}<code>z(x, y)</code> with cell size <code>dx, dy</code>:
                 </p>
                 <div
                   style={{
@@ -559,10 +543,8 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   gap: 10
                 }}
               >
-                <b style={{ color: '#60a5fa', fontSize: 13 }}>Topographic Wetness Index (TWI - Beven &amp; Kirkby, 1979)</b>
-                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>
-                  Identifies natural drainage convergence, soil saturation zones, and flood risk pockets across the farm terrain:
-                </p>
+                <b style={{ color: '#60a5fa', fontSize: 13 }}>{t('meth.twiTitle')}</b>
+                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>{t('meth.twiBody')}</p>
                 <div
                   style={{
                     background: '#040b07',
@@ -586,8 +568,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
           {/* TAB 4: FAO-56 & SOILGRIDS */}
           {activeTab === 'agro' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>
-                Multi-source micrometeorological assimilation in <code>src/lib/agro.ts</code>:
+              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>{t('meth.meteoIn')}<code>src/lib/agro.ts</code>:
               </div>
 
               <div
@@ -601,7 +582,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   gap: 10
                 }}
               >
-                <b style={{ color: '#38bdf8', fontSize: 13 }}>FAO-56 Penman-Monteith Evapotranspiration Equation (Allen et al., 1998)</b>
+                <b style={{ color: '#38bdf8', fontSize: 13 }}>{t('meth.etoTitle')}</b>
                 <div
                   style={{
                     background: '#040b07',
@@ -626,7 +607,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   <li><code>γ</code>: Psychrometric constant (kPa °C⁻¹)</li>
                 </ul>
                 <div style={{ fontSize: 11.5, color: '#bae6fd' }}>
-                  <strong>Crop Evapotranspiration:</strong> <code>ET_c = K_c × ET_0</code> where <code>K_c</code> is dynamically resolved based on NDVI-derived crop growth stage.
+                  <strong>{t('meth.etoLabel')}</strong> <code>ET_c = K_c × ET_0</code> where <code>K_c</code> is dynamically resolved based on NDVI-derived crop growth stage.
                 </div>
               </div>
 
@@ -641,9 +622,8 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   gap: 8
                 }}
               >
-                <b style={{ color: '#a7f3d0', fontSize: 13 }}>ISRIC SoilGrids v2.0 Global Soil Physics (250 m)</b>
-                <p style={{ margin: 0, fontSize: 11.5, color: '#9fb5a5' }}>
-                  Directly queries REST endpoint <code>rest.isric.org/soilgrids/v2.0</code> across depth horizons (0-5cm, 5-15cm, 15-30cm, 30-60cm) to evaluate:
+                <b style={{ color: '#a7f3d0', fontSize: 13 }}>{t('meth.soilTitle')}</b>
+                <p style={{ margin: 0, fontSize: 11.5, color: '#9fb5a5' }}>{t('meth.soilIntro')}<code>rest.isric.org/soilgrids/v2.0</code> across depth horizons (0-5cm, 5-15cm, 15-30cm, 30-60cm) to evaluate:
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, fontSize: 11 }}>
                   <div style={{ background: '#040b07', padding: '6px 10px', borderRadius: 6 }}>• Clay / Sand / Silt (%)</div>
@@ -660,8 +640,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
           {/* TAB 5: ROBOTICS & VRA */}
           {activeTab === 'robotics' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>
-                Coverage Path Planning &amp; Variable-Rate Prescriptions in <code>src/lib/pathplan.ts</code>:
+              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>{t('meth.vraIn')}<code>src/lib/pathplan.ts</code>:
               </div>
 
               <div
@@ -675,10 +654,8 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   gap: 10
                 }}
               >
-                <b style={{ color: '#c084fc', fontSize: 13 }}>Optimal Driving Swath Angle (Fields2Cover Principle)</b>
-                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>
-                  To minimize turns and diesel consumption, the driving orientation θ_opt is aligned with the longest geodesic field edge:
-                </p>
+                <b style={{ color: '#c084fc', fontSize: 13 }}>{t('meth.swathTitle')}</b>
+                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>{t('meth.swathBody')}</p>
                 <div
                   style={{
                     background: '#040b07',
@@ -692,8 +669,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                 >
                   θ_opt = argmax_i [ || p_(i+1) - p_i ||² ] mod 180°
                 </div>
-                <p style={{ margin: 0, fontSize: 11.5, color: '#9fb5a5' }}>
-                  The polygon is projected into a local metric equidistant Cartesian plane, sliced into parallel swath lines separated by implement width <code>w</code>, and bounded by a headland turning ring.
+                <p style={{ margin: 0, fontSize: 11.5, color: '#9fb5a5' }}>{t('meth.swathBody2')}<code>w</code>, and bounded by a headland turning ring.
                 </p>
               </div>
 
@@ -708,27 +684,18 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                   gap: 10
                 }}
               >
-                <b style={{ color: '#4ade80', fontSize: 13 }}>Variable-Rate Application (VRA) 3-Zone Optimization</b>
-                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>
-                  Partitions the farm into 3 distinct agronomic management zones using Jenks Natural Breaks on the NDVI histogram:
-                </p>
+                <b style={{ color: '#4ade80', fontSize: 13 }}>{t('meth.vraTitle')}</b>
+                <p style={{ margin: 0, fontSize: 12, color: '#9fb5a5' }}>{t('meth.vraBody')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, fontSize: 11.5 }}>
                   <div style={{ background: '#040b07', padding: 10, borderRadius: 6, borderLeft: '3px solid #ef4444' }}>
-                    <strong style={{ color: '#f87171' }}>Zone 1: Low Vigor</strong><br />
-                    Target Rate: +25% N rate. Rescues establishment gaps with micro-dosing.
-                  </div>
+                    <strong style={{ color: '#f87171' }}>{t('meth.zone1')}</strong><br />{t('meth.zone1Note')}</div>
                   <div style={{ background: '#040b07', padding: 10, borderRadius: 6, borderLeft: '3px solid #eab308' }}>
-                    <strong style={{ color: '#fde047' }}>Zone 2: Moderate Vigor</strong><br />
-                    Target Rate: Standard baseline rate (100 kg/ha). Sustains tillering.
-                  </div>
+                    <strong style={{ color: '#fde047' }}>{t('meth.zone2')}</strong><br />{t('meth.zone2Note')}</div>
                   <div style={{ background: '#040b07', padding: 10, borderRadius: 6, borderLeft: '3px solid #22c55e' }}>
-                    <strong style={{ color: '#86efac' }}>Zone 3: High Vigor</strong><br />
-                    Target Rate: -20% N rate. Prevents lodging and nitrogen runoff waste.
-                  </div>
+                    <strong style={{ color: '#86efac' }}>{t('meth.zone3')}</strong><br />{t('meth.zone3Note')}</div>
                 </div>
                 <div style={{ fontSize: 11.5, color: '#86efac' }}>
-                  <strong>Efficiency Invariant:</strong> Typical smallholder fertilizer savings average 12% to 22% compared to uniform broadcast application.
-                </div>
+                  <strong>{t('meth.effInv')}</strong>{t('meth.effInvBody')}</div>
               </div>
             </div>
           )}
@@ -736,9 +703,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
           {/* TAB 6: THESIS & CITATION */}
           {activeTab === 'thesis' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>
-                Academic documentation and BibTeX citation:
-              </div>
+              <div style={{ fontSize: 12.5, color: '#c5dda0' }}>{t('meth.citation')}</div>
 
               <div
                 style={{
@@ -752,7 +717,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ color: '#fff', fontSize: 12.5 }}>BibTeX Citation:</strong>
+                  <strong style={{ color: '#fff', fontSize: 12.5 }}>{t('meth.bibtexLabel')}</strong>
                   <button
                     type="button"
                     onClick={copyCitation}
@@ -770,7 +735,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                       cursor: 'pointer'
                     }}
                   >
-                    {copiedCitation ? <><Check size={12} /> Copied Citation</> : <><Copy size={12} /> Copy BibTeX</>}
+                    {copiedCitation ? <><Check size={12} />{t('meth.copied')}</> : <><Copy size={12} />{t('meth.copyBibtex')}</>}
                   </button>
                 </div>
                 <pre
@@ -797,7 +762,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <b style={{ color: '#eaf6df', fontSize: 12.5 }}>Selected Academic Bibliography:</b>
+                <b style={{ color: '#eaf6df', fontSize: 12.5 }}>{t('meth.bibliography')}</b>
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: '#9fb5a5', lineHeight: 1.6 }}>
                   <li><strong>Rouse, J. W., et al. (1974).</strong> Monitoring vegetation systems in the Great Plains with ERTS. <em>NASA SP-351</em>, 309-317.</li>
                   <li><strong>Huete, A., et al. (2002).</strong> Overview of the radiometric and biophysical performance of the MODIS vegetation indices. <em>Remote Sensing of Environment</em>, 83(1-2), 195-213.</li>
@@ -828,7 +793,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#9fb5a5' }}>
             <ShieldCheck size={14} style={{ color: '#b6f36a' }} />
-            <span>Open-source precision agronomy for all who love the land.</span>
+            <span>{t('meth.footer')}</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -850,7 +815,7 @@ export default function MethodologyModal({ onClose }: { onClose: () => void }) {
                 transition: 'all 0.15s'
               }}
             >
-              <span>Open Complete Web Thesis</span>
+              <span>{t('meth.openThesis')}</span>
               <ExternalLink size={13} />
             </a>
             <button

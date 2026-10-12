@@ -13,7 +13,17 @@ import {
   ShieldCheck,
   Layers,
   Sparkles,
-  Star
+  Star,
+  Globe,
+  Mountain,
+  Droplets,
+  Compass,
+  HardDrive,
+  ArrowRight,
+  Activity,
+  Zap,
+  Play,
+  Check,
 } from 'lucide-react'
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'
@@ -157,13 +167,73 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <section className="au-hero">
         <div className="au-hero-copy">
           <div className="au-logo"><img src={logo} alt="SEVA·GIS logo" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark/></div>
-          <h2 className="au-brand-title notranslate" translate="no">SEVA.GIS</h2>
-          <p className="au-cherish">
-            Spatial Evaluation &amp; Vegetation Analytics.
-            Explore Sentinel-2 observations, vegetation signals,
-            and moisture patterns for your fields.
+          
+          <div className="au-pill-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', fontSize: 11.5, fontWeight: 700, marginBottom: 14 }}>
+            <Globe size={13} />
+            <span>Sentinel-2 L2A BOA · Copernicus DEM · Google Drive Vault · Zero Fees</span>
+          </div>
+
+          <h2 className="au-brand-title notranslate" translate="no" style={{ fontSize: 'clamp(32px, 4.5vw, 50px)', lineHeight: 1.15, marginBottom: 14 }}>
+            Earth Intelligence for Every Acre, Watershed &amp; AOI
+          </h2>
+          <p className="au-cherish" style={{ fontSize: 15.5, lineHeight: 1.6, color: '#94a3b8', marginBottom: 20 }}>
+            Autonomous browser-first spatial analysis. Ingest any Area of Interest, compute 30+ multispectral indices, export 19X thesis cartography, and auto-sync to your Google Drive—zero subscription fees, zero API key walls, and complete device privacy.
           </p>
-          <ul className="au-stats"><li><i className="fa-solid fa-satellite"/><b>10 m</b><span>satellite detail</span></li><li><i className="fa-solid fa-cloud-sun-rain"/><b>Live</b><span>weather and soil</span></li><li><i className="fa-solid fa-hand-holding-heart"/><b>$0</b><span>no keys, no fees</span></li></ul>
+
+          {/* Fibery Style: Interactive Live Preview Card */}
+          <div
+            className="au-live-preview-card"
+            onClick={() => enterGuest('Demo Farm')}
+            style={{
+              background: 'linear-gradient(135deg, rgba(6, 78, 59, 0.4), rgba(4, 47, 35, 0.7))',
+              border: '1.5px solid rgba(52, 211, 153, 0.35)',
+              borderRadius: 12,
+              padding: '14px 18px',
+              margin: '20px 0',
+              cursor: 'pointer',
+              transition: 'all 200ms ease',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            }}
+            title="Click to launch live interactive workspace"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>Pothireddypally Farm (17.545°N, 78.162°E)</span>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', padding: '2px 8px', borderRadius: 6 }}>14.82 ha</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: '10px 0', borderBlock: '1px solid rgba(255,255,255,0.08)' }}>
+              <div>
+                <small style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Canopy NDVI</small>
+                <b style={{ fontSize: 16, color: '#34d399' }}>+0.76</b>
+                <span style={{ fontSize: 9.5, color: '#10b981', display: 'block' }}>High Vigour</span>
+              </div>
+              <div>
+                <small style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Copernicus DEM</small>
+                <b style={{ fontSize: 16, color: '#38bdf8' }}>542 m</b>
+                <span style={{ fontSize: 9.5, color: '#0284c7', display: 'block' }}>Slope 3.2°</span>
+              </div>
+              <div>
+                <small style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Drive Vault</small>
+                <b style={{ fontSize: 16, color: '#f59e0b' }}>Active</b>
+                <span style={{ fontSize: 9.5, color: '#d97706', display: 'block' }}>SEVA GIS / TIFF</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, fontSize: 11.5, color: '#a7f3d0', fontWeight: 600 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Zap size={13} color="#10b981" />
+                <span>Launch Interactive Demo Workspace</span>
+              </span>
+              <ArrowRight size={13} />
+            </div>
+          </div>
+
+          <ul className="au-stats">
+            <li><i className="fa-solid fa-satellite"/><b>10 m</b><span>satellite detail</span></li>
+            <li><i className="fa-solid fa-cloud-sun-rain"/><b>Live</b><span>weather and soil</span></li>
+            <li><i className="fa-solid fa-hand-holding-heart"/><b>$0</b><span>no keys, no fees</span></li>
+          </ul>
 
           <div className="au-flow" aria-label="How SEVA.GIS works: satellite, bands, indices, advice">
             {[['fa-satellite-dish', 'Satellite', 'Sentinel-2'], ['fa-layer-group', 'Bands', 'Red, NIR, SWIR'], ['fa-seedling', 'Crop health', 'NDVI, NDMI'], ['fa-lightbulb', 'Advice', 'with a reason']].map(([ic, t, s], i) => <div className="au-node" key={t} style={{ animationDelay: `${i * 0.5}s` }}><i className={`fa-solid ${ic}`}/><b>{t}</b><span>{s}</span></div>)}
@@ -241,6 +311,113 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </form>
     </div>
+
+    {/* Fibery / UI-UX Pro Max Style: 8 Tailored Analysis Intents */}
+    <section className="au-intents-section" aria-label="Analysis Intents" style={{ width: '100%', background: 'rgba(2, 27, 17, 0.6)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '64px 32px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 14px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 }}>
+            <Activity size={13} /> Adaptive Spatial Intelligence
+          </span>
+          <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 800, color: '#f8fafc', margin: '0 0 12px' }}>
+            Tailored Analytical Workflows for Every Domain
+          </h2>
+          <p style={{ fontSize: 15, color: '#94a3b8', maxWidth: 640, margin: '0 auto', lineHeight: 1.6 }}>
+            SEVA.GIS dynamically reorders satellite band combinations, threshold warnings, and priority panels to match your exact spatial intent.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', marginBottom: 14 }}>
+              <Sprout size={22} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Precision Agriculture</h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Sentinel-2 NDVI, EVI, chlorophyll red-edge indices, and Fields2Cover tractor swath routing.</p>
+            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#10b981' }}>Crop Vigor &amp; Agronomy &rarr;</div>
+          </div>
+
+          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#06b6d4', background: 'rgba(6, 182, 212, 0.12)', marginBottom: 14 }}>
+              <Droplets size={22} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Hydrology &amp; Drainage</h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Topographic Wetness Index (TWI), stream accumulation, NDWI water bodies, and catchment flow routing.</p>
+            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#06b6d4' }}>Catchments &amp; Aquifers &rarr;</div>
+          </div>
+
+          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#8b5cf6', background: 'rgba(139, 92, 246, 0.12)', marginBottom: 14 }}>
+              <Layers size={22} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Land Cover Dynamics</h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Dynamic World 10m 9-class LULC modal classification matrix (Table 3.2) and mode composite figure.</p>
+            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#8b5cf6' }}>ESA &amp; Google AI 10m &rarr;</div>
+          </div>
+
+          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.12)', marginBottom: 14 }}>
+              <Mountain size={22} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Terrain &amp; Elevation</h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Copernicus DEM GLO-30 elevation, slope gradient, multi-directional hillshades, and aspect maps.</p>
+            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>Copernicus GLO-30 &rarr;</div>
+          </div>
+
+          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#ec4899', background: 'rgba(236, 72, 153, 0.12)', marginBottom: 14 }}>
+              <Compass size={22} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Cadastral &amp; Cartography</h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Geodesic polygon rings, 19X publication neatlines, dynamic furniture collision avoidance, and GeoTIFFs.</p>
+            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#ec4899' }}>19X Map Layouts &rarr;</div>
+          </div>
+
+          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.12)', marginBottom: 14 }}>
+              <HardDrive size={22} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Google Drive Cloud Vault</h3>
+            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Auto-creates SEVA GIS with subfolders for TIFF Files, Images, Reports, and Cache with zero-error local fallback.</p>
+            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#3b82f6' }}>Auto Cloud Sync &rarr;</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {/* AstroWind Style: 3-Step Production Workflow */}
+    <section className="au-workflow-section" aria-label="How it works workflow" style={{ width: '100%', background: 'rgba(4, 29, 19, 0.8)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '64px 32px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 14px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 }}>
+            <Zap size={13} /> Friction-Free Execution
+          </span>
+          <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 800, color: '#f8fafc', margin: '0 0 12px' }}>
+            From Area of Interest to Verified Report in 3 Steps
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
+            <div style={{ fontSize: 32, fontWeight: 900, color: '#10b981', lineHeight: 1, marginBottom: 14 }}>01</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: '0 0 10px' }}>Draw or Ingest AOI</h3>
+            <p style={{ fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>Click on the satellite basemap to sketch a farm boundary, or import any standard GeoJSON, KML, or Shapefile. Geometric invariants automatically validate closure and detect bowtie self-intersections.</p>
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
+            <div style={{ fontSize: 32, fontWeight: 900, color: '#06b6d4', lineHeight: 1, marginBottom: 14 }}>02</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: '0 0 10px' }}>Stream Satellite &amp; Terrain</h3>
+            <p style={{ fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>Autonomous client-side queries stream Sentinel-2 L2A BOA multispectral bands and Copernicus DEM GLO-30 without server lock-in or backend delays. Large AOIs (&gt;1,000 ha) are stitched automatically.</p>
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
+            <div style={{ fontSize: 32, fontWeight: 900, color: '#8b5cf6', lineHeight: 1, marginBottom: 14 }}>03</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: '0 0 10px' }}>Inspect &amp; Auto-Sync</h3>
+            <p style={{ fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>Explore 30+ vegetation and terrain layers in the QGIS Layer Tree, split swipe against high-res imagery, export 19X thesis cartography, compile .eml email packages, and auto-sync to your Google Drive.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     {/* Full-width Knowledge Hub & Documentation Showcase below the fold */}
     <section className="au-hub" aria-label="Knowledge Hub and Documentation">

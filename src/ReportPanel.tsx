@@ -22,6 +22,8 @@ import {
   PieChart,
   HeartHandshake,
   ShieldCheck,
+  Download,
+  ExternalLink,
 } from 'lucide-react'
 import { useAccount } from './Auth'
 import EmailOctopusGreetingModal from './EmailOctopusGreetingModal'
@@ -48,6 +50,7 @@ import {
   type ReportHistoryEntry,
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
+import { executeEmailPackageDelivery, type EmailGenerationResult } from './lib/emailGenerator'
 import { openReportPrintView } from './lib/reportPdf'
 import { useI18n } from './lib/i18n'
 
@@ -109,6 +112,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [autoEmailOnDownload, setAutoEmailOnDownload] = useState(true)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState('')
+  const [emailPackage, setEmailPackage] = useState<EmailGenerationResult | null>(null)
+  const [copiedEmail, setCopiedEmail] = useState(false)
   const [historyList, setHistoryList] = useState<ReportHistoryEntry[]>([])
   const [downloading, setDownloading] = useState<'pdf' | 'doc' | 'dossier' | ''>('')
 
@@ -337,7 +342,25 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
     try {
       localStorage.setItem('seva-user-email', emailInput)
-      const res = await syncAndSendViaEmailOctopus({
+
+      // 1. Generate authentic RFC 822 .eml bundle, Gmail web link, and save to device & Drive
+      const deliveryRes = await executeEmailPackageDelivery({
+        recipientEmail: emailInput,
+        farmName: farm.name,
+        reportId: current.id,
+        areaHa: farm.area,
+        ndvi: farm.analysis?.ndvi?.mean,
+        ndmi: farm.analysis?.ndmi?.mean,
+        filename: `${baseFilename}.html`,
+        htmlContent: current.html,
+        senderName: who.name || 'SEVA·GIS Autonomous Sentinel',
+      })
+
+      setEmailPackage(deliveryRes.packageData)
+      setEmailSuccess(deliveryRes.message)
+
+      // 2. Background audience sync (non-blocking)
+      syncAndSendViaEmailOctopus({
         email: emailInput,
         farmName: farm.name,
         reportId: current.id,
@@ -346,29 +369,23 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         ndmi: farm.analysis?.ndmi?.mean,
         filename: `${baseFilename}.html`,
         htmlContent: current.html,
-      })
+      }).catch(() => {})
 
-      if (res.success) {
-        setEmailSuccess(`Email successfully dispatched via EmailOctopus to ${emailInput}! "${res.tagline}"`)
-        setGreetingModalData({
-          isOpen: true,
-          recipientEmail: emailInput,
-          farmName: farm.name,
-          custodianName: who.name || 'SEVA·GIS Member',
-          reportId: current.id,
-          filename: `${baseFilename}.html`,
-          htmlContent: current.html,
-          areaHa: farm.area,
-          ndvi: farm.analysis?.ndvi?.mean ?? 0.65,
-          ndmi: farm.analysis?.ndmi?.mean ?? 0.32,
-          contactId: res.id || 'Active Member',
-        })
-      } else {
-        setErr(res.message)
-      }
-      setTimeout(() => setEmailSuccess(''), 10000)
-    } catch {
-      setErr('Encountered an issue dispatching email via EmailOctopus. Please verify network.')
+      setGreetingModalData({
+        isOpen: true,
+        recipientEmail: emailInput,
+        farmName: farm.name,
+        custodianName: who.name || 'SEVA·GIS Member',
+        reportId: current.id,
+        filename: `${baseFilename}.html`,
+        htmlContent: current.html,
+        areaHa: farm.area,
+        ndvi: farm.analysis?.ndvi?.mean ?? 0.65,
+        ndmi: farm.analysis?.ndmi?.mean ?? 0.32,
+        contactId: 'Direct-Delivery',
+      })
+    } catch (err: any) {
+      setErr(err?.message || 'Could not compile email package. Please check network.')
     } finally {
       setSendingEmail(false)
     }
@@ -384,16 +401,18 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
       if (targetEmail && targetEmail.includes('@') && autoEmailOnDownload) {
         try {
           setSendingEmail(true)
-          const res = await syncAndSendViaEmailOctopus({
-            email: targetEmail,
+          const deliveryRes = await executeEmailPackageDelivery({
+            recipientEmail: targetEmail,
             farmName: farm.name,
             reportId: curReport.id,
             areaHa: farm.area,
             ndvi: farm.analysis?.ndvi.mean,
             filename: `${baseFilename}.html`,
             htmlContent: curReport.html,
+            senderName: who.name || 'SEVA·GIS Autonomous Sentinel',
           })
-          setEmailSuccess(`Report downloaded! Official copy dispatched to ${targetEmail} via EmailOctopus. "${res.tagline}"`)
+          setEmailPackage(deliveryRes.packageData)
+          setEmailSuccess(`Report downloaded! Email package (.eml) saved to device & organized in Google Drive.`)
           setTimeout(() => setEmailSuccess(''), 10000)
         } catch (e) {
           console.warn('Auto-email on download failed:', e)
@@ -401,7 +420,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           setSendingEmail(false)
         }
       } else if (!targetEmail) {
-        setEmailSuccess(`Report downloaded to device! Enter your email in the box below to also receive an official copy via EmailOctopus.`)
+        setEmailSuccess(`Report downloaded to device! Enter your email in the box below to prepare an email package.`)
         setTimeout(() => setEmailSuccess(''), 8000)
       }
     } finally {
@@ -622,13 +641,15 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
                   <Mail size={17} color="#059669" />
-                  <span>{t('rp.emailTitle')}</span>
+                  <span>Report Email Generator &amp; Direct Dispatch</span>
                 </div>
                 <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
-                  ● EmailOctopus API Connected
+                  ● RFC 822 Email Engine &amp; Drive Vault
                 </span>
               </div>
-              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>{t('rp.emailNote')}</p>
+              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
+                Compiles a complete email package (.eml) with the report attached, pre-populates your email client, and auto-syncs to your Google Drive.
+              </p>
 
               {/* Email form with input placed ABOVE the send button */}
               <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -636,7 +657,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>{t('rp.recipient')}</label>
                   <input
                     type="email"
-                    placeholder={t('rp.emailPlaceholder')}
+                    placeholder="Enter your email (e.g. you@gmail.com)"
                     value={emailInput}
                     onChange={e => setEmailInput(e.target.value)}
                     style={{
@@ -655,7 +676,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 </div>
                 <button type="submit" className="primary sm" disabled={sendingEmail} style={{ width: '100%', justifyContent: 'center', padding: '10px 16px', fontSize: '13.5px' }}>
                   <Send size={15} />
-                  {sendingEmail ? 'Sending...' : 'Send via EmailOctopus'}
+                  {sendingEmail ? 'Compiling Email Package...' : 'Generate & Prepare Email Package'}
                 </button>
               </form>
 
@@ -667,7 +688,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   onChange={e => setAutoEmailOnDownload(e.target.checked)}
                   style={{ cursor: 'pointer' }}
                 />
-                <label htmlFor="auto-email-cb" style={{ cursor: 'pointer' }}>{t('rp.autoSend')}</label>
+                <label htmlFor="auto-email-cb" style={{ cursor: 'pointer' }}>Automatically generate email package on report download</label>
               </div>
 
               {emailSuccess && (
@@ -675,10 +696,121 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   <CheckCircle2 size={16} style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <strong>{emailSuccess}</strong>
-                    <div style={{ fontSize: '11.5px', color: '#065f46', marginTop: '2px', fontStyle: 'italic' }}>
-                      "{EMAIL_OCTOPUS_CONFIG.tagline}"
-                    </div>
                   </div>
+                </div>
+              )}
+
+              {/* Multi-Channel Real Email Actions Grid */}
+              {emailPackage && (
+                <div style={{ marginTop: '14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '14px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Sparkles size={14} color="#059669" />
+                    <span>Real Delivery Actions (Instant &amp; Reliable):</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                    <a
+                      href={emailPackage.gmailWebUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: '#ea4335',
+                        color: '#ffffff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <ExternalLink size={13} />
+                      <span>Open in Gmail Web</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = URL.createObjectURL(emailPackage.emlBlob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = emailPackage.emlFilename
+                        a.click()
+                        setTimeout(() => URL.revokeObjectURL(url), 2000)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: '#047857',
+                        color: '#ffffff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Download size={13} />
+                      <span>Download .eml File</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                          navigator.clipboard.writeText(emailPackage.plainSummary)
+                          setCopiedEmail(true)
+                          setTimeout(() => setCopiedEmail(false), 3000)
+                        }
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: '#f1f5f9',
+                        color: '#1e293b',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: '1px solid #cbd5e1',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <CheckCircle2 size={13} color={copiedEmail ? '#10b981' : '#64748b'} />
+                      <span>{copiedEmail ? 'Copied Briefing!' : 'Copy Briefing Text'}</span>
+                    </button>
+
+                    <a
+                      href={emailPackage.mailtoUrl}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: '#f1f5f9',
+                        color: '#1e293b',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        border: '1px solid #cbd5e1',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <Mail size={13} />
+                      <span>Default Mail Client</span>
+                    </a>
+                  </div>
+                  <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+                    Opening the <b>.eml file</b> or <b>Gmail Web</b> will immediately load the executive briefing, attachments, and recipient address without any third-party server delivery failure.
+                  </p>
                 </div>
               )}
 

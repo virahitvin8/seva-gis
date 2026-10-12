@@ -4934,3 +4934,25 @@ canvas.seva-raster-canvas,
   font-weight: bold;
 }
 
+/* Landing Page: Fibery & AstroWind Visual Extensions */
+.au-intent-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(52, 211, 153, 0.4) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.au-live-preview-card:hover {
+  border-color: #10b981 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.25) !important;
+}
+
+.au-step-card {
+  transition: transform 200ms ease, border-color 200ms ease;
+}
+
+.au-step-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+

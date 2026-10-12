@@ -158,8 +158,8 @@ graph LR
 | ☐ | 28 | Mitra targets the single Log Out | ☐ |
 | ☐ | 29 | Mitra 5–10 s lag between steps | ☐ |
 | ☐ | 30 | Mitra updated after each change | ☐ |
-| ☐ | 31 | Language switch: English won’t return; auto-reverts | ☐ |
-| ☐ | 32 | Header text also translates | 🚧 |
+| ☐ | 31 | Language switch: English won’t return; auto-reverts | ✅ (native i18n, no Google Translate) |
+| ☐ | 32 | Header text also translates | 🚧 (nav + shell wired; full catalogue pending) |
 | ☐ | 33 | “Multi-Session Candlestick Trends” → “Multi-Session Trends” | ✅ |
 | ☐ | 34 | “Review field from home” → neutral remote wording | ✅ |
 
@@ -167,9 +167,9 @@ graph LR
 | ✅ | ID | Change | Status |
 |---|---|---|---|
 | ☐ | 35 | Unresponsive on login with large saved AOIs | ☐ |
-| ☐ | 36 | Switching area freezes page | ☐ |
-| ☐ | 37 | Raster work off the main thread | ☐ |
-| ☐ | 38 | Old layers/fetches cleaned on area switch | ☐ |
+| ☐ | 36 | Switching area freezes page | 🚧 (startTransition added) |
+| ☐ | 37 | Raster work off the main thread | ✅ (Web Worker for index stats) |
+| ☐ | 38 | Old layers/fetches cleaned on area switch | 🚧 (EE tiles abort + clean; audit ongoing) |
 | ☐ | 39 | Report generation hangs | 🚧 |
 | ☐ | 40 | GeoAI Studio slow to open | ☐ |
 | ☐ | 41 | Can’t scroll in Focus mode | ☐ |
@@ -403,3 +403,21 @@ Changed and verified (`tsc --noEmit` + `build` both pass):
 - Confirmed no “confidential/proprietary” wording remains in source.
 
 Verification: `tsc --noEmit` pass · `build` pass. See `docs/REBUILD-REPORT.md`.
+
+### 2026-10-12 — Batch 4: tests, performance, Web Worker, native localization (verified)
+
+- **Test runner added.** `npm test` uses Node's built-in test runner plus a TypeScript
+  resolve hook (`scripts/test-run.mjs`), with no extra dependencies. 21 unit tests cover
+  geometry, raster statistics, the worker fallback, indicator helpers, and hydraulics.
+- **Web Worker raster processing.** `src/lib/rasterStats.worker.ts` + `src/lib/rasterWorker.ts`
+  move the per-pixel index statistics off the main thread; `analyze()` now uses
+  `indexStatAsync`. Falls back to the main thread when Workers are unavailable. Vite emits
+  the worker chunk (`rasterStats.worker-*.js`).
+- **Non-blocking area switch.** Area selection and the alert jump use React
+  `startTransition` so the UI stays responsive while analysis runs.
+- **Native localization.** `src/lib/i18n.tsx` provides English/Telugu/Hindi catalogues and
+  a provider; `src/Lang.tsx` no longer uses Google Translate; `src/main.tsx` mounts the
+  provider. Language now switches instantly and persists across reloads. Shell navigation,
+  hero action, and the empty state are translated.
+
+Verification: `tsc --noEmit` pass · `npm test` 21/21 pass · `build` pass.

@@ -6,6 +6,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css'
 import './index.css'
 
 import PopTheTeamModal from './PopTheTeamModal'
+import { I18nProvider } from './lib/i18n'
 
 interface Props {
   children: ReactNode
@@ -147,7 +148,7 @@ const root = rootHost.__sevaReactRoot ??= ReactDOM.createRoot(document.getElemen
 root.render(
   <React.StrictMode>
     <GlobalErrorBoundary>
-      <AuthGate><App /></AuthGate>
+      <I18nProvider><AuthGate><App /></AuthGate></I18nProvider>
     </GlobalErrorBoundary>
   </React.StrictMode>,
 )

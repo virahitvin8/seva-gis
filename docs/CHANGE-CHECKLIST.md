@@ -390,3 +390,16 @@ Changed and verified (`tsc --noEmit` + `build` both pass):
   VRA mention from the sign-in copy.
 - Neutral empty-state wording in `src/App.tsx` ("review remotely", not "from home").
 - Confirmed the map panel already reads “Background Canvas”.
+
+### 2026-10-12 — Batch 3: report wording (verified)
+
+- Neutralized report source lines in `src/reportBuilder.ts`: “Streamflow Telemetry” →
+  “Streamflow Records”, “Climate Telemetry” → “Climate Records”, “Calibration Telemetry
+  Engine” → “Calibration Engine”, “Sensor Telemetry” → “Sensor Records”, “Telemetry
+  Property” → “Property”, “zero-telemetry” → “zero-tracking”.
+- Removed remaining cadastral phrasing from report text (“cadastral boundary” →
+  “area-of-interest boundary”, “cadastral parcel level” → “small-holding level”,
+  “Cadastral farm boundary” → “analysed boundary”).
+- Confirmed no “confidential/proprietary” wording remains in source.
+
+Verification: `tsc --noEmit` pass · `build` pass. See `docs/REBUILD-REPORT.md`.

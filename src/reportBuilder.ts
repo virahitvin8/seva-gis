@@ -1,5 +1,5 @@
 import { INDICATORS, byId, renderLayer, type Grid } from './lib/indicators'
-import { farmBBox, farmRing, irrigationAdvice, constructionSuitability, type Analysis } from './lib/seva'
+import { farmBBox, farmRing, irrigationAdvice, constructionSuitability, type Analysis, type Candle } from './lib/seva'
 import { areaHa } from './lib/geo'
 import { logoMark as logoUrl } from './assets/brand'
 import {
@@ -489,7 +489,7 @@ function renderGroundDischargeStationMapSvg(
     ring,
     `${layerContent}${riverNetwork}`,
     leg,
-    'Source: MPWRD Streamflow Telemetry & Hydrology Sub-basin Network'
+    'Source: Streamflow Records & Hydrology Sub-basin Network'
   )
 }
 
@@ -900,6 +900,14 @@ export async function buildReport(
     console.debug('[Report] S2 scene load fallback')
   }
 
+  let historyRows: Candle[] = []
+  try {
+    const { history } = await import('./lib/seva')
+    historyRows = await history(farm, 365, 6)
+  } catch {
+    historyRows = []
+  }
+
   const elevMeanVal = an.elevMean ?? farm.elevation ?? 245
   const slopePctVal = an.slopePct ?? 4.2
   const slopeDegVal = an.slopeDeg ?? 2.4
@@ -1016,14 +1024,29 @@ export async function buildReport(
   const irrAdvice = irrigationAdvice(farm)
   const conAdvice = constructionSuitability(farm)
 
-  const sessions = [
-    { num: 1, date: '2026-08-15', ndvi: 0.42, ndmi: 0.18, stress: 32.1, rain: 24.5, runoff: 12.4, et: 38.2, status: 'Vegetative Initiation' },
-    { num: 2, date: '2026-08-30', ndvi: 0.49, ndmi: 0.24, stress: 24.8, rain: 45.2, runoff: 22.8, et: 44.5, status: 'Active Tillering' },
-    { num: 3, date: '2026-09-14', ndvi: 0.55, ndmi: 0.28, stress: 18.2, rain: 68.0, runoff: 38.6, et: 52.1, status: 'Canopy Development' },
-    { num: 4, date: '2026-09-29', ndvi: 0.62, ndmi: 0.35, stress: 12.4, rain: 35.4, runoff: 18.2, et: 56.4, status: 'Peak Flowering' },
-    { num: 5, date: '2026-10-05', ndvi: 0.60, ndmi: 0.33, stress: 13.8, rain: 12.0, runoff: 4.8, et: 48.2, status: 'Grain Filling' },
-    { num: 6, date: now.toISOString().slice(0, 10), ndvi: an.ndvi.mean, ndmi: an.ndmi.mean, stress: an.stressPct, rain: farm.rain ?? 8.5, runoff: 3.2, et: 42.0, status: 'Current Evaluation' },
-  ]
+  const sessions = historyRows.length
+    ? historyRows.map((row, index) => ({
+      num: index + 1,
+      date: row.scene.datetime.slice(0, 10),
+      ndvi: row.ndvi.mean,
+      ndmi: row.ndmi,
+      stress: row.stressPct,
+      rain: farm.rain ?? 0,
+      runoff: 0,
+      et: 0,
+      status: index === historyRows.length - 1 ? 'Current Evaluation' : 'Historical Observation',
+    }))
+    : [{
+      num: 1,
+      date: an.scene.datetime.slice(0, 10),
+      ndvi: an.ndvi.mean,
+      ndmi: an.ndmi.mean,
+      stress: an.stressPct,
+      rain: farm.rain ?? 0,
+      runoff: 0,
+      et: 0,
+      status: 'Current Evaluation',
+    }]
 
   // ==========================================
   // PASS 1: Build Body Pages & Register Pages
@@ -1057,7 +1080,7 @@ export async function buildReport(
     <p>The farm parcel <b>${esc(farm.name)}</b> is situated in <b>${esc(farm.location)}</b> at geodetic coordinates <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326). It covers a measured geographic surface area of <b>${ha.toFixed(2)} hectares</b> (${acres.toFixed(2)} acres). The designated primary cultivation is <b>${esc(farm.crop)}</b>. The elevation averages <b>${elevMeanVal.toFixed(1)} m</b> above sea level, exhibiting an average topographical slope gradient of <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°).</p>
 
     <h2 class="section-title">1.3 Research &amp; Technological Gap</h2>
-    <p>While macro-scale hydrological models (such as SWAT and VIC) are regularly deployed across river basins exceeding thousands of square kilometers, their application at the cadastral parcel level is hampered by coarse spatial discretization and lack of real-time surface reflectance calibration. This investigation fills that gap by operationalizing client-side 10 m Sentinel-2 L2A radiative indices combined with 30 m DEM hypsometry.</p>
+    <p>While macro-scale hydrological models (such as SWAT and VIC) are regularly deployed across river basins exceeding thousands of square kilometers, their application at the small-holding level is hampered by coarse spatial discretization and lack of real-time surface reflectance calibration. This investigation fills that gap by operationalizing client-side 10 m Sentinel-2 L2A radiative indices combined with 30 m DEM hypsometry.</p>
 
     <h2 class="section-title">1.4 Objectives of the Investigation</h2>
     <ol style="line-height: 1.6; font-size: 11pt; padding-left: 1.2cm;">
@@ -1155,7 +1178,7 @@ export async function buildReport(
       'fig3_1',
       `
       <h2 class="section-title">3.4 Study Area Geodetic Location Map</h2>
-      <p>Figure 3.1 delineates the cadastral boundary of ${esc(farm.name)} superimposed on high-resolution true-color satellite imagery, with precise geodetic neatline tick marks and scale bar.</p>
+      <p>Figure 3.1 delineates the area-of-interest boundary of ${esc(farm.name)} superimposed on high-resolution true-color satellite imagery, with precise geodetic neatline tick marks and scale bar.</p>
       <figure class="academic-figure">
         ${fig3_1_Svg}
         <figcaption class="figure-caption">Fig 3.1: Study Area Boundary &amp; Geodetic Extent of ${esc(farm.name)}</figcaption>
@@ -1264,7 +1287,7 @@ export async function buildReport(
       <polygon points="18,46 22,54 14,54" fill="#000000"/><text x="28" y="52" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Temperature Station</text>
       <polygon points="18,62 23,67 18,72 13,67" fill="#d90429"/><text x="28" y="69" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Rainfall Station</text>
       <rect x="12" y="78" width="12" height="5" fill="#2d6a4f"/><text x="28" y="83" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">DEM Background</text>`
-    const fig3_5_Svg = render2dCartographicMap('Fig 3.5', `Weather Station Details Map of ${farm.name}`, view, ring, makeLayerContent('stations', 'rgba(0, 119, 182, 0.25)'), fig3_5_Legend, 'Source: IMD 21-Year Climate Telemetry & Open-Meteo High Resolution Grid')
+    const fig3_5_Svg = render2dCartographicMap('Fig 3.5', `Weather Station Details Map of ${farm.name}`, view, ring, makeLayerContent('stations', 'rgba(0, 119, 182, 0.25)'), fig3_5_Legend, 'Source: IMD 21-Year Climate Records & Open-Meteo High Resolution Grid')
     const pFig = curPageNum
     figEntries.push({ num: 'Fig 3.5', title: `Weather Station Details Map of ${farm.name}`, pageNum: pFig })
     pushPage(
@@ -1294,7 +1317,7 @@ export async function buildReport(
       <figure class="academic-figure">
         ${fig3_6_Svg}
         <figcaption class="figure-caption">Fig 3.6: Hydrology Station map of ${esc(farm.name)}</figcaption>
-        <div class="figure-source">Source: Micro-Catchment Streamflow Telemetry &amp; SWAT River Reach Model</div>
+        <div class="figure-source">Source: Micro-Catchment Streamflow Records &amp; SWAT River Reach Model</div>
       </figure>
     `
     )
@@ -1658,7 +1681,7 @@ export async function buildReport(
           <tr><td>Kling-Gupta Efficiency (KGE)</td><td><b>0.71</b></td><td>&gt; 0.60</td><td><b>Robust Diagnostic</b></td></tr>
         </tbody>
       </table>
-      <div class="table-source">Source: SEVA·GIS Calibration Telemetry Engine</div>
+      <div class="table-source">Source: SEVA·GIS Calibration Engine</div>
 
       <p class="table-caption">Table 4.2: Annual Continuous Hydrological Water Budget</p>
       <table class="academic-table">
@@ -1785,10 +1808,10 @@ export async function buildReport(
     'apps_p1',
     `
     <h1 class="chapter-title">${t.appTitle}</h1>
-    <h2 class="section-title">Official Metadata Dossier &amp; Sensor Telemetry</h2>
+    <h2 class="section-title">Official Metadata Dossier &amp; Sensor Records</h2>
     <table class="academic-table">
       <thead>
-        <tr><th>Telemetry Property</th><th>Ingested Value / Coordinate Specification</th></tr>
+        <tr><th>Property</th><th>Ingested Value / Coordinate Specification</th></tr>
       </thead>
       <tbody>
         <tr><td>Report Verification Checksum</td><td><code>SHA256:${rid}</code></td></tr>
@@ -2113,7 +2136,7 @@ export async function buildReport(
       <ul style="line-height: 1.6; font-size: 11pt;">
         <li><b>Non-Misuse Agreement:</b> This report and its geospatial vector outputs shall not be altered, forged, or misrepresented in land disputes, commercial speculation, or unlawful expropriation.</li>
         <li><b>Ground Validation Requirement:</b> Satellite observations and hydrological modeling provide macroscopic trends. Physical soil checks and agronomic verification should precede capital-intensive civil works.</li>
-        <li><b>Data Sovereignty:</b> The spatial boundaries analyzed were processed with zero-telemetry client-side privacy. No farm coordinates are retained on external tracking servers.</li>
+        <li><b>Data Sovereignty:</b> The spatial boundaries analyzed were processed with zero-tracking client-side privacy. No farm coordinates are retained on external tracking servers.</li>
       </ul>
 
       <div style="margin-top: 36pt; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11pt;">
@@ -2171,7 +2194,7 @@ export async function buildReport(
           <tr><td>5.2</td><td>Direct Answers to Core Objectives</td><td style="text-align: right;">${sectionMap['5.2'] ?? 5}</td></tr>
           <tr><td>5.3</td><td>Actionable Agronomic &amp; Engineering Recommendations</td><td style="text-align: right;">${sectionMap['5.3'] ?? 5}</td></tr>
           <tr><td><b>REFERENCES</b></td><td><b>Alphabetical Bibliography (APA Format)</b></td><td style="text-align: right;">${sectionMap['refs'] ?? 6}</td></tr>
-          <tr><td><b>APPENDICES</b></td><td><b>Official Metadata Dossier &amp; Sensor Telemetry</b></td><td style="text-align: right;">${sectionMap['apps'] ?? 7}</td></tr>
+          <tr><td><b>APPENDICES</b></td><td><b>Official Metadata Dossier &amp; Sensor Records</b></td><td style="text-align: right;">${sectionMap['apps'] ?? 7}</td></tr>
         </tbody>
       </table>
     </div>
@@ -2234,7 +2257,7 @@ export async function buildReport(
       <h1 class="chapter-title">${t.abbrTitle}</h1>
       <table class="abbr-list">
         <tbody>
-          <tr><td class="abbr-sym">AOI</td><td>Area of Interest (Cadastral farm boundary)</td></tr>
+          <tr><td class="abbr-sym">AOI</td><td>Area of Interest (analysed boundary)</td></tr>
           <tr><td class="abbr-sym">BOA</td><td>Bottom-of-Atmosphere (Surface Reflectance)</td></tr>
           <tr><td class="abbr-sym">DEM</td><td>Digital Elevation Model (Copernicus GLO-30)</td></tr>
           <tr><td class="abbr-sym">EPSG</td><td>European Petroleum Survey Group (EPSG:4326 / WGS 84)</td></tr>

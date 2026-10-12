@@ -143,7 +143,7 @@
   <!-- STATUS SUMMARY -->
   <rect x="50" y="812" width="1400" height="150" rx="16" fill="#f5f7f6" stroke="#d8e2dd" stroke-width="1.5"/>
   <text x="76" y="846" font-size="16" font-weight="700" fill="#14342a">Where the build actually stands, honestly</text>
-  <text x="76" y="877" font-size="14" fill="#33453e">131 requested items · <tspan font-weight="700" fill="#2f6b4f">36 verified done</tspan> · 95 still open or partial</text>
+  <text x="76" y="877" font-size="14" fill="#33453e">131 requested items · <tspan font-weight="700" fill="#2f6b4f">38 verified done</tspan> · 93 still open or partial</text>
   <text x="76" y="904" font-size="13.5" fill="#1c6b45">Fixed and measured: the downloaded PDF is now the report you previewed ·  810,000-value statistics 2430 ms → 273 ms (8.9×) · PDF preview parity</text>
   <text x="76" y="924" font-size="13.5" fill="#8a4b0f">Still open and felt first: the page still freezes on login with large saved areas · full native Telugu/Hindi · clipped, fitted report maps · a real LULC classification</text>
   <text x="76" y="948" font-size="12.5" fill="#5a6b64">Verified by command: tsc --noEmit → 0 errors · npm test → 24/24 · vite build → pass · Vaiganga references in src/ → 0</text>

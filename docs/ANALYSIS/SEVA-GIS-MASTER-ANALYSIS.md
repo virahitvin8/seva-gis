@@ -32,14 +32,14 @@ You said, in your own words: *don't go straight in and start changing SEVA·GIS;
 | Separate "page is unresponsive" episodes you hit while reviewing | **9** |
 | Repositories + reference projects you handed me | **37** |
 | Things you explicitly said are **fine — do not touch** | 11 |
-| Items verified complete as of this document | 36 / 131 |
+| Items verified complete as of this document | 38 / 131 |
 
 > **The honest headline.** The lists existed from the earlier sessions, but the *build* did not
-> keep up with them. Re-reading the code rather than trusting my own checklist, **36 of 131**
-> items are finished and verified. The app is still slow on login with large saved areas, the
-> language switch still covers only a small part of the screen, report maps are not yet clipped
-> or fitted, and the LULC classification is still not really performed. Those are real, and they
-> are the first things in the build order below.
+> keep up with them. Re-reading the code rather than trusting my own checklist, **38 of 131**
+> items are finished and verified. The app still freezes on login with large saved areas, the
+> language switch still covers only a small part of the screen, report maps are framed but not
+> yet clipped, and the LULC classification is still not really performed. Those are real, and
+> they are the first things in the build order below.
 
 > **A correction to my own record.** When this document was first written I reported 27 of 131
 > done. That was wrong, and it was wrong in the direction that understates the work: the change

@@ -590,3 +590,63 @@ rather than assumed.
 
 Verification for Batch 8: `tsc --noEmit` **pass** · `npm test` **30/30 pass** (was 24) ·
 `vite build` **pass (5.7 s)**.
+
+### 2026-10-12 — Batch 9: localization, measured honestly (items 31, 32)
+
+**The number first, because it explains the complaint.** `src/lib/i18n.tsx` held **14
+message keys**. I wrote `scripts/i18n-coverage.mjs` (`npm run i18n:coverage`) to count what a
+user can actually read on screen. The result:
+
+| | Before Batch 9 | After Batch 9 |
+|---|---|---|
+| Strings still hard-coded in English | **997** | **899** |
+| `t()` call sites wired to the catalogue | **14** | **81** |
+| Distinct catalogue keys | 36 | 80 |
+| **Coverage** | **1.4%** | **8.3%** |
+
+> Coverage = `wired / (wired + still hard-coded)`. On this metric the starting point is 1.4%,
+> which is the honest reason switching to Telugu appeared to do nothing: only the navigation
+> and a handful of buttons ever changed.
+
+**What was built**
+
+1. **The catalogue was split out of the React module.** `src/lib/i18nCatalog.ts` now holds the
+   language data as plain TypeScript, so Node's test runner can import it. This was not
+   cosmetic: the test runner **cannot load `.tsx` files at all** (`ERR_UNKNOWN_FILE_EXTENSION`),
+   so anything living in a `.tsx` file is untestable by construction.
+2. **A parity test that blocks half-finished translations.**
+   `src/lib/__tests__/i18n.test.ts` asserts that all three catalogues have *identical key
+   sets*, that no value is empty, that every Hindi entry contains Devanagari and every Telugu
+   entry contains Telugu script, and that no entry is byte-identical to English. A key can no
+   longer be added for English only.
+3. **The whole app shell is now translated** — header, sidebar, hero, dashboard cards, layout
+   customizer, alert panel, loading states, source notes and footer. 67 substitutions in
+   `src/App.tsx`, applied by a codemod that *refuses to write* if any expected string is not
+   found, so a silent miss shows up as a failure rather than as an untranslated string.
+
+**An incident, recorded rather than hidden.** While splitting the catalogue I round-tripped the
+file through PowerShell text cmdlets (`Get-Content -Raw` → `Set-Content -Encoding UTF8`). This
+host decodes those files as Windows-1252, so the Telugu and Hindi text was **double-encoded and
+destroyed** (mojibake `à¤²à¥‰…`). The transform is exactly reversible, and
+`scratch/recover-encoding.mjs` reverses it — the file was recovered intact, verified by finding
+real Devanagari (`E0 A4`) and Telugu (`E0 B0`) byte sequences again. **Rule adopted: never
+round-trip a non-ASCII source file through PowerShell text cmdlets; use the file tools.**
+
+**What is still open, plainly.** 899 prose strings remain in English, concentrated in
+`ArtCraftStudio.tsx` (99), `IndicatorMap.tsx` (90), `MethodologyModal.tsx` (73),
+`ReportPanel.tsx` (66), `Auth.tsx` (47). The report's own catalogues (`src/report.ts`) still
+cover only the chapter headings, which is exactly the "only the heading translated" complaint
+about the PDF. Panels will be converted in the same way, largest-visibility first, with the
+coverage number published after each batch.
+
+| File | Change |
+|---|---|
+| `src/lib/i18nCatalog.ts` | **New** — the three catalogues, 80 keys each, plain TypeScript |
+| `src/lib/i18n.tsx` | Now only the React provider; imports the catalogue |
+| `src/lib/__tests__/i18n.test.ts` | **New** — 5 tests enforcing key parity and real native script |
+| `src/App.tsx` | 67 shell strings wired to the catalogue |
+| `scripts/i18n-coverage.mjs` | **New** — the coverage measurement (`npm run i18n:coverage`) |
+| `package.json` | `i18n:coverage` and `bench:raster` scripts |
+
+Verification for Batch 9: `tsc --noEmit` **pass** · `npm test` **35/35 pass** (was 30) ·
+`vite build` **pass (3.2 s)** · `npm run i18n:coverage` **8.3%, up from 1.4%**.

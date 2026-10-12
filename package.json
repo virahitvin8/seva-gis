@@ -12,7 +12,8 @@
     "deploy:firebase": "npm run build && npx firebase-tools deploy --only hosting",
     "format": "oxfmt",
     "test": "node --import ./scripts/test-run.mjs --test \"src/**/*.test.ts\"",
-    "bench:raster": "node scripts/bench-raster-stats.mjs"
+    "bench:raster": "node scripts/bench-raster-stats.mjs",
+    "i18n:coverage": "node scripts/i18n-coverage.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

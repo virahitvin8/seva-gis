@@ -1,24 +1,31 @@
 import { useMemo, useState } from 'react'
-import { ArrowDownToLine, Compass, Crosshair, RefreshCw, Ruler, Route, Sparkles } from 'lucide-react'
+import { ArrowDownToLine, Compass, RefreshCw, Ruler, Route, Layers } from 'lucide-react'
 import {
-  computeDestinationPoint, convertArea, convertDistance, decimalToSexagesimal, findNearest, getAreaOfPolygon, getBounds, getBoundsOfDistance, getCenter, getCenterOfBounds,
-  getDistance, getDistanceFromLine, getGreatCircleBearing, getPathLength, getPreciseDistance, getRhumbLineBearing, isPointInPolygon, isPointWithinRadius,
-  isValidCoordinate, orderByDistance, sexagesimalToDecimal, toDecimal, wktToPolygon,
+  convertArea,
+  decimalToSexagesimal,
+  findNearest,
+  getAreaOfPolygon,
+  getBounds,
+  getCenter,
+  getCenterOfBounds,
+  getDistance,
+  getPathLength,
+  getPreciseDistance,
+  getRhumbLineBearing,
+  getGreatCircleBearing,
+  orderByDistance,
 } from 'geolib'
+import buffer from '@turf/buffer'
 import { farmRing } from './lib/seva'
 import { dirOf } from './lib/gee'
-import { generateCoveragePath, findOptimalSwathAngle, calculateFarmLogistics, calculateVraPrescription } from './lib/pathplan'
+import { generateCoveragePath, findOptimalSwathAngle, calculateFarmLogistics } from './lib/pathplan'
 
 type FarmLite = { id: string; name: string; lat: number; lon: number; area: number; polygon?: [number, number][] }
 type Props = { farm: FarmLite; farms: FarmLite[] }
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d }) : '—')
 const pt = (p: [number, number]) => ({ latitude: p[1], longitude: p[0] })
 const km = (m: number) => (m >= 1000 ? `${f(m / 1000, 2)} km` : `${f(m, 0)} m`)
-const AREA_UNITS: [string, string][] = [['ha', 'hectare'], ['ac', 'acre'], ['m2', 'm²'], ['km2', 'km²'], ['ft2', 'ft²'], ['yd2', 'yd²'], ['a', 'are']]
-const DIST_UNITS: [string, string][] = [['m', 'metre'], ['km', 'km'], ['mi', 'mile'], ['ft', 'foot'], ['yd', 'yard']]
 const toArea = (m2: number, u: string) => (u === 'ac' ? m2 / 4046.8564224 : convertArea(m2, u))
-const fromArea = (v: number, u: string) => (u === 'ac' ? v * 4046.8564224 : v / convertArea(1, u))
-const fromDist = (v: number, u: string) => v / convertDistance(1, u)
 
 function BoxRefresh({ title, onRefresh }: { title: string; onRefresh?: () => void }) {
   const [spinning, setSpinning] = useState(false)
@@ -51,7 +58,7 @@ export default function GeoTools({ farm, farms }: Props) {
     const area = getAreaOfPolygon(poly), perimeter = getPathLength(closed.map(pt))
     const b = getBounds(poly), c = getCenter(poly) || pt([farm.lon, farm.lat]), cb = getCenterOfBounds(poly)
     const nw = { latitude: b.maxLat, longitude: b.minLng }
-    const ne = { latitude: b.maxLat, longitude: b.maxLng }
+    const ne = { latitude: b.maxLat, longitude: b.minLng }
     const se = { latitude: b.minLat, longitude: b.maxLng }
     const sw = { latitude: b.minLat, longitude: b.minLng }
     return {
@@ -71,28 +78,38 @@ export default function GeoTools({ farm, farms }: Props) {
   const nearestPt = others.length ? findNearest(g.center, others.map(o => ({ latitude: o.lat, longitude: o.lon }))) as { latitude: number; longitude: number } : null
   const nearest = nearestPt ? others.find(o => o.lat === nearestPt.latitude && o.lon === nearestPt.longitude) : null
 
-  const [q, setQ] = useState({ lat: farm.lat.toFixed(5), lon: (farm.lon + 0.0003).toFixed(5), radius: '100' })
-  const qp = { latitude: Number(q.lat), longitude: Number(q.lon) }
-  const valid = q.lat.trim() !== '' && q.lon.trim() !== '' && isValidCoordinate(qp)
-  const probe = useMemo(() => {
-    if (!valid) return null
-    let edge = Infinity
-    for (let i = 0; i < closed.length - 1; i++) edge = Math.min(edge, getDistanceFromLine(qp, pt(closed[i]), pt(closed[i + 1])))
-    const inside = isPointInPolygon(qp, poly)
-    return { inside, edge, d: getDistance(g.center, qp), bearing: getRhumbLineBearing(g.center, qp), dir: dirOf(getRhumbLineBearing(g.center, qp)), within: isPointWithinRadius(qp, g.center, Number(q.radius) || 0) }
-  }, [q.lat, q.lon, q.radius, valid, closed, poly, g.center, calcKey])
-
-  const [dest, setDest] = useState({ bearing: '90', dist: '250' })
-  const dp = computeDestinationPoint(g.center, Number(dest.dist) || 0, Number(dest.bearing) || 0)
-  const [buf, setBuf] = useState('200')
-  const bb = getBoundsOfDistance(g.center, Number(buf) || 0)
-  const [conv, setConv] = useState({ lat: farm.lat.toFixed(6), lon: farm.lon.toFixed(6), dms: '', area: String(g.area / 10000), areaU: 'ha', dist: '1', distU: 'km' })
-  const latDms = decimalToSexagesimal(toDecimal(Number(conv.lat) || 0)), lonDms = decimalToSexagesimal(toDecimal(Number(conv.lon) || 0))
-  let dmsOut = ''
-  try { dmsOut = conv.dms.trim() ? String(sexagesimalToDecimal(conv.dms.trim())) : '' } catch { dmsOut = 'Use the form 14° 26′ 6″ N' }
-  const m2 = fromArea(Number(conv.area) || 0, conv.areaU), m = fromDist(Number(conv.dist) || 0, conv.distU)
-  const [wkt, setWkt] = useState('POLYGON((80.01 14.43, 80.02 14.43, 80.02 14.44, 80.01 14.44, 80.01 14.43))')
-  const wktRes = useMemo(() => { try { const p = wktToPolygon(wkt); return p.length >= 3 ? { n: p.length, area: getAreaOfPolygon(p), c: getCenter(p) } : null } catch { return null } }, [wkt])
+  // Geodesic Buffer Zone Tool (turf/buffer)
+  const [bufferDistance, setBufferDistance] = useState('100')
+  const [bufferUnit, setBufferUnit] = useState<'m' | 'km'>('m')
+  const bufferResult = useMemo(() => {
+    const val = parseFloat(bufferDistance)
+    if (!Number.isFinite(val) || val <= 0) return null
+    try {
+      const distMeters = bufferUnit === 'km' ? val * 1000 : val
+      const polyFeature: GeoJSON.Feature<GeoJSON.Polygon> = {
+        type: 'Feature',
+        properties: { name: farm.name },
+        geometry: { type: 'Polygon', coordinates: [closed] }
+      }
+      const bufFeature = buffer(polyFeature, distMeters, { units: 'meters' })
+      if (!bufFeature || !bufFeature.geometry) return null
+      const bufCoords = bufFeature.geometry.coordinates[0] as [number, number][]
+      const bufPoly = bufCoords.map(pt)
+      const bufAreaM2 = getAreaOfPolygon(bufPoly)
+      const bufPerimeterM = getPathLength(bufCoords.map(pt))
+      return {
+        distMeters,
+        areaHa: bufAreaM2 / 10000,
+        areaAcres: bufAreaM2 / 4046.8564224,
+        deltaHa: (bufAreaM2 - g.area) / 10000,
+        perimeterM: bufPerimeterM,
+        geojson: bufFeature
+      }
+    } catch (e) {
+      console.warn('[GeoTools] Buffer calculation error:', e)
+      return null
+    }
+  }, [closed, bufferDistance, bufferUnit, g.area])
 
   // Coverage Path Planning (Fields2Cover)
   const [swathWidth, setSwathWidth] = useState('6')
@@ -115,11 +132,6 @@ export default function GeoTools({ farm, farms }: Props) {
     return calculateFarmLogistics([farm.lon, farm.lat], areaHa)
   }, [farm.lon, farm.lat, g.area, calcKey])
 
-  // Variable-Rate Nitrogen Prescription (awesome-agriculture)
-  const vra = useMemo(() => {
-    const areaHa = g.area / 10000
-    return calculateVraPrescription(areaHa)
-  }, [g.area, calcKey])
 
   const ringWkt = `POLYGON((${closed.map(p => `${p[0].toFixed(6)} ${p[1].toFixed(6)}`).join(', ')}))`
   const geojson = { type: 'Feature', properties: { name: farm.name, area_ha: +(g.area / 10000).toFixed(3), perimeter_m: +g.perimeter.toFixed(1) }, geometry: { type: 'Polygon', coordinates: [closed] } }
@@ -210,7 +222,43 @@ export default function GeoTools({ farm, farms }: Props) {
         </div>
       </section>
 
-            <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small><BoxRefresh title="Nearby farms" onRefresh={() => setCalcKey(k => k + 1)}/></div>
+            {/* Geodesic Buffer Zone Tool (turf/buffer) */}
+      <section className="ag-card"><div className="ag-head"><Layers size={17}/><h3>Geodesic buffer zone</h3><small>Turf.js · perimeter expansion</small><BoxRefresh title="Geodesic buffer" onRefresh={() => setCalcKey(k => k + 1)}/></div>
+        <details className="gt-how"><summary>How is the geodesic buffer calculated?</summary>
+          <p>Expands the area of interest boundary outward on the WGS84 ellipsoid by an exact distance in metres or kilometres. Useful for spray drift buffers, hydrological catchment margins, and riparian setback zones.</p>
+        </details>
+        <div className="gt-form" style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label style={{ flex: 1, minWidth: 120 }}>Buffer distance
+            <input type="number" min="1" max="10000" value={bufferDistance} onChange={e => setBufferDistance(e.target.value)}/>
+          </label>
+          <label style={{ width: 100 }}>Unit
+            <select value={bufferUnit} onChange={e => setBufferUnit(e.target.value as 'm' | 'km')}>
+              <option value="m">Metres (m)</option>
+              <option value="km">Kilometres (km)</option>
+            </select>
+          </label>
+        </div>
+        {bufferResult ? (
+          <div className="ag-grid">
+            <div className="ag-item neutral"><span>Total buffered area</span><b>{f(bufferResult.areaHa, 2)} ha</b><small>{f(bufferResult.areaAcres, 2)} acres</small></div>
+            <div className="ag-item neutral"><span>Expansion (+Δ)</span><b>+{f(bufferResult.deltaHa, 2)} ha</b><small>+{((bufferResult.deltaHa / Math.max(0.01, g.area / 10000)) * 100).toFixed(0)}% area increase</small></div>
+            <div className="ag-item neutral"><span>New perimeter</span><b>{km(bufferResult.perimeterM)}</b><small>expanded outer boundary</small></div>
+            <div className="ag-item neutral"><span>Buffer offset</span><b>{bufferDistance} {bufferUnit}</b><small>geodesic radial margin</small></div>
+          </div>
+        ) : (
+          <div className="ag-empty">Enter a valid positive distance to calculate the buffer zone.</div>
+        )}
+        {bufferResult && (
+          <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+            <button className="gt-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', border: '1px solid var(--border)', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => download(`${slug}-buffer-${bufferDistance}${bufferUnit}.geojson`, JSON.stringify(bufferResult.geojson, null, 2), 'application/geo+json')}>
+              <ArrowDownToLine size={14}/>Download Buffered Polygon (GeoJSON)
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="ag-card"><div className="ag-head"><Compass size={17}/><h3>Nearby farms</h3><small>Vincenty distance · great-circle bearing</small><BoxRefresh title="Nearby farms" onRefresh={() => setCalcKey(k => k + 1)}/></div>
         {near.length ? <table className="gt-table"><thead><tr><th>Farm</th><th>Distance</th><th>Bearing</th><th>Direction</th></tr></thead>
           <tbody>{near.map(n => <tr key={n.o.id} className={nearest?.id === n.o.id ? 'on' : ''}><td>{n.o.name}{nearest?.id === n.o.id && <em> nearest</em>}</td><td>{km(n.d)}</td><td>{f(n.bearing, 0)}°</td><td>{n.dir}</td></tr>)}</tbody></table> : <div className="ag-empty">Add a second farm to see distances between your farms.</div>}
         <small className="ag-note">Bearing is measured clockwise from true north: 0° N, 90° E, 180° S, 270° W.</small>

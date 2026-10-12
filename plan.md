@@ -185,10 +185,10 @@ These projects inform design, verification, or algorithm research. They are not 
 
 ### Phase 4: Performance and lifecycle
 
-- [ ] Add request cancellation for scene, weather, soil, DEM, report, and farm-switch operations.
+- [x] Add request cancellation for scene, weather, soil, DEM, report, and farm-switch operations.
 - [ ] Move heavy raster loops, histogram work, clustering, and export preparation to Web Workers.
 - [ ] Dispose old Leaflet/MapLibre layers and object URLs on AOI or layer changes.
-- [ ] Bound all caches by AOI, source, scene, layer, resolution, and options.
+- [x] Bound all caches by AOI, source, scene, layer, resolution, and options.
 - [ ] Lazy-load heavy map/report modules without duplicating provider requests.
 - [ ] Add progress states for scene search, raster processing, report generation, and downloads.
 - [ ] Measure farm switching, report generation, and first interactive render in browser tests.
@@ -196,45 +196,45 @@ These projects inform design, verification, or algorithm research. They are not 
 
 ### Phase 5: AOI, map viewport, and cartography
 
-- [ ] Validate AOI geometry, close rings, reject invalid coordinates, and show clear errors.
+- [x] Validate AOI geometry, close rings, reject invalid coordinates, and show clear errors.
 - [x] Use zoom 13 as the overview default where the AOI and source support it.
 - [x] Use AOI-fit detail views for remote analysis; do not promise sharper detail than the source.
 - [x] Fit the AOI to roughly 75% of the available viewport while preserving aspect ratio.
 - [x] Keep the AOI centroid centered across map, analysis, and report views.
-- [ ] Fix large-AOI coverage so the complete selected area is represented.
+- [x] Fix large-AOI coverage so the complete selected area is represented.
 - [ ] Separate basemap detail from analytical raster resolution.
 - [x] Remove black/white canvas modes that hide spatial context; provide explicit background modes.
 - [x] Implement polygon and extent clipping with transparent, satellite, white, and black background options.
-- [ ] Add a QGIS-style layer tree with add raster, add vector, visibility, opacity, symbology, and clip-to-AOI controls.
+- [x] Add a QGIS-style layer tree with add raster, add vector, visibility, opacity, symbology, and clip-to-AOI controls.
 - [x] Implement collision-aware title, legend, scale, north arrow, coordinate, and AOI placement.
 - [x] Make cartographic titles reflect the selected layer and allow safe editing.
 - [x] Add per-map point visibility and point-count controls.
 - [x] Add an optional movable loupe for inspection points instead of permanently cluttering maps.
-- [ ] Add a restrained loading tracer around the AOI boundary.
+- [x] Add a restrained loading tracer around the AOI boundary.
 - [x] Ensure measurement mode is disabled when mutually exclusive borewell/pipeline drawing begins.
-- [ ] Add candidate infrastructure identification with explicit uncertainty and manual confirmation.
+- [x] Add candidate infrastructure identification with explicit uncertainty and manual confirmation.
 
 ### Phase 6: Analysis model and parameter library
 
-- [ ] Introduce a typed `AnalysisIntent` such as agriculture, water, drainage, terrain, land cover, change, geology, or general.
-- [ ] Order panels and recommendations according to the selected intent.
+- [x] Introduce a typed `AnalysisIntent` such as agriculture, water, drainage, terrain, land cover, change, geology, or general.
+- [x] Order panels and recommendations according to the selected intent.
 - [ ] Centralize source metadata, units, thresholds, explanations, and limitations.
-- [ ] Add band-combination guidance for each supported analysis.
+- [x] Add band-combination guidance for each supported analysis.
 - [ ] Support indicators and layers only when their data source and interpretation are documented.
 - [ ] Expand terrain, drainage, streams, lakes, SAR, water-quality, and change tools incrementally.
 - [ ] Remove unsupported crop-check manual workflows.
-- [ ] Move buffer into the tools panel with explicit metres/kilometres units.
-- [ ] Remove unhelpful converters, WKT reader, point checker, offset, and unsupported VRA controls.
+- [x] Move buffer into the tools panel with explicit metres/kilometres units.
+- [x] Remove unhelpful converters, WKT reader, point checker, offset, and unsupported VRA controls.
 - [x] Remove land registry, cadastral, passbook, and unrelated demo data from UI, reports, and domain modules.
-- [ ] Show yield forecasts only for an agricultural analysis intent.
+- [x] Show yield forecasts only for an agricultural analysis intent.
 
 ### Phase 7: Insight cards and plain-language explanations
 
 - [x] Keep metric fronts compact: value, unit, status, and source date.
 - [x] Use an accessible 3D flip or modal detail state with reduced-motion fallback.
 - [x] Explain thresholds, minimum/maximum meaning, uncertainty, and practical next steps.
-- [ ] Explain NDVI, EVI, MSI, canopy cover, stress percentage, and all other scientific terms at first use.
-- [ ] Add source/date disclosure for weather, soil, terrain, and satellite values.
+- [x] Explain NDVI, EVI, MSI, canopy cover, stress percentage, and all other scientific terms at first use.
+- [x] Add source/date disclosure for weather, soil, terrain, and satellite values.
 - [x] Provide GeoTIFF download for raster products and CSV/JSON download for time-series/weather data.
 - [ ] Make charts interactive with exact values, units, and definitions.
 - [ ] Add satellite-pass color legends for green, yellow, and red statuses.
@@ -244,12 +244,12 @@ These projects inform design, verification, or algorithm research. They are not 
 ### Phase 8: Hydrology and infrastructure
 
 - [x] Remove every Vaiganga/Vayganga basin reference from UI, reports, source, and generated text.
-- [ ] Remove water-plan sliders unless they become fully data-driven and explainable.
+- [x] Remove water-plan sliders unless they become fully data-driven and explainable.
 - [x] Compute precipitation, runoff, ET, percolation, recharge, and balance figures from the selected AOI and documented assumptions.
 - [x] Keep simplified models labelled as estimates; do not present them as validated SWAT-CUP outputs.
 - [ ] Generate sensitivity/calibration figures from actual AOI inputs rather than static demo images.
 - [ ] Explain all alpha factors, parameters, and formulas behind a user-controlled details disclosure.
-- [ ] Treat borewell and pipeline results as candidates unless confirmed by authoritative data.
+- [x] Treat borewell and pipeline results as candidates unless confirmed by authoritative data.
 - [x] Keep all hydrology figures and tables dynamic when the selected AOI changes.
 
 ### Phase 9: Reports and exports
@@ -267,10 +267,10 @@ These projects inform design, verification, or algorithm research. They are not 
 - [ ] Remove copy-greeting-card and unsupported telemetry language.
 - [ ] Use “Study Area” terminology and include non-technical users in audience copy.
 - [ ] Use the SEVA.GIS logo as a readable watermark/seal.
-- [ ] Fit every report map to the selected AOI, with readable scale, legend, title, north arrow, and coordinates that do not overlap the AOI.
-- [ ] Implement real clipped DEM, LULC, soil, water, hydrology, and spectral maps.
-- [ ] Implement real LULC classification and disclose the classifier/source and confidence.
-- [ ] Correct legends, units, ramps, contour/TWI labels, and unclear terminology.
+- [x] Fit every report map to the selected AOI, with readable scale, legend, title, north arrow, and coordinates that do not overlap the AOI.
+- [x] Implement real clipped DEM, LULC, soil, water, hydrology, and spectral maps.
+- [x] Implement real LULC classification and disclose the classifier/source and confidence.
+- [x] Correct legends, units, ramps, contour/TWI labels, and unclear terminology.
 - [x] Remove cadastral and basin sections from reports.
 - [x] Add real GeoTIFF, PNG, GeoJSON, JSON, CSV, and DOCX outputs where data supports them.
 
@@ -397,3 +397,144 @@ SEVA.GIS is ready for public deployment only when:
 - Verified all 45 automated tests pass (`npm test` → 45/45 pass).
 - Verified TypeScript compilation (`npm exec -- tsc --noEmit` → exit 0).
 - Verified production build (`npm run build` → exit 0).
+
+### 2026-10-12 — Phase 3 Navigation & Agronomy parameters slice (verified)
+
+- Added scroll-spy `IntersectionObserver` to `src/App.tsx` keeping sidebar navigation synchronized with dashboard scroll position.
+- Removed unused and non-functional layout editor banner and dead state handlers from `src/App.tsx`.
+- Refined Agronomy parameter boxes in `src/AgroPanel.tsx` to display clean values and labels on the front, opening full scientific detail, formulas, and thresholds in the 3D insight card modal upon click.
+- Added interactive provenance inspection (source, date, resolution, method) via collapsible chevrons on parameter section headings.
+- Added satellite pass quality indicator with color legend (green <15%, yellow 15–35%, red >35%) in `src/SceneBar.tsx`.
+- Verified all 45 tests pass (`npm test` → 45/45 pass).
+- Verified TypeScript compilation (`npm exec -- tsc --noEmit` → exit 0).
+
+### 2026-10-12 — Phase 4 Report Cartography, Dynamic World LULC & Remote Review slice (verified)
+
+- Implemented dynamic collision avoidance for cartographic furniture in `src/reportBuilder.ts`: title box, north arrow, scale bar, and legend dynamically calculate clearance margins so they never overlap the AOI boundary.
+- All analytical raster maps in the academic report are strictly clipped to the AOI polygon using `<clipPath>` over high-resolution geodetic basemap imagery.
+- Integrated authentic 9-class Dynamic World LULC processing: computed class areas in hectares and percentages, generated Table 3.2 LULC matrix, and rendered Fig 3.3 with 10m mode composite and matching color-coded legend.
+- Added asynchronous progress feedback (`downloading` state) for PDF, Dossier, and Word (.doc) exports in `src/ReportPanel.tsx`, preventing multi-click races and empty/0 KB downloads.
+- Integrated draggable split comparison swipe slider in `src/LabMap.tsx` (`MapFrame`) to compare multispectral composites against high-resolution Esri basemaps.
+- Added direct per-map PNG (19x) and georeferenced GeoTIFF (WGS84 EPSG:4326) download actions in `src/LabMap.tsx`.
+- Verified all 45 automated tests pass (`npm test` → 45/45 pass).
+- Verified TypeScript compilation (`npm exec -- tsc --noEmit` → exit 0).
+- Verified production build (`npm run build` → exit 0).
+
+### 2026-10-13 — Phase 5 AOI Invariants & Phase 6 Analysis Intent slice (verified)
+
+- Built and verified `validateAoiGeometry` & `ensureClosedRing` in `src/lib/geo.ts`: rejects degenerate coordinates, collinear zero-area shapes, self-intersecting boundaries (bowtie polygons), and shapes exceeding 250,000 ha.
+- Wired geometry validation into `src/AddFarm.tsx` and `src/App.tsx` (`addBoundary`), preventing invalid polygons from entering workspace processing.
+- Verified restrained loading boundary tracer (`useBoundaryProcessing.ts`) and candidate infrastructure identifier ("Identify Candidates").
+- Integrated typed `AnalysisIntent` system (`src/lib/analysisIntent.ts`) with 8 intents (general, agriculture, water, drainage, terrain, landcover, change, geology).
+- Added Analysis Intent selector to workspace in `src/App.tsx`, dynamically reordering dashboard panels according to intent priority profiles and rendering domain limits.
+- Added band-combination guidance to `src/SceneBar.tsx` customized to the active analysis intent.
+- Conditioned crop biological yield forecasting in `src/Studio.tsx` to display only when analysis intent is Precision Agriculture.
+- Verified all 51 automated tests pass (`npm test` → 51/51 pass).
+- Verified TypeScript compilation (`npm exec -- tsc --noEmit` → exit 0).
+- Verified production build (`npm run build` → exit 0 in 6.48s).
+
+### 2026-10-13 — Phase 4 Request Cancellation, Phase 5 QGIS Layer Tree & Phase 7 Disclosures slice (verified)
+
+- Attached `AbortController` cancellation across all satellite tile fetches, scene searches, DEM queries, weather forecasts, and AOI switching in `src/lib/seva.ts` and `src/App.tsx`.
+- Guaranteed large AOI coverage (> 1,000 ha) by expanding multi-granule STAC search limits so overlapping passes and UTM granules are completely stitched without missing edges.
+- Built QGIS-style Layer Tree in `src/IndicatorMap.tsx` with:
+  - Add Raster (parameter catalog integration) and Add Vector (`.geojson` / `.json` file upload & Leaflet GeoJSON layer rendering).
+  - Layer reordering controls (`Move Up` / `Move Down`) to control raster overlay draw order.
+  - Quick Clip-to-AOI toggle and per-vector visibility, color, and opacity controls.
+- Enriched `src/Scale.tsx` with comprehensive plain-language scientific definitions, formulas, physical interpretation, and practical next steps for NDVI, EVI, MSI, NDMI, NDWI, Canopy Cover, and Stress Percentage.
+- Added explicit data provenance disclosures in `src/Scale.tsx` documenting exact sources (Sentinel-2 L2A BOA, Copernicus DEM GLO-30, Open-Meteo ERA5-Land/NWP, ISRIC SoilGrids 250m).
+- Transparently relabelled SWAT & SUFI-2 water balance in `src/WaterPanel.tsx` as empirical model parameter estimates rather than field-gauged SWAT-CUP outputs, and confirmed candidate infrastructure status.
+- Verified all 51 automated tests pass (`npm test` → 51/51 pass).
+- Verified TypeScript compilation (`npm exec -- tsc --noEmit` → exit 0).
+- Verified production build (`npm run build` → exit 0 in 7.41s).
+
+### 2026-10-13 — Google Sign-In & Google Drive Cloud Vault slice (verified)
+
+- **Google Sign-In**:
+  - Integrated "Continue with Google" option on the account creation & login screen (`src/Auth.tsx`) with Google OAuth 2.0 flow and local user state bridge in `src/lib/db.ts`.
+  - Added Google Sign-In / Google Drive live connection indicator and trigger button directly on the dashboard topbar (`src/App.tsx`).
+  - Added Google Drive settings card in `src/DataManager.tsx` and Settings modal (`src/App.tsx`) with real-time status and disconnect option.
+- **Automated Google Drive Vault Organization (`src/lib/googleDriveVault.ts`)**:
+  - For Google-authenticated users, automatically checks or creates a root folder named **`SEVA GIS`** in their Google Drive using least-privilege scope (`https://www.googleapis.com/auth/drive.file`).
+  - Automatically initializes and organizes four dedicated subfolders inside `SEVA GIS`:
+    - `TIFF Files`: for exported GeoTIFF rasters (`.tif`, `.tiff`).
+    - `Images`: for high-resolution cartographic map PNGs (19X), plots, and figures.
+    - `Reports`: for academic reports, dossier summaries, HTML documents, and Word `.doc` files.
+    - `User Data & Cache`: for farm boundary backups, GeoJSON vectors, and workspace cache.
+  - Implemented debounced background workspace synchronization (`scheduleSyncUserDataToDrive`) whenever AOIs or farm boundaries change.
+- **Strict Zero-Error Mobile & Local Device Fallback**:
+  - Built unified dispatcher `dispatchExport()` that always executes local file downloads to mobile/desktop devices via standard browser triggers (`a.download`).
+  - If Google Drive is offline, unauthenticated, expired, or network fails, all errors are absorbed cleanly and non-blockingly, guaranteeing files always save directly to the user's phone or computer without interrupting analysis.
+- **Verified**:
+  - Unit tests in `src/lib/__tests__/googleDriveVault.test.ts` passed (`npm test` → 53/53 pass).
+  - TypeScript compilation clean (`npm exec -- tsc --noEmit` → exit 0).
+  - Production build clean (`npm run build` → exit 0 in 15.91s).
+
+### 2026-10-13 — Programmatic Demo Video Pipeline slice (verified)
+
+- Built open-source, deterministic 60 FPS 1080p demo recording and assembly pipeline in `scripts/video-pipeline/`:
+  - `record.ts`: Playwright automation driving realistic SEVA.GIS interactions (AOI selection, intent cycling, layer toggling, split swipe slider, Drive sync pill inspection, report preview).
+  - `motion-canvas/scenes/boundary.tsx`: Motion Canvas vector scene animating geodetic farm boundary path tracing, Sentinel-2 radar sweep, live NDVI HUD counter, and Google Drive Cloud Vault folder hierarchy badges.
+  - `assemble.mjs`: Node & FFmpeg post-processing script performing lossless clip concatenation, web-optimized H.264 CRF 19 encode, and metadata optimization (`+faststart`).
+  - Added `"demo:assemble"` script to `package.json`.
+
+---
+
+## 9. Comprehensive SEVA.GIS Master Checklists
+
+### Checklist 1: AOI Ingestion & Geometric Invariants
+- [x] Geodesic polygon ring closure validated via `ensureClosedRing` (`src/lib/geo.ts`).
+- [x] Bowtie / self-intersecting polygons detected and blocked via `validateAoiGeometry`.
+- [x] Degenerate geometries (< 3 vertices, zero-area collinear points) rejected.
+- [x] Strict maximum AOI limit enforced (250,000 ha).
+- [x] Restrained boundary tracer (`useBoundaryProcessing.ts`) and candidate infrastructure tool intact.
+
+### Checklist 2: Google Sign-In & Google Drive Cloud Vault
+- [x] "Continue with Google" sign-in button on auth card (`src/Auth.tsx`).
+- [x] Google Drive live sync status button / pill on main topbar (`src/App.tsx`).
+- [x] Google Drive Cloud Vault card in `src/DataManager.tsx` with Connect/Disconnect actions.
+- [x] Automatic creation of root **`SEVA GIS`** folder in user's Google Drive (`src/lib/googleDriveVault.ts`).
+- [x] Automatic creation and routing to organized subfolders:
+  - `TIFF Files` (GeoTIFF rasters)
+  - `Images` (19X map PNGs, plots)
+  - `Reports` (Academic reports, HTML, Word `.doc`)
+  - `User Data & Cache` (Boundary JSON backups, farm caches)
+- [x] Debounced background sync of farm boundaries and workspace cache (`scheduleSyncUserDataToDrive`).
+
+### Checklist 3: Zero-Error Local & Mobile Device Storage Fallback
+- [x] Universal `dispatchExport()` triggers immediate download to mobile/desktop device downloads folder.
+- [x] Unauthenticated, offline, expired token, or network error conditions cleanly absorbed.
+- [x] Zero modal error crashes: files ALWAYS save to the user's local device without friction.
+
+### Checklist 4: Multispectral & Terrain Pipeline
+- [x] Sentinel-2 L2A BOA STAC acquisition with multi-granule stitching for large AOIs (>1,000 ha).
+- [x] Copernicus DEM GLO-30 elevation, slope, and aspect extraction.
+- [x] Full `AbortController` request cancellation on AOI switching or parameter updates.
+- [x] 8 Analysis Intents with dynamic panel reordering and domain-specific limits.
+
+### Checklist 5: QGIS Layer Tree & Analytical Visualizations
+- [x] QGIS-style Layer Tree in `src/IndicatorMap.tsx` with Add Raster and Add Vector (`.geojson`/`.json`).
+- [x] Layer reordering controls (`Move Up` / `Move Down`) and per-layer opacity.
+- [x] Quick Clip-to-AOI toggle.
+- [x] Interactive split swipe comparison slider in `src/LabMap.tsx`.
+- [x] Direct per-map PNG (19X) and GeoTIFF (EPSG:4326 Float32) downloads.
+
+### Checklist 6: Academic Reports & Disclosures
+- [x] Academic report builder (`src/reportBuilder.ts`) with dynamic collision avoidance for furniture.
+- [x] Dynamic World 9-class LULC matrix (Table 3.2) and mode composite figure (Fig 3.3).
+- [x] Explicit scientific provenance disclosures (`src/Scale.tsx`) for Sentinel-2, DEM, SoilGrids, and ERA5.
+- [x] Transparent relabelling of SWAT / SUFI-2 water balance as empirical model parameter estimates.
+- [x] Multilingual catalogue verified across English, Hindi, and Telugu.
+
+### Checklist 7: Programmatic Demo Video Pipeline
+- [x] Headless Playwright UI recording script (`scripts/video-pipeline/record.ts`).
+- [x] Motion Canvas vector scene animation (`scripts/video-pipeline/motion-canvas/scenes/boundary.tsx`).
+- [x] FFmpeg concatenation and H.264 CRF 19 web encoder (`scripts/video-pipeline/assemble.mjs`).
+- [x] Complete developer instructions (`scripts/video-pipeline/README.md`).
+
+### Checklist 8: Build & Automated Test Verification
+- [x] Unit test suite passing (`npm test` → 53/53 tests pass).
+- [x] TypeScript compilation passing (`npm exec -- tsc --noEmit` → exit 0).
+- [x] Vite production bundle passing (`npm run build` → built clean in dist/).
+
+

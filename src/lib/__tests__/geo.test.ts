@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { centroid, areaHa, perimeterM, parseCoordinate, orderRing } from '../geo.ts'
+import { centroid, areaHa, perimeterM, parseCoordinate, orderRing, ensureClosedRing, validateAoiGeometry } from '../geo.ts'
 
 const square: [number, number][] = [
   [0, 0],
@@ -54,4 +54,66 @@ test('orderRing restores a simple polygon and its true area', () => {
   assert.equal(ordered.length, 4)
   const ha = areaHa(ordered)
   assert.ok(ha > 120 && ha < 128, `expected ~123.9 ha after ordering, got ${ha}`)
+})
+
+test('ensureClosedRing appends first coordinate when open, preserves when closed', () => {
+  const open: [number, number][] = [[0, 0], [1, 0], [1, 1]]
+  const closed = ensureClosedRing(open)
+  assert.equal(closed.length, 4)
+  assert.deepEqual(closed[3], [0, 0])
+
+  const alreadyClosed: [number, number][] = [[0, 0], [1, 0], [1, 1], [0, 0]]
+  assert.equal(ensureClosedRing(alreadyClosed).length, 4)
+})
+
+test('validateAoiGeometry validates simple valid polygon and returns closed ring', () => {
+  const result = validateAoiGeometry(square)
+  assert.equal(result.valid, true)
+  assert.equal(result.isSelfIntersecting, false)
+  assert.equal(result.closedRing.length, 5)
+  assert.ok(result.areaHa > 120 && result.areaHa < 128)
+  assert.ok(result.perimeterM > 4400)
+})
+
+test('validateAoiGeometry rejects degenerate polygons with fewer than 3 points', () => {
+  const res1 = validateAoiGeometry([[0, 0], [1, 1]])
+  assert.equal(res1.valid, false)
+  assert.ok(res1.error?.includes('at least 3'))
+
+  const res2 = validateAoiGeometry([[0, 0], [0, 0], [0, 0]])
+  assert.equal(res2.valid, false)
+  assert.ok(res2.error?.includes('distinct non-coincident'))
+})
+
+test('validateAoiGeometry rejects out-of-range coordinates', () => {
+  const res = validateAoiGeometry([[190, 0], [0, 0], [0, 10]])
+  assert.equal(res.valid, false)
+  assert.ok(res.error?.includes('WGS84'))
+})
+
+test('validateAoiGeometry detects self-intersecting polygon (hourglass / bowtie)', () => {
+  // Bow-tie polygon
+  const bowtie: [number, number][] = [
+    [0, 0],
+    [1, 1],
+    [0, 1],
+    [1, 0],
+  ]
+  const res = validateAoiGeometry(bowtie)
+  assert.equal(res.valid, false)
+  assert.equal(res.isSelfIntersecting, true)
+  assert.ok(res.error?.includes('self-intersecting'))
+})
+
+test('validateAoiGeometry rejects oversized AOIs exceeding 250,000 ha limit', () => {
+  // ~10 degree square is ~1.2 million km² >> 250,000 ha
+  const huge: [number, number][] = [
+    [70, 15],
+    [80, 15],
+    [80, 25],
+    [70, 25],
+  ]
+  const res = validateAoiGeometry(huge)
+  assert.equal(res.valid, false)
+  assert.ok(res.error?.includes('250,000 ha'))
 })

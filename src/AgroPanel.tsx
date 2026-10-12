@@ -1,6 +1,6 @@
 import LogoLoader from './LogoLoader'
 import { useEffect, useState } from 'react'
-import { CloudSun, Mountain, RefreshCw, Satellite, Shovel, Thermometer } from 'lucide-react'
+import { ChevronDown, CloudSun, Mountain, RefreshCw, Satellite, Shovel, Thermometer } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
 import { fetchSoil, fetchWeather, ndviClass, regionalSoilFallback, soilParams, soilWaterParams, weatherParams, kidFriendlyIndicator, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { INDICATORS } from './lib/indicators'
@@ -15,15 +15,22 @@ import InsightPlayingCardModal, { type InsightCardData } from './InsightPlayingC
 
 function Section({ title, sub, icon: Icon, items, empty, src = ['s2'], onRefresh, onCardClick }: { src?: SourceKey[]; title: string; sub: string; icon: typeof CloudSun; items?: Param[]; empty: string; onRefresh?: () => void; onCardClick?: (p: Param, category: string) => void }) {
   const [spinning, setSpinning] = useState(false)
+  const [showMeta, setShowMeta] = useState(false)
   const handleRefresh = () => {
     setSpinning(true)
     setTimeout(() => setSpinning(false), 800)
     onRefresh?.()
   }
-  return <section className="ag-card"><div className="ag-head"><Icon size={17}/><h3>{title}</h3><small>{sub}</small>
-    {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={handleRefresh}><RefreshCw size={13}/></button>}
+  return <section className="ag-card"><div className="ag-head" onClick={() => setShowMeta(v => !v)} style={{ cursor: 'pointer' }} title="Click heading to inspect data source, resolution, and method"><Icon size={17}/><h3>{title}</h3><small>{sub}</small>
+    <ChevronDown size={14} style={{ transform: showMeta ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto', color: '#94a3b8' }} />
+    {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={(e) => { e.stopPropagation(); handleRefresh() }}><RefreshCw size={13}/></button>}
   </div>
-    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`} onClick={() => onCardClick?.(p, title)} style={{ cursor: 'pointer' }} title="Click to view animated insight card"><span>{p.label}</span><b>{p.value}</b><small>{p.note}</small></div>)}</div> : <div className="ag-empty">{/^Loading/.test(empty) ? <LogoLoader text={empty}/> : /fail|error|unavailable|could not/i.test(empty) ? <LogoLoader state="error" text={empty}/> : empty}</div>}<SourceNote of={src}/></section>
+    {showMeta && (
+      <div style={{ padding: '6px 10px', fontSize: '10.5px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', marginBottom: '8px', color: '#cbd5e1', lineHeight: 1.4 }}>
+        <b>Data Source &amp; Resolution:</b> {src.map(s => s === 'soil' ? 'ISRIC SoilGrids 2.0 (250m global digital soil map)' : s === 'dem' ? 'Copernicus DEM GLO-30 (30m native elevation DSM)' : s === 'weather' ? 'Open-Meteo Numerical Weather Prediction grid' : 'Sentinel-2 L2A Multispectral (10m/20m)').join(' · ')}
+      </div>
+    )}
+    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`} onClick={() => onCardClick?.(p, title)} style={{ cursor: 'pointer' }} title="Click to view full insight card & scientific analysis"><span>{p.label}</span><b>{p.value}</b></div>)}</div> : <div className="ag-empty">{/^Loading/.test(empty) ? <LogoLoader text={empty}/> : /fail|error|unavailable|could not/i.test(empty) ? <LogoLoader state="error" text={empty}/> : empty}</div>}<SourceNote of={src}/></section>
 }
 
 export default function AgroPanel({ farm }: Props) {

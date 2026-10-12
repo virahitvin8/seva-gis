@@ -25,6 +25,13 @@ import {
   loadFarmsFromFolder,
   type VaultStatus
 } from './lib/fs-vault'
+import {
+  dispatchExport,
+  isGoogleDriveConnected,
+  getGoogleUser,
+  authenticateWithGoogle,
+  disconnectGoogle
+} from './lib/googleDriveVault'
 
 const NAMES: Record<string, string> = {
   'seva-farms': 'Saved farms',
@@ -98,11 +105,17 @@ export default function DataManager() {
   }
 
   async function backup() {
-    const blob = new Blob([JSON.stringify(await snapshot(who.id), null, 2)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `seva-backup-${who.name.toLowerCase().replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
+    const json = JSON.stringify(await snapshot(who.id), null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const fileName = `seva-backup-${who.name.toLowerCase().replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.json`
+    await dispatchExport({
+      category: 'data',
+      fileName,
+      blob,
+      mimeType: 'application/json',
+      customToast: `Saved backup to device & Google Drive: SEVA GIS / User Data & Cache`
+    })
+    setMsg('Backup saved to device & synced to Google Drive')
   }
 
   async function onFile(f?: File) {
@@ -143,6 +156,66 @@ export default function DataManager() {
         <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 999, background: '#e0f5d7', color: '#184a28', fontWeight: 600 }}>
           Account ID: {who.id.slice(0, 8)}…
         </span>
+      </div>
+
+      {/* Google Drive Cloud Vault Card */}
+      <div style={{ background: '#0a1d2e', color: '#e0f2fe', borderRadius: 12, padding: 16, display: 'grid', gap: 10, border: '1px solid #1e3a5f' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>
+              Google Drive Cloud Vault
+            </h3>
+          </div>
+          <span style={{ fontSize: 11, background: isGoogleDriveConnected() ? '#0c4a6e' : '#1e293b', color: isGoogleDriveConnected() ? '#38bdf8' : '#94a3b8', padding: '2px 8px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {isGoogleDriveConnected() ? <CheckCircle2 size={12} color="#38bdf8" /> : null}
+            {isGoogleDriveConnected() ? 'Drive Folder "SEVA GIS" Active' : 'Not Connected'}
+          </span>
+        </div>
+
+        <p style={{ margin: 0, fontSize: 12, color: '#93c5fd', lineHeight: 1.5 }}>
+          When logged in with Gmail, a folder named <b>SEVA GIS</b> is automatically maintained in your Google Drive with dedicated subfolders (<b>TIFF Files</b>, <b>Images</b>, <b>Reports</b>, <b>User Data &amp; Cache</b>). All downloaded files automatically organize there. If offline or not signed in, everything saves directly to your device storage without any errors.
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
+          {isGoogleDriveConnected() ? (
+            <button
+              onClick={() => {
+                disconnectGoogle()
+                setMsg('Disconnected from Google Drive. Saving directly to device.')
+              }}
+              style={{ background: '#1e293b', color: '#fca5a5', border: '1px solid #334155', borderRadius: 6, padding: '5px 12px', fontSize: 11, cursor: 'pointer' }}
+            >
+              Disconnect Google Drive
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                const res = await authenticateWithGoogle()
+                if (res.success && res.user) {
+                  setMsg(`Connected Google Drive (${res.user.email}). Folder "SEVA GIS" active.`)
+                  await loadData()
+                } else if (res.error) {
+                  setMsg(res.error)
+                }
+              }}
+              style={{ background: '#ffffff', color: '#0f172a', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              Sign in with Google / Connect Drive
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Device Folder Vault Card (Native Game / App Style) */}

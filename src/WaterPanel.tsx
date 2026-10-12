@@ -202,10 +202,10 @@ export default function WaterPanel({ farm }: Props) {
               <Activity size={18} className="text-emerald-500" />
               <div>
                 <h3 style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                  SWAT Hydrological Cycle &amp; Water Balance (Study Area: {farm.name})
+                  Empirical Hydrological Cycle &amp; Water Balance Estimate ({farm.name})
                 </h3>
                 <small style={{ fontSize: 10, color: '#64748b' }}>
-                  Soil and Water Assessment Tool (SWAT) calibrated simulation · Dynamic to Area of Interest Catchment
+                  Simplified SCS-CN &amp; SWAT-formulated model estimate · Parameterized for selected Area of Interest (not field-gauged SWAT-CUP validation)
                 </small>
               </div>
             </div>
@@ -345,8 +345,8 @@ export default function WaterPanel({ farm }: Props) {
             {/* SUFI-2 Global Sensitivity Analysis Ranking (SWAT-CUP) with Collapsible Why-Taglines */}
             <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                <span>SUFI-2 Global Sensitivity Analysis Ranking (SWAT-CUP)</span>
-                <span style={{ fontSize: 9.5, color: '#059669', fontWeight: 600 }}>Calibration Target: Micro-Catchment ({farm.name})</span>
+                <span>Hydrologic Parameter Sensitivity Ranking Guide (SWAT/SUFI-2 Formulation)</span>
+                <span style={{ fontSize: 9.5, color: '#059669', fontWeight: 600 }}>Uncalibrated Parameter Hierarchy · Area: {farm.name}</span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

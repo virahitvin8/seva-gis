@@ -38,6 +38,7 @@ import {
   type ReportLang,
   type ReportOpts,
 } from './report'
+import { dispatchExport, uploadToGoogleDrive } from './lib/googleDriveVault'
 import {
   getReportHistory,
   saveReportToHistory,
@@ -109,6 +110,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState('')
   const [historyList, setHistoryList] = useState<ReportHistoryEntry[]>([])
+  const [downloading, setDownloading] = useState<'pdf' | 'doc' | 'dossier' | ''>('')
 
   const [selectedLangs, setSelectedLangs] = useState<ReportLang[]>(() => {
     try {
@@ -244,24 +246,31 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   }
 
   const save = (name: string, body: string, type: string) => {
-    const u = URL.createObjectURL(new Blob([body], { type }))
-    const a = document.createElement('a')
-    a.href = u
-    a.download = name
-    a.click()
-    URL.revokeObjectURL(u)
+    void dispatchExport({
+      category: 'reports',
+      fileName: name,
+      blob: body,
+      mimeType: type,
+      customToast: `Saved report (${name}) to device & Google Drive: SEVA GIS / Reports`
+    })
   }
 
   /**
    * Downloads the report as a PDF by handing the *same document that is being
-   * previewed* to the browser's print-to-PDF engine. The old code wrote a
-   * three-page text stub instead, which is why the download never matched the
-   * preview. See `src/lib/reportPdf.ts`.
+   * previewed* to the browser's print-to-PDF engine. Also syncs the generated
+   * report HTML to the user's Google Drive "SEVA GIS/Reports" folder if connected.
    */
   const handleDownloadPdf = () => {
     const cur = reports[previewLang]
     if (!cur) return
-    openReportPrintView(cur.html, `${baseFilename}.pdf`)
+    setDownloading('pdf')
+    try {
+      openReportPrintView(cur.html, `${baseFilename}.pdf`)
+      // Mirror report to Google Drive Reports folder in background
+      void uploadToGoogleDrive('reports', `${baseFilename}.html`, cur.html, 'text/html')
+    } finally {
+      setTimeout(() => setDownloading(''), 1500)
+    }
   }
 
   const print = () => {
@@ -273,7 +282,9 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const handleDownloadWord = () => {
     const cur = reports[previewLang]
     if (!cur) return
-    const wordHtml = `
+    setDownloading('doc')
+    try {
+      const wordHtml = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset="utf-8">
@@ -302,7 +313,10 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
       </body>
       </html>
     `
-    save(`${baseFilename}.doc`, wordHtml, 'application/msword;charset=utf-8')
+      save(`${baseFilename}.doc`, wordHtml, 'application/msword;charset=utf-8')
+    } finally {
+      setTimeout(() => setDownloading(''), 1000)
+    }
   }
 
   const handleSendEmail = async (e?: React.FormEvent) => {
@@ -362,31 +376,36 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
   const handleDownloadDossier = async () => {
     if (!curReport) return
-    save(`${baseFilename}.html`, curReport.html, 'text/html')
+    setDownloading('dossier')
+    try {
+      save(`${baseFilename}.html`, curReport.html, 'text/html')
 
-    const targetEmail = emailInput || localStorage.getItem('seva-user-email') || ''
-    if (targetEmail && targetEmail.includes('@') && autoEmailOnDownload) {
-      try {
-        setSendingEmail(true)
-        const res = await syncAndSendViaEmailOctopus({
-          email: targetEmail,
-          farmName: farm.name,
-          reportId: curReport.id,
-          areaHa: farm.area,
-          ndvi: farm.analysis?.ndvi.mean,
-          filename: `${baseFilename}.html`,
-          htmlContent: curReport.html,
-        })
-        setEmailSuccess(`Report downloaded! Official copy dispatched to ${targetEmail} via EmailOctopus. "${res.tagline}"`)
-        setTimeout(() => setEmailSuccess(''), 10000)
-      } catch (e) {
-        console.warn('Auto-email on download failed:', e)
-      } finally {
-        setSendingEmail(false)
+      const targetEmail = emailInput || localStorage.getItem('seva-user-email') || ''
+      if (targetEmail && targetEmail.includes('@') && autoEmailOnDownload) {
+        try {
+          setSendingEmail(true)
+          const res = await syncAndSendViaEmailOctopus({
+            email: targetEmail,
+            farmName: farm.name,
+            reportId: curReport.id,
+            areaHa: farm.area,
+            ndvi: farm.analysis?.ndvi.mean,
+            filename: `${baseFilename}.html`,
+            htmlContent: curReport.html,
+          })
+          setEmailSuccess(`Report downloaded! Official copy dispatched to ${targetEmail} via EmailOctopus. "${res.tagline}"`)
+          setTimeout(() => setEmailSuccess(''), 10000)
+        } catch (e) {
+          console.warn('Auto-email on download failed:', e)
+        } finally {
+          setSendingEmail(false)
+        }
+      } else if (!targetEmail) {
+        setEmailSuccess(`Report downloaded to device! Enter your email in the box below to also receive an official copy via EmailOctopus.`)
+        setTimeout(() => setEmailSuccess(''), 8000)
       }
-    } else if (!targetEmail) {
-      setEmailSuccess(`Report downloaded to device! Enter your email in the box below to also receive an official copy via EmailOctopus.`)
-      setTimeout(() => setEmailSuccess(''), 8000)
+    } finally {
+      setTimeout(() => setDownloading(''), 1000)
     }
   }
 
@@ -690,21 +709,23 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 <button
                   className="primary"
                   onClick={handleDownloadDossier}
+                  disabled={!!downloading}
                 >
-                  <ArrowDownToLine size={16} />
-                  Download Dossier ({baseFilename}.html)
+                  {downloading === 'dossier' ? <LogoLoader inline size={16} text="" /> : <ArrowDownToLine size={16} />}
+                  {downloading === 'dossier' ? 'Preparing Dossier…' : `Download Dossier (${baseFilename}.html)`}
                 </button>
                 <button
                   className="primary"
                   onClick={handleDownloadPdf}
+                  disabled={!!downloading}
                   style={{ background: '#047857', border: '1px solid #059669' }}
                 >
-                  <ArrowDownToLine size={16} />
-                  Download PDF ({baseFilename}.pdf)
+                  {downloading === 'pdf' ? <LogoLoader inline size={16} text="" /> : <ArrowDownToLine size={16} />}
+                  {downloading === 'pdf' ? 'Preparing PDF…' : `Download PDF (${baseFilename}.pdf)`}
                 </button>
-                <button className="outline" onClick={handleDownloadWord}>
-                  <FileText size={16} />
-                  Word Document ({baseFilename}.doc)
+                <button className="outline" onClick={handleDownloadWord} disabled={!!downloading}>
+                  {downloading === 'doc' ? <LogoLoader inline size={16} text="" /> : <FileText size={16} />}
+                  {downloading === 'doc' ? 'Exporting Word…' : `Word Document (${baseFilename}.doc)`}
                 </button>
                 <button
                   className="outline"

@@ -55,6 +55,24 @@ const dataKeys = () => Object.keys(localStorage).filter(isData)
 let activeUser: string | null = null
 const rawSet = Storage.prototype.setItem, rawRemove = Storage.prototype.removeItem
 
+export async function registerOrLoginGoogleUser(googleUser: { id: string; name: string; email: string; picture?: string }) {
+  const email = googleUser.email.trim().toLowerCase()
+  let user = await db.users.where('email').equals(email).first()
+  if (!user) {
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    user = {
+      id: googleUser.id || crypto.randomUUID(),
+      name: (googleUser.name || email.split('@')[0]).trim(),
+      email,
+      salt: hex(salt),
+      hash: 'google_oauth_authenticated',
+      created: Date.now()
+    }
+    await db.users.add(user)
+  }
+  return user
+}
+
 import {
   initAccountVault,
   loadFarmsFromFolder,
@@ -62,6 +80,7 @@ import {
   deleteAccountFolder,
   saveFarmsToFolder
 } from './fs-vault'
+import { scheduleSyncUserDataToDrive } from './googleDriveVault'
 
 export async function openWorkspace(userId: string, meta?: { name?: string; email?: string }) {
   // Initialize the dedicated local folder vault for this account on the device (OPFS & OS directory)
@@ -124,6 +143,7 @@ Storage.prototype.setItem = function (key: string, value: string) {
         const parsed = JSON.parse(value)
         if (Array.isArray(parsed)) {
           scheduleSaveFarmsToFolder(activeUser, parsed)
+          scheduleSyncUserDataToDrive(parsed)
         }
       } catch {}
     }

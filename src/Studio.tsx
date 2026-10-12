@@ -8,11 +8,19 @@ import { type ResamplingMethod } from './lib/raster'
 import { MapFrame } from './LabMap'
 import GeeCartographicStudio from './GeeCartographicStudio'
 import { createEarthEngineMap } from './lib/earthEngineClient'
+import { loadAnalysisIntent, getIntentProfile, type AnalysisIntent } from './lib/analysisIntent'
 
 type Farm = FarmData & { id: string; name: string; crop?: string; rain?: number }
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
+  const [intent, setIntent] = useState<AnalysisIntent>(loadAnalysisIntent)
+  useEffect(() => {
+    const handle = (e: any) => { if (e.detail) setIntent(e.detail) }
+    window.addEventListener('seva-analysis-intent-changed', handle)
+    return () => window.removeEventListener('seva-analysis-intent-changed', handle)
+  }, [])
+  const intentProf = getIntentProfile(intent)
   const [studioView, setStudioView] = useState<'interactive' | 'gee_carto'>('interactive')
   const [g, setG] = useState<Awaited<ReturnType<typeof loadScene>> | null>(null)
   const [err, setErr] = useState('')
@@ -660,7 +668,8 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
       <ul>{auto.clusters.map(c => <li key={c.id}><i style={{ background: c.color }}/><span>{c.name}</span><code>NDVI {f(c.ndvi, 2)} · {f(c.pct, 0)}% · {f(c.ha, 2)} ha</code></li>)}</ul>
       <small>Groups with the lowest greenness are the first zones to compare across clear satellite dates.</small></div>}
 
-    {/* Yield Forecasting Card with Crystal-Clear Visual Display */}
+    {/* Yield Forecasting Card with Crystal-Clear Visual Display - shown for agricultural intent */}
+    {intentProf.showYieldEstimate ? (
     <div className="yield-forecast-box">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -774,6 +783,14 @@ export default function Studio({ farm, scene }: { farm: Farm; scene?: Scene }) {
         {yieldPred.explanation} Calibrated against regional yield benchmarks and crop-peak NDVI integral formulas.
       </small>
     </div>
+    ) : (
+      <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', color: '#64748b', fontSize: 12, margin: '14px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Sprout size={16} color="#94a3b8" />
+        <span>
+          <b>Yield forecasting model is inactive for {intentProf.label}.</b> Empirical crop harvest forecasts are computed when analysis intent is set to <b>Precision Agriculture</b>.
+        </span>
+      </div>
+    )}
 
         <div className="st-export"><button onClick={exportRule}><Download size={14}/>Rule-based land cover (GeoJSON)</button><button disabled={!auto} onClick={exportAuto}><Download size={14}/>Spectral groups (GeoJSON)</button></div>
         <p className="ge-note">GeoJSON opens in QGIS, ArcGIS, Google Earth Engine and geojson.io. Built on one cloud-masked Sentinel-2 scene. Methods follow scikit-learn, GDAL, Orfeo Toolbox, SNAP and QGIS Semi-Automatic Classification.</p>

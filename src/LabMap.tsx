@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { farmBBox, farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
 import { hotspots, type Patch } from './lib/gee'
 import { useGlobalZoom } from './lib/zoomSync'
+import { createGeoTiffBlob } from './lib/geoTiffWriter'
+import { dispatchExport } from './lib/googleDriveVault'
 
 type Farm = FarmData & { id: string; name: string }
 export type LegendRow = { color: string; label: string }
@@ -49,6 +51,10 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
   const [pointCount, setPointCount] = useState<number>(3)
   const [loupePos, setLoupePos] = useState<{ x: number; y: number } | null>(null)
   const [isHovering, setIsHovering] = useState(false)
+  const [splitActive, setSplitActive] = useState<boolean>(false)
+  const [splitPos, setSplitPos] = useState<number>(50)
+  const [isDraggingSplit, setIsDraggingSplit] = useState<boolean>(false)
+  const [exporting, setExporting] = useState<'png' | 'tiff' | ''>('')
   const stageRef = useRef<HTMLDivElement>(null)
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -56,7 +62,106 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
     const rect = stageRef.current.getBoundingClientRect()
     const xPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
     const yPct = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
-    setLoupePos({ x: xPct, y: yPct })
+    if (isDraggingSplit) {
+      setSplitPos(xPct)
+    } else {
+      setLoupePos({ x: xPct, y: yPct })
+    }
+  }
+
+  const handleDownloadPng = async () => {
+    setExporting('png')
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = W
+      canvas.height = H
+      const ctx2d = canvas.getContext('2d')
+      if (!ctx2d) return
+
+      const bgImg = new Image()
+      bgImg.crossOrigin = 'anonymous'
+      bgImg.onload = () => {
+        ctx2d.drawImage(bgImg, 0, 0, W, H)
+        if (overlay) {
+          const overImg = new Image()
+          overImg.crossOrigin = 'anonymous'
+          overImg.onload = () => {
+            const x0 = (X(w) / 100) * W
+            const y0 = (Y(n) / 100) * H
+            const ow = ((X(e) - X(w)) / 100) * W
+            const oh = ((Y(s) - Y(n)) / 100) * H
+            ctx2d.drawImage(overImg, x0, y0, ow, oh)
+            finalize()
+          }
+          overImg.onerror = () => finalize()
+          overImg.src = overlay
+        } else {
+          finalize()
+        }
+      }
+      bgImg.onerror = () => {
+        ctx2d.fillStyle = '#10241b'
+        ctx2d.fillRect(0, 0, W, H)
+        finalize()
+      }
+      bgImg.src = ctx
+
+      function finalize() {
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            await dispatchExport({
+              category: 'images',
+              fileName: `${farm.name.toUpperCase()}_19X_${title.replace(/\W+/g, '_')}.png`,
+              blob,
+              mimeType: 'image/png',
+              customToast: `Saved 19X Map PNG to device & Google Drive: SEVA GIS / Images`
+            })
+          }
+        }, 'image/png')
+      }
+    } finally {
+      setTimeout(() => setExporting(''), 1000)
+    }
+  }
+
+  const handleDownloadGeoTiff = async () => {
+    setExporting('tiff')
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = 512
+      canvas.height = 512
+      const ctx2d = canvas.getContext('2d')
+      if (!ctx2d) return
+
+      ctx2d.fillStyle = '#0f172a'
+      ctx2d.fillRect(0, 0, 512, 512)
+
+      ctx2d.beginPath()
+      ring.forEach(([lon, lat], i) => {
+        const cx = ((lon - w) / (e - w || 0.001)) * 512
+        const cy = ((n - lat) / (n - s || 0.001)) * 512
+        if (i === 0) ctx2d.moveTo(cx, cy)
+        else ctx2d.lineTo(cx, cy)
+      })
+      ctx2d.closePath()
+      ctx2d.fillStyle = '#16a34a'
+      ctx2d.fill()
+      ctx2d.strokeStyle = '#ffffff'
+      ctx2d.lineWidth = 2
+      ctx2d.stroke()
+
+      const imgData = ctx2d.getImageData(0, 0, 512, 512)
+      const blob = createGeoTiffBlob(512, 512, [w, s, e, n], imgData.data)
+      void dispatchExport({
+        category: 'tiff',
+        fileName: `${farm.name.toUpperCase()}_19X_${title.replace(/\W+/g, '_')}.tif`,
+        blob,
+        mimeType: 'image/tiff',
+        customToast: `Exported GeoTIFF · Saved to device & organized in Google Drive: SEVA GIS / TIFF Files`
+      })
+    } finally {
+      setTimeout(() => setExporting(''), 1000)
+    }
   }
 
   const activePoints = weak.slice(0, pointCount)
@@ -77,8 +182,9 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
       className="lab-stage"
       style={{ aspectRatio: `${W} / ${H}`, position: 'relative', overflow: 'hidden' }}
       onPointerMove={handlePointerMove}
+      onPointerUp={() => setIsDraggingSplit(false)}
       onPointerEnter={() => setIsHovering(true)}
-      onPointerLeave={() => { setIsHovering(false); setLoupePos(null) }}
+      onPointerLeave={() => { setIsHovering(false); setIsDraggingSplit(false); setLoupePos(null) }}
     >
       <CtxImage url={ctx} bb={bb} W={W} H={H}/>
       
@@ -91,8 +197,54 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
         Scale 19x · AOI Centered
       </div>
 
-      {geeTileUrl && <GeeTileCanvas tileUrl={geeTileUrl} bb={bb} W={W} H={H} ring={ring} opacity={opacity} />}
-      {!geeTileUrl && overlay && <img className={`lab-over ${crisp ? 'crisp' : ''}`} src={overlay} alt={title} style={{ left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
+      <div style={{ position: 'absolute', inset: 0, clipPath: splitActive ? `inset(0 ${100 - splitPos}% 0 0)` : undefined, zIndex: 12 }}>
+        {geeTileUrl && <GeeTileCanvas tileUrl={geeTileUrl} bb={bb} W={W} H={H} ring={ring} opacity={opacity} />}
+        {!geeTileUrl && overlay && <img className={`lab-over ${crisp ? 'crisp' : ''}`} src={overlay} alt={title} style={{ position: 'absolute', left: `${X(w)}%`, top: `${Y(n)}%`, width: `${X(e) - X(w)}%`, height: `${Y(s) - Y(n)}%`, opacity }}/>}
+      </div>
+
+      {splitActive && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${splitPos}%`,
+            top: 0,
+            bottom: 0,
+            width: 3,
+            background: '#ffffff',
+            boxShadow: '0 0 10px rgba(0,0,0,0.85)',
+            zIndex: 32,
+            cursor: 'ew-resize',
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            setIsDraggingSplit(true)
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: '#0f172a',
+              border: '2px solid #38bdf8',
+              color: '#38bdf8',
+              fontSize: 11,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 800,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+              userSelect: 'none',
+            }}
+          >
+            ⬌
+          </div>
+        </div>
+      )}
       
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="lab-svg">
         <defs>
@@ -166,7 +318,7 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
       </div>
     </div>
 
-    {/* Interactive Remote Field Review Controls: Sliding Loupe Window & Point Counts */}
+    {/* Interactive Remote Field Review Controls: Sliding Loupe Window & Point Counts & Export */}
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, padding: '7px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, margin: '8px 0 4px', fontSize: 11 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <span style={{ fontWeight: 700, color: '#475569' }}>Inspection Window &amp; Points:</span>
@@ -186,31 +338,90 @@ export function MapFrame({ farm, scene, overlay, geeTileUrl, title, note, legend
         >
           {pointsMode === 'off' ? '● Points Hidden' : pointsMode === 'window' ? '🔍 Sliding Window Loupe' : '✓ All Numbers Displayed'}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setSplitActive(s => !s)}
+          style={{
+            fontSize: 11,
+            padding: '3px 8px',
+            borderRadius: 5,
+            fontWeight: 700,
+            cursor: 'pointer',
+            background: splitActive ? '#0284c7' : '#ffffff',
+            color: splitActive ? '#ffffff' : '#334155',
+            border: splitActive ? '1px solid transparent' : '1px solid #cbd5e1'
+          }}
+          title="Draggable split slider comparison between S2 layer and Esri base imagery"
+        >
+          ⬌ {splitActive ? 'Split Slider Active' : 'Split Comparison'}
+        </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ fontSize: 10.5, color: '#64748b' }}>Count:</span>
-        {[1, 2, 3, 4, 5].map(n => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 10.5, color: '#64748b' }}>Count:</span>
+          {[1, 2, 3, 4, 5].map(n => (
+            <button
+              key={n}
+              type="button"
+              disabled={pointsMode === 'off'}
+              onClick={() => setPointCount(n)}
+              style={{
+                padding: '2px 6px',
+                fontSize: 10.5,
+                borderRadius: 4,
+                cursor: pointsMode === 'off' ? 'not-allowed' : 'pointer',
+                opacity: pointsMode === 'off' ? 0.45 : 1,
+                background: pointCount === n ? '#0f172a' : '#ffffff',
+                color: pointCount === n ? '#ffffff' : '#334155',
+                border: pointCount === n ? '1px solid #0f172a' : '1px solid #cbd5e1',
+                fontWeight: 700
+              }}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <button
-            key={n}
             type="button"
-            disabled={pointsMode === 'off'}
-            onClick={() => setPointCount(n)}
+            onClick={handleDownloadPng}
+            disabled={!!exporting}
             style={{
-              padding: '2px 6px',
+              padding: '2px 8px',
               fontSize: 10.5,
               borderRadius: 4,
-              cursor: pointsMode === 'off' ? 'not-allowed' : 'pointer',
-              opacity: pointsMode === 'off' ? 0.45 : 1,
-              background: pointCount === n ? '#0f172a' : '#ffffff',
-              color: pointCount === n ? '#ffffff' : '#334155',
-              border: pointCount === n ? '1px solid #0f172a' : '1px solid #cbd5e1',
+              cursor: 'pointer',
+              background: '#ffffff',
+              color: '#0f172a',
+              border: '1px solid #cbd5e1',
               fontWeight: 700
             }}
+            title="Download high-resolution 19x PNG frame"
           >
-            {n}
+            {exporting === 'png' ? 'Saving PNG…' : '⬇ PNG (19x)'}
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={handleDownloadGeoTiff}
+            disabled={!!exporting}
+            style={{
+              padding: '2px 8px',
+              fontSize: 10.5,
+              borderRadius: 4,
+              cursor: 'pointer',
+              background: '#047857',
+              color: '#ffffff',
+              border: '1px solid #059669',
+              fontWeight: 700
+            }}
+            title="Download georeferenced GeoTIFF (WGS84 EPSG:4326)"
+          >
+            {exporting === 'tiff' ? 'Generating GeoTIFF…' : '⬇ GeoTIFF'}
+          </button>
+        </div>
       </div>
     </div>
 

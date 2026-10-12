@@ -15,7 +15,8 @@
     "bench:raster": "node scripts/bench-raster-stats.mjs",
     "i18n:coverage": "node scripts/i18n-coverage.mjs",
     "grill": "node scripts/grill.mjs",
-    "grill:quick": "node scripts/grill.mjs --quick"
+    "grill:quick": "node scripts/grill.mjs --quick",
+    "demo:assemble": "node scripts/video-pipeline/assemble.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

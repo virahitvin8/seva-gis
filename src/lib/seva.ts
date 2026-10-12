@@ -39,27 +39,32 @@ export function farmRing(farm: FarmGeo): Ring {
 }
 
 const NET = 'Could not reach the satellite service. Check your internet connection and press Refresh.'
-async function guarded(url: string) {
+async function guarded(url: string, externalSignal?: AbortSignal) {
   let last: unknown
   for (let k = 0; k < 2; k++) {
+    if (externalSignal?.aborted) throw new DOMException('Aborted', 'AbortError')
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 20000)
+    const onAbort = () => controller.abort()
+    if (externalSignal) externalSignal.addEventListener('abort', onAbort, { once: true })
     try {
       const response = await fetch(url, { signal: controller.signal })
       if (!response.ok) throw new Error(`Planetary Computer returned ${response.status}`)
       return response
     } catch (e) {
+      if (externalSignal?.aborted) throw e
       last = e instanceof Error && e.name === 'AbortError' ? new Error('The satellite service timed out. Check your connection and try again.') : e
       if (last instanceof Error && /returned 4/.test(last.message)) break
       if (k === 0) await new Promise(r => setTimeout(r, 600))
     } finally {
       clearTimeout(timer)
+      if (externalSignal) externalSignal.removeEventListener('abort', onAbort)
     }
   }
   throw last instanceof TypeError ? new Error(NET) : last
 }
-async function getJson(url: string) { return (await guarded(url)).json() }
-async function getNpy(url: string) { return parseNpy(await (await guarded(url)).arrayBuffer()) }
+async function getJson(url: string, signal?: AbortSignal) { return (await guarded(url, signal)).json() }
+async function getNpy(url: string, signal?: AbortSignal) { return parseNpy(await (await guarded(url, signal)).arrayBuffer()) }
 
 const cache = new Map<string, Promise<unknown>>()
 const MAX_GRID_CACHE_ENTRIES = 3
@@ -81,12 +86,12 @@ const geoKey = (farm: FarmGeo) => farm.polygon && farm.polygon.length >= 3
 const stamp = (d: Date) => d.toISOString().replace(/\.\d+Z$/, 'Z')
 
 type Item = { id: string; day: string; datetime: string; cloud: number }
-async function searchItems(bbox: Bbox, start: string, end: string, maxCloud: number, limit: number): Promise<Item[]> {
+async function searchItems(bbox: Bbox, start: string, end: string, maxCloud: number, limit: number, signal?: AbortSignal): Promise<Item[]> {
   const q = new URLSearchParams({
     collections: COLLECTION, bbox: bbox.join(','), datetime: `${start}/${end}`, limit: String(limit),
     sortby: '-datetime', query: JSON.stringify({ 'eo:cloud_cover': { lt: maxCloud } }),
   })
-  const data = await getJson(`${STAC}/search?${q}`)
+  const data = await getJson(`${STAC}/search?${q}`, signal)
   return (data.features ?? []).map((item: { id: string; properties: Record<string, unknown> }) => ({ id: item.id, day: String(item.properties.datetime).slice(0, 10), datetime: String(item.properties.datetime), cloud: Math.round(Number(item.properties['eo:cloud_cover'] ?? 0)) }))
 }
 
@@ -102,16 +107,17 @@ function group(items: Item[], opts: SceneOpts): Scene | undefined {
   return { id: main.its[0].id, ids: main.its.slice(1, 9).map(i => i.id), fill, datetime: main.its[0].datetime, cloud: main.cloud }
 }
 
-export async function findScene(bbox: Bbox, opts: SceneOpts = {}): Promise<Scene> {
+export async function findScene(bbox: Bbox, opts: SceneOpts = {}, signal?: AbortSignal): Promise<Scene> {
   const maxCloud = opts.maxCloud ?? 30, day = 86400000, now = new Date()
   const iso = (d: Date) => stamp(d)
   const at = (d: string, end?: boolean) => `${d}T${end ? '23:59:59' : '00:00:00'}Z`
   let scene: Scene | undefined
-  if (opts.mode === 'date' && opts.date) scene = group(await searchItems(bbox, at(opts.date), at(opts.date, true), 101, 40), opts)
-  else if (opts.mode === 'range' && opts.from && opts.to) scene = group(await searchItems(bbox, at(opts.from), at(opts.to, true), maxCloud, 80), opts)
+  // For large AOIs that span multiple granules, search up to 100 items so all granules on the pass date are discovered
+  if (opts.mode === 'date' && opts.date) scene = group(await searchItems(bbox, at(opts.date), at(opts.date, true), 101, 60, signal), opts)
+  else if (opts.mode === 'range' && opts.from && opts.to) scene = group(await searchItems(bbox, at(opts.from), at(opts.to, true), maxCloud, 100, signal), opts)
   else {
-    scene = group(await searchItems(bbox, iso(new Date(now.getTime() - 45 * day)), iso(now), maxCloud, 40), opts)
-      || group(await searchItems(bbox, iso(new Date(now.getTime() - 180 * day)), iso(now), Math.max(maxCloud, 60), 40), opts)
+    scene = group(await searchItems(bbox, iso(new Date(now.getTime() - 45 * day)), iso(now), maxCloud, 100, signal), opts)
+      || group(await searchItems(bbox, iso(new Date(now.getTime() - 180 * day)), iso(now), Math.max(maxCloud, 60), 100, signal), opts)
   }
   if (!scene) throw new Error(opts.mode === 'date' ? 'No Sentinel-2 picture exists for that date over this area. Try another date or a range.' : 'No Sentinel-2 scene with that little cloud covers this area in that period. Raise the cloud limit or widen the dates.')
   return scene
@@ -120,11 +126,11 @@ export async function findScene(bbox: Bbox, opts: SceneOpts = {}): Promise<Scene
 const offsetFor = (datetime: string) => (datetime >= '2022-01-25' ? 1000 : 0)
 const CLEAR = new Set([4, 5, 6, 7])
 
-async function fetchBands(id: string, bbox: Bbox, w: number, h: number, expr: string, collection = COLLECTION) {
+async function fetchBands(id: string, bbox: Bbox, w: number, h: number, expr: string, collection = COLLECTION, signal?: AbortSignal) {
   if (!id || id.startsWith('gee-')) {
     throw new Error(`Invalid scene ID for Planetary Computer: ${id}`)
   }
-  return getNpy(`${DATA}/item/bbox/${bbox.join(',')}/${w}x${h}.npy?collection=${collection}&item=${encodeURIComponent(id)}&asset_as_band=true&reproject=nearest&resampling=nearest&expression=${encodeURIComponent(expr)}`)
+  return getNpy(`${DATA}/item/bbox/${bbox.join(',')}/${w}x${h}.npy?collection=${collection}&item=${encodeURIComponent(id)}&asset_as_band=true&reproject=nearest&resampling=nearest&expression=${encodeURIComponent(expr)}`, signal)
 }
 
 function mergeInto(acc: Raster | null, r: Raster, good: Uint8Array, isGood: (r: Raster, i: number) => boolean): Raster {
@@ -137,7 +143,7 @@ function mergeInto(acc: Raster | null, r: Raster, good: Uint8Array, isGood: (r: 
   return acc
 }
 
-async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number, maxPx: number, allowFill = true): Promise<Grid> {
+async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number, maxPx: number, allowFill = true, signal?: AbortSignal): Promise<Grid> {
   const bbox = farmBBox(farm), { w, h, wm, hm } = rasterSize(bbox, res, maxPx), ring = farmRing(farm)
   const expr = [...names, 'SCL'].join(';'), sclAt = names.length
   const isGood = (r: Raster, i: number) => r.bands[0][i] > 0 && CLEAR.has(r.bands[sclAt][i])
@@ -150,14 +156,18 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   const take = async (ids: string[]) => {
     const validIds = ids.filter(id => id && !id.startsWith('gee-'))
     for (let start = 0; start < validIds.length; start += 2) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
       const batch = validIds.slice(start, start + 2)
-      const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, expr)))
+      const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, expr, COLLECTION, signal)))
       rs.forEach(r => { if (r.status === 'fulfilled') { acc = mergeInto(acc, r.value, good, isGood); done++ } else errors.push(r.reason) })
     }
   }
   await take([scene.id, ...(scene.ids ?? [])])
   if (allowFill && scene.fill?.length) {
-    for (let k = 0; k < scene.fill.length && (!acc || covered() < 0.97) && done < 12; k++) { const before = done; await take([scene.fill[k]]); if (done > before) scene.filled = (scene.filled ?? 0) + 1 }
+    for (let k = 0; k < scene.fill.length && (!acc || covered() < 0.97) && done < 12; k++) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      const before = done; await take([scene.fill[k]]); if (done > before) scene.filled = (scene.filled ?? 0) + 1
+    }
   }
   if (!acc) throw (errors[0] instanceof Error ? errors[0] : new Error(NET))
   const raster: Raster = acc, offset = offsetFor(scene.datetime), n = raster.w * raster.h, b: Bands = {}, ok = new Uint8Array(n)
@@ -166,46 +176,47 @@ async function s2Grid(scene: Scene, farm: FarmGeo, names: string[], res: number,
   return makeGrid(raster.w, raster.h, bbox, wm, hm, b, ok, ring)
 }
 
-export const loadScene = (scene: Scene, farm: FarmGeo) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}:${geoKey(farm)}`, async () => {
+export const loadScene = (scene: Scene, farm: FarmGeo, signal?: AbortSignal) => memo(`s2:${scene.id}:${(scene.ids ?? []).join('+')}:${(scene.fill ?? []).join('+')}:${geoKey(farm)}`, async () => {
   let targetScene = scene
   if (!targetScene.id || targetScene.id.startsWith('gee-') || !targetScene.id.startsWith('S2')) {
     try {
-      const found = await findScene(farmBBox(farm))
+      const found = await findScene(farmBBox(farm), {}, signal)
       if (found) targetScene = found
     } catch (e) {
       console.warn('findScene resolution fallback for loadScene:', e)
     }
   }
-  return s2Grid(targetScene, farm, S2_BANDS, 10, 900)
+  return s2Grid(targetScene, farm, S2_BANDS, 10, 900, true, signal)
 })
 
-const loadLight = (scene: Scene, farm: FarmGeo) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, async () => {
+const loadLight = (scene: Scene, farm: FarmGeo, signal?: AbortSignal) => memo(`s2l:${scene.id}:${(scene.ids ?? []).join('+')}:${geoKey(farm)}`, async () => {
   let targetScene = scene
   if (!targetScene.id || targetScene.id.startsWith('gee-') || !targetScene.id.startsWith('S2')) {
     try {
-      const found = await findScene(farmBBox(farm))
+      const found = await findScene(farmBBox(farm), {}, signal)
       if (found) targetScene = found
     } catch (e) {
       console.warn('findScene resolution fallback for loadLight:', e)
     }
   }
-  return s2Grid(targetScene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false)
+  return s2Grid(targetScene, farm, ['B03', 'B04', 'B08', 'B11'], 10, 200, false, signal)
 })
 
-export const loadDem = (farm: FarmGeo) => memo(`dem3:${geoKey(farm)}`, async () => {
+export const loadDem = (farm: FarmGeo, signal?: AbortSignal) => memo(`dem3:${geoKey(farm)}`, async () => {
   const fb = farmBBox(farm), c: [number, number] = [(fb[0] + fb[2]) / 2, (fb[1] + fb[3]) / 2]
   const padM = Math.max(600, Math.max((fb[2] - fb[0]) * 111320 * Math.cos((c[1] * Math.PI) / 180), (fb[3] - fb[1]) * 111320) * 0.05)
   const padLat = padM / 111320, padLon = padLat / Math.max(Math.cos((c[1] * Math.PI) / 180), 0.01)
   const bbox: Bbox = [fb[0] - padLon, fb[1] - padLat, fb[2] + padLon, fb[3] + padLat]
-  const found = await getJson(`${STAC}/search?collections=cop-dem-glo-30&bbox=${bbox.join(',')}&limit=12`)
+  const found = await getJson(`${STAC}/search?collections=cop-dem-glo-30&bbox=${bbox.join(',')}&limit=12`, signal)
   const ids: string[] = (found.features ?? []).map((f: { id: string }) => f.id)
   if (!ids.length) throw new Error('No elevation tile covers this location.')
   const { w, h, wm, hm } = rasterSize(bbox, 30, 500)
   let acc: Raster | null = null
   const good = new Uint8Array(w * h)
   for (let start = 0; start < ids.length; start += 2) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     const batch = ids.slice(start, start + 2)
-    const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, 'data', 'cop-dem-glo-30')))
+    const rs = await Promise.allSettled(batch.map(id => fetchBands(id, bbox, w, h, 'data', 'cop-dem-glo-30', signal)))
     rs.forEach(r => { if (r.status === 'fulfilled') acc = mergeInto(acc, r.value, good, () => true) })
   }
   if (!acc) throw new Error(NET)
@@ -270,9 +281,20 @@ async function sceneStats(scene: Scene, farm: FarmGeo) {
   return res
 }
 
+function combineSignals(s1: AbortSignal, s2?: AbortSignal): AbortSignal {
+  if (!s2) return s1
+  if (typeof (AbortSignal as any).any === 'function') return (AbortSignal as any).any([s1, s2])
+  const c = new AbortController()
+  const abort = () => c.abort()
+  if (s1.aborted || s2.aborted) { c.abort(); return c.signal }
+  s1.addEventListener('abort', abort, { once: true })
+  s2.addEventListener('abort', abort, { once: true })
+  return c.signal
+}
+
 export type Candle = { scene: Scene; ndvi: Stat; ndmi: number; stressPct: number }
 
-export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<Candle[]> {
+export async function history(farm: FarmGeo, lookback = 180, max = 8, signal?: AbortSignal): Promise<Candle[]> {
   // 1. PRIMARY: Query Google Earth Engine timeseries directly
   const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
   if (ringCoords.length >= 3) {
@@ -285,7 +307,7 @@ export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<C
         startDate,
         today,
         Math.max(12, Math.round(lookback / Math.max(max, 6))),
-        AbortSignal.timeout(15000)
+        combineSignals(AbortSignal.timeout(15000), signal)
       )
       const validPoints = (eeData.points || []).filter(p => typeof p.value === 'number' && Number.isFinite(p.value))
       if (validPoints.length >= 2) {
@@ -321,7 +343,7 @@ export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<C
   // 2. AUTO FALLBACK: Planetary Computer STAC
   const end = new Date(), start = new Date(end.getTime() - lookback * 86400000)
   const q = new URLSearchParams({ collections: COLLECTION, bbox: farmBBox(farm).join(','), datetime: `${stamp(start)}/${stamp(end)}`, limit: '100', sortby: '-datetime', query: JSON.stringify({ 'eo:cloud_cover': { lt: 30 } }) })
-  const data = await getJson(`${STAC}/search?${q}`)
+  const data = await getJson(`${STAC}/search?${q}`, signal)
   const days = new Map<string, { id: string; datetime: string; cloud: number }[]>()
   for (const item of data.features ?? []) {
     const day = String(item.properties.datetime).slice(0, 10)
@@ -333,6 +355,7 @@ export async function history(farm: FarmGeo, lookback = 180, max = 8): Promise<C
   const results: Candle[] = []
   const BATCH_SIZE = 2
   for (let i = 0; i < scenes.length; i += BATCH_SIZE) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
     const chunk = scenes.slice(i, i + BATCH_SIZE)
     const settled = await Promise.allSettled(chunk.map(async scene => {
       const s = await sceneStats(scene, farm)
@@ -353,11 +376,11 @@ export const weekKey = (iso: string) => {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day)).toISOString().slice(0, 10)
 }
 
-export async function weeklyRecords(farm: FarmGeo): Promise<WeekRec[]> {
+export async function weeklyRecords(farm: FarmGeo, signal?: AbortSignal): Promise<WeekRec[]> {
   const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
   if (ringCoords.length >= 3) {
     try {
-      const eeTs = await getEarthEngineTimeseries(ringCoords, 'ndvi', undefined, undefined, 14, AbortSignal.timeout(12000))
+      const eeTs = await getEarthEngineTimeseries(ringCoords, 'ndvi', undefined, undefined, 14, combineSignals(AbortSignal.timeout(12000), signal))
       if (eeTs?.points?.length) {
         return eeTs.points
           .filter(p => p.value !== null && Number.isFinite(p.value))
@@ -374,7 +397,7 @@ export async function weeklyRecords(farm: FarmGeo): Promise<WeekRec[]> {
       console.info('Earth Engine timeseries auto-falling back to local history:', eeErr)
     }
   }
-  const rows = await history(farm, 180, 8)
+  const rows = await history(farm, 180, 8, signal)
   return rows.map(c => ({ week: c.scene.datetime.slice(0, 10), date: c.scene.datetime, ndvi: c.ndvi.mean, ndmi: c.ndmi, stressPct: c.stressPct, cloud: c.scene.cloud }))
 }
 
@@ -384,7 +407,7 @@ export function mergeWeekly(old: WeekRec[] | undefined, fresh: WeekRec[]): WeekR
   return [...map.values()].sort((a, b) => a.week.localeCompare(b.week)).slice(-120)
 }
 
-export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Analysis> {
+export async function analyze(farm: FarmGeo, opts: SceneOpts = {}, signal?: AbortSignal): Promise<Analysis> {
   const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
 
   // 1. PRIMARY: Query Google Earth Engine Zonal Statistics directly
@@ -393,7 +416,7 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
       const stats = await getEarthEngineStats(
         ringCoords,
         ['ndvi', 'evi', 'ndmi', 'ndwi', 'bsi', 'savi', 'gndvi', 'lai'],
-        AbortSignal.timeout(15000)
+        combineSignals(AbortSignal.timeout(15000), signal)
       )
       if (stats?.indicators?.ndvi?.mean !== undefined) {
         const ind = stats.indicators
@@ -416,14 +439,14 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
         }
         let slopeDeg: number | undefined, slopePct: number | undefined, elevMean: number | undefined
         try {
-          const demGrid = await loadDem(farm).catch(() => null)
+          const demGrid = await loadDem(farm, signal).catch(() => null)
           if (demGrid) {
             slopeDeg = indexStat(demGrid, 'slope')?.mean
             elevMean = indexStat(demGrid, 'dem')?.mean
             if (slopeDeg !== undefined) slopePct = Math.tan((slopeDeg * Math.PI) / 180) * 100
           }
         } catch {}
-        const realScene = await findScene(farmBBox(farm), opts).catch(() => null)
+        const realScene = await findScene(farmBBox(farm), opts, signal).catch(() => null)
         return {
           scene: realScene ?? {
             id: 'GEE_SENTINEL2_L2A',
@@ -447,8 +470,8 @@ export async function analyze(farm: FarmGeo, opts: SceneOpts = {}): Promise<Anal
   }
 
   // 2. AUTO FALLBACK: Planetary Computer STAC + TiTiler + DEM
-  const scene = await findScene(farmBBox(farm), opts)
-  const [g, dem] = await Promise.all([loadScene(scene, farm), loadDem(farm).catch(() => null)])
+  const scene = await findScene(farmBBox(farm), opts, signal)
+  const [g, dem] = await Promise.all([loadScene(scene, farm, signal), loadDem(farm, signal).catch(() => null)])
   const ndvi = indexStat(g, 'ndvi'), ndwi = indexStat(g, 'ndwi'), ndmi = indexStat(g, 'ndmi')
   if (!ndvi || !ndwi || !ndmi) throw new Error('No valid pixels inside the farm (cloud or edge of scene).')
   const means: Record<string, number> = {}

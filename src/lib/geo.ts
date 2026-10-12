@@ -51,6 +51,157 @@ export function orderRing(ring: Ring): Ring {
   return [...ring].sort((a, b) => Math.atan2(a[1] - c.lat, a[0] - c.lon) - Math.atan2(b[1] - c.lat, b[0] - c.lon))
 }
 
+export function ensureClosedRing(ring: Ring): Ring {
+  if (ring.length === 0) return []
+  const first = ring[0]
+  const last = ring[ring.length - 1]
+  if (first[0] === last[0] && first[1] === last[1]) return [...ring]
+  return [...ring, [first[0], first[1]]]
+}
+
+function ccw(p1: [number, number], p2: [number, number], p3: [number, number]): number {
+  return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+}
+
+function segmentsIntersect(
+  a: [number, number],
+  b: [number, number],
+  c: [number, number],
+  d: [number, number]
+): boolean {
+  const d1 = ccw(c, d, a)
+  const d2 = ccw(c, d, b)
+  const d3 = ccw(a, b, c)
+  const d4 = ccw(a, b, d)
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true
+  }
+  return false
+}
+
+export interface GeometryValidationResult {
+  valid: boolean
+  error?: string
+  closedRing: Ring
+  areaHa: number
+  perimeterM: number
+  isSelfIntersecting: boolean
+}
+
+export function validateAoiGeometry(rawRing: Ring): GeometryValidationResult {
+  if (!Array.isArray(rawRing) || rawRing.length < 3) {
+    return {
+      valid: false,
+      error: 'Area of interest requires at least 3 distinct boundary vertices.',
+      closedRing: [],
+      areaHa: 0,
+      perimeterM: 0,
+      isSelfIntersecting: false,
+    }
+  }
+
+  // Check coordinates within valid WGS84 range
+  for (const pt of rawRing) {
+    if (!Number.isFinite(pt[0]) || !Number.isFinite(pt[1]) || Math.abs(pt[0]) > 180 || Math.abs(pt[1]) > 90) {
+      return {
+        valid: false,
+        error: 'Coordinates must be valid WGS84 values (longitude between -180 and 180, latitude between -90 and 90).',
+        closedRing: [],
+        areaHa: 0,
+        perimeterM: 0,
+        isSelfIntersecting: false,
+      }
+    }
+  }
+
+  // Deduplicate consecutive identical points
+  const deduped: Ring = []
+  for (let i = 0; i < rawRing.length; i++) {
+    const cur = rawRing[i]
+    const prev = deduped[deduped.length - 1]
+    if (!prev || prev[0] !== cur[0] || prev[1] !== cur[1]) {
+      deduped.push(cur)
+    }
+  }
+
+  // If last point equals first point, remove for vertex count and edge intersection tests
+  const openRing = (deduped.length > 1 && deduped[0][0] === deduped[deduped.length - 1][0] && deduped[0][1] === deduped[deduped.length - 1][1])
+    ? deduped.slice(0, -1)
+    : deduped
+
+  if (openRing.length < 3) {
+    return {
+      valid: false,
+      error: 'Area of interest must contain at least 3 distinct non-coincident vertices.',
+      closedRing: [],
+      areaHa: 0,
+      perimeterM: 0,
+      isSelfIntersecting: false,
+    }
+  }
+
+  // Check self-intersection among non-adjacent edges
+  const n = openRing.length
+  let selfIntersecting = false
+  for (let i = 0; i < n; i++) {
+    const a = openRing[i]
+    const b = openRing[(i + 1) % n]
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue
+      const c = openRing[j]
+      const d = openRing[(j + 1) % n]
+      if (segmentsIntersect(a, b, c, d)) {
+        selfIntersecting = true
+        break
+      }
+    }
+    if (selfIntersecting) break
+  }
+
+  if (selfIntersecting) {
+    return {
+      valid: false,
+      error: 'Area of interest boundary contains self-intersecting polygon edges. Redraw or order vertices to form a simple polygon.',
+      closedRing: ensureClosedRing(openRing),
+      areaHa: areaHa(openRing),
+      perimeterM: perimeterM(openRing),
+      isSelfIntersecting: true,
+    }
+  }
+
+  const aHa = areaHa(openRing)
+  if (aHa <= 0) {
+    return {
+      valid: false,
+      error: 'Degenerate polygon with zero area. Vertices may be collinear.',
+      closedRing: ensureClosedRing(openRing),
+      areaHa: 0,
+      perimeterM: perimeterM(openRing),
+      isSelfIntersecting: false,
+    }
+  }
+
+  if (aHa > 250_000) {
+    return {
+      valid: false,
+      error: `Selected area (${aHa.toFixed(0)} ha) exceeds the 250,000 ha client processing limit. Please select a focused area of interest.`,
+      closedRing: ensureClosedRing(openRing),
+      areaHa: aHa,
+      perimeterM: perimeterM(openRing),
+      isSelfIntersecting: false,
+    }
+  }
+
+  return {
+    valid: true,
+    closedRing: ensureClosedRing(openRing),
+    areaHa: aHa,
+    perimeterM: perimeterM(openRing),
+    isSelfIntersecting: false,
+  }
+}
+
 const valid = (p: number[]) => Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90
 const clean = (pts: number[][]): Ring => {
   const ring = pts.filter(valid).map(p => [p[0], p[1]] as [number, number])

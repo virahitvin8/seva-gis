@@ -7,7 +7,8 @@ import {
   SlidersHorizontal, X, Wrench, Move, Globe2, Mountain, Droplets, Layers,
   Lock, LockOpen, Map as MapIcon, Ruler, Maximize2, Tag, ExternalLink,
   Sliders, ChevronRight, Trash2, FileCheck2, Scissors, RotateCcw,
-  Minus, Edit3, Save, Users, CheckCircle2, Cpu, Sparkles, Compass, FileText
+  Minus, Edit3, Save, Users, CheckCircle2, Cpu, Sparkles, Compass, FileText,
+  ArrowUp, ArrowDown, Upload, FolderPlus
 } from 'lucide-react'
 import GeeAgentCenter from './GeeAgentCenter'
 import {
@@ -31,6 +32,7 @@ import { useBoundaryProcessing } from './useBoundaryProcessing'
 import './seva-boundary-processing.css'
 import { useI18n } from './lib/i18n'
 import { createFloat32GeoTiffBlob, createGeoTiffBlob } from './lib/geoTiffWriter'
+import { dispatchExport } from './lib/googleDriveVault'
 
 type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
@@ -225,10 +227,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         ]
       }
       const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/geo+json' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `${farm.name.replace(/\W+/g, '_')}_AOI.geojson`
-      a.click()
+      await dispatchExport({
+        category: 'data',
+        fileName: `${farm.name.replace(/\W+/g, '_')}_AOI.geojson`,
+        blob,
+        mimeType: 'application/geo+json',
+        customToast: `Saved GeoJSON to device & Google Drive: SEVA GIS / User Data & Cache`
+      })
       return
     }
     if (format === 'kml') {
@@ -249,20 +254,18 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   </Document>
 </kml>`
       const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `${farm.name.replace(/\W+/g, '_')}_AOI.kml`
-      a.click()
+      await dispatchExport({
+        category: 'data',
+        fileName: `${farm.name.replace(/\W+/g, '_')}_AOI.kml`,
+        blob,
+        mimeType: 'application/vnd.google-earth.kml+xml',
+        customToast: `Saved KML to device & Google Drive: SEVA GIS / User Data & Cache`
+      })
       return
     }
     if (format === 'geotiff') {
       // Export the real thing: the actual per-pixel values of the selected layer,
       // clipped to the area of interest, as a Float32 GeoTIFF in EPSG:4326.
-      //
-      // The previous code drew a dark 512x512 screenshot of the polygon and wrote
-      // that out. A picture cannot be re-classified or used in a raster calculator,
-      // which is the whole reason someone asks for a .tif, so it was the wrong
-      // artefact to hand back.
       const topId = [...active].reverse().find(id => !hidden.includes(id))
       const indId = topId ?? 'ndvi'
       const ind = byId(indId)
@@ -270,10 +273,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         setExportNote(`${indId.toUpperCase()} cannot be exported as a raster. Choose a satellite layer.`)
         return
       }
-      // Layers come from two different rasters. Sentinel-2 indices read the scene
-      // grid; terrain layers (slope, elevation, TWI, flow, ponding) read the DEM grid.
-      // Exporting a terrain layer from the scene grid crashed, because those bands are
-      // not present there.
       const fromDem = ind.source === 'DEM'
       if (!fromDem && !scene) {
         setExportNote('No satellite scene is loaded yet. Pick a date, then export again.')
@@ -290,17 +289,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           values[i] = g.inside[i] && g.ok[i] ? ind.value(g.b, i) : Number.NaN
         }
         const blob = createFloat32GeoTiffBlob(g.w, g.h, g.bbox, [values], { nodata: Number.NaN })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${farm.name.replace(/\W+/g, '_')}_${indId}_EPSG4326.tif`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
+        const res = await dispatchExport({
+          category: 'tiff',
+          fileName: `${farm.name.replace(/\W+/g, '_')}_${indId}_EPSG4326.tif`,
+          blob,
+          mimeType: 'image/tiff',
+          customToast: `Exported ${indId.toUpperCase()} GeoTIFF · Saved to device & organized in Google Drive: SEVA GIS / TIFF Files`
+        })
         setExportNote(
           `Exported ${indId.toUpperCase()} GeoTIFF · ${g.w} × ${g.h} px · real values · EPSG:4326 · ` +
-            `${(blob.size / 1024).toFixed(0)} KB. Open it in QGIS, ArcGIS or python-rasterio.`
+            `${(blob.size / 1024).toFixed(0)} KB${res.syncedToDrive ? ' · Synced to Google Drive / TIFF Files' : ' · Saved to device'}. Open in QGIS, ArcGIS, or rasterio.`
         )
       } catch (err) {
         console.warn('GeoTIFF export failed:', err)
@@ -338,11 +336,17 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       ctx.fillStyle = 'rgba(34, 197, 94, 0.15)'
       ctx.fill()
 
-      const url = canvas.toDataURL('image/png')
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${farm.name.replace(/\W+/g, '_')}_CartoMap.png`
-      a.click()
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          await dispatchExport({
+            category: 'images',
+            fileName: `${farm.name.replace(/\W+/g, '_')}_CartoMap.png`,
+            blob,
+            mimeType: 'image/png',
+            customToast: `Saved CartoMap PNG to device & Google Drive: SEVA GIS / Images`
+          })
+        }
+      }, 'image/png')
     }
   }
 
@@ -403,6 +407,48 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [catalogCat, setCatalogCat] = useState<string>('All')
   const [activeBandCombo, setActiveBandCombo] = useState<string>('natural')
   const [earthEngineNotice, setEarthEngineNotice] = useState('')
+
+  type VectorLayerItem = { id: string; name: string; data: any; visible: boolean; color: string; opacity: number; count: number }
+  const [customVectors, setCustomVectors] = useState<VectorLayerItem[]>([])
+  const vectorFileInputRef = useRef<HTMLInputElement>(null)
+  const vectorLayerGroupRef = useRef<L.LayerGroup | null>(null)
+
+  const handleVectorUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const text = String(event.target?.result || '')
+        const parsed = JSON.parse(text)
+        const count = parsed.type === 'FeatureCollection' && Array.isArray(parsed.features) ? parsed.features.length : 1
+        const newLayer: VectorLayerItem = {
+          id: crypto.randomUUID(),
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          data: parsed,
+          visible: true,
+          color: '#3b82f6',
+          opacity: 0.9,
+          count,
+        }
+        setCustomVectors(prev => [...prev, newLayer])
+      } catch {
+        alert('Could not parse GeoJSON file. Please check file format.')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const moveLayer = (index: number, dir: -1 | 1) => {
+    const nextIdx = index + dir
+    if (nextIdx < 0 || nextIdx >= active.length) return
+    const next = [...active]
+    const temp = next[index]
+    next[index] = next[nextIdx]
+    next[nextIdx] = temp
+    setActive(next)
+  }
 
   async function openEarthEngine() {
     const script = buildEarthEngineScript(farm, active.find(supportsEarthEngineIndicator) ?? 'ndvi', activeBandCombo, sceneOpts)
@@ -1130,6 +1176,57 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     return () => { g.remove() }
   }, [JSON.stringify(mine), JSON.stringify(draft)])
 
+  // Custom Vector Layers (GeoJSON / KML) rendering
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    if (vectorLayerGroupRef.current) {
+      vectorLayerGroupRef.current.remove()
+      vectorLayerGroupRef.current = null
+    }
+    const group = L.layerGroup().addTo(m)
+    vectorLayerGroupRef.current = group
+    customVectors.forEach(v => {
+      if (!v.visible) return
+      try {
+        L.geoJSON(v.data, {
+          style: {
+            color: v.color || '#3b82f6',
+            weight: 2.5,
+            opacity: v.opacity ?? 0.9,
+            fillColor: v.color || '#3b82f6',
+            fillOpacity: (v.opacity ?? 0.9) * 0.25,
+          },
+          pointToLayer: (_geoJsonPoint, latlng) => {
+            return L.circleMarker(latlng, {
+              radius: 6,
+              fillColor: v.color || '#3b82f6',
+              color: '#ffffff',
+              weight: 1.5,
+              opacity: 1,
+              fillOpacity: v.opacity ?? 0.9,
+            })
+          },
+          onEachFeature: (feature, layer) => {
+            const props = feature.properties
+            if (props) {
+              const entries = Object.entries(props).slice(0, 5)
+              if (entries.length) {
+                layer.bindTooltip(entries.map(([k, val]) => `<b>${k}:</b> ${String(val)}`).join('<br/>'))
+              }
+            }
+          }
+        }).addTo(group)
+      } catch (err) {
+        console.warn('Could not parse/render custom vector layer:', err)
+      }
+    })
+    return () => {
+      group.remove()
+      vectorLayerGroupRef.current = null
+    }
+  }, [mapObj, customVectors])
+
   function finishPipe() {
     if (draft.length >= 2) addPipeline({ farmId: farm.id, name: `Pipeline ${mine.p.length + 1}`, pts: draft, dia: 63, flow: 10 })
     setDraft([]); setTool('none')
@@ -1489,8 +1586,50 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             {/* Tab 1: Active Layers with live Symbology */}
             {layersBoxTab === 'active' && (
               <div className="ix-lb-content">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="ix-lb-tool-btn"
+                      onClick={() => setLayersBoxTab('catalog')}
+                      title="Add Raster from parameter catalog"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', fontSize: 11, background: 'rgba(34,197,94,0.15)', border: '1px solid #22c55e', color: '#86efac', borderRadius: 4, cursor: 'pointer' }}
+                    >
+                      <Plus size={12} />
+                      <span>Add Raster</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="ix-lb-tool-btn"
+                      onClick={() => vectorFileInputRef.current?.click()}
+                      title="Import custom GeoJSON vector polygon or points"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', fontSize: 11, background: 'rgba(59,130,246,0.15)', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: 4, cursor: 'pointer' }}
+                    >
+                      <FolderPlus size={12} />
+                      <span>Add Vector</span>
+                    </button>
+                    <input
+                      type="file"
+                      ref={vectorFileInputRef}
+                      accept=".geojson,.json"
+                      style={{ display: 'none' }}
+                      onChange={handleVectorUpload}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setAoiOnly(v => !v)}
+                    title={aoiOnly ? 'Clip to AOI is ON: surrounding terrain is masked' : 'Clip to AOI is OFF: full extent displayed'}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', fontSize: 10.5, background: aoiOnly ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.06)', border: `1px solid ${aoiOnly ? '#22c55e' : 'rgba(255,255,255,0.15)'}`, color: aoiOnly ? '#86efac' : '#cbd5e1', borderRadius: 4, cursor: 'pointer' }}
+                  >
+                    <Scissors size={11} />
+                    <span>{aoiOnly ? 'Clipped to AOI' : 'Clip to AOI'}</span>
+                  </button>
+                </div>
+
                 <div className="ix-lb-active-list">
-                  {active.map(id => {
+                  {active.map((id, index) => {
                     const ind = byId(id)
                     const layer = getCachedLayer(layerKey(id))
                     const off = hidden.includes(id)
@@ -1509,6 +1648,24 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                           </div>
                           {vd && <span className={`ix-vd-chip ${vd.tone}`}>{vd.word}</span>}
                           <div className="ix-lb-card-ops">
+                            <button
+                              aria-label={`Move ${ind.name} up`}
+                              title="Move layer up (draws on top)"
+                              disabled={index === active.length - 1}
+                              onClick={() => moveLayer(index, 1)}
+                              style={{ opacity: index === active.length - 1 ? 0.35 : 1, cursor: index === active.length - 1 ? 'default' : 'pointer' }}
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button
+                              aria-label={`Move ${ind.name} down`}
+                              title="Move layer down"
+                              disabled={index === 0}
+                              onClick={() => moveLayer(index, -1)}
+                              style={{ opacity: index === 0 ? 0.35 : 1, cursor: index === 0 ? 'default' : 'pointer' }}
+                            >
+                              <ArrowDown size={13} />
+                            </button>
                             <button
                               aria-label={off ? "Show layer" : "Hide layer"}
                               title={off ? "Show on map" : "Hide from map"}
@@ -1594,6 +1751,52 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                       <p>{t('map.noLayers')}</p>
                       <button className="primary compact" onClick={() => setLayersBoxTab('catalog')}>
                         <Plus size={14} />{t('map.browseCatalog')}</button>
+                    </div>
+                  )}
+
+                  {/* Custom Vector Layers Section */}
+                  {customVectors.length > 0 && (
+                    <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 10 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Custom Vector Layers ({customVectors.length})</span>
+                        <span style={{ fontSize: 9.5, color: '#64748b' }}>GeoJSON Vectors</span>
+                      </div>
+                      {customVectors.map(v => (
+                        <div key={v.id} className="ix-lb-card" style={{ marginBottom: 8, borderLeft: `3px solid ${v.color}` }}>
+                          <div className="ix-lb-card-top">
+                            <span className="ix-swatch" style={{ background: v.color, borderRadius: 3 }} />
+                            <div className="ix-lb-card-meta">
+                              <strong>{v.name}</strong>
+                              <span className="ix-lb-badge">{v.count} feature{v.count === 1 ? '' : 's'} · Vector</span>
+                            </div>
+                            <div className="ix-lb-card-ops">
+                              <button
+                                aria-label={v.visible ? "Hide vector layer" : "Show vector layer"}
+                                onClick={() => setCustomVectors(list => list.map(item => item.id === v.id ? { ...item, visible: !item.visible } : item))}
+                              >
+                                {v.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                              </button>
+                              <button
+                                aria-label={`Remove ${v.name}`}
+                                onClick={() => setCustomVectors(list => list.filter(item => item.id !== v.id))}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="ix-lb-opacity-row" style={{ marginTop: 6 }}>
+                            <label>Opacity: {Math.round(v.opacity * 100)}%</label>
+                            <input
+                              type="range"
+                              min="0.1"
+                              max="1"
+                              step="0.05"
+                              value={v.opacity}
+                              onChange={e => setCustomVectors(list => list.map(item => item.id === v.id ? { ...item, opacity: Number(e.target.value) } : item))}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

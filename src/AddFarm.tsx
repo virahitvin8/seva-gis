@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, LocateFixed, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
-import { areaHa, orderRing, parseBoundary, parseCoordinate, type Ring } from './lib/geo'
+import { areaHa, orderRing, parseBoundary, parseCoordinate, validateAoiGeometry, type Ring } from './lib/geo'
 import CropSelector, { type CropSelection } from './CropSelector'
 import { matchCropSpec } from './lib/cropstages'
 
@@ -219,6 +219,15 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
     event.preventDefault()
     if (!ring.length) { onError(tab === 'draw' ? 'Click the map to place at least 3 boundary points.' : tab === 'walk' ? 'Walk to each corner of your farm and press Add waypoint (at least 3).' : tab === 'corners' ? 'Enter all four corner coordinates.' : 'Upload a boundary file first.'); return }
     if (ring.length === 2) { onError('A boundary needs at least 3 points (or 1 point for a location only).'); return }
+    if (ring.length >= 3) {
+      const check = validateAoiGeometry(ring)
+      if (!check.valid) {
+        onError(check.error || 'Invalid area of interest geometry.')
+        return
+      }
+      onAdd({ name: name.trim(), crop, ring: check.closedRing })
+      return
+    }
     onAdd({ name: name.trim(), crop, ring })
   }
 

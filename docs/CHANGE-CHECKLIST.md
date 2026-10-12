@@ -421,3 +421,20 @@ Verification: `tsc --noEmit` pass · `build` pass. See `docs/REBUILD-REPORT.md`.
   hero action, and the empty state are translated.
 
 Verification: `tsc --noEmit` pass · `npm test` 21/21 pass · `build` pass.
+
+### 2026-10-12 — Batch 5: impeccable final pass + full verification
+
+- Installed the `impeccable` frontend design skill (pbakaus/impeccable) into
+  `.agents/skills/impeccable` and ran its required `context` setup step, which loaded
+  the project `DESIGN.md` visual system.
+- Ran the skill's mechanical design detector over the changed UI files
+  (`src/App.tsx`, `src/Lang.tsx`, `src/lib/i18n.tsx`, `src/GeoTools.tsx`, `src/main.tsx`):
+  **no findings** (`[]`).
+- Ran the complete project verification suite:
+
+| Check | Command | Result |
+|---|---|---|
+| Types | `npm exec -- tsc --noEmit` | pass |
+| Tests | `npm test` | 21/21 pass |
+| Build | `npm run build` | pass |
+| Design detector | `impeccable detect --json …` | no findings |

@@ -70,6 +70,10 @@
 .seva-premium .au-node { padding: 0; background: none; border: 0; box-shadow: none; animation: none; min-width: 0; color: var(--seva-ink); }
 .seva-premium .au-node::before,.seva-premium .au-node::after { display: none; }
 .seva-premium .au-node i { color: var(--seva-brand); }
+/* index.css sets `.au-node b{color:#eaf6df}` for the old dark node card. The theme
+   removes that card, so the label has to be re-inked or it is near-white on a
+   near-white canvas. Without this rule the four node labels are unreadable. */
+.seva-premium .au-node b { color: var(--seva-ink); font-size: 13px; }
 .seva-premium .au-node span { color: var(--seva-muted); }
 .seva-premium .au-card {
   width: 100%; max-width: 440px; margin: 0; padding: 32px;

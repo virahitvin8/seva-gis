@@ -557,3 +557,36 @@ benchmark **2430 ms → 273 ms**.
 large saved areas (35) and the report-generation hang (39) are separate causes and are not
 fixed by the above. Item 31/32 — full English/Telugu/Hindi coverage — remains the single
 largest gap: `src/lib/i18n.tsx` holds only 14 keys, so most of the app never translates.
+
+### 2026-10-12 — Batch 8: report maps now frame the area of interest at ~75%
+
+Items **44, 45, 117, 118 (framing part)**. Root cause, found in `reportBuilder.ts`:
+`makeView()` padded every report map by a factor of **2.4**, so the area of interest occupied
+only about **42%** of the map frame. That is the "big 10 × 10 km sheet with a small box in the
+middle" that was reported, and it was still present even though the interactive map had already
+been fixed to 75%.
+
+The framing rule now lives on its own in `src/lib/reportView.ts` so it can be tested directly:
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `AOI_FILL` | 0.75 | How much of the frame the area of interest should occupy |
+| `FIT_PADDING` | 1 / 0.75 = 1.333 | The padding that produces exactly that |
+| `MIN_PADDING` | 1.06 | Floor that stops an explicit zoom from cropping the boundary |
+
+**One honest limitation, stated rather than hidden.** The map frame is fixed at 672 × 424
+(aspect 1.6:1) and rarely matches the shape of an area of interest. A square parcel in a wide
+frame therefore cannot reach 75% on *both* axes without being cut off. The rule implemented is:
+the AOI fills **75% on its binding axis**, **never overflows on either axis**, and stays centred.
+The remaining margin is where the legend, scale bar and north arrow sit — normal cartographic
+layout. `aoiFit()` reports `fill`, `fillX`, `fillY` and `fits` explicitly so this is measured
+rather than assumed.
+
+| File | Change |
+|---|---|
+| `src/lib/reportView.ts` | **New** — `makeView`, `aoiFit`, `AOI_FILL`, `FIT_PADDING`, `MIN_PADDING` |
+| `src/reportBuilder.ts` | Uses the extracted rule; the old 2.4 padding and its zoom inflation are gone |
+| `src/lib/__tests__/reportView.test.ts` | **New** — 6 tests: centring, 75% fill, no cropping at zoom 19–40, frame-edge floor, tall AOI |
+
+Verification for Batch 8: `tsc --noEmit` **pass** · `npm test` **30/30 pass** (was 24) ·
+`vite build` **pass (5.7 s)**.

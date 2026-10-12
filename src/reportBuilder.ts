@@ -1,6 +1,7 @@
 import { INDICATORS, byId, renderLayer, type Grid } from './lib/indicators'
 import { farmBBox, farmRing, irrigationAdvice, constructionSuitability, type Analysis, type Candle } from './lib/seva'
 import { areaHa } from './lib/geo'
+import { makeView as reportMakeView } from './lib/reportView'
 import { logoMark as logoUrl } from './assets/brand'
 import {
   type ReportFarm,
@@ -31,21 +32,12 @@ async function dataUrl(url: string) {
 }
 
 type View = { bbox: [number, number, number, number]; W: number; H: number; mpp: number; px: (lon: number, lat: number) => [number, number] }
-function makeView(fb: [number, number, number, number], W = 684, H = 424, customZoom?: number): View {
-  const lat0 = (fb[1] + fb[3]) / 2, k = Math.cos((lat0 * Math.PI) / 180)
-  let paddingFactor = 2.4
-  if (customZoom && customZoom > 15) {
-    paddingFactor = Math.max(1.5, 2.4 / Math.pow(1.2, customZoom - 15))
-  } else if (customZoom && customZoom < 15) {
-    paddingFactor = Math.min(3.8, 2.4 * Math.pow(1.2, 15 - customZoom))
-  }
-  const needW = (fb[2] - fb[0]) * 111320 * k * paddingFactor, needH = (fb[3] - fb[1]) * 111320 * paddingFactor
-  const mpp = Math.max(needW / W, needH / H, 0.4)
-  const dLat = (H * mpp) / 111320, dLon = (W * mpp) / (111320 * k)
-  const cx = (fb[0] + fb[2]) / 2, cy = lat0
-  const bbox: View['bbox'] = [cx - dLon / 2, cy - dLat / 2, cx + dLon / 2, cy + dLat / 2]
-  return { bbox, W, H, mpp, px: (lon, lat) => [((lon - bbox[0]) / (bbox[2] - bbox[0])) * W, ((bbox[3] - lat) / (bbox[3] - bbox[1])) * H] }
-}
+
+/**
+ * Framing rules live in `src/lib/reportView.ts` so the "area of interest fills
+ * about 75% of the frame and is always centred" rule can be unit-tested on its own.
+ */
+const makeView = reportMakeView
 
 const pts = (ring: [number, number][], v: View) => ring.map(p => v.px(p[0], p[1]).map(n => n.toFixed(1)).join(',')).join(' ')
 

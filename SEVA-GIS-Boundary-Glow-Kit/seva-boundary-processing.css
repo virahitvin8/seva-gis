@@ -1,0 +1,32 @@
+/* Scoped animation colours. Scientific raster palettes remain unchanged. */
+:root {
+  --seva-process-rail: oklch(0.79 0.15 156);
+  --seva-process-glow: oklch(0.86 0.17 154);
+  --seva-process-core: oklch(0.98 0.03 145);
+  --seva-process-shadow: oklch(0.75 0.19 152 / 0.8);
+  --seva-process-duration: 3.6s;
+}
+.seva-processing-pane { z-index: 450; pointer-events: none; }
+.seva-processing-pane svg { pointer-events: none; }
+.seva-boundary-rail, .seva-boundary-halo, .seva-boundary-comet {
+  fill: none; pointer-events: none; stroke-linecap: round; stroke-linejoin: round;
+}
+.seva-boundary-rail { stroke: var(--seva-process-rail); stroke-width: 1.6; stroke-opacity: .6; }
+.seva-boundary-halo {
+  stroke: var(--seva-process-glow); stroke-width: 7; stroke-opacity: .48;
+  stroke-dasharray: 110 890;
+  filter: drop-shadow(0 0 5px var(--seva-process-shadow));
+  animation: seva-boundary-travel var(--seva-process-duration) linear infinite;
+}
+.seva-boundary-comet {
+  stroke: var(--seva-process-core); stroke-width: 2.5; stroke-opacity: 1;
+  stroke-dasharray: 22 978;
+  filter: drop-shadow(0 0 3px var(--seva-process-shadow));
+  animation: seva-boundary-travel var(--seva-process-duration) linear infinite;
+}
+@keyframes seva-boundary-travel { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -1000; } }
+@media (prefers-reduced-motion: reduce) {
+  .seva-boundary-halo, .seva-boundary-comet { animation: none; filter: none; }
+  .seva-boundary-halo { display: none; }
+  .seva-boundary-comet { stroke-dasharray: none; stroke-opacity: .85; }
+}

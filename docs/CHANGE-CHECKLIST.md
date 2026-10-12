@@ -983,3 +983,70 @@ viable second route if you want a server-side export before Earth Engine is repa
 
 Verification for Batch 15: `tsc --noEmit` **pass** · `npm test` **45/45 pass** (was 35) ·
 `vite build` **pass (3.5 s)** · TIFF conformance **10/10, 2 writer bugs caught and fixed**.
+
+### 2026-10-12 — Batch 16: a real browser grill, and the bugs it found
+
+You asked for the app to be grilled with many combinations. Feelings are not evidence, so I
+built one: **`scripts/grill.mjs`** (`npm run grill`) drives the built app in headless Chrome
+through the Chrome DevTools Protocol over Node's built-in WebSocket — **no new dependency**.
+It boots as a guest with two seeded areas of interest and then runs a matrix: 3 languages ×
+6 layers × 4 basemaps × 3 resampling modes, every parameter in the catalogue, both areas,
+lock/unlock, clip, every export format, a phone viewport and the Reports panel — recording
+JavaScript exceptions, console errors, failed assertions and screenshots at each stage.
+
+**Result: 123 checks, 123 passed, 0 runtime errors — after fixing the four defects below.**
+
+**1. The map panel crashed on export (my own bug from Batch 15).** I pushed the string
+`'geotiff'` into the `busy` list, which holds *indicator ids*. The status line maps over that
+list with `byId(id).name` — `byId('geotiff')` is `undefined`, so the whole map panel threw
+`Cannot read properties of undefined (reading 'name')` and was replaced by the error boundary.
+Fixed with a dedicated `exporting` flag, and `byId(id)?.name ... ?? id` so an unknown id can
+never take the panel down again. **This is exactly the class of bug the grill exists to find:
+`tsc` passed, the unit tests passed, and the build passed — the app was still broken.**
+
+**2. GeoTIFF export crashed for terrain layers.** Exporting while a DEM layer was selected
+(Slope, Elevation, TWI, flow, ponding) read `b.slope[i]` from the *Sentinel-2* grid, which has
+no such band. The export now picks the grid from the layer's own source: Sentinel-2 indices
+read the scene grid, terrain layers read the DEM grid.
+
+**3. React was erasing Leaflet's own CSS classes — very likely the real cause of the reports
+that the map "looks broken / dark".** The map container was rendered as:
+
+```jsx
+<div ref={element} className={`field-map${locked ? ' is-locked' : ''} bg-${bgMode}`} />
+```
+
+Leaflet adds `leaflet-container`, `leaflet-touch` and `leaflet-fade-anim` to that same element.
+Any React re-render that writes `className` erases them, and losing `leaflet-container` drops
+Leaflet's entire layout stylesheet — panes lose their positioning. Traced with a
+`className` setter hook plus a phase-by-phase probe:
+
+| Phase | `.field-map` class before | after |
+|---|---|---|
+| boot → basemap sweep | `field-map bg-default leaflet-container leaflet-touch leaflet-fade-anim …` | intact |
+| **resampling sweep** | intact | **`field-map bg-default leaflet-grab leaflet-touch-drag leaflet-touch-zoom`** — `leaflet-container` gone |
+
+Fixed by making React own only a **static** `className="field-map"` and setting the dynamic
+`is-locked` / `bg-*` classes with `classList` in an effect, which cannot disturb Leaflet's
+classes. The container now keeps `leaflet-container` through every phase.
+
+**4. Export had no format choice.** The toolbar's Export button exported a PNG directly, so
+the GeoTIFF was only reachable from a different menu. Export is now a chooser:
+**GeoTIFF** (real values, EPSG:4326), **PNG map**, **GeoJSON**, **KML**.
+
+**One thing left visible rather than hidden.** The probe reports that the map container DOM node
+is replaced during a run (`sameNode=false`), most likely a Suspense remount. The replacement is
+now *healthy* — the new container carries Leaflet's classes — but a remount re-creates the map
+and reloads tiles, so the harness prints a note instead of pretending it is nothing. Fixing it
+means removing the Suspense boundary around `IndicatorMap`, which is a separate change.
+
+| File | Change |
+|---|---|
+| `scripts/grill.mjs` | **New** — the grill harness (`npm run grill`, `grill:quick`, `--dump`) |
+| `src/IndicatorMap.tsx` | `exporting` flag; grid chosen by layer source; static `className` + `classList` sync; export format chooser |
+| `src/index.css` | `.ix-export-menu` styles |
+| `package.json` | `grill` / `grill:quick` scripts |
+
+Verification for Batch 16: `tsc --noEmit` **pass** · `npm test` **45/45 pass** ·
+`vite build` **pass** · **`npm run grill` 123/123 checks, 0 runtime errors** ·
+screenshots in `docs/ANALYSIS/grill/`.

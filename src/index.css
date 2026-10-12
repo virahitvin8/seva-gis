@@ -1330,6 +1330,48 @@ html[lang=hi] .open-badge,html[lang=te] .open-badge{display:none}
 }
 
 /* GeoTIFF export result, shown under the map toolbar. */
+.ix-export-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #12291f;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.28);
+}
+.ix-export-menu-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9fd8bb;
+  margin-right: 2px;
+}
+.ix-export-menu-item {
+  display: grid;
+  gap: 1px;
+  justify-items: start;
+  text-align: left;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8faf0;
+  min-height: 44px;
+}
+.ix-export-menu-item:hover {
+  background: rgba(52, 211, 153, 0.18);
+  border-color: rgba(52, 211, 153, 0.5);
+  filter: none;
+}
+.ix-export-menu-item b {
+  font-size: 12px;
+  font-weight: 700;
+}
+.ix-export-menu-item small {
+  font-size: 10px;
+  color: #9fd8bb;
+}
+
 .ix-export-note {
   display: flex;
   align-items: center;

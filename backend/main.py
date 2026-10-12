@@ -1,6 +1,6 @@
 # SEVA GIS - Google Earth Engine tile service
 from __future__ import annotations
-import asyncio, hashlib, logging, os, time
+import asyncio, hashlib, json, logging, os, time
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
 import math
@@ -15,6 +15,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 log = logging.getLogger("seva-gee")
 
 PROJECT_ID: str = os.environ.get("EE_PROJECT_ID", "seva-gis-backend").strip()
+SA_EMAIL: str = os.environ.get("EE_SERVICE_ACCOUNT_EMAIL", "").strip()
+SA_KEY_FILE: str = os.environ.get("EE_SERVICE_ACCOUNT_KEY_FILE", "service-account.json").strip()
 ALLOWED_ORIGINS: list[str] = [o.strip() for o in os.environ.get("EE_ALLOWED_ORIGINS", "http://localhost:8443,http://localhost:5173,https://sevagis.stusite.me,https://sevagis.is-a.bot,https://sevagis.is-a.dev,https://sevagis.dpdns.org,https://seva-gis-backend-e724a.web.app,https://seva-gis-backend-e724a.firebaseapp.com").split(",") if o.strip()]
 RATE_LIMIT_RPM: int = int(os.environ.get("EE_RATE_LIMIT_RPM", "60"))
 CACHE_TTL: int = int(os.environ.get("EE_CACHE_TTL", "600"))
@@ -34,13 +36,24 @@ _ee_ready = False
 _ee_lock = asyncio.Lock()
 
 def _initialize_ee() -> None:
+    """Initialize GEE using service account key (preferred) or Application Default Credentials."""
     global _ee_ready
     if _ee_ready: return
     if not PROJECT_ID: raise RuntimeError("EE_PROJECT_ID required.")
-    # Cloud Run supplies short-lived Application Default Credentials from the
-    # attached service identity. No service-account key is needed or accepted.
+    # Prefer explicit service account key file for local + Cloud Run use
+    key_path = SA_KEY_FILE if os.path.isabs(SA_KEY_FILE) else os.path.join(os.path.dirname(__file__), SA_KEY_FILE)
+    if SA_EMAIL and os.path.isfile(key_path):
+        try:
+            creds = ee.ServiceAccountCredentials(SA_EMAIL, key_path)
+            ee.Initialize(credentials=creds, project=PROJECT_ID)
+            log.info("EE: Initialized with service account %s", SA_EMAIL)
+            _ee_ready = True
+            return
+        except Exception as sa_err:
+            log.warning("EE SA init failed (%s), falling back to ADC", sa_err)
+    # Fallback: Application Default Credentials (Cloud Run workload identity)
     ee.Initialize(project=PROJECT_ID)
-    log.info("EE: Cloud Run Application Default Credentials")
+    log.info("EE: Initialized with Application Default Credentials")
     _ee_ready = True
 
 async def _ensure_ee() -> None:
@@ -559,6 +572,100 @@ async def alert(request: Request, body: AlertReq) -> dict:
 async def list_indicators() -> dict:
     return {"indicators":[{"id":k,"min":v["lo"],"max":v["hi"],"palette":v["p"]} for k,v in INDICATORS.items()],"bandCombinations":[{"id":k,"bands":v} for k,v in BAND_COMBOS.items()]}
 
+class LulcReq(PolyBase):
+    mode: ModeLit = "latest"
+    date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+
+# Dynamic World class definitions
+DW_CLASSES = [
+    {"id": 0, "name": "Water",            "color": "419BDF"},
+    {"id": 1, "name": "Trees",            "color": "397D49"},
+    {"id": 2, "name": "Grass",            "color": "88B053"},
+    {"id": 3, "name": "Flooded Vegetation","color": "7A87C6"},
+    {"id": 4, "name": "Crops",            "color": "E49635"},
+    {"id": 5, "name": "Shrub & Scrub",    "color": "DFC35A"},
+    {"id": 6, "name": "Built Area",       "color": "C4281B"},
+    {"id": 7, "name": "Bare Ground",      "color": "A59B8F"},
+    {"id": 8, "name": "Snow & Ice",       "color": "B39FE1"},
+]
+DW_PALETTE = [c["color"] for c in DW_CLASSES]
+
+@app.post("/api/earth-engine/lulc")
+async def lulc(request: Request, body: LulcReq) -> dict:
+    """Dynamic World v1 land-cover classification: tile URL + class-area statistics for AOI."""
+    _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
+    start, end = _dr(body)
+    ck = _ck(body.coordinates, "lulc", start, end)
+    cached = _cache_get(ck)
+    if cached: return {**cached, "cached": True}
+
+    def _compute() -> dict:
+        field = _geom(body.coordinates)
+        dw = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+              .filterBounds(field)
+              .filterDate(start.isoformat(), (end + timedelta(days=1)).isoformat()))
+        n: int = dw.size().getInfo()
+        if n == 0:
+            # Widen to 6 months if no scenes in window
+            wide_start = (datetime.combine(end, datetime.min.time()) - timedelta(days=180)).date()
+            dw = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+                  .filterBounds(field)
+                  .filterDate(wide_start.isoformat(), (end + timedelta(days=1)).isoformat()))
+            n = dw.size().getInfo()
+        if n == 0:
+            raise HTTPException(404, "No Dynamic World scenes found for this AOI.")
+
+        # Mode composite: most frequent class per pixel
+        label_mode = dw.select("label").mode().clip(field)
+
+        # Tile URL
+        mid = label_mode.getMapId({
+            "min": 0, "max": 8,
+            "palette": DW_PALETTE,
+            "format": "png"
+        })
+
+        # Class-area statistics (ha) at 10m native resolution
+        total_pixels = label_mode.unmask(99).reduceRegion(
+            reducer=ee.Reducer.count(),
+            geometry=field, scale=10, maxPixels=1_000_000_000, bestEffort=True
+        ).getInfo().get("label", 1) or 1
+
+        area_list = []
+        for cls in DW_CLASSES:
+            count = label_mode.eq(cls["id"]).unmask(0).reduceRegion(
+                reducer=ee.Reducer.sum(),
+                geometry=field, scale=10, maxPixels=1_000_000_000, bestEffort=True
+            ).getInfo().get("label", 0) or 0
+            area_ha = round(count * 0.01, 2)   # 10m pixel = 100 m2 = 0.01 ha
+            pct = round(100 * count / total_pixels, 2) if total_pixels else 0
+            area_list.append({
+                "id": cls["id"], "name": cls["name"], "color": cls["color"],
+                "area_ha": area_ha, "pct": pct
+            })
+
+        result = {
+            "tileUrl": _tileurl(mid),
+            "source": "GOOGLE/DYNAMICWORLD/V1",
+            "sceneCount": n,
+            "startDate": start.isoformat(),
+            "endDate": end.isoformat(),
+            "classes": DW_CLASSES,
+            "palette": DW_PALETTE,
+            "classAreas": area_list,
+            "cached": False
+        }
+        _cache_set(ck, result)
+        return result
+
+    try: return await asyncio.to_thread(_compute)
+    except HTTPException: raise
+    except Exception as exc: raise HTTPException(502, f"LULC error: {exc}") from exc
+
+
 @app.delete("/api/cache")
 async def clear_cache() -> dict:
-    n = len(_tile_cache); _tile_cache.clear(); return {"cleared":n}
+    n = len(_tile_cache); _tile_cache.clear(); return {"cleared": n}
+

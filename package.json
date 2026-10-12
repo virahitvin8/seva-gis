@@ -13,7 +13,9 @@
     "format": "oxfmt",
     "test": "node --import ./scripts/test-run.mjs --test \"src/**/*.test.ts\"",
     "bench:raster": "node scripts/bench-raster-stats.mjs",
-    "i18n:coverage": "node scripts/i18n-coverage.mjs"
+    "i18n:coverage": "node scripts/i18n-coverage.mjs",
+    "grill": "node scripts/grill.mjs",
+    "grill:quick": "node scripts/grill.mjs --quick"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",

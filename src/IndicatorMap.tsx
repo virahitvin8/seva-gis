@@ -107,6 +107,14 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [busy, setBusy] = useState<string[]>([])
   /** Result of the last GeoTIFF export, shown in the map HUD. */
   const [exportNote, setExportNote] = useState('')
+  /** Export format chooser, shown as a strip under the toolbar. */
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  /**
+   * Kept separate from `busy`, which holds indicator ids: putting a non-indicator
+   * string in that list crashed the panel, because the status line looks every id up
+   * with `byId()`.
+   */
+  const [exporting, setExporting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [earthEngineOverlay, setEarthEngineOverlay] = useState<{
     tileUrl?: string
@@ -237,18 +245,24 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       const topId = [...active].reverse().find(id => !hidden.includes(id))
       const indId = topId ?? 'ndvi'
       const ind = byId(indId)
-      if (!scene) {
-        setExportNote('No satellite scene is loaded yet. Pick a date, then export again.')
-        return
-      }
       if (!ind?.value) {
         setExportNote(`${indId.toUpperCase()} cannot be exported as a raster. Choose a satellite layer.`)
         return
       }
+      // Layers come from two different rasters. Sentinel-2 indices read the scene
+      // grid; terrain layers (slope, elevation, TWI, flow, ponding) read the DEM grid.
+      // Exporting a terrain layer from the scene grid crashed, because those bands are
+      // not present there.
+      const fromDem = ind.source === 'DEM'
+      if (!fromDem && !scene) {
+        setExportNote('No satellite scene is loaded yet. Pick a date, then export again.')
+        return
+      }
       setExportNote(`Exporting ${indId.toUpperCase()} GeoTIFF…`)
-      setBusy(b => (b.includes('geotiff') ? b : [...b, 'geotiff']))
+      setExporting(true)
       try {
-        const g = await loadScene(scene, farm)
+        const g = fromDem ? await loadDem(farm) : await loadScene(scene!, farm)
+        if (!g) throw new Error(`${indId} needs the terrain model, which could not be loaded for this area.`)
         const n = g.w * g.h
         const values = new Float32Array(n)
         for (let i = 0; i < n; i++) {
@@ -271,7 +285,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         console.warn('GeoTIFF export failed:', err)
         setExportNote('GeoTIFF export failed. Check the connection and try again.')
       } finally {
-        setBusy(b => b.filter(x => x !== 'geotiff'))
+        setExporting(false)
       }
       return
     }
@@ -480,6 +494,25 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       console.warn('fit75PercentAoi safe catch:', err)
     }
   }
+
+  /**
+   * Keeps the map's dynamic classes in step with React state using `classList`,
+   * never `className`.
+   *
+   * React owning `className` on this element is a bug: Leaflet adds
+   * `leaflet-container`, `leaflet-touch` and `leaflet-fade-anim` to the same element,
+   * and any React re-render that writes `className` erases them. Losing
+   * `leaflet-container` drops Leaflet's own CSS — panes lose their positioning and
+   * the map looks broken or dark. `classList` toggles leave Leaflet's classes alone.
+   */
+  useEffect(() => {
+    const el = element.current
+    if (!el) return
+    el.classList.toggle('is-locked', locked)
+    for (const mode of ['default', 'black', 'white']) {
+      el.classList.toggle(`bg-${mode}`, mode === bgMode)
+    }
+  }, [locked, bgMode, mapObj])
 
   useEffect(() => {
     localStorage.setItem('seva-map-lock', locked ? '1' : '0')
@@ -1217,13 +1250,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </button>
 
         <button
-          className="ix-tb-btn"
-          onClick={() => handleDownloadMap('png')}
+          className={`ix-tb-btn ${exportMenuOpen ? 'on' : ''}`}
+          onClick={() => setExportMenuOpen(v => !v)}
           title={t('map.downloadTitle')}
         >
           <Save size={15}/>
           <span>{t('map.exportMap')}</span>
-          <b className="ix-btn-badge">PNG / GIS</b>
+          <b className="ix-btn-badge">{exportMenuOpen ? 'Choose' : 'PNG · TIF · GIS'}</b>
         </button>
 
         <button
@@ -1275,7 +1308,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       </div>
 
       <div className="ix-wrap">
-        <div ref={element} className={`field-map${locked ? ' is-locked' : ''} bg-${bgMode}`} style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }} />
+        <div ref={element} className="field-map" style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }} />
 
         {/* Single Unified Non-Redundant Map HUD Bar */}
         <div className="ix-map-hud-bar" role="status" aria-label={t('map.statusAria')}>
@@ -1304,6 +1337,32 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             </span>
           </div>
         </div>
+        {exportMenuOpen && (
+          <div className="ix-export-menu" role="menu" aria-label="Choose an export format">
+            <span className="ix-export-menu-label">Export the selected area as</span>
+            {[
+              { id: 'geotiff' as const, label: 'GeoTIFF', hint: 'real values · EPSG:4326 · for QGIS, ArcGIS, rasterio' },
+              { id: 'png' as const, label: 'PNG map', hint: 'cartographic image with title and scale' },
+              { id: 'geojson' as const, label: 'GeoJSON', hint: 'boundary only' },
+              { id: 'kml' as const, label: 'KML', hint: 'boundary only, for Google Earth' },
+            ].map(f => (
+              <button
+                key={f.id}
+                type="button"
+                role="menuitem"
+                className="ix-export-menu-item"
+                disabled={exporting}
+                onClick={() => {
+                  setExportMenuOpen(false)
+                  void handleDownloadMap(f.id)
+                }}
+              >
+                <b>{f.label}</b>
+                <small>{f.hint}</small>
+              </button>
+            ))}
+          </div>
+        )}
         {exportNote && (
           <div className="ix-export-note" role="status">
             <span>{exportNote}</span>
@@ -2484,7 +2543,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         >
           <LogoLoader size={44} text="" inline />
           <span style={{ fontSize: '12px', fontWeight: 600, color: '#ecfdf5', letterSpacing: '0.2px' }}>
-            Processing {busy.map(id => byId(id).name.split(' (')[0]).join(', ')}…
+            Processing {busy.map(id => byId(id)?.name.split(' (')[0] ?? id).join(', ')}…
           </span>
         </div>
       )}

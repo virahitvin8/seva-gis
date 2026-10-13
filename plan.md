@@ -565,5 +565,104 @@ SEVA.GIS is ready for public deployment only when:
 - [x] `is-a.bot` free domain: configured `domains/is-a-bot/domains/sevagis.json` pointing CNAME to `sevagis.dpdns.org`.
 - [x] Git updates, commits, and GitHub deployment: successfully pushed commit `c712665` to `origin/main`.
 
+## 12. GEE + QGIS Unified Automation Pipeline and Visual Node Workflow (SEVA GIS 2.0)
 
+### 12.1 Objective and Architectural Vision
+Integrate the planetary-scale data extraction of Google Earth Engine (GEE) with the cartographic and spatial-analytical depth of QGIS into an automated, browser-native platform. Eliminate manual switching between the GEE Code Editor and desktop GIS software. The platform provides:
+1. **Zero-Friction Ingestion:** Automated fetching of multi-spectral satellite collections, digital elevation models, land use classifications, and climatic parameters via GEE algorithms.
+2. **Deterministic Spatial Processing:** Client-side execution of advanced spatial operations (hydrology flow accumulation, watershed delineation, Strahler stream ordering, terrain morphometry, and LULC matrix cross-tabulation).
+3. **Visual Node Pipeline ("Thread-to-Thread"):** An accessible dual-box interface allowing both novice users (with 1-click guided presets) and advanced analysts to link GEE data sources to QGIS cartographic and analytical modules.
+4. **Automated Cartographic Publishing and Dispatch:** Production-grade maps with standard symbology, legends, North arrows, and scale bars compiled into multi-page executive reports with direct email dispatch.
+5. **Continuous 24/7 Web Availability:** Fully responsive, zero-install architecture running on modern web standards accessible on desktop, tablet, and mobile.
+
+---
+
+### 12.2 Architectural Pillars
+
+#### Pillar A: Automated Earth Engine Cloud Pipeline (GEE JavaScript Engine)
+- **Automated Collection Retrieval:** Automated querying of Sentinel-2 L2A (10m BOA surface reflectance), Landsat 8/9 Tier 1, Copernicus GLO-30 DEM, Dynamic World 10m LULC, and ERA5-Land reanalysis.
+- **Dynamic Spectral Mathematics:** Automated generation of vegetation, moisture, salinity, and water indices (NDVI, NDWI, EVI, SAVI, NDRE, BSI) calculated directly over the user-defined Area of Interest (AOI).
+- **Zonal Statistics and Cloud Masking:** Automated SCL (Scene Classification Layer) cloud-and-shadow masking with statistical aggregation (mean, median, standard deviation, percentile distributions).
+- **Time-Series Harmonization:** Automated date-filtering, baseline comparison (current vs. historical season), and temporal composite generation.
+
+#### Pillar B: Browser-Native GIS Analytical Core (QGIS Algorithmic Suite)
+- **Surface Hydrology and Watershed Analysis:**
+  - Pit-filling and sink elimination on 30m DEM surfaces.
+  - D8 flow direction and flow accumulation grid generation.
+  - Automatic stream network extraction and Strahler stream hierarchy calculation.
+  - Catchment basin and sub-watershed boundary polygonization.
+- **Terrain and Slope Morphometry:**
+  - Percent slope, degree slope, aspect, hillshade, and Topographic Wetness Index (TWI).
+- **LULC Matrix Processing:**
+  - Dynamic World 9-class pixel cross-tabulation.
+  - Area calculation (hectares and acres) per class with transition matrices.
+- **Swath and Field Coverage Planning:**
+  - Automated headland generation, optimal driving angle computation, and continuous track generation.
+
+#### Pillar C: Dual-Box Visual Node Connection Interface ("Thread-to-Thread")
+- **Intuitive Visual Builder:**
+  - **Left Box (GEE Capabilities):** Modular cards representing Satellite Imagery, Spectral Index, Elevation/DEM, Soil Properties, and Climate/Weather.
+  - **Right Box (QGIS Capabilities):** Modular cards representing Watershed Delineation, Land Cover Classification, Swath Geometry, Print Layout, and Agronomic Diagnosis.
+  - **Interactive Connecting Line:** SVG/Canvas Bezier curves connecting parameters between the GEE source box and QGIS processing box.
+  - **Dual Mode Accessibility:**
+    - *Simple Mode (One-Click Presets):* Standard presets designed for students and non-technical operators (e.g., "Quick Farm Health and Water Flow", "Complete Watershed Study").
+    - *Advanced Node Mode:* Drag-and-drop parameter mapping, threshold adjustments, and custom index formulas.
+
+#### Pillar D: Universal Boundary and AOI Ingestion Suite
+- **Interactive Vector Drawing:**
+  - Freehand polygon, regular polygon, bounding rectangle, and circular buffer drawing tools.
+- **External Format Ingestion:**
+  - Drag-and-drop support for GeoJSON, KML/KMZ, ESRI Shapefile (zipped), and WKT geometries.
+- **Coordinate Transformation:**
+  - Automatic reprojection between WGS84 (EPSG:4326) and Web Mercator (EPSG:3857) or UTM zones.
+- **Validation and Simplification:**
+  - Real-time self-intersection detection and Douglas-Peucker topological simplification.
+
+#### Pillar E: Automated Cartographic Publishing and Formatting
+- **Standard Cartographic Composition:**
+  - High-resolution raster-vector compositing at 300 DPI.
+  - Dynamic legends reflecting exact color ramps and class thresholds.
+  - Metric/Imperial scale bars, North arrow compass rose, and geographic coordinate graticules.
+- **Academic and Executive Report Compilation:**
+  - Multi-page structured briefing containing executive summary, methodology disclosures, high-resolution figures, tabular metrics, and actionable recommendations.
+  - Multi-lingual support (English, Hindi, Telugu).
+
+#### Pillar F: 24/7 Universal Cloud Accessibility and Multi-Channel Delivery
+- **24/7 Cloud Availability:**
+  - Production static bundle hosted on edge CDN with resilient fallback caching and offline PWA capabilities.
+- **Multi-Channel Report Delivery:**
+  - Input user email address for direct report delivery.
+  - Direct RFC 822 MIME .eml download for instant local archiving.
+  - Instant Google Drive synchronization.
+  - Direct Gmail Web Compose link pre-populating recipient, executive briefing, and download references.
+  - Native Web Share API integration for instant mobile sharing.
+
+---
+
+### 12.3 Implementation Roadmap
+
+#### Phase 1: Engine Foundation and Data Bridges
+- [ ] Connect automated Sentinel-2 and Landsat multi-spectral bands with on-the-fly shader processing.
+- [ ] Implement headless D8 hydrology and flow accumulation algorithms in client-side Web Workers.
+- [ ] Build circular and freehand AOI drawing tools alongside existing polygon and rectangle tools.
+
+#### Phase 2: Dual-Box Visual Node Interface
+- [ ] Construct the dual-box UI component (`src/NodeWorkflowBuilder.tsx`) with GEE and QGIS functional panels.
+- [ ] Implement interactive SVG spline connectors ("threads") linking GEE inputs to QGIS processing modules.
+- [ ] Add 1-click guided presets for introductory and non-technical workflows.
+
+#### Phase 3: Analytical Unification
+- [ ] Integrate watershed delineation and stream ordering directly into the map layer stack.
+- [ ] Connect Dynamic World LULC area calculations with agricultural soil metrics.
+- [ ] Implement real-time legend updates matching active layer symbology and color palettes.
+
+#### Phase 4: Publishing and Report Automation
+- [ ] Upgrade the report generation engine to export publication-grade cartographic layouts with graticules and scale bars.
+- [ ] Implement user email input field with automated .eml generation and email dispatch integration.
+- [ ] Add one-click export for GeoTIFF and high-resolution PNG maps.
+
+#### Phase 5: Verification, Testing and 24/7 Release
+- [ ] Unit tests for hydrological calculations and vector transformations.
+- [ ] Integration tests for node connection states and parameter serialization.
+- [ ] Production build verification and deployment to edge CDN for 24/7 accessibility.
 

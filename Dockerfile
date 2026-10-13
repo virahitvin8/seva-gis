@@ -1,5 +1,5 @@
 # ==========================================
-# SEVA·GIS Production Cloud Run Container
+# SEVA·GIS Production Cloud Run Container (nginx + Node.js)
 # ==========================================
 FROM node:22-alpine AS builder
 
@@ -21,19 +21,25 @@ ENV VITE_EE_API_URL=https://seva-gis-backend-419602015618.us-central1.run.app
 RUN npm run build
 
 # ==========================================
-# Stage 2: Ultra-lightweight Node Production Runner
+# Stage 2: Production Runner with nginx + Node.js
 # ==========================================
 FROM node:22-alpine
 
 WORKDIR /app
 
+# Install nginx
+RUN apk add --no-cache nginx
+
 COPY package.json ./
 COPY --from=builder /app/dist ./dist
 COPY server.js ./
+COPY nginx.conf /etc/nginx/http.d/default.conf
 
 # Cloud Run defaults to port 8080
 ENV PORT=8080
 EXPOSE 8080
 
-# Cloud Run container startup command
-CMD ["node", "server.js"]
+# Start both nginx and Node.js
+COPY start.sh ./
+RUN chmod +x start.sh
+CMD ["./start.sh"]

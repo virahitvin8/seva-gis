@@ -285,3 +285,45 @@ export async function parseBoundary(file: File): Promise<Ring> {
   if (!ring.length) throw new Error('No coordinates were found in this file.')
   return ring
 }
+
+export function createCircleRing(centerLon: number, centerLat: number, radiusMeters: number, steps = 36): Ring {
+  const points: Ring = []
+  const radLat = (centerLat * Math.PI) / 180
+  const metersPerDegLat = 111320
+  const metersPerDegLon = 111320 * Math.cos(radLat)
+  for (let i = 0; i < steps; i++) {
+    const angle = (i * 2 * Math.PI) / steps
+    const dx = radiusMeters * Math.sin(angle)
+    const dy = radiusMeters * Math.cos(angle)
+    const lon = centerLon + dx / metersPerDegLon
+    const lat = centerLat + dy / metersPerDegLat
+    points.push([Number(lon.toFixed(7)), Number(lat.toFixed(7))])
+  }
+  return points
+}
+
+export function createRectangleRing(centerLon: number, centerLat: number, widthMeters: number, heightMeters: number): Ring {
+  const radLat = (centerLat * Math.PI) / 180
+  const metersPerDegLat = 111320
+  const metersPerDegLon = 111320 * Math.cos(radLat)
+  const halfW = widthMeters / 2
+  const halfH = heightMeters / 2
+  const dLon = halfW / metersPerDegLon
+  const dLat = halfH / metersPerDegLat
+
+  return [
+    [Number((centerLon - dLon).toFixed(7)), Number((centerLat - dLat).toFixed(7))],
+    [Number((centerLon + dLon).toFixed(7)), Number((centerLat - dLat).toFixed(7))],
+    [Number((centerLon + dLon).toFixed(7)), Number((centerLat + dLat).toFixed(7))],
+    [Number((centerLon - dLon).toFixed(7)), Number((centerLat + dLat).toFixed(7))],
+  ]
+}
+
+export function createBboxRing(minLon: number, minLat: number, maxLon: number, maxLat: number): Ring {
+  return [
+    [Number(minLon.toFixed(7)), Number(minLat.toFixed(7))],
+    [Number(maxLon.toFixed(7)), Number(minLat.toFixed(7))],
+    [Number(maxLon.toFixed(7)), Number(maxLat.toFixed(7))],
+    [Number(minLon.toFixed(7)), Number(maxLat.toFixed(7))],
+  ]
+}

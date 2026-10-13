@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, LocateFixed, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
-import { areaHa, orderRing, parseBoundary, parseCoordinate, validateAoiGeometry, type Ring } from './lib/geo'
+import { areaHa, createCircleRing, createRectangleRing, orderRing, parseBoundary, parseCoordinate, validateAoiGeometry, type Ring } from './lib/geo'
 import CropSelector, { type CropSelection } from './CropSelector'
 import { matchCropSpec } from './lib/cropstages'
 
@@ -15,6 +15,12 @@ const emptyCorners = () => Array.from({ length: 4 }, () => ({ lat: '', lon: '' }
 
 export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => void; onError: (message: string) => void }) {
   const [tab, setTab] = useState<Tab>('draw')
+  const [drawShape, setDrawShape] = useState<'polygon' | 'circle' | 'square'>('polygon')
+  const [shapeRadius, setShapeRadius] = useState<number>(200)
+  const drawShapeRef = useRef(drawShape)
+  drawShapeRef.current = drawShape
+  const shapeRadiusRef = useRef(shapeRadius)
+  shapeRadiusRef.current = shapeRadius
   const [drawn, setDrawn] = useState<Ring>([])
   const [uploaded, setUploaded] = useState<Ring>([])
   const [walked, setWalked] = useState<Ring>([])
@@ -53,7 +59,18 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
     const instance = L.map(box.current, { zoomControl: true }).setView([20.5, 79], 4)
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 20, maxNativeZoom: 18, attribution: 'Imagery © Esri' }).addTo(instance)
     layer.current = L.layerGroup().addTo(instance)
-    instance.on('click', (event: L.LeafletMouseEvent) => { if (tabRef.current === 'draw') setDrawn(current => [...current, [event.latlng.lng, event.latlng.lat]]) })
+    instance.on('click', (event: L.LeafletMouseEvent) => {
+      if (tabRef.current !== 'draw') return
+      const s = drawShapeRef.current
+      const r = shapeRadiusRef.current
+      if (s === 'circle') {
+        setDrawn(createCircleRing(event.latlng.lng, event.latlng.lat, r))
+      } else if (s === 'square') {
+        setDrawn(createRectangleRing(event.latlng.lng, event.latlng.lat, r * 2, r * 2))
+      } else {
+        setDrawn(current => [...current, [event.latlng.lng, event.latlng.lat]])
+      }
+    })
     map.current = instance
     setTimeout(() => instance.invalidateSize(), 120)
     return () => { instance.remove(); map.current = null }

@@ -1048,7 +1048,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       }).addTo(instance)
       const el = overlay.getElement()
       if (el) {
-        el.style.imageRendering = 'pixelated'
+        el.style.imageRendering = 'auto'
       }
       earthEngineImageOverlay.current = overlay
     } else if (earthEngineOverlay.tileUrl) {
@@ -1167,14 +1167,14 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   }, [tool])
   useEffect(() => { setTool('none'); setDraft([]) }, [farm.id])
   useEffect(() => {
-    const m = map.current
+    const m = mapObj
     if (!m) return
     const g = L.layerGroup().addTo(m)
     mine.b.forEach(b => L.marker([b.lat, b.lon], { icon: L.divIcon({ className: 'ix-bw-pin', html: '<span></span>', iconSize: [24, 24] }), keyboard: false }).bindTooltip(`${b.name} · ${b.yieldM3h} m³/h · ${b.depth} m deep`).addTo(g))
     mine.p.forEach(p => L.polyline(p.pts.map(([lo, la]) => [la, lo] as L.LatLngTuple), { color: '#38bdf8', weight: 4, dashArray: '9 6', opacity: 0.95 }).bindTooltip(`${p.name} · ${Math.round(lengthM(p.pts))} m · Ø${p.dia} mm`, { sticky: true }).addTo(g))
     if (draft.length) { L.polyline(draft.map(([lo, la]) => [la, lo] as L.LatLngTuple), { color: '#fde047', weight: 3, dashArray: '4 6' }).addTo(g); draft.forEach(([lo, la]) => L.circleMarker([la, lo], { radius: 4, color: '#fde047', fillColor: '#fde047', fillOpacity: 1, interactive: false }).addTo(g)) }
     return () => { g.remove() }
-  }, [JSON.stringify(mine), JSON.stringify(draft)])
+  }, [mapObj, JSON.stringify(mine), JSON.stringify(draft)])
 
   // Custom Vector Layers (GeoJSON / KML) rendering
   useEffect(() => {
@@ -1382,6 +1382,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           <Cpu size={15}/>
           <span>{t('map.geeStudio')}</span>
           <b className="ix-btn-badge">{earthEngineOverlay?.sceneKey === sceneKey ? 'Live Stream' : 'AI Crew'}</b>
+        </button>
+
+        <button
+          className={`ix-tb-btn ${view3d ? 'on' : ''}`}
+          onClick={() => setView3d(v => !v)}
+          title="Google Earth 3D Orbit, Aerial Elevation & Pitch Perspective (MapLibre 3D DEM)"
+        >
+          <Globe2 size={15}/>
+          <span>Google Earth 3D</span>
+          <b className="ix-btn-badge">{view3d ? '3D Active' : 'Orbit'}</b>
         </button>
 
         <button
@@ -2783,6 +2793,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             Processing {busy.map(id => byId(id)?.name.split(' (')[0] ?? id).join(', ')}…
           </span>
         </div>
+      )}
+
+      {view3d && (
+        <Suspense fallback={<LogoLoader text="Launching 3D terrain orbit…"/>}>
+          <Walk3D farm={farm} onClose={() => setView3d(false)}/>
+        </Suspense>
       )}
 
     </div>

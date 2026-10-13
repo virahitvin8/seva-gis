@@ -319,32 +319,37 @@ export function weatherParams(w: Weather): Param[] {
   const heat = w.tmaxNext7 >= 38, frost = w.tminNext7 <= 2
   const disease = w.rh >= 85 && w.temp >= 18 && w.temp <= 30
   return [
+    // --- Essential Data (Default View) ---
     { label: 'Air temperature', value: `${f(w.temp)} °C`, note: `Today is forecast at ${f(w.tminToday, 0)}–${f(w.tmaxToday, 0)} °C. The coming week reaches ${f(w.tmaxNext7, 0)} °C high and ${f(w.tminNext7, 0)} °C low; check local conditions if heat or cold is forecast.`, tone: heat || frost ? 'warn' : 'neutral' },
-    { label: 'Humidity', value: `${f(w.rh, 0)} %`, note: `${w.rh >= 80 ? 'Air is humid.' : 'Air is not especially humid.'} When it is warm and humid, check leaves for disease symptoms; weather alone cannot tell whether a crop is infected.`, tone: disease ? 'warn' : 'neutral' },
-    { label: 'Air dryness for crops (VPD)', value: `${f(w.vpd, 2)} kPa`, note: `${w.vpd > 2 ? 'The air may draw water from leaves quickly.' : w.vpd < 0.4 ? 'The air is very damp.' : 'The air is in a moderate dryness range.'} Check the crop and soil together; this is a weather estimate, not a plant reading.`, tone: w.vpd > 2 ? 'warn' : 'neutral' },
-    { label: 'Wind', value: `${f(w.wind)} km/h`, note: `${w.wind > 20 ? 'Wind may carry spray off target.' : 'Winds are lighter in this forecast.'} Check the product label and wind at the field before spraying.`, tone: w.wind > 20 ? 'warn' : 'neutral' },
-    { label: 'UV index', value: f(w.uv, 1), note: `Forecast daily peak is ${f(w.uvMax, 1)}. This describes sun exposure; it does not predict crop damage or soil drying by itself.`, tone: w.uvMax >= 8 ? 'warn' : 'neutral' },
-    { label: 'Solar energy today', value: `${f(w.radToday)} MJ/m²`, note: 'A weather estimate of sunlight reaching the ground today. Cloud and shade across the field can differ from the regional model.', tone: 'neutral' },
-    { label: 'Rain, last 7 days', value: `${f(w.rain7)} mm`, note: `${f(w.rain30, 0)} mm is estimated for the last 30 days. Compare this with your rain gauge; nearby storms can miss a field.`, tone: 'neutral' },
     { label: 'Rain forecast, next 7 days', value: `${f(w.rainNext7)} mm`, note: `${w.rainNext7 >= 15 ? 'Rain is in the forecast.' : 'Only a little rain is forecast.'} Check the local forecast again before irrigation or field work.`, tone: 'neutral' },
-    { label: 'Reference water demand (ET₀)', value: `${f(w.et0Past7)} mm`, note: 'This estimates water demand from a standard reference surface over the past week. Your crop may use more or less depending on its stage and local conditions.', tone: 'neutral' },
-    { label: 'Rain minus reference demand, past 7 days', value: `${bal >= 0 ? '+' : ''}${f(bal)} mm`, note: `${bal < -15 ? 'Reference demand was greater than recorded rain.' : bal < 0 ? 'Rain was a little below reference demand.' : 'Recorded rain met or exceeded reference demand.'} This is a rough weather balance, not a direct measurement of water in your root zone.`, tone: bal < -15 ? 'warn' : bal < 0 ? 'neutral' : 'good' },
-    { label: 'Rain minus reference demand, next 7 days', value: `${balNext >= 0 ? '+' : ''}${f(balNext)} mm`, note: `${balNext < -20 ? 'The forecast points to a dry week.' : balNext < 0 ? 'Some water demand may exceed forecast rain.' : 'Forecast rain may meet reference demand.'} Check soil near the crop before deciding how much to irrigate.`, tone: balNext < -20 ? 'warn' : 'neutral' },
-    { label: 'Accumulated warmth (GDD)', value: `${f(w.gdd30, 0)} °C·d`, note: 'A running temperature total used to compare crop development. It only helps when paired with the right crop, planting date, and growth stage.', tone: 'neutral' },
-    { label: 'Heat / frost outlook', value: heat ? 'Heat may occur' : frost ? 'Cold may occur' : 'No strong alert', note: `Forecast range for the next week is ${f(w.tminNext7, 0)}–${f(w.tmaxNext7, 0)} °C. Check a local forecast and the crop's sensitivity before taking action.`, tone: heat || frost ? 'warn' : 'good' },
+    { label: 'Reference water demand (ET₀)', value: `${f(w.et0Past7)} mm`, note: `Weekly reference evapotranspiration (${f(w.et0Past7 / 7, 1)} mm/day average). Standard atmospheric water demand estimate.`, tone: 'neutral' },
+    { label: 'Humidity', value: `${f(w.rh, 0)} %`, note: `${w.rh >= 80 ? 'Air is humid.' : 'Air is not especially humid.'} When it is warm and humid, check leaves for disease symptoms.`, tone: disease ? 'warn' : 'neutral' },
+    { label: 'Wind', value: `${f(w.wind)} km/h`, note: `${w.wind > 20 ? 'Wind may carry spray off target.' : 'Winds are lighter in this forecast.'} Check wind at the field before spraying.`, tone: w.wind > 20 ? 'warn' : 'neutral' },
+    // --- More Details ---
+    { label: 'Air dryness for crops (VPD)', value: `${f(w.vpd, 2)} kPa`, note: `${w.vpd > 2 ? 'The air may draw water from leaves quickly.' : w.vpd < 0.4 ? 'The air is very damp.' : 'The air is in a moderate dryness range.'} Check the crop and soil together.`, tone: w.vpd > 2 ? 'warn' : 'neutral' },
+    { label: 'Rain, last 7 days', value: `${f(w.rain7)} mm`, note: `${f(w.rain30, 0)} mm is estimated for the last 30 days. Compare this with your rain gauge.`, tone: 'neutral' },
+    { label: 'UV index', value: f(w.uv, 1), note: `Forecast daily peak is ${f(w.uvMax, 1)}. Sun exposure intensity index.`, tone: w.uvMax >= 8 ? 'warn' : 'neutral' },
+    { label: 'Solar energy today', value: `${f(w.radToday)} MJ/m²`, note: 'A weather estimate of sunlight reaching the ground today.', tone: 'neutral' },
+    { label: 'Rain minus reference demand, past 7 days', value: `${bal >= 0 ? '+' : ''}${f(bal)} mm`, note: `${bal < -15 ? 'Reference demand was greater than recorded rain.' : bal < 0 ? 'Rain was a little below reference demand.' : 'Recorded rain met or exceeded reference demand.'} Weather balance.`, tone: bal < -15 ? 'warn' : bal < 0 ? 'neutral' : 'good' },
+    { label: 'Rain minus reference demand, next 7 days', value: `${balNext >= 0 ? '+' : ''}${f(balNext)} mm`, note: `${balNext < -20 ? 'The forecast points to a dry week.' : balNext < 0 ? 'Some water demand may exceed forecast rain.' : 'Forecast rain may meet reference demand.'}`, tone: balNext < -20 ? 'warn' : 'neutral' },
+    { label: 'Accumulated warmth (GDD)', value: `${f(w.gdd30, 0)} °C·d`, note: 'A running temperature total used to compare crop development.', tone: 'neutral' },
+    { label: 'Heat / frost outlook', value: heat ? 'Heat may occur' : frost ? 'Cold may occur' : 'No strong alert', note: `Forecast range for next week is ${f(w.tminNext7, 0)}–${f(w.tmaxNext7, 0)} °C.`, tone: heat || frost ? 'warn' : 'good' },
   ]
 }
 
 export function soilWaterParams(w: Weather): Param[] {
   const pct = (v: number) => `${f(v * 100, 0)} %`
   const root = w.soilM.d9_27
+  const dailyEt = Number.isFinite(w.et0Past7) ? Math.max(0.5, +(w.et0Past7 / 7).toFixed(1)) : 3.5
   return [
-    { label: 'Soil moisture 0–1 cm', value: pct(w.soilM.d0_1), note: 'Estimated moisture in the top skin of soil. It can change quickly after sun or rain; check the seed bed by hand.', tone: 'neutral' },
+    { label: 'Evapotranspiration (ET)', value: `${f(dailyEt, 1)} mm/day`, note: 'Daily crop evapotranspiration rate (ET₀). Reference atmospheric water loss across root zone and canopy.', tone: dailyEt > 5 ? 'warn' : 'neutral' },
+    { label: 'Estimated daily drop', value: `${f(dailyEt, 1)} mm/day`, note: 'Estimated daily soil moisture drop due to evapotranspiration and field drainage.', tone: 'neutral' },
+    { label: 'Soil moisture 9–27 cm (Root zone)', value: pct(root), note: 'Estimated moisture below the surface in active root zone. Check soil in the crop’s root zone; broad-area model.', tone: root < 0.12 ? 'warn' : root < 0.2 ? 'neutral' : 'good' },
+    { label: 'Soil moisture 0–1 cm (Surface)', value: pct(w.soilM.d0_1), note: 'Estimated moisture in the top skin of soil. Can change quickly after sun or rain.', tone: 'neutral' },
+    { label: 'Soil temperature at 6 cm (Root zone)', value: `${f(w.soilT.d6)} °C`, note: `${w.soilT.d6 < 10 ? 'Cool soil indicated.' : w.soilT.d6 > 35 ? 'Hot soil indicated.' : 'Moderate soil warmth.'} Key depth for active root respiration.`, tone: w.soilT.d6 < 10 || w.soilT.d6 > 35 ? 'warn' : 'neutral' },
     { label: 'Soil moisture 3–9 cm', value: pct(w.soilM.d3_9), note: 'A model estimate around shallow roots. If seedlings look limp, feel the soil at their root depth before watering.', tone: w.soilM.d3_9 < 0.12 ? 'warn' : 'neutral' },
-    { label: 'Soil moisture 9–27 cm', value: pct(root), note: 'Estimated moisture below the surface. Check soil in the crop’s active root zone; this broad-area model is not a field sensor.', tone: root < 0.12 ? 'warn' : root < 0.2 ? 'neutral' : 'good' },
     { label: 'Soil moisture 27–81 cm', value: pct(w.soilM.d27_81), note: 'A deeper-layer estimate. Whether roots can reach this water depends on the crop and soil layers.', tone: 'neutral' },
     { label: 'Soil temperature at surface', value: `${f(w.soilT.d0)} °C`, note: 'Modelled ground temperature at the surface; use a thermometer in the field for seed or planting decisions.', tone: 'neutral' },
-    { label: 'Soil temperature at 6 cm', value: `${f(w.soilT.d6)} °C`, note: `${w.soilT.d6 < 10 ? 'This model is showing cool soil.' : w.soilT.d6 > 35 ? 'This model is showing hot soil.' : 'This model is showing moderate soil warmth.'} Check the actual seed depth before planting or re-sowing.`, tone: w.soilT.d6 < 10 || w.soilT.d6 > 35 ? 'warn' : 'neutral' },
     { label: 'Soil temperature at 18 cm', value: `${f(w.soilT.d18)} °C`, note: 'A model estimate below the surface. Local shade, moisture, and soil cover can change the temperature in your field.', tone: 'neutral' },
     { label: 'Soil temperature at 54 cm', value: `${f(w.soilT.d54)} °C`, note: 'A broad-area estimate of deeper soil temperature, not a direct reading from the farm.', tone: 'neutral' },
   ]

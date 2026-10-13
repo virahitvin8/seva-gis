@@ -9,6 +9,14 @@ import './seva-premium.css'
 import PopTheTeamModal from './PopTheTeamModal'
 import { I18nProvider } from './lib/i18n'
 
+// Handle Vite dynamic import chunk reload error automatically (e.g. after new deployment on sevagis.dpdns.org)
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (event) => {
+    console.warn('[Vite Preload] Chunk import failed. Auto-refreshing to load latest asset bundle...', event)
+    window.location.reload()
+  })
+}
+
 interface Props {
   children: ReactNode
 }
@@ -26,6 +34,17 @@ class GlobalErrorBoundary extends Component<Props, State> {
     // Suppress external Google Translate removeChild errors and mobile ResizeObserver loop noise
     if (error?.message && /removeChild|not a child|ResizeObserver loop|ResizeObserver loop limit exceeded/i.test(error.message)) {
       return { hasError: false }
+    }
+    // Auto-reload on dynamic import module mismatch once per session
+    if (error?.message && /Failed to fetch dynamically imported module|ChunkLoadError/i.test(error.message)) {
+      try {
+        const key = 'seva_chunk_reload_' + window.location.pathname
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1')
+          window.location.reload()
+          return { hasError: false }
+        }
+      } catch {}
     }
     return { hasError: true, error, showPopModal: false }
   }

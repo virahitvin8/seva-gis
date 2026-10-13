@@ -13,24 +13,99 @@ type Remote<T> = { key: string; data?: T; error?: string }
 
 import InsightPlayingCardModal, { type InsightCardData } from './InsightPlayingCardModal'
 
-function Section({ title, sub, icon: Icon, items, empty, src = ['s2'], onRefresh, onCardClick }: { src?: SourceKey[]; title: string; sub: string; icon: typeof CloudSun; items?: Param[]; empty: string; onRefresh?: () => void; onCardClick?: (p: Param, category: string) => void }) {
+function Section({
+  title,
+  sub,
+  icon: Icon,
+  items,
+  empty,
+  src = ['s2'],
+  onRefresh,
+  onCardClick,
+  essentialLimit,
+}: {
+  src?: SourceKey[]
+  title: string
+  sub: string
+  icon: typeof CloudSun
+  items?: Param[]
+  empty: string
+  onRefresh?: () => void
+  onCardClick?: (p: Param, category: string) => void
+  essentialLimit?: number
+}) {
   const [spinning, setSpinning] = useState(false)
   const [showMeta, setShowMeta] = useState(false)
+  const [showMore, setShowMore] = useState(false)
+
   const handleRefresh = () => {
     setSpinning(true)
     setTimeout(() => setSpinning(false), 800)
     onRefresh?.()
   }
-  return <section className="ag-card"><div className="ag-head" onClick={() => setShowMeta(v => !v)} style={{ cursor: 'pointer' }} title="Click heading to inspect data source, resolution, and method"><Icon size={17}/><h3>{title}</h3><small>{sub}</small>
-    <ChevronDown size={14} style={{ transform: showMeta ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto', color: '#94a3b8' }} />
-    {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={(e) => { e.stopPropagation(); handleRefresh() }}><RefreshCw size={13}/></button>}
-  </div>
-    {showMeta && (
-      <div style={{ padding: '6px 10px', fontSize: '10.5px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', marginBottom: '8px', color: '#cbd5e1', lineHeight: 1.4 }}>
-        <b>Data Source &amp; Resolution:</b> {src.map(s => s === 'soil' ? 'ISRIC SoilGrids 2.0 (250m global digital soil map)' : s === 'dem' ? 'Copernicus DEM GLO-30 (30m native elevation DSM)' : s === 'weather' ? 'Open-Meteo Numerical Weather Prediction grid' : 'Sentinel-2 L2A Multispectral (10m/20m)').join(' · ')}
+
+  const visibleItems = (items && essentialLimit && !showMore)
+    ? items.slice(0, essentialLimit)
+    : items
+  const hiddenCount = (items && essentialLimit) ? Math.max(0, items.length - essentialLimit) : 0
+
+  return (
+    <section className="ag-card">
+      <div className="ag-head" onClick={() => setShowMeta(v => !v)} style={{ cursor: 'pointer' }} title="Click heading to inspect data source, resolution, and method">
+        <Icon size={17}/>
+        <h3>{title}</h3>
+        <small>{sub}</small>
+        <ChevronDown size={14} style={{ transform: showMeta ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: 'auto', color: '#94a3b8' }} />
+        {onRefresh && <button className={`box-refresh-btn ${spinning ? 'spinning' : ''}`} title={`Refresh ${title}`} onClick={(e) => { e.stopPropagation(); handleRefresh() }}><RefreshCw size={13}/></button>}
       </div>
-    )}
-    {items ? <div className="ag-grid">{items.map(p => <div key={p.label} className={`ag-item ${p.tone}`} onClick={() => onCardClick?.(p, title)} style={{ cursor: 'pointer' }} title="Click to view full insight card & scientific analysis"><span>{p.label}</span><b>{p.value}</b></div>)}</div> : <div className="ag-empty">{/^Loading/.test(empty) ? <LogoLoader text={empty}/> : /fail|error|unavailable|could not/i.test(empty) ? <LogoLoader state="error" text={empty}/> : empty}</div>}<SourceNote of={src}/></section>
+      {showMeta && (
+        <div style={{ padding: '6px 10px', fontSize: '10.5px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', marginBottom: '8px', color: '#cbd5e1', lineHeight: 1.4 }}>
+          <b>Data Source &amp; Resolution:</b> {src.map(s => s === 'soil' ? 'ISRIC SoilGrids 2.0 (250m global digital soil map)' : s === 'dem' ? 'Copernicus DEM GLO-30 (30m native elevation DSM)' : s === 'weather' ? 'Open-Meteo Numerical Weather Prediction grid' : 'Sentinel-2 L2A Multispectral (10m/20m)').join(' · ')}
+        </div>
+      )}
+      {visibleItems ? (
+        <>
+          <div className="ag-grid">
+            {visibleItems.map(p => (
+              <div key={p.label} className={`ag-item ${p.tone}`} onClick={() => onCardClick?.(p, title)} style={{ cursor: 'pointer' }} title="Click to view full insight card & scientific analysis">
+                <span>{p.label}</span>
+                <b>{p.value}</b>
+              </div>
+            ))}
+          </div>
+          {essentialLimit && hiddenCount > 0 && (
+            <div style={{ textAlign: 'center', marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => setShowMore(v => !v)}
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  padding: '4px 12px',
+                  borderRadius: '6px',
+                  background: showMore ? 'rgba(255,255,255,0.08)' : 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  color: '#10b981',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {showMore ? '▴ Show Essential Only' : `▾ More details (${hiddenCount} more)`}
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="ag-empty">
+          {/^Loading/.test(empty) ? <LogoLoader text={empty}/> : /fail|error|unavailable|could not/i.test(empty) ? <LogoLoader state="error" text={empty}/> : empty}
+        </div>
+      )}
+      <SourceNote of={src}/>
+    </section>
+  )
 }
 
 export default function AgroPanel({ farm }: Props) {
@@ -185,8 +260,8 @@ export default function AgroPanel({ farm }: Props) {
     <div className="intelligence-heading"><h2>Agronomy parameters <span>Sentinel-2 · Open-Meteo · SoilGrids · Copernicus DEM · Click any box for 3D card analysis</span></h2></div>
     <div className="ag-cols">
       <Section title="Crop & spectral indices" sub={a ? `Farm mean · ${new Date(a.scene.datetime).toLocaleDateString()}` : 'waiting for scene'} icon={Satellite} items={spectral} empty="Refresh to compute vegetation, water and soil indices from Sentinel-2." onRefresh={() => { window.dispatchEvent(new CustomEvent('seva-refresh-spectral')) }} onCardClick={handleCardClick} />
-      <Section title="Weather & atmosphere" sub={w?.error ?? 'Open-Meteo, live'} icon={CloudSun} items={w?.data && weatherParams(w.data)} empty={w?.error ?? 'Loading weather…'} src={['weather']} onRefresh={refreshWeather} onCardClick={handleCardClick}/>
-      <Section title="Soil water & temperature" sub="Modelled by depth" icon={Thermometer} items={w?.data && soilWaterParams(w.data)} empty={w?.error ?? 'Loading soil moisture…'} src={['weather', 'model']} onRefresh={refreshWeather} onCardClick={handleCardClick}/>
+      <Section title="Weather & atmosphere" sub={w?.error ?? 'Open-Meteo, live'} icon={CloudSun} items={w?.data && weatherParams(w.data)} empty={w?.error ?? 'Loading weather…'} src={['weather']} onRefresh={refreshWeather} onCardClick={handleCardClick} essentialLimit={5}/>
+      <Section title="Soil water & temperature" sub="Modelled by depth" icon={Thermometer} items={w?.data && soilWaterParams(w.data)} empty={w?.error ?? 'Loading soil moisture…'} src={['weather', 'model']} onRefresh={refreshWeather} onCardClick={handleCardClick} essentialLimit={4}/>
       <Section title="Soil properties" sub={s?.data ? 'SoilGrids 250 m, 0-5 cm' : 'SoilGrids regional baseline (0-5 cm)'} icon={Shovel} items={soilParams(sData)} empty="Loading soil data…" src={['soil']} onRefresh={refreshSoil} onCardClick={handleCardClick}/>
       <Section title="Terrain" sub="Farm DEM statistics" icon={Mountain} items={terrain} empty="Elevation loads with the satellite analysis." src={['dem']} onRefresh={refreshDem} onCardClick={handleCardClick}/>
     </div>

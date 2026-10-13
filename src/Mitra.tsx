@@ -195,7 +195,7 @@ function Tour({ onClose }: { onClose: () => void }) {
   return <div className="mi-tour" role="dialog" aria-label="SEVA.GIS quick tour">
     {rect ? <div className="mi-spot" style={{ left: rect.x - pad, top: rect.y - pad, width: rect.w + pad * 2, height: rect.h + pad * 2 }} /> : <div className="mi-dim" />}
     <div className="mi-pop" ref={pop} style={{ left, top, width: W }}>
-      <header><MitraAvatar size={30} /><b>Mitra</b><span>{i + 1} of {STEPS.length}</span><button aria-label="Close tour" onClick={onClose}><X size={15} /></button></header>
+      <header><MitraAvatar size={30} /><b>NAVI</b><span>{i + 1} of {STEPS.length}</span><button aria-label="Close tour" onClick={onClose}><X size={15} /></button></header>
       <h4>{step.title}</h4><p>{step.body}</p>
       <div className="mi-dots">{STEPS.map((_, k) => <button key={k} aria-label={`Step ${k + 1}`} className={k === i ? 'on' : ''} onClick={() => setI(k)} />)}</div>
       <footer>
@@ -237,11 +237,11 @@ export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
   const who = guest ? 'there' : name.split(' ')[0]
   return <>
     {state === 'ask' && (
-      <div className="mi-ask-backdrop" role="dialog" aria-modal="true" aria-label="Mitra Quick Tour">
+      <div className="mi-ask-backdrop" role="dialog" aria-modal="true" aria-label="NAVI Quick Tour">
         <aside className="mi-ask-card">
           <div className="mi-ask-avatar-wrap">
             <MitraAvatar size={52} />
-            <span className="mi-ask-badge">Mitra Agritech Assistant</span>
+            <span className="mi-ask-badge">NAVI Agritech Assistant</span>
           </div>
           <div className="mi-ask-content">
             <h3>Welcome to SEVA·GIS, {who}!</h3>
@@ -255,13 +255,13 @@ export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
             </div>
             <div className="mi-ask-row">
               <button className="mi-ask-btn-continue" onClick={handleTour}>
-                Continue Quick Tour →
+                Continue Quick Tour with NAVI →
               </button>
               <button className="mi-ask-btn-skip" onClick={handleSkip}>
                 Skip &amp; Remember Choice
               </button>
             </div>
-            <small className="mi-ask-footnote">Your choice is remembered. You can reopen Mitra anytime from the top bar.</small>
+            <small className="mi-ask-footnote">Your choice is remembered. You can reopen NAVI anytime from the top bar.</small>
           </div>
         </aside>
       </div>
@@ -273,5 +273,5 @@ export function MitraBye() {
   const [show, setShow] = useState(true)
   useEffect(() => { const t = setTimeout(() => { setShow(false); sessionStorage.removeItem('seva-bye') }, 5000); return () => clearTimeout(t) }, [])
   if (!show) return null
-  return <div className="mi-bye" role="status"><MitraAvatar size={30} /><div><b>Mitra:</b><p>Happy mapping! Come back anytime. 🌍</p></div></div>
+  return <div className="mi-bye" role="status"><MitraAvatar size={30} /><div><b>NAVI:</b><p>Happy mapping! Come back anytime. 🌍</p></div></div>
 }

@@ -3726,6 +3726,25 @@ canvas.seva-raster-canvas,
   filter: drop-shadow(0 0 6px #38bdf8) !important;
 }
 
+/* Google Earth style Map Focus Mode */
+.farm-workspace.map-focus {
+  grid-template-columns: 1fr !important;
+  transition: all 0.25s ease-in-out;
+}
+.farm-workspace.map-focus .farm-list {
+  display: none !important;
+}
+.farm-workspace.map-focus .map-card {
+  grid-column: 1 / -1;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  border: 1.5px solid #10b981;
+}
+.farm-workspace.map-focus .map-wrap {
+  height: calc(100vh - 210px) !important;
+  min-height: 600px;
+}
+
 /* ==========================================================================
    StoryTold ArtCraft Suite Studio (PdfCraft, GridCraft, VectorCraft, DesignCraft, EffectCraft)
    ========================================================================== */

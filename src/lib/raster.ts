@@ -515,7 +515,8 @@ export function paintClipped(
       }
     }
     srcCtx.putImageData(srcImg, 0, 0)
-    ctx.imageSmoothingEnabled = false
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(srcCanvas, 0, 0, W, H)
   }
 
@@ -592,9 +593,10 @@ export function paintRaw(
       }
     }
     srcCtx.putImageData(srcImg, 0, 0)
-    ctx.imageSmoothingEnabled = false
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(srcCanvas, 0, 0, W, H)
   }
 
-  return outCanvas.toDataURL('image/jpeg', 0.92)
+  return outCanvas.toDataURL('image/png')
 }

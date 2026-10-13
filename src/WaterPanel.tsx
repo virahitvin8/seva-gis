@@ -4,7 +4,7 @@ import { CircleDot, Droplets, RefreshCw, Route, Trash2, Waves, BarChart3, Activi
 import SourceNote, { type SourceKey } from './SourceNote'
 import { fetchSoil, fetchWeather, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { CROPS, METHODS, pipeHydraulics, pumpKw, soilHydraulics } from './lib/hydro'
-import { removeBorewell, removePipeline, updateBorewell, updatePipeline, lengthM, useAssets, type Pipeline } from './lib/assets'
+import { addBorewell, removeBorewell, removePipeline, updateBorewell, updatePipeline, lengthM, useAssets, type Pipeline } from './lib/assets'
 import { bandFor, sampleAt, type Grid } from './lib/indicators'
 import { ScaleBox } from './Scale'
 import { indexStat, loadDem, type FarmData } from './lib/seva'
@@ -389,7 +389,36 @@ export default function WaterPanel({ farm }: Props) {
     })()}
 
     <div className="wt-assets">
-      <section className="ag-card"><div className="ag-head"><CircleDot size={17}/><h3>Borewells</h3><small>Use the Borewell tool on the map to mark one</small>
+      <section className="ag-card"><div className="ag-head"><CircleDot size={17}/><h3>Borewells</h3><small>Use the Borewell tool on the map or add here</small>
+        <button
+          type="button"
+          onClick={() => {
+            addBorewell({
+              farmId: farm.id,
+              name: `Borewell ${borewells.length + 1}`,
+              lat: farm.lat,
+              lon: farm.lon,
+              depth: 90,
+              level: 25,
+              yieldM3h: 5,
+              hours: 6
+            })
+          }}
+          style={{
+            fontSize: '11px',
+            padding: '2px 8px',
+            marginLeft: 'auto',
+            background: 'rgba(2, 132, 199, 0.12)',
+            color: '#0284c7',
+            border: '1px solid #0284c7',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontWeight: 600
+          }}
+          title="Add a borewell point at farm coordinates"
+        >
+          + Add Borewell
+        </button>
         <button className="box-refresh-btn" title="Refresh Borewells" onClick={refreshDem}><RefreshCw size={13}/></button>
       </div>
         {borewells.length === 0 && <div className="ag-empty">No borewells marked. Click Borewell above the map, then click its location. Siting potential on the map shows where terrain favours recharge.</div>}

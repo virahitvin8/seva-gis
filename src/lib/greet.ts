@@ -12,18 +12,18 @@ function pool(n: string, h: number): Greeting[] {
     { text: `Hey ${n}!`, line, dot: false },
     { text: `Hello ${n}!`, line, dot: false },
     { text: `Hi ${n}, what's up?`, line, dot: false },
-    { text: `Yo ${n}!`, line, dot: false },
-    { text: `How's it going, ${n}?`, line, dot: false },
-    { text: `What are we building today, ${n}?`, line: 'Choose a field, compare satellite passes, or open the GeoAI studio for a closer remote review.', dot: false },
-    { text: `Namaste, ${n} 🙏`, line, dot: false },
-    { text: `Namaskaram, ${n}`, line, dot: true },
-    { text: `Hola, ${n}`, line, dot: true },
-    { text: `Bonjour, ${n}`, line, dot: true },
-    { text: `Hallo, ${n}`, line, dot: true },
-    { text: `Ciao, ${n}`, line, dot: true },
-    { text: `Konnichiwa, ${n}`, line, dot: true },
+    { text: `Kya bolti public, ${n}!`, line, dot: false },
+    { text: `Kya scene hai, ${n}!`, line, dot: false },
+    { text: `Arre ${n}, kaisa hai bhai!`, line, dot: false },
+    { text: `Yo ${n}, sab badhiya?`, line, dot: false },
+    { text: `Ssup ${n}! Scene sort hai!`, line, dot: false },
+    { text: `Namaste ji, ${n} 🙏`, line, dot: false },
+    { text: `Ram Ram, ${n} bhai!`, line, dot: false },
+    { text: `Vanakkam, ${n}!`, line, dot: true },
+    { text: `Kemon acho, ${n}!`, line, dot: true },
+    { text: `What's good, ${n}! Ready to map?`, line, dot: false },
   ]
-  if (part === 'morning') list.push({ text: `Suprabhatam, ${n}`, line, dot: true })
+  if (part === 'morning') list.push({ text: `Suprabhatam, ${n}! Chai peelo ☕`, line, dot: true })
   return list
 }
 

@@ -58,6 +58,8 @@ comes from, and what is actually done.*
 | R-12 | mukul975/anthropic-cybersecurity-skills | Input/GeoJSON validation, safe handling | ☐ |
 | R-05 | browser-use/browser-use | Browser-driven journey testing | ☐ |
 | R-06 | thedotmack/claude-mem | Remember state across sessions (IndexedDB in practice) | ☐ |
+| R-37 | chenxiachan/thoughtdag | Native localization + Web Worker raster processing | ☐ |
+| R-38 | pbakaus/impeccable | Frontend design audit gate (also a final verification gate) | 🚧 |
 
 ### Agents / automation / data
 | ID | Source | Use | Status |
@@ -89,6 +91,7 @@ comes from, and what is actually done.*
 | R-35 | gee-community | Earth Engine algorithms/patterns |
 | R-32 | morluto/rea | The reverse-engineering *method* |
 | R-36 | virahitvin8/seva-gis | **Target** application |
+| R-39 | opengeos/Awesome-GEE | Curated Earth Engine scripts and datasets → parameter library | ☐ |
 | extra | Microsoft Planetary Computer | Second data source beside GEE |
 
 ```mermaid
@@ -1086,3 +1089,46 @@ pane is cleaned up once loading settles. The phase trace is the evidence:
 Verification for Batch 17: `tsc --noEmit` **pass** · `npm test` **45/45 pass** ·
 `vite build` **pass** · duplicate-key scan **clean** ·
 **`npm run grill` 126/126 checks, 0 runtime errors**.
+
+### 2026-10-13 — Batch 18: second review session — reconciliation, not code
+
+You reviewed the live site again and asked for four things before any more building: the repository
+list, the change list, the comparison, and a document showing what was understood. No application
+code was changed. The full document is **`docs/ANALYSIS/SESSION-2026-10-13.md`** (and its PDF).
+
+**The headline finding: this repository is ahead of the deployment you were testing.** Several things
+reported as broken now return **zero matches** in the tree:
+
+| Reported | Repository now |
+|---|---|
+| Vaiganga/Vayganga content everywhere | **0 occurrences** repo-wide |
+| "Dear custodian of …" | **0 occurrences** |
+| README: multi-language list, Viva link, folder tree, broken terminal image | none present; README is 5.4 KB with a Mermaid architecture diagram |
+| "StoryTold ArtCraft Creative Studio Suite" in README | not present |
+| A "Layout" header control that does nothing | **no Layout control in `src/App.tsx`** — only orphan i18n keys |
+| Water Plan / Model Estimate, manual | not present in `src/WaterPanel.tsx` |
+| No Word export | `ReportPanel.tsx` offers `pdf` · `doc` · `dossier` |
+| PDF arrives as 0 KB | the 3-page stub is **deleted**; `src/lib/reportPdf.ts` prints the preview document |
+| Map goes black on lock/refresh/reset | Batch 15 backdrops now `#e9eeea` |
+| Report maps: small box on a huge sheet | Batch 8 extracted `src/lib/reportView.ts` (`AOI_FILL = 0.75`) |
+
+Everything in that table changed on **2026-10-12**, the day before your review. The loop you
+described — re-reporting work that is already done — is a **deployment gap**, not a code gap.
+
+**Three repositories were missing from §1 and are now added** (R-37 `chenxiachan/thoughtdag`,
+R-38 `pbakaus/impeccable`, R-39 `opengeos/Awesome-GEE`). They were already used in Batches 5 and 4,
+but the tickable list you read did not name them. Corrected above.
+
+**One genuine defect found today, still open:** `README.md` line 44 lists `src/lib/pdfGenerator.ts`
+under *Reports and exports*, but that file was deleted in Batch 6. Broken reference in the README today.
+
+**Counts for this session** (full breakdown in the session document): **38 repositories + 1 service**,
+**127 distinct items** (S01–S127), **19 removals**, **5 described "page unresponsive" dialogs** plus
+**6 further stalls** — about **13 responsiveness failures in one sitting**. Stated honestly: that is a
+count of what you *described*, not a measurement. Step 2 of the proposed order instruments
+`scripts/grill.mjs` to publish real main-thread millisecond numbers instead.
+
+**Also noted, not touched:** `src/App.tsx` carries one uncommitted edit of yours (line 1 adds
+`useCallback` to the React import). It typechecks and was left exactly as found.
+
+Verification for Batch 18: `npx tsc --noEmit` **pass (exit 0)** · **no application code changed**.

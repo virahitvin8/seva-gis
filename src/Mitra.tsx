@@ -121,10 +121,10 @@ function useTarget(sel: string | null, stepIdx: number) {
     const step = STEPS[stepIdx]
     if (step?.action) step.action()
 
-    // Immediate fast measure
+    // Immediate fast measure - reduced delays for smoother transitions
     measure()
-    const timer1 = setTimeout(measure, 120)
-    const timer2 = setTimeout(measure, 400)
+    const timer1 = setTimeout(measure, 50)  // Reduced from 120ms
+    const timer2 = setTimeout(measure, 150) // Reduced from 400ms
 
     const onScrollOrResize = () => measure()
     window.addEventListener('resize', onScrollOrResize, { passive: true })

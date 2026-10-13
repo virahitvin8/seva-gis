@@ -34,6 +34,118 @@ import { useI18n } from './lib/i18n'
 import { createFloat32GeoTiffBlob, createGeoTiffBlob } from './lib/geoTiffWriter'
 import { dispatchExport } from './lib/googleDriveVault'
 
+// Mirror Window Component - shows detailed data under cursor when active
+interface MirrorWindowProps {
+  map: L.Map
+  farm: MapFarm
+  center: [number, number]
+  radius: number
+  activeLayers: string[]
+  grids: { s2?: any; dem?: any }
+}
+
+function MirrorWindow({ map, farm, center, radius, activeLayers, grids }: MirrorWindowProps) {
+  const { t } = useI18n()
+
+  // Get pixel values at the center point
+  const [values, setValues] = useState<Record<string, number>>({})
+  const [screenPos, setScreenPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+
+  useEffect(() => {
+    if (!map) return
+
+    // Convert lat/lng to screen coordinates
+    const latLng = L.latLng(center[0], center[1])
+    const point = map.latLngToContainerPoint(latLng)
+    setScreenPos({ x: point.x, y: point.y })
+
+    // Sample values at this location
+    const sampled: Record<string, number> = {}
+    let inside = false
+
+    for (const g of [grids.s2, grids.dem]) {
+      if (!g) continue
+      const i = pixelAt(g.w, g.h, g.bbox, center[1], center[0])
+      if (i < 0 || !g.inside[i]) continue
+      inside = true
+      Object.assign(sampled, sampleAt(g, center[1], center[0]) ?? {})
+    }
+
+    if (inside) {
+      setValues(sampled)
+    }
+  }, [map, center, grids.s2, grids.dem])
+
+  if (Object.keys(values).length === 0) return null
+
+  // Position the mirror window near the cursor
+  const posX = screenPos.x + 20
+  const posY = screenPos.y - 120
+
+  return (
+    <div
+      className="mirror-window"
+      style={{
+        position: 'absolute',
+        left: posX,
+        top: posY,
+        zIndex: 900,
+        pointerEvents: 'none',
+        background: 'rgba(15, 23, 42, 0.95)',
+        backdropFilter: 'blur(12px)',
+        border: '1.5px solid rgba(34, 197, 94, 0.6)',
+        borderRadius: '12px',
+        padding: '12px',
+        minWidth: '200px',
+        maxWidth: '280px',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: '#86efac', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {t('map.mirrorWindowTitle')}
+        </span>
+        <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+          {center[0].toFixed(5)}°, {center[1].toFixed(5)}°
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gap: '4px' }}>
+        {activeLayers
+          .filter(id => values[id] !== undefined)
+          .map(id => {
+            const ind = byId(id)
+            const val = values[id]
+            const bf = bandFor(id, val)
+            return (
+              <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '4px 0' }}>
+                <span style={{ fontSize: '11px', color: '#cbd5e1', flex: 1 }}>
+                  {ind.name}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', textAlign: 'right' }}>
+                  <b style={{ fontSize: '12px', color: '#f8fafc', fontFamily: 'monospace' }}>
+                    {val.toFixed(ind.unit ? 3 : 2)}
+                  </b>
+                  {bf && (
+                    <span style={{
+                      display: 'inline-block',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '3px',
+                      background: bf.color,
+                      boxShadow: '0 0 8px ' + bf.color
+                    }} />
+                  )}
+                </div>
+              </div>
+            )
+          })}
+      </div>
+    </div>
+  )
+}
+
 type MapFarm = FarmData & { id: string; name: string }
 type Picked = { lat: number; lon: number; values: Record<string, number> }
 
@@ -179,8 +291,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [dim, setDim] = useState(false)
   const [picked, setPicked] = useState<Picked | null>(null)
   const [view3d, setView3d] = useState(false)
-  const [tool, setTool] = useState<'none' | 'borewell' | 'pipeline'>('none')
+  const [tool, setTool] = useState<'none' | 'borewell' | 'pipeline' | 'mirror'>('none')
   const [draft, setDraft] = useState<[number, number][]>([])
+  const [mirrorWindow, setMirrorWindow] = useState<{ center: [number, number]; radius: number; visible: boolean }>({ center: [0, 0], radius: 100, visible: false })
+  const mirrorLayerRef = useRef<L.CircleMarker | null>(null)
   const assets = useAssets()
   const mine = { b: assets.borewells.filter(b => b.farmId === farm.id), p: assets.pipelines.filter(p => p.farmId === farm.id) }
   const toolRef = useRef({ tool, farmId: farm.id, n: mine.b.length })
@@ -206,6 +320,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   const [cartoLegendPos, setCartoLegendPos] = useState({ x: 28, y: 140 })
   const [cartoLegendDragging, setCartoLegendDragging] = useState(false)
   const [cartoLegendMinimized, setCartoLegendMinimized] = useState(false)
+  const [mouseOverMap, setMouseOverMap] = useState(false)
   const cartoLegendDragOffset = useRef({ x: 0, y: 0 })
 
   // Geodesic Custom Buffer Zone Tool State
@@ -518,9 +633,10 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   // Strict 75% Box Ratio Auto Zoom & MinZoom Boundary
   // Automatically resizes and fits the AOI so it fills 75% of the viewport container (12.5% padding on each margin).
-  // Constrains zoom within safe bounds (13 to 18) so imagery never exceeds native resolution,
+  // Main map: 13x zoom (75% AOI fit). Remote field review maps: 19x zoom.
+  // Constrains zoom within safe bounds so imagery never exceeds native resolution,
   // overcoming black-screen tile void glitches while maintaining cartographic scale.
-  const fit75PercentAoi = (instance: L.Map, animate = false, enforceMinZoom = false) => {
+  const fit75PercentAoi = (instance: L.Map, animate = false, enforceMinZoom = false, isReviewMap = false) => {
     if (!instance || !(instance as any)._loaded) return
     try {
       const [w, s, e, n] = farmBBox(farm)
@@ -530,19 +646,22 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       const sz = instance.getSize()
       if (!sz || sz.x <= 0 || sz.y <= 0) {
         instance.invalidateSize({ pan: false })
-        instance.setView([farm.lat, farm.lon], 16)
-        return 16
+        instance.setView([farm.lat, farm.lon], isReviewMap ? 19 : 13)
+        return isReviewMap ? 19 : 13
       }
 
       const padX = Math.max(40, Math.round(sz.x * 0.125))
       const padY = Math.max(40, Math.round(sz.y * 0.125))
       const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, (padY + 30) * 2))
-      const safeAoiZoom = Math.min(18, Math.max(13, computedZoom))
+      // Main map: min 13, max 18. Review maps: min 19, max 20
+      const minZoom = isReviewMap ? 19 : 13
+      const maxZoom = isReviewMap ? 20 : 18
+      const safeAoiZoom = Math.min(maxZoom, Math.max(minZoom, computedZoom))
 
       instance.fitBounds(bounds, {
         paddingTopLeft: [padX, padY + 35],
         paddingBottomRight: [padX, padY + 25],
-        maxZoom: 18,
+        maxZoom,
         animate,
       })
 
@@ -551,7 +670,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           try {
             if (instance && (instance as any)._loaded) {
               instance.setMinZoom(safeAoiZoom)
-              instance.setMaxZoom(19)
+              instance.setMaxZoom(maxZoom)
             }
           } catch {}
         }, 50)
@@ -606,7 +725,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
       if (locked) {
         // When locking, fit AOI cleanly and enforce constant zoom scale
-        fit75PercentAoi(m, false, true)
+        fit75PercentAoi(m, false, true, false)
       } else {
         // When unlocking, allow zooming out freely without resetting view or bounds
         m.setMinZoom(3)
@@ -728,6 +847,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       const t = toolRef.current
       if (t.tool === 'borewell') { addBorewell({ farmId: t.farmId, name: `Borewell ${t.n + 1}`, lat, lon: lng, depth: 90, level: 25, yieldM3h: 5, hours: 6 }); setTool('none'); return }
       if (t.tool === 'pipeline') { draftRef.current(d => [...d, [lng, lat]]); return }
+      if (t.tool === 'mirror') {
+        setMirrorWindow({ center: [lat, lng], radius: 100, visible: true })
+        setTool('none')
+        return
+      }
       if (rulerOpenRef.current) return
       const values: Record<string, number> = {}
       let inside = false
@@ -1336,6 +1460,16 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </button>
 
         <button
+          className={`ix-tb-btn ${mirrorWindow.visible ? 'on' : ''}`}
+          onClick={() => setMirrorWindow(prev => ({ ...prev, visible: !prev.visible }))}
+          title={mirrorWindow.visible ? 'Hide mirror window' : 'Mirror window: show points/data under cursor'}
+        >
+          <Eye size={15}/>
+          <span>{t('map.mirrorWindow')}</span>
+          <b className="ix-btn-badge">{mirrorWindow.visible ? 'Active' : 'Off'}</b>
+        </button>
+
+        <button
           className={`ix-tb-btn ${layersBoxOpen && layersBoxTab === 'tools' ? 'on' : ''}`}
           onClick={() => {
             if (layersBoxOpen && layersBoxTab === 'tools') {
@@ -1423,7 +1557,36 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       </div>
 
       <div className="ix-wrap">
-        <div ref={element} className="field-map" style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }} />
+        <div
+          ref={element}
+          className="field-map"
+          style={{ backgroundColor: bgMode === 'black' ? '#000000' : bgMode === 'white' ? '#ffffff' : undefined }}
+          onMouseEnter={() => setMouseOverMap(true)}
+          onMouseLeave={() => setMouseOverMap(false)}
+          onMouseMove={(e) => {
+            if (!map.current) return
+            const container = map.current.getContainer()
+            const rect = container.getBoundingClientRect()
+            const containerPoint = L.point(e.clientX - rect.left, e.clientY - rect.top)
+            const latLng = map.current.containerPointToLatLng(containerPoint)
+            setMouseCoords({ lat: latLng.lat, lon: latLng.lng })
+            if (mirrorWindow.visible) {
+              setMirrorWindow(prev => ({ ...prev, center: [latLng.lat, latLng.lng] }))
+            }
+          }}
+        />
+
+        {/* Mirror Window - shows points/data under cursor when active */}
+        {mirrorWindow.visible && mouseOverMap && map.current && (
+          <MirrorWindow
+            map={map.current}
+            farm={farm}
+            center={mirrorWindow.center}
+            radius={mirrorWindow.radius}
+            activeLayers={active.filter(id => !hidden.includes(id))}
+            grids={grids.current}
+          />
+        )}
 
         {/* Announced politely, and never moved into focus, so screen-reader users hear
             that work is happening without being interrupted. */}
@@ -2349,6 +2512,15 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
               <div><strong>{t('map.eeContinue')}</strong><small>{t('map.eeCopyNote')}</small></div>
               <small className="ix-ee-status" role="status">{earthEngineStatus}</small>
               <button onClick={openEarthEngine}><ExternalLink size={14}/>{t('map.eeCopyOpen')}</button>
+              <button
+                type="button"
+                className="ix-studio-btn"
+                onClick={() => window.dispatchEvent(new CustomEvent('seva-open-node-studio'))}
+                title="Launch Visual GEE ⟷ QGIS Dual-Box Workflow Studio"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 6, background: '#0284c7', color: '#fff', border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer', marginTop: 4 }}
+              >
+                <Cpu size={14} /> Open GEE ⟷ QGIS Visual Studio
+              </button>
               {earthEngineNotice && <p role="status">{earthEngineNotice}</p>}
             </div>
             <div className="ix-lb-footer">

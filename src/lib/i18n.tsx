@@ -26,13 +26,22 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     } catch {
       // storage unavailable
     }
+    // Also check sessionStorage as fallback
+    try {
+      const sessionSaved = sessionStorage.getItem(STORE_KEY)
+      if (isLang(sessionSaved)) return sessionSaved
+    } catch {
+      // storage unavailable
+    }
     return 'en'
   })
 
+  // Sync to both localStorage and sessionStorage for maximum persistence
   useEffect(() => {
     document.documentElement.lang = lang
     try {
       localStorage.setItem(STORE_KEY, lang)
+      sessionStorage.setItem(STORE_KEY, lang)
     } catch {
       // storage unavailable
     }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   ArrowDownToLine, Share2, FileSpreadsheet, FileCode, Map, Compass,
-  Check, Copy, ShieldAlert, Landmark, FileText, Upload
+  Check, Copy, ShieldAlert, Landmark, FileText, Upload, Cpu, Download, ExternalLink
 } from 'lucide-react'
 import { decimalToSexagesimal } from 'geolib'
 import type { FarmData } from './lib/seva'
@@ -386,6 +386,49 @@ SEVA.GIS Official Audit Record - https://sevagis.dpdns.org
         <button className="gt-btn" onClick={exportGrafanaDashboard} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#ea580c', cursor: 'pointer' }}>
           <FileCode size={14} /> Grafana Dashboard JSON
         </button>
+      </div>
+
+      {/* SEVA GEE Flow Suite: Desktop GIS Plugins & In-Browser Node Studio */}
+      <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #334155', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 6, background: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+              <Cpu size={16} />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                SEVA GEE Flow Desktop Suite (QGIS 3.x &amp; ArcGIS / ArcMap)
+                <span style={{ fontSize: 10, background: '#16a34a', color: '#fff', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>100% FREE</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                Zero-code Google Earth Engine automation with re-orderable process boxes. Direct raster &amp; vector extraction into your desktop GIS.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('seva-open-node-studio'))}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 6, background: '#0284c7', color: '#fff', border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+          >
+            <Cpu size={14} /> Open In-Browser Studio
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, paddingTop: 10, borderTop: '1px solid #334155' }}>
+          <a
+            href="/plugins/seva_gee_flow_qgis.zip"
+            download="seva_gee_flow_qgis.zip"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: '#1e3a8a', color: '#93c5fd', border: '1px solid #3b82f6', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+          >
+            <Download size={14} /> Download QGIS 3.x Plugin (.zip)
+          </a>
+          <a
+            href="/plugins/seva_gee_flow_arcgis.zip"
+            download="seva_gee_flow_arcgis.zip"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 6, background: '#14532d', color: '#86efac', border: '1px solid #22c55e', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+          >
+            <Download size={14} /> Download ArcGIS Pro / ArcMap Toolbox (.zip)
+          </a>
+        </div>
       </div>
 
       {/* Official Dossiers: Insurance & Bank Reports */}

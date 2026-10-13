@@ -1,15 +1,25 @@
 # SEVA GIS - Google Earth Engine tile service
 from __future__ import annotations
-import asyncio, hashlib, json, logging, os, time
+import asyncio, hashlib, io, json, logging, os, time, urllib.request
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
 import math
 from typing import Any, Literal, Optional
 import ee
+import numpy as np
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
+
+# Works both when run as `main:app` from this directory (the container layout) and
+# when imported as `backend.main` from the repository root.
+try:
+    from . import llm
+    from .hydro import analyse_streams
+except ImportError:  # pragma: no cover - depends on how the process was started
+    import llm
+    from hydro import analyse_streams
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s")
 log = logging.getLogger("seva-gee")
@@ -161,16 +171,36 @@ def _comp(col: ee.ImageCollection, method: str) -> ee.Image:
     if method == "max_ndvi": return col.qualityMosaic("B8")
     return col.median()
 
+def modernize_tile_url(url: str) -> str:
+    """Rewrite a legacy Earth Engine tile URL to the current `/v1` tile endpoint.
+
+    Earth Engine retired `earthengine.googleapis.com/map/<mapid>/{z}/{x}/{y}?token=`,
+    which now answers 404. Only `.../v1/<mapid>/tiles/{z}/{x}/{y}` serves imagery, so
+    every URL this service hands out (and every cached one) is normalised first.
+    """
+    if not url:
+        return url
+    marker = "/map/"
+    if "earthengine.googleapis.com" in url and marker in url:
+        head, _, rest = url.partition(marker)
+        mapid = rest.split("/{z}")[0].split("?")[0]
+        if mapid and not mapid.startswith("projects/"):
+            mapid = f"projects/earthengine-legacy/maps/{mapid}"
+        return f"{head}/v1/{mapid}/tiles/{{z}}/{{x}}/{{y}}"
+    return url
+
+
 def _tileurl(mid: dict) -> str:
-    if "urlFormat" in mid and mid["urlFormat"]:
-        return mid["urlFormat"]
-    if "tile_fetcher" in mid and hasattr(mid["tile_fetcher"], "url_format"):
-        return mid["tile_fetcher"].url_format
+    """Return a modern, working XYZ tile template for an Earth Engine map id."""
+    url_format = mid.get("urlFormat")
+    if not url_format and "tile_fetcher" in mid and hasattr(mid["tile_fetcher"], "url_format"):
+        url_format = mid["tile_fetcher"].url_format
+    if url_format:
+        return modernize_tile_url(url_format)
     mapid = mid.get("mapid", "")
-    token = mid.get("token", "")
-    if mapid.startswith("projects/"):
-        return f"https://earthengine.googleapis.com/v1/{mapid}/tiles/{{z}}/{{x}}/{{y}}"
-    return f"https://earthengine.googleapis.com/map/{mapid}/{{z}}/{{x}}/{{y}}?token={token}"
+    if mapid and not mapid.startswith("projects/"):
+        mapid = f"projects/earthengine-legacy/maps/{mapid}"
+    return f"https://earthengine.googleapis.com/v1/{mapid}/tiles/{{z}}/{{x}}/{{y}}"
 
 def _dr(req: Any) -> tuple[date, date]:
     today = date.today()
@@ -261,6 +291,8 @@ class DemReq(PolyBase):
 class AlertReq(PolyBase):
     mode: ModeLit = "latest"
     date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     max_cloud: int = Field(default=40, ge=0, le=100)
     ndvi_threshold: float = Field(default=0.3, ge=-1.0, le=1.0)
     alert_pct: float = Field(default=30.0, ge=1.0, le=100.0)
@@ -279,6 +311,50 @@ class GeeRenderReq(BaseModel):
     preset: str = "trueColor"
     padM: Optional[int] = Field(default=20, ge=0, le=500)
     pad_m: Optional[int] = None
+
+# --- Desktop plugin planning (no Earth Engine required) ---
+class InterpretReq(BaseModel):
+    """One sentence per box, exactly as the user typed it."""
+    sentences: list[str] = Field(min_length=1, max_length=40)
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    max_cloud: Optional[int] = Field(default=None, ge=0, le=100)
+
+# --- Vector-producing operations ---
+class ZonesReq(PolyBase):
+    mode: ModeLit = "latest"
+    date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    max_cloud: int = Field(default=30, ge=0, le=100)
+    indicator_id: str = Field(default="ndvi", max_length=24)
+    level: Literal["low", "high"] = "low"
+    classes: int = Field(default=1, ge=1, le=5)
+    class_mode: Literal["quantile", "absolute"] = "quantile"
+    threshold: Optional[float] = Field(default=None, ge=-10000, le=10000)
+    scale: int = Field(default=20, ge=10, le=120)
+    min_hectares: float = Field(default=0.5, ge=0.0, le=10000.0)
+    max_features: int = Field(default=300, ge=1, le=2000)
+    color: Optional[str] = Field(default=None, max_length=9)
+
+class StreamsReq(PolyBase):
+    percentile: float = Field(default=96.0, ge=80.0, le=99.5)
+    target_meters: int = Field(default=30, ge=10, le=120)
+    max_dimension: int = Field(default=512, ge=64, le=1024)
+    min_points: int = Field(default=3, ge=2, le=20)
+
+class CandidatesReq(PolyBase):
+    kind: Literal["hotspot", "water", "fallow", "built", "linear"] = "hotspot"
+    mode: ModeLit = "latest"
+    date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    max_cloud: int = Field(default=30, ge=0, le=100)
+    threshold: Optional[float] = Field(default=None, ge=-10000, le=10000)
+    scale: int = Field(default=20, ge=10, le=120)
+    min_hectares: float = Field(default=0.5, ge=0.0, le=10000.0)
+    max_features: int = Field(default=300, ge=1, le=2000)
+    color: Optional[str] = Field(default=None, max_length=9)
 
 # === Middleware ===
 @app.middleware("http")
@@ -663,6 +739,436 @@ async def lulc(request: Request, body: LulcReq) -> dict:
     try: return await asyncio.to_thread(_compute)
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, f"LULC error: {exc}") from exc
+
+
+class ExportReq(PolyBase):
+    """A real, georeferenced GeoTIFF of one product over the area of interest."""
+    mode: ModeLit = "latest"
+    date: Optional[date] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    max_cloud: int = Field(default=30, ge=0, le=100)
+    indicator_id: Optional[str] = Field(default=None, max_length=24)
+    band_combination: Optional[BandComboLit] = None
+    dem_layer: Optional[DemLit] = None
+    land_cover: bool = False
+    scale: int = Field(default=10, ge=10, le=120)
+
+
+@app.post("/api/earth-engine/export")
+async def export(request: Request, body: ExportReq) -> dict:
+    """Hand back a download URL for a GeoTIFF of the area of interest.
+
+    Desktop GIS wants real files, not just tiles: this is what lets ArcGIS and QGIS
+    open the same product as a raster, and what a user saves for later analysis.
+    Raw band values are exported, never a colour rendering, so the numbers mean
+    something when the file is opened elsewhere.
+    """
+    _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
+    start, end = _dr(body)
+    product = body.indicator_id or body.band_combination or body.dem_layer or ("lulc" if body.land_cover else None)
+    if not product:
+        raise HTTPException(422, "Ask for one of indicator_id, band_combination, dem_layer or land_cover.")
+    if body.indicator_id and body.indicator_id not in INDICATORS:
+        raise HTTPException(422, f"Unknown indicator: {body.indicator_id}")
+
+    def _build() -> dict:
+        field = _geom(body.coordinates)
+        if body.dem_layer:
+            image, source, scenes = _dem_layers(field)[body.dem_layer][0], "COPERNICUS/DEM/GLO30", None
+        elif body.land_cover:
+            collection = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+                          .filterBounds(field)
+                          .filterDate(start.isoformat(), (end + timedelta(days=1)).isoformat()))
+            scenes = collection.size().getInfo()
+            if scenes == 0:
+                raise HTTPException(404, "No Dynamic World scenes for this area and window.")
+            image, source = collection.select("label").mode().clip(field).rename("land_cover"), "GOOGLE/DYNAMICWORLD/V1"
+        else:
+            collection = _s2col(field, start, end, body.max_cloud)
+            scenes = collection.size().getInfo()
+            if scenes == 0:
+                raise HTTPException(404, "No Sentinel-2 scenes in this window. Widen the dates or raise the cloud limit.")
+            composite = _comp(collection, "median").clip(field)
+            if body.band_combination:
+                bands = BAND_COMBOS[body.band_combination]
+                image, source = composite.divide(10000).select(bands), "GEE/COPERNICUS/S2_SR_HARMONIZED"
+            else:
+                image, source = _ind_img(composite, body.indicator_id), "GEE/COPERNICUS/S2_SR_HARMONIZED"
+
+        ring = field.bounds(1).coordinates().getInfo()[0]
+        lons = [point[0] for point in ring]
+        lats = [point[1] for point in ring]
+        bounds = [min(lons), min(lats), max(lons), max(lats)]
+        url = image.getDownloadURL(
+            {
+                "region": [[point[0], point[1]] for point in body.coordinates],
+                "scale": body.scale,
+                "crs": "EPSG:4326",
+                "format": "GEO_TIFF",
+                "filePerBand": False,
+            }
+        )
+        if isinstance(url, dict):
+            url = url.get("url", "")
+        return {
+            "downloadUrl": url,
+            "format": "GEO_TIFF",
+            "crs": "EPSG:4326",
+            "scaleMeters": body.scale,
+            "bounds": bounds,
+            "product": product,
+            "source": source,
+            "sceneCount": scenes,
+            "startDate": start.isoformat(),
+            "endDate": end.isoformat(),
+            "maxCloud": body.max_cloud,
+            "note": (
+                "Raw values, not a colour rendering. The link is short-lived: download it immediately. "
+                "Earth Engine caps how many pixels one request may return, so lower the scale for a very large area."
+            ),
+        }
+
+    try:
+        return await asyncio.to_thread(_build)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, f"Export error: {exc}") from exc
+
+
+# === Desktop plugin planning ===
+llm.configure(indicators=list(INDICATORS.keys()), band_combinations=list(BAND_COMBOS.keys()))
+
+@app.post("/api/earth-engine/interpret")
+async def interpret(request: Request, body: InterpretReq) -> dict:
+    """Turn one sentence per box into a validated operation plan.
+
+    Deliberately independent of Earth Engine: a model outage or an unconfigured
+    provider degrades to the deterministic planner instead of failing the request.
+    """
+    _check_rate(request.client.host if request.client else "x")
+    defaults = {
+        "start_date": body.start_date.isoformat() if body.start_date else None,
+        "end_date": body.end_date.isoformat() if body.end_date else None,
+        "max_cloud": body.max_cloud,
+    }
+    result = await asyncio.to_thread(llm.interpret, body.sentences, defaults)
+    result["planVersion"] = llm.PLAN_VERSION
+    result["providerConfigured"] = bool(llm.provider_config())
+    return result
+
+# === Vector-producing operations ===
+ZONE_LIMITATION = (
+    "Zones are classes of the chosen indicator over the selected dates on the stated sensor "
+    "resolution, not a site survey. Change the dates or the class count and the boundaries move. "
+    "Treat every polygon as a lead for field verification."
+)
+CANDIDATE_NOTES = {
+    "hotspot": "Lowest-ranked pixels of the vegetation signal: the first places to walk, not a confirmed diagnosis.",
+    "water": "Surface water detected from the water-sensitive bands. Depth is not measured and water under vegetation or below ground is invisible.",
+    "fallow": "Bare and sparsely vegetated cover suggested by the soil and vegetation ratios; freshly worked soil and dry stubble look the same.",
+    "built": "Built-up surface suggested by the short-wave infrared ratio; bare rock and dry salt pans share the signature.",
+    "linear": (
+        "Candidate alignment corridors (roads, canals, bunds, tracks) from edge strength. "
+        "Individual poles, cables, pipes and any structure narrower than the pixel size cannot "
+        "be resolved in this imagery and must be surveyed on the ground."
+    ),
+}
+
+
+def _sensor_resolution_m() -> float:
+    return 10.0  # Sentinel-2 L2A native ground sample distance for the visible/NIR bands.
+
+
+def _hectares(pixel_count: float, scale: int) -> float:
+    return round(float(pixel_count) * float(scale) * float(scale) / 10000.0, 3)
+
+
+def _vectorise(mask: ee.Image, field: ee.Geometry, scale: int, min_pixels: int, max_features: int) -> dict:
+    """Polygonise a binary mask inside the area of interest, dropping slivers.
+
+    Vertex counts are bounded on purpose: a polygon per pixel over a large area would
+    produce a payload no desktop client can absorb, so the response states when it
+    truncated instead of silently returning part of the answer.
+    """
+    # reduceToVectors writes the reduced value under labelProperty, so the pixel count
+    # is named here rather than assumed to appear as "count".
+    vectors = mask.selfMask().reduceToVectors(
+        geometry=field,
+        scale=scale,
+        geometryType="polygon",
+        eightConnected=True,
+        labelProperty="pixels",
+        reducer=ee.Reducer.countEvery(),
+        maxPixels=1_000_000_000,
+        bestEffort=True,
+        tileScale=4,
+    )
+    kept = vectors.filter(ee.Filter.gte("pixels", max(1, min_pixels)))
+    total = kept.size().getInfo()
+    selected = kept.limit(int(max_features))
+    info = selected.getInfo()
+
+    features = []
+    vertex_budget = 200_000
+    truncated_for_size = False
+    for feature in info.get("features", []):
+        geometry = feature.get("geometry") or {}
+        rings = geometry.get("coordinates") or []
+        vertices = sum(len(ring) for ring in rings)
+        if vertex_budget - vertices < 0:
+            truncated_for_size = True
+            break
+        vertex_budget -= vertices
+        count = (feature.get("properties") or {}).get("pixels", 0)
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": geometry,
+                "properties": {"pixels": count, "hectares": _hectares(count, scale)},
+            }
+        )
+
+    return {
+        "features": features,
+        "reportedFeatures": int(total),
+        "returnedFeatures": len(features),
+        "truncated": truncated_for_size or int(total) > int(max_features),
+    }
+
+
+def _quantile_breaks(image: ee.Image, field: ee.Geometry, scale: int, classes: int) -> list[float]:
+    if classes <= 1:
+        return []
+    percentiles = [100.0 * index / classes for index in range(1, classes)]
+    raw = image.reduceRegion(
+        reducer=ee.Reducer.percentile(percentiles),
+        geometry=field,
+        scale=scale,
+        maxPixels=1_000_000_000,
+        bestEffort=True,
+    ).getInfo()
+    return sorted(value for value in raw.values() if value is not None)
+
+
+@app.post("/api/earth-engine/zones")
+async def zones(request: Request, body: ZonesReq) -> dict:
+    """Healthy, stressed or hotspot areas as real polygons, plus the raster behind them."""
+    _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
+    if body.indicator_id not in INDICATORS:
+        raise HTTPException(422, f"Unknown indicator: {body.indicator_id}")
+    start, end = _dr(body)
+
+    def _compute() -> dict:
+        field = _geom(body.coordinates)
+        collection = _s2col(field, start, end, body.max_cloud)
+        scenes: int = collection.size().getInfo()
+        if scenes == 0:
+            raise HTTPException(404, "No Sentinel-2 scenes in this window. Widen the dates or raise the cloud limit.")
+        index_image = _ind_img(collection.median().clip(field), body.indicator_id)
+
+        if body.class_mode == "absolute" and body.threshold is not None:
+            cut = float(body.threshold)
+            breaks = [cut]
+        else:
+            breaks = _quantile_breaks(index_image, field, body.scale, body.classes)
+            if not breaks:
+                cuts = index_image.reduceRegion(
+                    reducer=ee.Reducer.percentile([20.0 if body.level == "low" else 80.0]),
+                    geometry=field, scale=body.scale, maxPixels=1_000_000_000, bestEffort=True,
+                ).getInfo()
+                values = [v for v in cuts.values() if v is not None]
+                if not values:
+                    raise HTTPException(404, "Every pixel in this area was masked out (cloud, shadow or nodata).")
+                breaks = [float(values[0])]
+
+        cut = breaks[0] if body.level == "low" else breaks[-1]
+        mask = index_image.lt(cut) if body.level == "low" else index_image.gt(cut)
+        min_pixels = max(1, int(round(body.min_hectares * 10000.0 / (body.scale * body.scale))))
+        result = _vectorise(mask, field, body.scale, min_pixels, body.max_features)
+
+        mean_raw = index_image.updateMask(mask).reduceRegion(
+            reducer=ee.Reducer.mean(), geometry=field, scale=body.scale,
+            maxPixels=1_000_000_000, bestEffort=True,
+        ).getInfo()
+        mean_index = next((v for v in mean_raw.values() if v is not None), None)
+        palette = (INDICATORS[body.indicator_id]["p"][:2] if body.level == "low" else INDICATORS[body.indicator_id]["p"][-2:])
+        mid = mask.selfMask().getMapId({"min": 0, "max": 1, "palette": palette, "format": "png"})
+
+        total_hectares = round(sum(f["properties"]["hectares"] for f in result["features"]), 3)
+        return {
+            "type": "FeatureCollection",
+            "features": result["features"],
+            "cut": round(float(cut), 5),
+            "level": body.level,
+            "indicator": body.indicator_id,
+            "classes": body.classes,
+            "classMode": body.class_mode,
+            "meanIndex": round(float(mean_index), 4) if mean_index is not None else None,
+            "sceneCount": scenes,
+            "startDate": start.isoformat(),
+            "endDate": end.isoformat(),
+            "maxCloud": body.max_cloud,
+            "zoneHectares": total_hectares,
+            "reportedFeatures": result["reportedFeatures"],
+            "returnedFeatures": result["returnedFeatures"],
+            "truncated": result["truncated"],
+            "tileUrl": _tileurl(mid),
+            "source": "GEE/COPERNICUS/S2_SR_HARMONIZED",
+            "scaleMeters": body.scale,
+            "sensorResolutionMeters": _sensor_resolution_m(),
+            "method": "area percentile classes on a median composite, polygonised with reduceToVectors",
+            "limitations": [ZONE_LIMITATION],
+        }
+
+    try:
+        return await asyncio.to_thread(_compute)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, f"Zone error: {exc}") from exc
+
+
+def _dem_grid(field: ee.Geometry, target_meters: int, max_dimension: int):
+    """Download the clipped elevation model as a NumPy array over an exact lon/lat grid.
+
+    ``dimensions`` (not ``scale``) fixes the grid to the requested bounding box, so the
+    row/column to coordinate mapping used later for the stream lines cannot drift by a pixel.
+    """
+    ring = field.bounds(1).coordinates().getInfo()[0]
+    lons = [point[0] for point in ring]
+    lats = [point[1] for point in ring]
+    lon_min, lon_max = min(lons), max(lons)
+    lat_min, lat_max = min(lats), max(lats)
+    mid_lat = (lat_min + lat_max) / 2.0
+    width_m = (lon_max - lon_min) * 111320.0 * math.cos(math.radians(mid_lat))
+    height_m = (lat_max - lat_min) * 110574.0
+    cols = max(16, min(int(max_dimension), int(round(width_m / float(target_meters))) or 16))
+    rows = max(16, min(int(max_dimension), int(round(height_m / float(target_meters))) or 16))
+
+    elevation = (
+        ee.ImageCollection("COPERNICUS/DEM/GLO30")
+        .filterBounds(field)
+        .select("DEM")
+        .mosaic()
+        .clip(field)
+        .rename("elevation")
+    )
+    region = [[lon_min, lat_min], [lon_max, lat_min], [lon_max, lat_max], [lon_min, lat_max]]
+    url = elevation.getDownloadURL(
+        {"region": region, "dimensions": f"{cols}x{rows}", "crs": "EPSG:4326", "format": "NPY"}
+    )
+    with urllib.request.urlopen(url, timeout=180) as response:
+        payload = response.read()
+    array = np.load(io.BytesIO(payload), allow_pickle=False)
+    array = np.asarray(array, dtype=np.float64)
+    if array.ndim == 3:
+        array = array[:, :, 0]
+    return array, (lon_min, lat_min, lon_max, lat_max)
+
+
+@app.post("/api/earth-engine/streams")
+async def streams(request: Request, body: StreamsReq) -> dict:
+    """Stream lines where water flows down the slope, traced on the 30 m elevation model."""
+    _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
+
+    def _compute() -> dict:
+        field = _geom(body.coordinates)
+        array, bounds = _dem_grid(field, body.target_meters, body.max_dimension)
+        valid = np.isfinite(array) & (array > -500.0)
+        features = analyse_streams(
+            array,
+            bounds,
+            valid=valid,
+            threshold_percentile=body.percentile,
+            min_points=body.min_points,
+        )
+        stats = features["stats"]
+        stats["source"] = "COPERNICUS/DEM/GLO30"
+        stats["areaHectares"] = _hectares(float(valid.sum()), body.target_meters)
+        return {"type": "FeatureCollection", "features": features["features"], "stats": stats}
+
+    try:
+        return await asyncio.to_thread(_compute)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, f"Stream error: {exc}") from exc
+
+
+@app.post("/api/earth-engine/candidates")
+async def candidates(request: Request, body: CandidatesReq) -> dict:
+    """Candidate features for field verification, with the uncertainty stated outright."""
+    _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
+    start, end = _dr(body)
+
+    def _compute() -> dict:
+        field = _geom(body.coordinates)
+        collection = _s2col(field, start, end, body.max_cloud)
+        scenes: int = collection.size().getInfo()
+        if scenes == 0:
+            raise HTTPException(404, "No Sentinel-2 scenes in this window. Widen the dates or raise the cloud limit.")
+        composite = collection.median().clip(field)
+        baseline = _ind_img(composite, "ndvi")
+        cut = body.threshold
+
+        if body.kind == "hotspot":
+            cut = cut if cut is not None else (_quantile_breaks(baseline, field, body.scale, 4) or [0.25])[0]
+            mask = baseline.lt(cut)
+            palette = ["1a9850", "d73027"]
+        elif body.kind == "water":
+            water = _ind_img(composite, "mndwi")
+            cut = cut if cut is not None else 0.0
+            mask = water.gt(cut)
+            palette = ["d7191c", "2c7bb6"]
+        elif body.kind == "fallow":
+            bare = _ind_img(composite, "bsi")
+            cut = cut if cut is not None else 0.0
+            mask = bare.gt(cut)
+            palette = ["006837", "fee08b"]
+        elif body.kind == "built":
+            built = _ind_img(composite, "ndbi")
+            cut = cut if cut is not None else 0.05
+            mask = built.gt(cut)
+            palette = ["d9ef8b", "a50026"]
+        else:  # linear alignment corridors from edge strength
+            natural = composite.divide(10000).select(["B8", "B4", "B3"])
+            edges = ee.Algorithms.CannyEdgeDetector(natural.visualize(min=0.02, max=0.4, bands=["B8", "B4", "B3"]), 0.6, 0.7)
+            mask = edges.gt(0).focal_max(1, "square", "meters")
+            cut = None
+            palette = ["000000", "f46d43"]
+
+        min_pixels = max(1, int(round(body.min_hectares * 10000.0 / (body.scale * body.scale))))
+        result = _vectorise(mask, field, body.scale, min_pixels, body.max_features)
+        mid = mask.selfMask().getMapId({"min": 0, "max": 1, "palette": palette, "format": "png"})
+
+        return {
+            "type": "FeatureCollection",
+            "features": result["features"],
+            "kind": body.kind,
+            "cut": round(float(cut), 5) if cut is not None else None,
+            "candidateHectares": round(sum(f["properties"]["hectares"] for f in result["features"]), 3),
+            "sceneCount": scenes,
+            "startDate": start.isoformat(),
+            "endDate": end.isoformat(),
+            "reportedFeatures": result["reportedFeatures"],
+            "returnedFeatures": result["returnedFeatures"],
+            "truncated": result["truncated"],
+            "tileUrl": _tileurl(mid),
+            "source": "GEE/COPERNICUS/S2_SR_HARMONIZED",
+            "scaleMeters": body.scale,
+            "sensorResolutionMeters": _sensor_resolution_m(),
+            "status": "candidate",
+            "limitations": [CANDIDATE_NOTES[body.kind], "Every feature is unconfirmed until verified on the ground."],
+        }
+
+    try:
+        return await asyncio.to_thread(_compute)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(502, f"Candidate error: {exc}") from exc
 
 
 @app.delete("/api/cache")

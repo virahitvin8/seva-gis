@@ -1,0 +1,16 @@
+[general]
+name=SEVA·GEE Flow
+qgisMinimumVersion=3.0
+description=No-code visual query box workflow for Google Earth Engine. Automate satellite ingestion, spectral indices (NDVI/EVI/SAVI/NDWI), stress hotspot polygonization, water drainage vectors, and infrastructure mapping directly into QGIS layers.
+version=2.0.0
+author=SEVA GIS Project
+email=support@sevagis.org
+about=SEVA·GEE Flow is a zero-friction Google Earth Engine integration for desktop GIS. Eliminates JavaScript coding by using modular re-orderable query boxes. Freely available to the public.
+tracker=https://github.com/virahitvin8/seva-gis/issues
+repository=https://github.com/virahitvin8/seva-gis
+tags=remote sensing, earth engine, gee, satellite, sentinel-2, ndvi, ndwi, agriculture, hydrology, watershed, automation
+homepage=https://sevagis.dpdns.org
+category=Raster
+icon=icon.png
+experimental=False
+deprecated=False

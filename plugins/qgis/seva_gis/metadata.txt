@@ -1,0 +1,17 @@
+[general]
+name=SEVA.GIS Query Boxes
+qgisMinimumVersion=3.10
+qgisMaximumVersion=3.99
+description=Type one plain sentence per box and get the layer, in order, in your QGIS panel. No Google Earth Engine account, no JavaScript, no API key: the plugin talks to the free SEVA.GIS service.
+version=2.0.0
+author=N. Akshit Vinay
+email=akshitvinay4636@gmail.com
+about=SEVA.GIS (Spatial Evaluation & Vegetation Analytics) turns sentences such as "NDVI", "true colour", "danger zones", "streams where water flows" or "make a red boundary line" into real layers on your QGIS map, in the order you arranged them. Boxes can be added with +, switched off, reordered by dragging or with the up and down arrows, and every layer arrives with its source, dates, resolution and limitations attached. Free and open to everyone: research scholars, GIS analysts, surveyors, agricultural officers, hydrologists and anyone curious about a piece of land.
+category=Raster
+tags=google earth engine,sentinel-2,satellite,ndvi,land cover,streams,zones,dem,vegetation,free,no-api-key
+homepage=https://github.com/virahitvin8/seva-gis
+tracker=https://github.com/virahitvin8/seva-gis/issues
+repository=https://github.com/virahitvin8/seva-gis
+icon=icon.png
+experimental=False
+deprecated=False

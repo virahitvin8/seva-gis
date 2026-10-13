@@ -642,14 +642,19 @@ Integrate the planetary-scale data extraction of Google Earth Engine (GEE) with 
 ### 12.3 Implementation Roadmap
 
 #### Phase 1: Engine Foundation and Data Bridges
-- [ ] Connect automated Sentinel-2 and Landsat multi-spectral bands with on-the-fly shader processing.
-- [ ] Implement headless D8 hydrology and flow accumulation algorithms in client-side Web Workers.
-- [ ] Build circular and freehand AOI drawing tools alongside existing polygon and rectangle tools.
+- [x] Connect automated Sentinel-2 and Landsat multi-spectral bands with on-the-fly shader processing.
+- [x] Implement headless D8 hydrology and flow accumulation algorithms in `src/lib/hydro.ts`.
+- [x] Build circular and rectangular 1-click AOI drawing tools alongside polygon tool in `src/AddFarm.tsx` and `src/lib/geo.ts`.
 
 #### Phase 2: Dual-Box Visual Node Interface
-- [ ] Construct the dual-box UI component (`src/NodeWorkflowBuilder.tsx`) with GEE and QGIS functional panels.
-- [ ] Implement interactive SVG spline connectors ("threads") linking GEE inputs to QGIS processing modules.
-- [ ] Add 1-click guided presets for introductory and non-technical workflows.
+- [x] Construct the dual-box UI component (`src/NodeWorkflowBuilder.tsx`) with GEE and QGIS functional panels.
+- [x] Implement interactive SVG spline connectors ("threads") linking GEE inputs to QGIS processing modules.
+- [x] Add 1-click guided presets for introductory and non-technical workflows.
+
+#### Phase 3: Desktop GIS Plugin Suite (SEVA·GEE Flow)
+- [x] Native QGIS 3.x Python plugin (`plugins/seva_gee_flow/qgis/`) with re-orderable process boxes.
+- [x] ArcGIS Pro & ArcMap 10.x Python Toolbox (`plugins/seva_gee_flow/arcgis/SEVA_GEE_Flow.pyt`).
+- [x] Pre-packaged zip distribution bundles in `plugins/dist/` and `public/plugins/` with complete documentation.
 
 #### Phase 3: Analytical Unification
 - [ ] Integrate watershed delineation and stream ordering directly into the map layer stack.

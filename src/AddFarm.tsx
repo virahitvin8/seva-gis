@@ -288,7 +288,103 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
       ))}
     </div>
     <div ref={box} className="add-map"/>
-    {tab === 'draw' && <div className="add-help"><span>Click the map to outline your farm, one point per corner. Zoom in for accuracy.</span><button type="button" onClick={() => setDrawn(c => c.slice(0, -1))}><Undo2 size={13}/>Undo</button><button type="button" onClick={() => setDrawn([])}><Eraser size={13}/>Clear</button></div>}
+    {tab === 'draw' && (
+      <div className="add-help" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#334155' }}>AOI Shape:</span>
+            <button
+              type="button"
+              className={drawShape === 'polygon' ? 'on' : ''}
+              onClick={() => setDrawShape('polygon')}
+              style={{
+                padding: '3px 8px',
+                fontSize: 11,
+                borderRadius: 6,
+                fontWeight: 600,
+                border: '1px solid ' + (drawShape === 'polygon' ? '#2e7d32' : '#cbd5e1'),
+                background: drawShape === 'polygon' ? '#2e7d32' : '#fff',
+                color: drawShape === 'polygon' ? '#fff' : '#334155'
+              }}
+            >
+              Polygon (Vertices)
+            </button>
+            <button
+              type="button"
+              className={drawShape === 'circle' ? 'on' : ''}
+              onClick={() => setDrawShape('circle')}
+              style={{
+                padding: '3px 8px',
+                fontSize: 11,
+                borderRadius: 6,
+                fontWeight: 600,
+                border: '1px solid ' + (drawShape === 'circle' ? '#2e7d32' : '#cbd5e1'),
+                background: drawShape === 'circle' ? '#2e7d32' : '#fff',
+                color: drawShape === 'circle' ? '#fff' : '#334155'
+              }}
+            >
+              Circle (1-Click)
+            </button>
+            <button
+              type="button"
+              className={drawShape === 'square' ? 'on' : ''}
+              onClick={() => setDrawShape('square')}
+              style={{
+                padding: '3px 8px',
+                fontSize: 11,
+                borderRadius: 6,
+                fontWeight: 600,
+                border: '1px solid ' + (drawShape === 'square' ? '#2e7d32' : '#cbd5e1'),
+                background: drawShape === 'square' ? '#2e7d32' : '#fff',
+                color: drawShape === 'square' ? '#fff' : '#334155'
+              }}
+            >
+              Box (1-Click)
+            </button>
+          </div>
+          {drawShape !== 'polygon' && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Radius:</span>
+              {[100, 200, 500, 1000].map(rad => (
+                <button
+                  key={rad}
+                  type="button"
+                  onClick={() => setShapeRadius(rad)}
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: 10,
+                    borderRadius: 4,
+                    border: '1px solid ' + (shapeRadius === rad ? '#15803d' : '#cbd5e1'),
+                    background: shapeRadius === rad ? '#15803d' : '#f8fafc',
+                    color: shapeRadius === rad ? '#fff' : '#334155',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {rad}m
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#475569' }}>
+            {drawShape === 'polygon'
+              ? 'Click map to place boundary corner points. Zoom in for accuracy.'
+              : `Click any location on map to instantly place a ${drawShape === 'circle' ? 'circle' : 'box'} boundary (${shapeRadius}m radius).`}
+          </span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {drawShape === 'polygon' && (
+              <button type="button" onClick={() => setDrawn(c => c.slice(0, -1))}>
+                <Undo2 size={13}/>Undo
+              </button>
+            )}
+            <button type="button" onClick={() => setDrawn([])}>
+              <Eraser size={13}/>Clear
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     {tab === 'point' && <div className="add-gps"><small>Paste a decimal or degrees/minutes/seconds coordinate to inspect a location remotely, or use this device’s GPS. A pin helps centre the imagery; draw or upload the field outline to measure its area.</small><div className="corner-grid point-grid"><div><span>Latitude</span><input type="text" inputMode="decimal" maxLength={32} placeholder="23.241 or 23° 14′ 28″ N" value={pointLat} onChange={event => setPointLat(event.target.value)}/><span>Longitude</span><input type="text" inputMode="decimal" maxLength={32} placeholder="78.164 or 78° 9′ 50″ E" value={pointLon} onChange={event => setPointLon(event.target.value)}/></div></div><div className="fix">{gpsMsg || (pointed.length ? `Pin: ${pointed[0][1].toFixed(6)}, ${pointed[0][0].toFixed(6)} · area not measured` : 'No location has been selected.')}</div><div className="row"><button type="button" className="go" onClick={useEnteredPoint}><MapPinned size={14}/>Show coordinate</button><button type="button" className="go" onClick={useCurrentLocation}><LocateFixed size={14}/>Use device GPS</button></div></div>}
     {tab === 'walk' && <div className="add-gps">
       <small>Stand at one corner of your farm and press <b>Add waypoint</b>. Walk along the boundary and add a waypoint at every corner. We join them into your farm shape. Stand still for a few seconds first so the GPS settles.</small>

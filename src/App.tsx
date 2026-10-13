@@ -2,7 +2,7 @@ import { lazy, startTransition, Suspense, useEffect, useMemo, useRef, useState }
 import 'leaflet/dist/leaflet.css'
 import FinancialSummaryTerminal from './FinancialSummaryTerminal'
 import PopTheTeamModal from './PopTheTeamModal'
-import { AlertTriangle, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save, Wand2, Palette } from 'lucide-react'
+import { AlertTriangle, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save, Wand2, Palette, Cpu } from 'lucide-react'
 
 import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
@@ -57,6 +57,7 @@ const DataManager = lazyWithRetry(() => import('./DataManager'))
 const ReportPanel = lazyWithRetry(() => import('./ReportPanel'))
 const ProGisExport = lazyWithRetry(() => import('./ProGisExport'))
 const VillageView = lazyWithRetry(() => import('./VillageView'))
+const NodeWorkflowBuilder = lazyWithRetry(() => import('./NodeWorkflowBuilder'))
 
 function AoiShape({ farm }: { farm: Parameters<typeof farmRing>[0]; good?: boolean }) {
   const ring = farmRing(farm), k = Math.cos((ring[0][1] * Math.PI) / 180)
@@ -135,6 +136,7 @@ export default function App() {
   selectedRef.current = selected
   const [modal, setModal] = useState('')
   const [showTerminal, setShowTerminal] = useState(false)
+  const [showNodeStudio, setShowNodeStudio] = useState(false)
   const [sectionOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('seva-dashboard-layout')
@@ -408,31 +410,37 @@ export default function App() {
     const controller = new AbortController()
     inFlightAbortRef.current.set(target.id, controller)
 
-    const runId = (refreshRun.current.get(target.id) ?? 0) + 1
-    refreshRun.current.set(target.id, runId)
-    attempted.current.add(target.id)
-    weeklyTried.current.delete(target.id)
-    setLoadingFarmIds(current => current.includes(target.id) ? current : [...current, target.id])
-    if (selectedRef.current === target.id) setMessage('Searching Sentinel-2 scenes that cover your whole farm…')
-    const [weather, satellite] = await Promise.allSettled([
-      loadWeather(target, controller.signal),
-      analyze(target, o, controller.signal)
-    ])
-    inFlightAbortRef.current.delete(target.id)
-    if (refreshRun.current.get(target.id) !== runId || controller.signal.aborted) return
-    setFarms(current => current.map(item => {
-      if (item.id !== target.id) return item
-      const next: Farm = { ...item }
-      if (weather.status === 'fulfilled') Object.assign(next, weather.value)
-      if (satellite.status === 'fulfilled') {
-        const a = satellite.value
-        Object.assign(next, { analysis: a, ndvi: Number(a.ndvi.mean.toFixed(2)), status: farmStatus(a) })
+    try {
+      const runId = (refreshRun.current.get(target.id) ?? 0) + 1
+      refreshRun.current.set(target.id, runId)
+      attempted.current.add(target.id)
+      weeklyTried.current.delete(target.id)
+      setLoadingFarmIds(current => current.includes(target.id) ? current : [...current, target.id])
+      if (selectedRef.current === target.id) setMessage('Searching Sentinel-2 scenes that cover your whole farm…')
+      const [weather, satellite] = await Promise.allSettled([
+        loadWeather(target, controller.signal),
+        analyze(target, o, controller.signal)
+      ])
+      if (refreshRun.current.get(target.id) !== runId || controller.signal.aborted) return
+      setFarms(current => current.map(item => {
+        if (item.id !== target.id) return item
+        const next: Farm = { ...item }
+        if (weather.status === 'fulfilled') Object.assign(next, weather.value)
+        if (satellite.status === 'fulfilled') {
+          const a = satellite.value
+          Object.assign(next, { analysis: a, ndvi: Number(a.ndvi.mean.toFixed(2)), status: farmStatus(a) })
+        }
+        return next
+      }))
+      const reason = satellite.status === 'rejected' ? (satellite.reason instanceof Error ? satellite.reason.message : 'Satellite service unavailable') : ''
+      if (selectedRef.current === target.id && !controller.signal.aborted) {
+        setMessage(satellite.status === 'fulfilled' ? `Live Sentinel-2 analysis complete (${new Date(satellite.value.scene.datetime).toLocaleDateString()}, ${satellite.value.scene.cloud}% cloud${satellite.value.scene.filled ? `, gaps filled from ${satellite.value.scene.filled} other pass${satellite.value.scene.filled > 1 ? 'es' : ''}` : ''}).${weather.status === 'rejected' ? ' Weather could not be fetched.' : ''}` : `Satellite analysis failed: ${reason}. Existing values are unchanged.`)
       }
-      return next
-    }))
-    const reason = satellite.status === 'rejected' ? (satellite.reason instanceof Error ? satellite.reason.message : 'Satellite service unavailable') : ''
-    if (selectedRef.current === target.id && !controller.signal.aborted) {
-      setMessage(satellite.status === 'fulfilled' ? `Live Sentinel-2 analysis complete (${new Date(satellite.value.scene.datetime).toLocaleDateString()}, ${satellite.value.scene.cloud}% cloud${satellite.value.scene.filled ? `, gaps filled from ${satellite.value.scene.filled} other pass${satellite.value.scene.filled > 1 ? 'es' : ''}` : ''}).${weather.status === 'rejected' ? ' Weather could not be fetched.' : ''}` : `Satellite analysis failed: ${reason}. Existing values are unchanged.`)
+    } finally {
+      // Ensure controller is cleaned up from map (but only if it's still the current controller for this farm)
+      if (inFlightAbortRef.current.get(target.id) === controller) {
+        inFlightAbortRef.current.delete(target.id)
+      }
     }
     setLoadingFarmIds(current => current.filter(id => id !== target.id))
   }
@@ -497,6 +505,7 @@ export default function App() {
     if (text === 'Alerts') return setModal('alerts')
     if (text === 'Reports') return setModal('reports')
     if (text === 'Terminal') return setShowTerminal(true)
+    if (text === 'NodeStudio' || text.includes('GEE')) return setShowNodeStudio(true)
     const id = text === 'Overview' ? 'top' : text === 'My farms' ? 'my-farms' : 'crop-journal'
     requestAnimationFrame(() => (id === 'top' ? window.scrollTo({ top: 0, behavior: 'smooth' }) : document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })))
   }

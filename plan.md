@@ -552,5 +552,18 @@ SEVA.GIS is ready for public deployment only when:
 - [x] 3-Step Production Workflow Roadmap (Draw/Ingest AOI -> Stream Rasters -> Inspect & Auto-Sync).
 - [x] Responsive glassmorphism cards and micro-interaction hover elevations in `src/index.css`.
 
+### Checklist 11: Comprehensive Stability, Image Clarity & Rebranding Release
+- [x] High-clarity raster rendering: switched canvas interpolation to high quality smoothing and lossless format in `src/lib/raster.ts` and set overlay `imageRendering = 'auto'` in `src/IndicatorMap.tsx`.
+- [x] Agronomy parameters essential view: default limit of 5 essential weather parameters and 4 soil parameters with interactive toggle in `src/AgroPanel.tsx`.
+- [x] Added Evapotranspiration (ET) as essential top metric and locked unit of estimated daily drop to `mm/day` in `src/lib/agro.ts`.
+- [x] Guide tutorial rebranded to NAVI across `src/Mitra.tsx`, `src/App.tsx`, and English/Hindi/Telugu catalogs (`src/lib/i18nCatalog.ts`).
+- [x] Pop the Team privacy and reliability overhaul in `src/PopTheTeamModal.tsx`: hid exposed emails, made contact email collapsed, added image attachments and map screenshot capture, and provided direct Gmail Web compose + local report downloads.
+- [x] Google Earth 3D focus option: integrated Google Earth 3D orbit button launching `Walk3D.tsx` in `src/IndicatorMap.tsx` and added responsive `.farm-workspace.map-focus` styles in `src/index.css`.
+- [x] Borewell & pipeline layer synchronization: added `mapObj` to layer rendering dependencies in `src/IndicatorMap.tsx` and added quick "+ Add Borewell" action in `src/WaterPanel.tsx`.
+- [x] Dynamic chunk import error resilience: integrated `vite:preloadError` listener in `src/main.tsx` and retry wrapper `lazyWithRetry()` in `src/App.tsx`.
+- [x] Indian Gen Z greeting style: updated greeting options in `src/lib/greet.ts`.
+- [x] `is-a.bot` free domain: configured `domains/is-a-bot/domains/sevagis.json` pointing CNAME to `sevagis.dpdns.org`.
+- [x] Git updates, commits, and GitHub deployment: successfully pushed commit `c712665` to `origin/main`.
+
 
 

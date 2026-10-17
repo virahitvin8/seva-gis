@@ -72,18 +72,8 @@ jobs:
           VITE_EE_API_URL: https://seva-gis-backend-419602015618.us-central1.run.app
         run: npm run build
 
-      - name: Deploy to Firebase Hosting (Action)
-        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SEVA_GIS_BACKEND_E724A != '' || secrets.FIREBASE_SERVICE_ACCOUNT != '' || secrets.GCP_SA_KEY != '' }}
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SEVA_GIS_BACKEND_E724A || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GCP_SA_KEY }}'
-          projectId: seva-gis-backend-e724a
-          channelId: live
-        continue-on-error: true
-
-      - name: Deploy to Firebase Hosting (CLI Token)
-        if: ${{ secrets.FIREBASE_TOKEN != '' }}
+      - name: Deploy to Firebase Hosting
+        if: env.FIREBASE_TOKEN != ''
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
@@ -91,24 +81,29 @@ jobs:
         continue-on-error: true
 
   # =============================================================
-  # JOB 3: Deploy Backend to Google Cloud Run (if GCP Key exists)
+  # JOB 3: Deploy Backend to Google Cloud Run
   # =============================================================
   deploy-backend:
     name: Deploy Backend to Google Cloud Run
     needs: validate
     runs-on: ubuntu-latest
-    if: ${{ secrets.GCP_SA_KEY != '' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
+        if: env.GCP_SA_KEY != ''
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
         continue-on-error: true
 
       - name: Deploy to Cloud Run
+        if: env.GCP_SA_KEY != ''
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
           gcloud run deploy seva-gis-backend \
             --source backend \

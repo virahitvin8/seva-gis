@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react'
 import {
   ArrowDownToLine, Share2, FileSpreadsheet, FileCode, Map, Compass,
   Check, Copy, ShieldAlert, Landmark, FileText, Upload, Cpu, Download, ExternalLink,
-  FolderArchive, ChevronRight
+  FolderArchive, ChevronRight, Smartphone, MessageSquare
 } from 'lucide-react'
 import { decimalToSexagesimal } from 'geolib'
 import type { FarmData } from './lib/seva'
 import UniversalGisSuite from './components/UniversalGisSuite'
+import FarmerSmsWhatsAppDispatch from './components/FarmerSmsWhatsAppDispatch'
 
 type Props = {
   farm: FarmData & { id: string; name: string; crop?: string }
@@ -349,13 +350,24 @@ SEVA.GIS Official Audit Record - https://sevagis.dpdns.org
           </div>
         </div>
 
-        {/* WhatsApp Share Button */}
-        <button
-          onClick={shareToWhatsApp}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: '#22c55e', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-        >
-          <Share2 size={16} /> Share to WhatsApp
-        </button>
+        {/* WhatsApp & SMS Dispatch Buttons */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              const el = document.getElementById('farmer-sms-dispatch-section')
+              if (el) el.scrollIntoView({ behavior: 'smooth' })
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: '#0284c7', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            <Smartphone size={16} /> SMS &amp; OpenSMS
+          </button>
+          <button
+            onClick={shareToWhatsApp}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, background: '#22c55e', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+          >
+            <Share2 size={16} /> Share to WhatsApp
+          </button>
+        </div>
       </div>
 
       {/* Coordinate Systems Display */}
@@ -388,6 +400,11 @@ SEVA.GIS Official Audit Record - https://sevagis.dpdns.org
         <button className="gt-btn" onClick={exportGrafanaDashboard} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#ea580c', cursor: 'pointer' }}>
           <FileCode size={14} /> Grafana Dashboard JSON
         </button>
+      </div>
+
+      {/* Farmer Advisory & Dispatch Studio (SMS · WhatsApp · OpenSMS) */}
+      <div id="farmer-sms-dispatch-section">
+        <FarmerSmsWhatsAppDispatch farm={farm} />
       </div>
 
       {/* Universal GIS Interoperability Suite (QGIS, ArcGIS, GEE, GDAL, ISO-XML) */}

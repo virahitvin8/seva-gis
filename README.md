@@ -69,6 +69,13 @@ Automates USGS and Copernicus spectral absorption algorithms for regional geolog
 - One-click **Cartographic Images Export** (.zip) preserving North arrows, geodetic neatlines, and scale bars.
 - Automated audience onboarding and email delivery via **EmailOctopus** without forced `.eml` downloads.
 
+### 8. 📨 Farmer SMS & WhatsApp Advisory Studio (OpenSMS Powered)
+- **Zero-Cost Android SMS Gateway**: Integrates with [OpenSMS](https://github.com/daslearning-org/OpenSMS) by daslearning-org to turn any personal Android phone into a local SMS API server (`http://<ip>:9292/sms/`), sending unlimited cellular SMS directly through your phone's SIM card at zero extra cost.
+- **Direct WhatsApp Messaging**: 1-click pre-composed agronomic health, irrigation scheduling, and PMFBY crop loss alerts opening directly in WhatsApp for any entered mobile number.
+- **Native Device SMS Protocol (`sms:`)**: Instant native messenger launcher for mobile, tablet, and desktop devices without any external server dependencies.
+- **Multi-Lingual Kisan Advisories**: Formats real-time Sentinel-2 L2A NDVI, canopy moisture (NDMI), and stress percentages into **Telugu (తెలుగు)**, **Hindi (हिन्दी)**, and **English** with live parcel coordinates.
+- **Local Dispatch Audit Trail**: Tracks all dispatched alerts with timestamps, status badges, and message previews stored in private browser storage.
+
 ---
 
 ## 🌐 Live Subdomains & Automated DNS

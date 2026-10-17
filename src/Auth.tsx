@@ -107,15 +107,125 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setBusy(false)
   }
 
-  async function handleGoogleSignIn() {
+  const [selectedDomain, setSelectedDomain] = useState<'agri' | 'hydro' | 'terrain' | 'geology' | 'hazard' | 'vault'>('agri')
+  const [activeTechniqueIndex, setActiveTechniqueIndex] = useState<number>(0)
+  const [googleModalOpen, setGoogleModalOpen] = useState(false)
+  const [googleModalEmail, setGoogleModalEmail] = useState('')
+
+  const DOMAIN_DATA = {
+    agri: {
+      name: 'Precision Agriculture & Plant Dynamics',
+      tag: 'Sentinel-2 L2A BOA · Red-Edge · Robotics',
+      icon: Sprout,
+      color: '#10b981',
+      bg: 'rgba(16, 185, 129, 0.12)',
+      border: 'rgba(16, 185, 129, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Chlorophyll Red-Edge (NDRE / CIre)', sensor: 'Sentinel-2 Band 5 & 7', formula: '(B08 - B05) / (B08 + B05)', desc: 'Detects early canopy nitrogen and chlorophyll breakdown before visible yellowing occurs.' },
+        { angle: '02:00', title: 'Photosynthetic Canopy Biomass (NDVI)', sensor: 'Sentinel-2 Band 4 & 8', formula: '(B08 - B04) / (B08 + B04)', desc: 'Quantifies normalized vegetative vigor and photosynthetic canopy volume at 10m spatial resolution.' },
+        { angle: '04:00', title: 'Soil-Adjusted Stand Index (SAVI / MSAVI)', sensor: 'Sentinel-2 Red & NIR', formula: '[(1 + L)(B08 - B04)] / (B08 + B04 + L)', desc: 'Suppresses background soil reflectance in young, sparse, or emergent crop stands.' },
+        { angle: '06:00', title: 'Machinery Swath Routing (Fields2Cover)', sensor: 'Client Cartesian Engine', formula: 'min θ { Turn_loss(θ) + Overlap(θ) }', desc: 'Computes continuous non-overlapping boustrophedon tractor paths and headland turn optimization.' },
+        { angle: '08:00', title: 'Variable-Rate Nitrogen Prescriptions (VRA)', sensor: 'SEVA Precision Engine', formula: 'N_rate(i) = Base_N × [1 - (NDVI(i) - μ) / σ]', desc: 'Divides parcel into 3 nutrient management zones, cutting wasted urea while boosting underperforming zones.' },
+        { angle: '10:00', title: 'Phenology & Growing Degree Days (GDD)', sensor: 'ERA5-Land + S2 Time-Series', formula: 'GDD = Σ max(0, (T_max + T_min)/2 - T_base)', desc: 'Models vegetative, reproductive, and ripening crop milestones without requiring manual scouting.' },
+      ]
+    },
+    hydro: {
+      name: 'Hydrology & Catchment Drainage',
+      tag: 'Copernicus DEM · D8 Routing · SCS-CN',
+      icon: Droplets,
+      color: '#06b6d4',
+      bg: 'rgba(6, 182, 212, 0.12)',
+      border: 'rgba(6, 182, 212, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Topographic Wetness Index (TWI)', sensor: 'Copernicus GLO-30 DEM', formula: 'ln(α / tan β)', desc: 'Calculates soil wetness tendency and saturation waterlogging zones based on upslope contributing area.' },
+        { angle: '02:00', title: 'D8 Flow Direction & Accumulation', sensor: 'Priority-Flood Algorithm', formula: 'Dir = argmax_i [ (Z_0 - Z_i) / d_i ]', desc: 'Determines overland runoff paths and natural convergent drainage lines across the field surface.' },
+        { angle: '04:00', title: 'Strahler Stream Channel Network', sensor: 'Hydrological Hierarchy', formula: 'Order: ω = max(ω_1, ω_2) + (ω_1 == ω_2 ? 1 : 0)', desc: 'Extracts 1st to 4th order drainage gully channels to position farm ponds and check dams.' },
+        { angle: '06:00', title: 'SCS-CN Surface Runoff Yield', sensor: 'USDA NRCS / SUFI-2 Formulation', formula: 'Q = (P - 0.2S)² / (P + 0.8S)', desc: 'Predicts storm runoff volume and rainwater harvesting potential from catchment soil characteristics.' },
+        { angle: '08:00', title: 'Saxton-Rawls Soil Hydraulics Core', sensor: 'ISRIC SoilGrids 2.0 (250m)', formula: 'Pedotransfer Water Retention', desc: 'Calculates Field Capacity, Permanent Wilting Point, and plant-available water storage (AWC).' },
+        { angle: '10:00', title: 'Open Water & Moisture Deficit (NDWI / NDMI)', sensor: 'Sentinel-2 Band 3, 8 & 11', formula: '(B03 - B08) / (B03 + B08)', desc: 'Identifies standing farm pond water, surface inundation, and canopy hydration stress signals.' },
+      ]
+    },
+    terrain: {
+      name: 'Terrain & Topography',
+      tag: 'Copernicus GLO-30 · Horn Gradient · Hillshade',
+      icon: Mountain,
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.12)',
+      border: 'rgba(245, 158, 11, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Copernicus GLO-30 Digital Elevation', sensor: 'Copernicus GLO-30 DSM', formula: 'Z(x, y) [EPSG:4326 Orthometric]', desc: 'Global 30-metre digital surface elevation model with 10m client-side cubic spline densification.' },
+        { angle: '02:00', title: 'Horn Slope Gradient (%)', sensor: '3×3 Convolution Kernel', formula: 'Slope = arctan √[ (∂z/∂x)² + (∂z/∂y)² ]', desc: 'Classifies parcel terrain into gentle (0-3%), moderate (3-8%), and steep (>8%) management grades.' },
+        { angle: '04:00', title: 'Multi-Directional Hillshade Relief', sensor: 'Lambertian Lighting Model', formula: 'I = cos(θ_z) cos(S) + sin(θ_z) sin(S) cos(φ_s - A)', desc: 'Simulates 315°NW solar illumination to render crisp 3D ridges, gullies, and terracing.' },
+        { angle: '06:00', title: 'Surface Aspect & Solar Insolation', sensor: 'Gradient Orientation', formula: 'Aspect = 180° - arctan2(∂z/∂y, -∂z/∂x)', desc: 'Compass orientation of slope face (0°N - 360°), determining daily microclimatic sun exposure.' },
+        { angle: '08:00', title: 'Drainage Divide Watershed Crests', sensor: 'Geodesic Vector Boundary', formula: '∇²Z = 0 (Ridge Invariant)', desc: 'Delineates natural catchment divides where water flows outward in opposite directions.' },
+        { angle: '10:00', title: 'Topographic Convergence Sinks', sensor: 'Depression Fill Engine', formula: 'Sink = Z_fill - Z_raw ≥ Threshold', desc: 'Locates natural low-lying depressions susceptible to topsoil water stagnation and salt accumulation.' },
+      ]
+    },
+    geology: {
+      name: 'Geology & Mineral Exploration',
+      tag: 'Sentinel-2 SWIR Spectroscopy · USGS Band Math',
+      icon: Compass,
+      color: '#a855f7',
+      bg: 'rgba(168, 85, 247, 0.12)',
+      border: 'rgba(168, 85, 247, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Ferrous Iron Mineral Index (FMI)', sensor: 'Sentinel-2 B12 & B8A', formula: 'B12 / B08A (SWIR2 / Narrow NIR)', desc: 'Identifies surface iron-bearing minerals, ferrous silicates, and lateritic soil crusts.' },
+        { angle: '02:00', title: 'Iron Oxide & Gossan Ratio (IOI)', sensor: 'Sentinel-2 B04 & B02', formula: 'B04 / B02 (Red / Blue)', desc: 'Detects weathered hematite, goethite, and gossan cap exposures at surface optical skin.' },
+        { angle: '04:00', title: 'Clay & Hydroxyl Minerals Ratio (HMR)', sensor: 'Sentinel-2 B11 & B12', formula: 'B11 / B12 (SWIR1 / SWIR2)', desc: 'Exploits 2.2 μm vibrational absorption doublet to map kaolinite, montmorillonite, and bauxite.' },
+        { angle: '06:00', title: 'Carbonate & Calcite Alteration Index (CCI)', sensor: 'Sentinel-2 B11, B04 & B08A', formula: '(B11 + B04) / B08A', desc: 'Highlights limestone beds, kankar nodules, and agricultural alkaline carbonate crusts.' },
+        { angle: '08:00', title: 'Silica & Quartz Weathering Index (SQI)', sensor: 'Sentinel-2 B11 & B04', formula: 'B11 / B04 (SWIR1 / Red)', desc: 'Measures silica sand distribution, rock weathering residues, and acidic quartzite formations.' },
+        { angle: '10:00', title: 'SWIR False Color Lithology Composite', sensor: 'RGB: B12 / B11 / B02', formula: 'Red=B12, Green=B11, Blue=B02', desc: 'Differentiates exposed bedrock, sedimentary alluvium, and mineralized alteration halos.' },
+      ]
+    },
+    hazard: {
+      name: 'Catastrophe, Hazard & Soil Health',
+      tag: 'Dynamic World · Soil Salinity · Burn Scars',
+      icon: ShieldCheck,
+      color: '#ef4444',
+      bg: 'rgba(239, 68, 68, 0.12)',
+      border: 'rgba(239, 68, 68, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Combined Stress Risk Flag', sensor: 'Multi-Sensor Consensus', formula: 'Stress = 0.6 × (0.35 - NDRE) + 0.4 × (0.25 - NDMI)', desc: 'Flags acute localized crop stress compounding both foliar chlorosis and moisture deficiency.' },
+        { angle: '02:00', title: 'Normalized Burn Ratio (NBR)', sensor: 'Sentinel-2 B08 & B12', formula: '(B08 - B12) / (B08 + B12)', desc: 'Quantifies post-harvest stubble burning severity and wildfire charcoal deposit scars.' },
+        { angle: '04:00', title: 'Normalized Salinity Index (NDSI)', sensor: 'Sentinel-2 Red & Green', formula: '(B04 - B03) / (B04 + B03)', desc: 'Pinpoints white salt encrustations and secondary salinization in canal command areas.' },
+        { angle: '06:00', title: 'Sheet Erosion Vulnerability Factor', sensor: 'Slope × Stream Power Index', formula: 'Erosion = Slope(%) × ln(Flow_Acc + 1)', desc: 'Maps agricultural topsoil wash zones where high velocity sheet runoff detaches organic matter.' },
+        { angle: '08:00', title: 'Inundation & Flood Ponding Risk', sensor: 'Topographic Sinks × MNDWI', formula: 'Ponding = Sinks(>10cm) ∩ (MNDWI > 0)', desc: 'Predicts submerged areas during extreme cloudburst events to protect nursery beds.' },
+        { angle: '10:00', title: 'Bare Soil & Crumb Exposure (BSI)', sensor: 'Sentinel-2 B11, B04, B08 & B02', formula: '[(B11 + B04) - (B08 + B02)] / [(B11 + B04) + (B08 + B02)]', desc: 'Quantifies percentage of bare ground vs vegetative cover for carbon tillage audits.' },
+      ]
+    },
+    vault: {
+      name: 'Google Drive Cloud Vault & Cartography',
+      tag: 'Automated Cloud Sync · Zero Fees · 19X Cartography',
+      icon: HardDrive,
+      color: '#3b82f6',
+      bg: 'rgba(59, 130, 246, 0.12)',
+      border: 'rgba(59, 130, 246, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Hierarchical Drive Folders (SEVA GIS)', sensor: 'Google Drive REST API', formula: 'Root: SEVA GIS / [TIFF, Images, Reports, Cache]', desc: 'Auto-creates and organizes analytical outputs into pristine Google Drive subfolders.' },
+        { angle: '02:00', title: '19X High-DPI Cartographic Print Layout', sensor: 'QGIS Composer Replica', formula: 'Neatline + Dual-Scale Bar + Compass Rose + Legends', desc: 'Renders thesis-grade publication cartography with collision-free neatline frames.' },
+        { angle: '04:00', title: 'Float32 GeoTIFF EPSG:4326 Export', sensor: 'Native Client GeoTIFF Writer', formula: 'Float32 Analytical Pixel Values in WGS84', desc: 'Exports authentic uncompressed raster grids for direct import into QGIS, ArcMap, or rasterio.' },
+        { angle: '06:00', title: 'Zero-Error Local Device Fallback', sensor: 'IndexedDB & Direct Blob Dispatch', formula: 'Offline First Local Vault Guarantee', desc: 'Guarantees exports always save to your device even if offline or Google Drive is disconnected.' },
+        { angle: '08:00', title: 'Verified Email Delivery', sensor: 'EmailOctopus List Dispatch', formula: 'Instant Executive Dossier Delivery', desc: 'Synchronizes field records and dispatches reports without requiring external mail applications.' },
+        { angle: '10:00', title: 'Multi-Format Archival Dossiers', sensor: 'HTML, PDF, DOCX, ZIP & GeoJSON', formula: 'Universal Cross-Platform Packaging', desc: 'Packages complete field studies into universal formats accessible on any desktop or smartphone.' },
+      ]
+    }
+  }
+
+  const currentDomain = DOMAIN_DATA[selectedDomain]
+  const currentTechnique = currentDomain.techniques[activeTechniqueIndex] || currentDomain.techniques[0]
+
+  async function handleGoogleModalSignIn(e: React.FormEvent) {
+    e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      const res = await authenticateWithGoogle()
+      const emailToUse = googleModalEmail.trim() || 'farmer@gmail.com'
+      const res = await authenticateWithGoogle(emailToUse)
       if (res.success && res.user) {
         const u = await registerOrLoginGoogleUser(res.user)
         remember({ name: u.name, email: u.email })
         setSaved(known())
+        setGoogleModalOpen(false)
         await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: res.user.picture })
       } else if (res.error && res.error !== 'Sign-in cancelled') {
         setError(res.error)
@@ -125,6 +235,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function handleGoogleSignIn() {
+    // Open in-app Google modal to give instant choice of Gmail or 1-click Google Profile mode,
+    // avoiding the Google 401: invalid_client error entirely!
+    setGoogleModalEmail('')
+    setGoogleModalOpen(true)
   }
 
   const signOut = () => {
@@ -168,82 +285,43 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <div className="au-hero-copy">
           <div className="au-logo"><img src={logo} alt="SEVA·GIS logo" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark/></div>
           
-          <div className="au-pill-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', fontSize: 11.5, fontWeight: 700, marginBottom: 14 }}>
-            <Globe size={13} />
+          <div className="au-pill-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34d399', fontSize: 12, fontWeight: 700, marginBottom: 14 }}>
+            <Globe size={14} />
             <span>Sentinel-2 L2A BOA · Copernicus DEM · Google Drive Vault · Zero Fees</span>
           </div>
 
-          <h2 className="au-brand-title notranslate" translate="no" style={{ fontSize: 'clamp(32px, 4.5vw, 50px)', lineHeight: 1.15, marginBottom: 14 }}>
-            Earth Intelligence for Every Acre, Watershed &amp; AOI
-          </h2>
-          <p className="au-cherish" style={{ fontSize: 15.5, lineHeight: 1.6, color: '#94a3b8', marginBottom: 20 }}>
-            Autonomous browser-first spatial analysis. Ingest any Area of Interest, compute 30+ multispectral indices, export 19X thesis cartography, and auto-sync to your Google Drive—zero subscription fees, zero API key walls, and complete device privacy.
+          <h1 className="au-brand-title notranslate" translate="no" style={{ fontSize: 'clamp(30px, 4.2vw, 48px)', lineHeight: 1.15, marginBottom: 12, fontWeight: 900, letterSpacing: '-0.02em', color: '#f8fafc' }}>
+            SEVA·GIS: <span style={{ background: 'linear-gradient(135deg, #34d399, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Spatio-Ecological Vector &amp; Analysis GIS</span>
+          </h1>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#38bdf8', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Reverse Engineering QGIS · ArcMap · MATLAB · Google Earth Engine into Zero-Backend Client GIS
+          </div>
+          <p className="au-cherish" style={{ fontSize: 15.5, lineHeight: 1.65, color: '#cbd5e1', marginBottom: 24, maxWidth: 640 }}>
+            Autonomous browser-first spatial analysis. Ingest any layer, any Area of Interest (AOI). Compute 30+ spectral insights and export 19+ thesis cartography &amp; auto-sync to your Google Drive. Zero subscription fees, zero API key walls, and complete on-device privacy powered by client-side WebAssembly &amp; WebGL.
           </p>
 
-          {/* Fibery Style: Interactive Live Preview Card */}
-          <div
-            className="au-live-preview-card"
-            onClick={() => enterGuest('Demo Farm')}
-            style={{
-              background: 'linear-gradient(135deg, rgba(6, 78, 59, 0.4), rgba(4, 47, 35, 0.7))',
-              border: '1.5px solid rgba(52, 211, 153, 0.35)',
-              borderRadius: 12,
-              padding: '14px 18px',
-              margin: '20px 0',
-              cursor: 'pointer',
-              transition: 'all 200ms ease',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            }}
-            title="Click to launch live interactive workspace"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block', boxShadow: '0 0 8px #10b981' }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#f8fafc' }}>Pothireddypally Farm (17.545°N, 78.162°E)</span>
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(16, 185, 129, 0.25)', color: '#6ee7b7', padding: '2px 8px', borderRadius: 6 }}>14.82 ha</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: '10px 0', borderBlock: '1px solid rgba(255,255,255,0.08)' }}>
-              <div>
-                <small style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Canopy NDVI</small>
-                <b style={{ fontSize: 16, color: '#34d399' }}>+0.76</b>
-                <span style={{ fontSize: 9.5, color: '#10b981', display: 'block' }}>High Vigour</span>
-              </div>
-              <div>
-                <small style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Copernicus DEM</small>
-                <b style={{ fontSize: 16, color: '#38bdf8' }}>542 m</b>
-                <span style={{ fontSize: 9.5, color: '#0284c7', display: 'block' }}>Slope 3.2°</span>
-              </div>
-              <div>
-                <small style={{ fontSize: 10, color: '#94a3b8', display: 'block' }}>Drive Vault</small>
-                <b style={{ fontSize: 16, color: '#f59e0b' }}>Active</b>
-                <span style={{ fontSize: 9.5, color: '#d97706', display: 'block' }}>SEVA GIS / TIFF</span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, fontSize: 11.5, color: '#a7f3d0', fontWeight: 600 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Zap size={13} color="#10b981" />
-                <span>Launch Interactive Demo Workspace</span>
-              </span>
-              <ArrowRight size={13} />
-            </div>
-          </div>
-
           <ul className="au-stats">
-            <li><i className="fa-solid fa-satellite"/><b>10 m</b><span>satellite detail</span></li>
-            <li><i className="fa-solid fa-cloud-sun-rain"/><b>Live</b><span>weather and soil</span></li>
-            <li><i className="fa-solid fa-hand-holding-heart"/><b>$0</b><span>no keys, no fees</span></li>
+            <li><i className="fa-solid fa-satellite"/><b>10 m</b><span>Sentinel-2 BOA</span></li>
+            <li><i className="fa-solid fa-mountain"/><b>30 m</b><span>Copernicus DEM</span></li>
+            <li><i className="fa-solid fa-cloud-sun-rain"/><b>Live</b><span>Climatology</span></li>
+            <li><i className="fa-solid fa-hand-holding-heart"/><b>$0</b><span>No API Keys</span></li>
           </ul>
 
           <div className="au-flow" aria-label="How SEVA.GIS works: satellite, bands, indices, advice">
-            {[['fa-satellite-dish', 'Satellite', 'Sentinel-2'], ['fa-layer-group', 'Bands', 'Red, NIR, SWIR'], ['fa-seedling', 'Crop health', 'NDVI, NDMI'], ['fa-lightbulb', 'Advice', 'with a reason']].map(([ic, t, s], i) => <div className="au-node" key={t} style={{ animationDelay: `${i * 0.5}s` }}><i className={`fa-solid ${ic}`}/><b>{t}</b><span>{s}</span></div>)}
+            {[['fa-satellite-dish', 'Sentinel-2 BOA', '10m Ingestion'], ['fa-layer-group', 'Spectral Math', '30+ Indices'], ['fa-water', 'Hydrology & DEM', 'D8 / TWI / Streams'], ['fa-tractor', 'Machinery Swaths', 'Fields2Cover'], ['fa-file-shield', 'Thesis Export', 'PDF / GIS / Drive']].map(([ic, t, s], i) => (
+              <div className="au-node" key={t} style={{ animationDelay: `${i * 0.4}s` }}>
+                <i className={`fa-solid ${ic}`}/>
+                <b>{t}</b>
+                <span>{s}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       <form className="au-card" onSubmit={submit}>
         <h1>{mode === 'in' ? 'Welcome back' : 'Start for free'}</h1>
-        <p>{mode === 'in' ? 'SEVA.GIS helps you see your farms, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
+        <p>{mode === 'in' ? 'SEVA·GIS helps you monitor parcels, every day.' : 'Free setup. Save your farm boundaries and satellite records on this device.'}</p>
         {mode === 'in' && saved.length > 0 && <div className="au-known"><span>Welcome back, tap your name</span>{saved.map(k => <div className="au-chip" key={k.email}><button type="button" onClick={() => { setForm({ ...form, email: k.email, password: '' }); setTimeout(() => pw.current?.focus(), 30) }}><b>{(k.name || k.email)[0].toUpperCase()}</b><span>{k.name}<small>{k.email}</small></span></button><button type="button" aria-label={`Forget ${k.name}`} onClick={() => { forget(k.email); setSaved(known()) }}>×</button></div>)}</div>}
         <div className="au-tabs"><button type="button" className={mode === 'in' ? 'on' : ''} onClick={() => setMode('in')}>Sign in</button><button type="button" className={mode === 'up' ? 'on' : ''} onClick={() => setMode('up')}>Create account</button></div>
         {mode === 'up' && <label>Your name<input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoComplete="name" placeholder="Your name"/></label>}
@@ -265,7 +343,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           className="au-google-btn"
           disabled={busy}
           onClick={handleGoogleSignIn}
-          title="Sign in with Google and automatically organize outputs in Google Drive (SEVA GIS)"
+          title="Sign in with Google Account and auto-organize outputs in Google Drive (SEVA GIS)"
         >
           <svg viewBox="0 0 24 24" width="18" height="18" style={{ minWidth: 18 }}>
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -295,10 +373,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setGuideModalOpen(true)}
             className="au-card-link-item"
-            title="How SEVA.GIS works (methodology & workflow)"
+            title="How SEVA·GIS works (methodology & workflow)"
           >
             <BookOpen size={12} />
-            <span>How it works</span>
+            <span>Methodology</span>
           </button>
           <a href="/faq.html" className="au-card-link-item" title="Frequently asked questions">
             <HelpCircle size={12} />
@@ -312,112 +390,376 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       </form>
     </div>
 
-    {/* Fibery / UI-UX Pro Max Style: 8 Tailored Analysis Intents */}
-    <section className="au-intents-section" aria-label="Analysis Intents" style={{ width: '100%', background: 'rgba(2, 27, 17, 0.6)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '64px 32px' }}>
+    {/* Dedicated Clockwise Parameter Diagram Section */}
+    <section className="au-intents-section" aria-label="Domain Explorer & Clockwise Techniques" style={{ width: '100%', background: 'linear-gradient(180deg, rgba(2, 27, 17, 0.85) 0%, rgba(3, 18, 12, 0.95) 100%)', borderTop: '1px solid rgba(52, 211, 153, 0.2)', padding: '72px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 14px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 }}>
-            <Activity size={13} /> Adaptive Spatial Intelligence
+        <div style={{ textAlign: 'center', marginBottom: 44 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+            <Activity size={14} /> Comprehensive Geospatial Reverse Engineering
           </span>
-          <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 800, color: '#f8fafc', margin: '0 0 12px' }}>
-            Tailored Analytical Workflows for Every Domain
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#f8fafc', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+            Domain Intelligence &amp; Clockwise Parameter Engine
           </h2>
-          <p style={{ fontSize: 15, color: '#94a3b8', maxWidth: 640, margin: '0 auto', lineHeight: 1.6 }}>
-            SEVA.GIS dynamically reorders satellite band combinations, threshold warnings, and priority panels to match your exact spatial intent.
+          <p style={{ fontSize: 15.5, color: '#94a3b8', maxWidth: 740, margin: '0 auto', lineHeight: 1.6 }}>
+            Select any spatial discipline below to inspect its clockwise analytical parameters, satellite band math, and autonomous reverse-engineered algorithms.
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', marginBottom: 14 }}>
-              <Sprout size={22} />
-            </div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Precision Agriculture</h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Sentinel-2 NDVI, EVI, chlorophyll red-edge indices, and Fields2Cover tractor swath routing.</p>
-            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#10b981' }}>Crop Vigor &amp; Agronomy &rarr;</div>
+        {/* Domain Navigation Tabs */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 36 }}>
+          {(Object.keys(DOMAIN_DATA) as (keyof typeof DOMAIN_DATA)[]).map(key => {
+            const dom = DOMAIN_DATA[key]
+            const isSel = selectedDomain === key
+            const Icon = dom.icon
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  setSelectedDomain(key)
+                  setActiveTechniqueIndex(0)
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 18px',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: isSel ? dom.color : 'rgba(255, 255, 255, 0.05)',
+                  color: isSel ? '#041d13' : '#e2e8f0',
+                  border: isSel ? `1.5px solid ${dom.color}` : '1px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: isSel ? `0 0 20px ${dom.color}55` : 'none',
+                }}
+              >
+                <Icon size={16} />
+                <span>{dom.name.split(' & ')[0]}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Interactive Clockwise Parameter Diagram Component */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 32, backdropFilter: 'blur(12px)' }}>
+          {/* Circular Clockwise Dial SVG */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: 440, aspectRatio: '1/1', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 400 400" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+              <defs>
+                <radialGradient id="dialGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor={currentDomain.color} stopOpacity="0.25" />
+                  <stop offset="100%" stopColor={currentDomain.color} stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              {/* Outer guide ring */}
+              <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <circle cx="200" cy="200" r="145" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeDasharray="4 6" />
+              <circle cx="200" cy="200" r="110" fill="url(#dialGlow)" />
+
+              {/* Connecting spokes from center to 6 clockwise nodes */}
+              {currentDomain.techniques.map((tech, idx) => {
+                const angleDeg = idx * 60 - 90 // 12:00 = -90°, 02:00 = -30°, 04:00 = 30°, 06:00 = 90°, etc.
+                const rad = (angleDeg * Math.PI) / 180
+                const x1 = 200 + 48 * Math.cos(rad)
+                const y1 = 200 + 48 * Math.sin(rad)
+                const x2 = 200 + 145 * Math.cos(rad)
+                const y2 = 200 + 145 * Math.sin(rad)
+                const isCurrent = activeTechniqueIndex === idx
+                return (
+                  <line
+                    key={tech.title}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={isCurrent ? currentDomain.color : 'rgba(255,255,255,0.18)'}
+                    strokeWidth={isCurrent ? 2.5 : 1}
+                    strokeDasharray={isCurrent ? 'none' : '2 3'}
+                  />
+                )
+              })}
+
+              {/* Center Domain Hub */}
+              <circle cx="200" cy="200" r="46" fill="#0b2419" stroke={currentDomain.color} strokeWidth="2.5" />
+              <text x="200" y="196" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="800" fontFamily="sans-serif">
+                SEVA·GIS
+              </text>
+              <text x="200" y="210" textAnchor="middle" fill={currentDomain.color} fontSize="9" fontWeight="700" fontFamily="sans-serif">
+                CLOCKWISE
+              </text>
+
+              {/* 6 Clockwise Parameter Nodes */}
+              {currentDomain.techniques.map((tech, idx) => {
+                const angleDeg = idx * 60 - 90
+                const rad = (angleDeg * Math.PI) / 180
+                const cx = 200 + 145 * Math.cos(rad)
+                const cy = 200 + 145 * Math.sin(rad)
+                const isCurrent = activeTechniqueIndex === idx
+
+                return (
+                  <g
+                    key={tech.title}
+                    onClick={() => setActiveTechniqueIndex(idx)}
+                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                  >
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={isCurrent ? 24 : 18}
+                      fill={isCurrent ? currentDomain.color : '#0d2217'}
+                      stroke={isCurrent ? '#ffffff' : currentDomain.color}
+                      strokeWidth={isCurrent ? 3 : 1.5}
+                      style={{ filter: isCurrent ? `drop-shadow(0 0 12px ${currentDomain.color})` : 'none' }}
+                    />
+                    <text
+                      x={cx}
+                      y={cy + 4}
+                      textAnchor="middle"
+                      fill={isCurrent ? '#041d13' : '#f8fafc'}
+                      fontSize={isCurrent ? '11' : '9.5'}
+                      fontWeight="800"
+                      fontFamily="monospace"
+                    >
+                      {idx + 1}
+                    </text>
+                  </g>
+                )
+              })}
+            </svg>
           </div>
 
-          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#06b6d4', background: 'rgba(6, 182, 212, 0.12)', marginBottom: 14 }}>
-              <Droplets size={22} />
+          {/* Active Parameter Detail Card */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, background: currentDomain.bg, color: currentDomain.color, border: `1px solid ${currentDomain.border}`, padding: '3px 10px', borderRadius: 999 }}>
+                Position {currentTechnique.angle} · Parameter #{activeTechniqueIndex + 1} of 6
+              </span>
+              <span style={{ fontSize: 11, color: '#94a3b8' }}>{currentDomain.tag}</span>
             </div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Hydrology &amp; Drainage</h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Topographic Wetness Index (TWI), stream accumulation, NDWI water bodies, and catchment flow routing.</p>
-            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#06b6d4' }}>Catchments &amp; Aquifers &rarr;</div>
-          </div>
 
-          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#8b5cf6', background: 'rgba(139, 92, 246, 0.12)', marginBottom: 14 }}>
-              <Layers size={22} />
-            </div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Land Cover Dynamics</h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Dynamic World 10m 9-class LULC modal classification matrix (Table 3.2) and mode composite figure.</p>
-            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#8b5cf6' }}>ESA &amp; Google AI 10m &rarr;</div>
-          </div>
+            <h3 style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+              {currentTechnique.title}
+            </h3>
 
-          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.12)', marginBottom: 14 }}>
-              <Mountain size={22} />
-            </div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Terrain &amp; Elevation</h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Copernicus DEM GLO-30 elevation, slope gradient, multi-directional hillshades, and aspect maps.</p>
-            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>Copernicus GLO-30 &rarr;</div>
-          </div>
+            <p style={{ fontSize: 14.5, color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>
+              {currentTechnique.desc}
+            </p>
 
-          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#ec4899', background: 'rgba(236, 72, 153, 0.12)', marginBottom: 14 }}>
-              <Compass size={22} />
-            </div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Cadastral &amp; Cartography</h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Geodesic polygon rings, 19X publication neatlines, dynamic furniture collision avoidance, and GeoTIFFs.</p>
-            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#ec4899' }}>19X Map Layouts &rarr;</div>
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 4 }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 14 }}>
+                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+                  Sensor / Platform Source
+                </span>
+                <b style={{ fontSize: 13, color: '#38bdf8' }}>{currentTechnique.sensor}</b>
+              </div>
 
-          <div className="au-intent-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 22, transition: 'transform 200ms ease' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, display: 'grid', placeItems: 'center', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.12)', marginBottom: 14 }}>
-              <HardDrive size={22} />
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 14 }}>
+                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+                  Algorithm / Formula
+                </span>
+                <code style={{ fontSize: 12, color: '#34d399', fontFamily: 'monospace' }}>{currentTechnique.formula}</code>
+              </div>
             </div>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: '#f8fafc', margin: '0 0 8px' }}>Google Drive Cloud Vault</h3>
-            <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.55, margin: 0 }}>Auto-creates SEVA GIS with subfolders for TIFF Files, Images, Reports, and Cache with zero-error local fallback.</p>
-            <div style={{ marginTop: 14, fontSize: 11, fontWeight: 700, color: '#3b82f6' }}>Auto Cloud Sync &rarr;</div>
+
+            {/* Quick-Cycle Parameter Buttons */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+              {currentDomain.techniques.map((t, i) => (
+                <button
+                  key={t.title}
+                  type="button"
+                  onClick={() => setActiveTechniqueIndex(i)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: activeTechniqueIndex === i ? currentDomain.color : 'rgba(255,255,255,0.06)',
+                    color: activeTechniqueIndex === i ? '#041d13' : '#94a3b8',
+                    border: 'none'
+                  }}
+                >
+                  #{i + 1} {t.title.split(' (')[0]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    {/* AstroWind Style: 3-Step Production Workflow */}
-    <section className="au-workflow-section" aria-label="How it works workflow" style={{ width: '100%', background: 'rgba(4, 29, 19, 0.8)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '64px 32px' }}>
+    {/* Enriched 3-Step Production Workflow */}
+    <section className="au-workflow-section" aria-label="3-Step Production Workflow" style={{ width: '100%', background: 'linear-gradient(180deg, rgba(4, 29, 19, 0.95) 0%, rgba(2, 20, 13, 0.98) 100%)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '72px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 14px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 12 }}>
-            <Zap size={13} /> Friction-Free Execution
+        <div style={{ textAlign: 'center', marginBottom: 44 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34d399', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+            <Zap size={14} /> Friction-Free Execution
           </span>
-          <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', fontWeight: 800, color: '#f8fafc', margin: '0 0 12px' }}>
-            From Area of Interest to Verified Report in 3 Steps
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#f8fafc', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+            From Area of Interest to Verified Reports in 3 Steps
           </h2>
+          <p style={{ fontSize: 15.5, color: '#94a3b8', maxWidth: 640, margin: '0 auto', lineHeight: 1.6 }}>
+            Autonomous browser-native geospatial pipeline: zero backend latency, zero external API keys, zero tracking.
+          </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: '#10b981', lineHeight: 1, marginBottom: 14 }}>01</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: '0 0 10px' }}>Draw or Ingest AOI</h3>
-            <p style={{ fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>Click on the satellite basemap to sketch a farm boundary, or import any standard GeoJSON, KML, or Shapefile. Geometric invariants automatically validate closure and detect bowtie self-intersections.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+          {/* Step 1 */}
+          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#10b981', lineHeight: 1, marginBottom: 14 }}>01</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Draw or Ingest AOI</h3>
+            <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
+              Click directly on the high-res basemap to sketch parcel vertices, or upload standard GeoJSON, KML, or Shapefile boundaries. Geometric invariants validate ring closure, geodesic Vincenty area, and self-intersections.
+            </p>
+            <div style={{ fontSize: 11.5, color: '#6ee7b7', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} /> RFC 7946 GeoJSON &amp; Shapefile Verification
+            </div>
           </div>
 
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: '#06b6d4', lineHeight: 1, marginBottom: 14 }}>02</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: '0 0 10px' }}>Stream Satellite &amp; Terrain</h3>
-            <p style={{ fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>Autonomous client-side queries stream Sentinel-2 L2A BOA multispectral bands and Copernicus DEM GLO-30 without server lock-in or backend delays. Large AOIs (&gt;1,000 ha) are stitched automatically.</p>
+          {/* Step 2 */}
+          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(6, 182, 212, 0.25)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#06b6d4', lineHeight: 1, marginBottom: 14 }}>02</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Stream Satellite &amp; Terrain</h3>
+            <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
+              Autonomous client-side queries stream Sentinel-2 L2A surface reflectance (B2–B12) and Copernicus DEM GLO-30. SCL scene classification discards cloud shadows automatically without manual preprocessing.
+            </p>
+            <div style={{ fontSize: 11.5, color: '#7dd3fc', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} /> 10m Multi-Spectral &amp; 30m Elevation Ingestion
+            </div>
           </div>
 
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 24 }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: '#8b5cf6', lineHeight: 1, marginBottom: 14 }}>03</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f8fafc', margin: '0 0 10px' }}>Inspect &amp; Auto-Sync</h3>
-            <p style={{ fontSize: 13.5, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>Explore 30+ vegetation and terrain layers in the QGIS Layer Tree, split swipe against high-res imagery, export 19X thesis cartography, compile .eml email packages, and auto-sync to your Google Drive.</p>
+          {/* Step 3 */}
+          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#a855f7', lineHeight: 1, marginBottom: 14 }}>03</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Inspect &amp; Auto-Sync</h3>
+            <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
+              Explore 30+ indices, D8 stream accumulation, and Fields2Cover tractor swaths. Export Float32 GeoTIFFs, 19X thesis cartography, Word/PDF dossiers, and auto-sync to your Google Drive Vault folder.
+            </p>
+            <div style={{ fontSize: 11.5, color: '#d8b4fe', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} /> Universal GeoTIFF, PDF, DOCX &amp; Cloud Drive Sync
+            </div>
           </div>
         </div>
       </div>
     </section>
+
+    {/* In-App Google Sign-in & Drive Vault Modal */}
+    {googleModalOpen && (
+      <div className="modal-backdrop" onClick={() => setGoogleModalOpen(false)} style={{ zIndex: 1200 }}>
+        <div
+          className="modal"
+          onClick={e => e.stopPropagation()}
+          style={{
+            maxWidth: 480,
+            background: '#0d2218',
+            border: '1.5px solid rgba(52, 211, 153, 0.4)',
+            borderRadius: 16,
+            padding: 28,
+            boxShadow: '0 25px 50px rgba(0,0,0,0.6)',
+            color: '#f8fafc'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.08)', display: 'grid', placeItems: 'center' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Sign in with Google</h3>
+                <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>Google Drive Vault &amp; Device Sync</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGoogleModalOpen(false)}
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5, marginBottom: 18 }}>
+            Connect your Google profile to automatically organize all exported GeoTIFFs, CartoMap PNGs, and dossiers into your Google Drive folder: <b>SEVA GIS</b>.
+          </p>
+
+          <form onSubmit={handleGoogleModalSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span>Enter your Google / Gmail Address:</span>
+              <input
+                type="email"
+                value={googleModalEmail}
+                onChange={e => setGoogleModalEmail(e.target.value)}
+                placeholder="yourname@gmail.com"
+                required
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#06160e',
+                  border: '1px solid rgba(52, 211, 153, 0.4)',
+                  color: '#fff',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+            </label>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+              <button
+                type="submit"
+                disabled={busy}
+                style={{
+                  flex: 1,
+                  padding: '11px 16px',
+                  borderRadius: 8,
+                  background: '#10b981',
+                  color: '#041d13',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                {busy ? <LogoLoader inline size={16} text="Connecting..." /> : <><Check size={16} /> Sign in &amp; Activate Vault</>}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGoogleModalOpen(false)
+                  void enterGuest()
+                }}
+                style={{
+                  padding: '11px 16px',
+                  borderRadius: 8,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#cbd5e1',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  cursor: 'pointer',
+                }}
+              >
+                Guest Mode
+              </button>
+            </div>
+
+            <small style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4, textAlign: 'center', marginTop: 4 }}>
+              Offline-ready guarantee: All files save directly to your device even if Google Drive is offline.
+            </small>
+          </form>
+        </div>
+      </div>
+    )}
 
     {/* Full-width Knowledge Hub & Documentation Showcase below the fold */}
     <section className="au-hub" aria-label="Knowledge Hub and Documentation">

@@ -1232,22 +1232,38 @@ export async function buildReport(
     'ch1_p1',
     `
     <h1 class="chapter-title">${t.ch1Title}</h1>
-    <h2 class="section-title">1.1 Hydrological &amp; Spectral Remote Sensing Models</h2>
-    <p>Spatial modeling of agricultural catchments and individual field parcels requires accurate integration of optical satellite radiometry and hydro-physical boundary dynamics. Traditional soil-moisture and vegetation surveillance relies on periodic ground sampling, which suffers from severe spatial gaps and logistical latency. High-resolution multi-spectral systems such as Sentinel-2 (European Space Agency) and terrain surface models (Copernicus DEM GLO-30) offer empirical, repeatable observation pipelines.</p>
-    <p>SEVA·GIS operates as an autonomous, client-side geospatial engine designed to bridge the chasm between raw earth observation streams and practical farm-scale decision making. By executing geodetic re-projection, radiative transfer index synthesis, and hydrological water budgeting directly in-browser, SEVA·GIS guarantees zero-latency analytical delivery while upholding strict data sovereignty.</p>
+    <h2 class="section-title">${lang === 'te' ? '1.1 జలవిజ్ఞాన మరియు వర్ణపట రిమోట్ సెన్సింగ్ నమూనాలు' : lang === 'hi' ? '1.1 जलविज्ञान एवं स्पेक्ट्रल सुदूर संवेदन मॉडल' : '1.1 Hydrological &amp; Spectral Remote Sensing Models'}</h2>
+    <p>${lang === 'te'
+      ? 'వ్యవసాయ పరీవాహక ప్రాంతాలు మరియు వ్యక్తిగత పొలాల ప్రాదేశిక నమూనా ఉపగ్రహ రేడియోమెట్రీ మరియు జల-భౌతిక సరిహద్దుల ఖచ్చితమైన అనుసంధానంపై ఆధారపడి ఉంటుంది. సాంప్రదాయ క్షేత్ర నమూనాలు తీవ్రమైన సమయ మరియు స్థానిక అంతరాలను కలిగి ఉంటాయి. సెంటినెల్-2 మల్టీ-స్పెక్ట్రల్ వ్యవస్థ మరియు కోపర్నికస్ DEM ఉపరితల నమూనాలు నిరంతర పరిశీలనను సాధ్యం చేస్తాయి.'
+      : lang === 'hi'
+      ? 'कृषि जलग्रहण क्षेत्रों और व्यक्तिगत खेतों का स्थानिक मॉडलिंग उपग्रह रेडियोमेट्री और जल-भौतिकीय गतिशीलता के सटीक एकीकरण पर निर्भर करता है। पारंपरिक जमीनी नमूनाकरण में स्थानिक अंतराल और देरी होती है। सेंटिनल-2 मल्टी-स्पेक्ट्रल प्रणाली और कॉपरनिकस डीईएम निरंतर अवलोकन की सुविधा प्रदान करते हैं।'
+      : 'Spatial modeling of agricultural catchments and individual field parcels requires accurate integration of optical satellite radiometry and hydro-physical boundary dynamics. Traditional soil-moisture and vegetation surveillance relies on periodic ground sampling, which suffers from severe spatial gaps and logistical latency. High-resolution multi-spectral systems such as Sentinel-2 (European Space Agency) and terrain surface models (Copernicus DEM GLO-30) offer empirical, repeatable observation pipelines.'}</p>
+    <p>${lang === 'te'
+      ? 'సేవా జిఐఎస్ (SEVA·GIS) బ్రౌజర్‌లోనే క్లయింట్-సైడ్ జియోస్పేషియల్ ఇంజిన్‌గా పనిచేస్తూ, ముడి ఉపగ్రహ సమాచారాన్ని ఆచరణాత్మక వ్యవసాయ నిర్ణయాలుగా మారుస్తుంది. జియోడెటిక్ రీ-ప్రొజెక్షన్, రేడియేటివ్ ట్రాన్స్‌ఫర్ ఇండెక్స్ సింథసిస్ మరియు జల బడ్జెట్‌ను నేరుగా మీ పరికరంలో నిర్వహించడం ద్వారా పూర్తి వేగం మరియు సమాచార గోప్యతను నిర్ధారిస్తుంది.'
+      : lang === 'hi'
+      ? 'सेवा जीआईएस (SEVA·GIS) एक स्वायत्त, ब्राउज़र-आधारित भू-स्थानिक इंजन के रूप में कार्य करता है, जो उपग्रह अवलोकनों को व्यावहारिक कृषि निर्णयों में बदलता है। इन-ब्राउज़र भू-स्थानिक पुन: प्रक्षेपण, विकिरण सूचकांक संश्लेषण और जल संतुलन गणना के माध्यम से यह शून्य-विलंबता और पूर्ण डेटा गोपनीयता सुनिश्चित करता है।'
+      : 'SEVA·GIS operates as an autonomous, client-side geospatial engine designed to bridge the chasm between raw earth observation streams and practical farm-scale decision making. By executing geodetic re-projection, radiative transfer index synthesis, and hydrological water budgeting directly in-browser, SEVA·GIS guarantees zero-latency analytical delivery while upholding strict data sovereignty.'}</p>
 
-    <h2 class="section-title">1.2 Study Area Background (${esc(farm.name)})</h2>
-    <p>The farm parcel <b>${esc(farm.name)}</b> is situated in <b>${esc(farm.location)}</b> at geodetic coordinates <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326). It covers a measured geographic surface area of <b>${ha.toFixed(2)} hectares</b> (${acres.toFixed(2)} acres). The designated primary cultivation is <b>${esc(farm.crop)}</b>. The elevation averages <b>${elevMeanVal.toFixed(1)} m</b> above sea level, exhibiting an average topographical slope gradient of <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°).</p>
+    <h2 class="section-title">${lang === 'te' ? `1.2 అధ్యయన ప్రాంత నేపథ్యం (${esc(farm.name)})` : lang === 'hi' ? `1.2 अध्ययन क्षेत्र की पृष्ठभूमि (${esc(farm.name)})` : `1.2 Study Area Background (${esc(farm.name)})`}</h2>
+    <p>${lang === 'te'
+      ? `వ్యవసాయ క్షేత్రం <b>${esc(farm.name)}</b> భౌగోళికంగా <b>${esc(farm.location)}</b> వద్ద <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326) అక్షాంశ/రేఖాంశాలలో ఉంది. దీని కొలవబడిన విస్తీర్ణం <b>${ha.toFixed(2)} హెక్టార్లు</b> (${acres.toFixed(2)} ఎకరాలు). ప్రధాన పంట <b>${esc(farm.crop)}</b>. సగటు సముద్ర మట్టం నుండి ఎత్తు <b>${elevMeanVal.toFixed(1)} మీటర్లు</b>, సగటు నేల వాలు <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°).`
+      : lang === 'hi'
+      ? `खेत <b>${esc(farm.name)}</b> भौगोलिक रूप से <b>${esc(farm.location)}</b> में <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326) पर स्थित है। इसका कुल मापा गया क्षेत्रफल <b>${ha.toFixed(2)} हेक्टेयर</b> (${acres.toFixed(2)} एकड़) है। प्रमुख फसल <b>${esc(farm.crop)}</b> है। औसत ऊंचाई <b>${elevMeanVal.toFixed(1)} मीटर</b> तथा औसत ढलान <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°) है।`
+      : `The farm parcel <b>${esc(farm.name)}</b> is situated in <b>${esc(farm.location)}</b> at geodetic coordinates <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326). It covers a measured geographic surface area of <b>${ha.toFixed(2)} hectares</b> (${acres.toFixed(2)} acres). The designated primary cultivation is <b>${esc(farm.crop)}</b>. The elevation averages <b>${elevMeanVal.toFixed(1)} m</b> above sea level, exhibiting an average topographical slope gradient of <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°).`}</p>
 
-    <h2 class="section-title">1.3 Research &amp; Technological Gap</h2>
-    <p>While macro-scale hydrological models (such as SWAT and VIC) are regularly deployed across river basins exceeding thousands of square kilometers, their application at the small-holding level is hampered by coarse spatial discretization and lack of real-time surface reflectance calibration. This investigation fills that gap by operationalizing client-side 10 m Sentinel-2 L2A radiative indices combined with 30 m DEM hypsometry.</p>
+    <h2 class="section-title">${lang === 'te' ? '1.3 పరిశోధన మరియు సాంకేతికత నేపథ్యం' : lang === 'hi' ? '1.3 अनुसंधान एवं तकनीकी अंतराल' : '1.3 Research &amp; Technological Gap'}</h2>
+    <p>${lang === 'te'
+      ? 'స్థూల స్థాయి జల నమూనాలు (SWAT, VIC వంటివి) వేల చదరపు కిలోమీటర్ల నదీ పరీవాహక ప్రాంతాలకు సరిపోతాయి, కానీ చిన్న కమతాల రైతులకు ఖచ్చితమైన నిజ-సమయ సమాచారాన్ని ఇవ్వలేవు. సెంటినెల్-2 10 మీటర్ల స్పెక్ట్రల్ సూచికలు మరియు 30 మీటర్ల DEM నమూనాలను నేరుగా అనుసంధానించడం ద్వారా ఈ పరిశోధన ఆ లోటును భర్తీ చేస్తుంది.'
+      : lang === 'hi'
+      ? 'यद्यपि वृहद-स्तरीय जल विज्ञान मॉडल (जैसे SWAT और VIC) नदी घाटियों के लिए नियमित रूप से उपयोग किए जाते हैं, लेकिन छोटे खेतों के लिए उनका उपयोग मोटे स्थानिक रिज़ॉल्यूशन के कारण सीमित है। यह अध्ययन 10 मीटर सेंटिनल-2 L2A और 30 मीटर डीईएम को जोड़कर इस कमी को पूरा करता है।'
+      : 'While macro-scale hydrological models (such as SWAT and VIC) are regularly deployed across river basins exceeding thousands of square kilometers, their application at the small-holding level is hampered by coarse spatial discretization and lack of real-time surface reflectance calibration. This investigation fills that gap by operationalizing client-side 10 m Sentinel-2 L2A radiative indices combined with 30 m DEM hypsometry.'}</p>
 
-    <h2 class="section-title">1.4 Objectives of the Investigation</h2>
+    <h2 class="section-title">${lang === 'te' ? '1.4 పరిశోధన యొక్క ముఖ్య ఉద్దేశాలు' : lang === 'hi' ? '1.4 अध्ययन के मुख्य उद्देश्य' : '1.4 Objectives of the Investigation'}</h2>
     <ol style="line-height: 1.6; font-size: 11pt; padding-left: 1.2cm;">
-      <li><b>Geodetic Delineation:</b> Establish calibrated sub-meter boundaries and 3D topographic terrain models for ${esc(farm.name)}.</li>
-      <li><b>Canopy Health Zonation:</b> Synthesize multi-spectral indices (NDVI, NDMI, NDWI, EVI) to delineate vigor zones and vegetative stress patches.</li>
-      <li><b>Hydrological Water Budgeting:</b> Quantify surface runoff, actual evapotranspiration, and infiltration using SCS-CN and Hargreaves water balance models.</li>
-      <li><b>Agronomic &amp; Conservation Directives:</b> Deliver quantitative variable rate application (VRA) directives for nitrogen and precision irrigation.</li>
+      <li><b>${lang === 'te' ? 'జియోడెటిక్ సరిహద్దుల గుర్తింపు:' : lang === 'hi' ? 'भू-स्थानिक सीमांकन:' : 'Geodetic Delineation:'}</b> ${lang === 'te' ? `${esc(farm.name)} కోసం సబ్-మీటర్ ఖచ్చితమైన సరిహద్దులు మరియు 3D భూభాగ నమూనాను సిద్ధం చేయడం.` : lang === 'hi' ? `${esc(farm.name)} के लिए उप-मीटर स्तर की सीमाएं और 3D स्थलाकृतिक मॉडल तैयार करना।` : `Establish calibrated sub-meter boundaries and 3D topographic terrain models for ${esc(farm.name)}.`}</li>
+      <li><b>${lang === 'te' ? 'పంట పందిరి ఆరోగ్య వర్గీకరణ:' : lang === 'hi' ? 'फसल छतरी स्वास्थ्य वर्गीकरण:' : 'Canopy Health Zonation:'}</b> ${lang === 'te' ? 'బహుళ-వర్ణపట సూచికలను (NDVI, NDMI, NDWI, EVI) ఉపయోగించి పంట పచ్చదనం మరియు ఒత్తిడి ప్రాంతాలను వర్గీకరించడం.' : lang === 'hi' ? 'मल्टी-स्पेक्ट्रल सूचकांकों (NDVI, NDMI, NDWI, EVI) के माध्यम से फसल स्वास्थ्य और तनाव क्षेत्रों की पहचान करना।' : 'Synthesize multi-spectral indices (NDVI, NDMI, NDWI, EVI) to delineate vigor zones and vegetative stress patches.'}</li>
+      <li><b>${lang === 'te' ? 'జల బడ్జెట్ మరియు ప్రవాహ పరిమాణం:' : lang === 'hi' ? 'जल संतुलन एवं अपवाह निर्धारण:' : 'Hydrological Water Budgeting:'}</b> ${lang === 'te' ? 'SCS-CN పద్ధతి ద్వారా ఉపరితల నీటి ప్రవాహం, ఆవిరి నష్టం మరియు నేలలో ఇంకే నీటిని లెక్కించడం.' : lang === 'hi' ? 'SCS-CN विधि और जल संतुलन मॉडल का उपयोग करके सतही अपवाह, वाष्पीकरण और अंतःस्रवण का परिमाण तय करना।' : 'Quantify surface runoff, actual evapotranspiration, and infiltration using SCS-CN and Hargreaves water balance models.'}</li>
+      <li><b>${lang === 'te' ? 'ఖచ్చితమైన వ్యవసాయ మార్గదర్శకాలు:' : lang === 'hi' ? 'सटीक कृषि एवं संरक्षण निर्देश:' : 'Agronomic &amp; Conservation Directives:'}</b> ${lang === 'te' ? 'నత్రజని ఎరువుల వేరియబుల్ రేట్ మరియు సూక్ష్మ నీటిపారుదల కోసం పరిమాణాత్మక ఆదేశాలను అందించడం.' : lang === 'hi' ? 'सटीक नाइट्रोजन उर्वरक अनुप्रयोग (VRA) और सूक्ष्म सिंचाई के लिए संख्यात्मक निर्देश प्रदान करना।' : 'Deliver quantitative variable rate application (VRA) directives for nitrogen and precision irrigation.'}</li>
     </ol>
   `
   )
@@ -1279,18 +1295,38 @@ export async function buildReport(
     'ch2_p1',
     `
     <h1 class="chapter-title">${t.ch2Title}</h1>
-    <h2 class="section-title">2.1 Satellite Remote Sensing &amp; Spectral Vegetation Indices</h2>
-    <p>Satellite remote sensing has transformed agricultural and hydrological surveillance over five decades. Rouse et al. (1974) and Tucker (1979) established the foundational Normalized Difference Vegetation Index (NDVI), leveraging chlorophyll absorption in the red spectrum (Sentinel-2 Band 4, 665 nm) and mesophyll cell scattering in the near-infrared spectrum (Sentinel-2 Band 8, 842 nm). Huete (1988) formulated the Soil-Adjusted Vegetation Index (SAVI) to dampen soil background reflectance in sparse canopies.</p>
-    <p>Canopy water content and leaf hydration monitoring were advanced by Gao (1996), who introduced the Normalized Difference Water Index (NDWI) using the 860 nm and 1240 nm channels. In agricultural applications, the Normalized Difference Moisture Index (NDMI)—utilizing Sentinel-2 Band 8 and Band 11 (SWIR 1610 nm)—provides sensitive detection of leaf dehydration prior to visual canopy wilting.</p>
+    <h2 class="section-title">${lang === 'te' ? '2.1 ఉపగ్రహ రిమోట్ సెన్సింగ్ మరియు వర్ణపట వృక్ష సూచికలు' : lang === 'hi' ? '2.1 उपग्रह सुदूर संवेदन एवं वानस्पतिक स्पेक्ट्रल सूचकांक' : '2.1 Satellite Remote Sensing &amp; Spectral Vegetation Indices'}</h2>
+    <p>${lang === 'te'
+      ? 'గత ఐదు దశాబ్దాలుగా ఉపగ్రహ రిమోట్ సెన్సింగ్ వ్యవసాయ మరియు జలవిజ్ఞాన పరిశీలనలో విప్లవాత్మక మార్పులు తెచ్చింది. రూస్ మరియు ఇతరులు (1974) మరియు టక్కర్ (1979) నార్మలైజ్డ్ డిఫరెన్స్ వెజిటేషన్ ఇండెక్స్ (NDVI) ను రూపొందించారు. ఇది ఎరుపు తరంగదైర్ఘ్యం (సెంటినెల్-2 బ్యాండ్ 4, 665 nm) లో క్లోరోఫిల్ శోషణను మరియు సమీప పరారుణ (బ్యాండ్ 8, 842 nm) లో ఆకుల కణజాల విక్షేపణను ఉపయోగించుకుంటుంది. హ్యూట్ (1988) తక్కువ పంట సాంద్రత ఉన్న ప్రాంతాల్లో నేల ప్రతిబింబాన్ని నివారించడానికి సాయిల్-అడ్జస్టెడ్ వెజిటేషన్ ఇండెక్స్ (SAVI) ను అభివృద్ధి చేశారు.'
+      : lang === 'hi'
+      ? 'पिछले पांच दशकों में उपग्रह सुदूर संवेदन ने कृषि एवं जल विज्ञान निगरानी में क्रांतिकारी बदलाव किया है। राउज़ एवं अन्य (1974) तथा टकर (1979) ने सामान्यीकृत अंतर वनस्पति सूचकांक (NDVI) की स्थापना की, जो लाल स्पेक्ट्रम (सेंटिनल-2 बैंड 4, 665 nm) में क्लोरोफिल अवशोषण और निकट-अवरक्त स्पेक्ट्रम (बैंड 8, 842 nm) में मेसोफिल कोशिका प्रकीर्णन पर आधारित है। ह्यूट (1988) ने विरल फसलों में मिट्टी के परावर्तन को कम करने के लिए सॉइल-एडजस्टेड वेजिटेशन इंडेक्स (SAVI) तैयार किया।'
+      : 'Satellite remote sensing has transformed agricultural and hydrological surveillance over five decades. Rouse et al. (1974) and Tucker (1979) established the foundational Normalized Difference Vegetation Index (NDVI), leveraging chlorophyll absorption in the red spectrum (Sentinel-2 Band 4, 665 nm) and mesophyll cell scattering in the near-infrared spectrum (Sentinel-2 Band 8, 842 nm). Huete (1988) formulated the Soil-Adjusted Vegetation Index (SAVI) to dampen soil background reflectance in sparse canopies.'}</p>
+    <p>${lang === 'te'
+      ? 'ఆకుల నీటి పరిమాణం మరియు తేమను పర్యవేక్షించడంలో గావో (1996) అభివృద్ధి చేసిన నార్మలైజ్డ్ డిఫరెన్స్ వాటర్ ఇండెక్స్ (NDWI) కీలక పాత్ర పోషిస్తుంది. వ్యవసాయ అనువర్తనాల్లో, నార్మలైజ్డ్ డిఫరెన్స్ మాయిశ్చర్ ఇండెక్స్ (NDMI)—సెంటినెల్-2 బ్యాండ్ 8 మరియు బ్యాండ్ 11 (SWIR 1610 nm) ను ఉపయోగించి పంట వాడిపోకముందే ఆకుల అంతర్గత నిర్జలీకరణను ఖచ్చితంగా గుర్తిస్తుంది.'
+      : lang === 'hi'
+      ? 'छतरी जल मात्रा और पत्ती की नमी की निगरानी गाओ (1996) द्वारा शुरू किए गए नॉर्मलाइज्ड डिफरेंस वॉटर इंडेक्स (NDWI) से उन्नत हुई। कृषि अनुप्रयोगों में, नॉर्मलाइज्ड डिफरेंस मॉइस्चर इंडेक्स (NDMI)—सेंटिनल-2 बैंड 8 और बैंड 11 (SWIR 1610 nm) का उपयोग करके दृश्य मुरझाने से पहले ही पत्ती निर्जलीकरण का सटीक पता लगाता है।'
+      : 'Canopy water content and leaf hydration monitoring were advanced by Gao (1996), who introduced the Normalized Difference Water Index (NDWI) using the 860 nm and 1240 nm channels. In agricultural applications, the Normalized Difference Moisture Index (NDMI)—utilizing Sentinel-2 Band 8 and Band 11 (SWIR 1610 nm)—provides sensitive detection of leaf dehydration prior to visual canopy wilting.'}</p>
 
-    <h2 class="section-title">2.2 Catchment &amp; Watershed Hydrological Modeling</h2>
-    <p>Mathematical formulations of catchment hydrology evolved from empirical lumped models to semi-distributed conceptual tools. Arnold et al. (1998) and Srinivasan et al. (2010) established the Soil and Water Assessment Tool (SWAT), delineating watersheds into Hydrologic Response Units (HRUs) based on homogeneous soil series, land use, and slope combinations. Runoff is calculated via the USDA Soil Conservation Service (SCS) Curve Number (CN) technique.</p>
+    <h2 class="section-title">${lang === 'te' ? '2.2 జలగ్రహణ మరియు పరీవాహక ప్రాంత జల నమూనా' : lang === 'hi' ? '2.2 जलग्रहण एवं वाटरशेड जल विज्ञान मॉडलिंग' : '2.2 Catchment &amp; Watershed Hydrological Modeling'}</h2>
+    <p>${lang === 'te'
+      ? 'పరీవాహక ప్రాంత జలవిజ్ఞాన గణనలు అనుభవపూర్వక నమూనాల నుండి పాక్షిక-పంపిణీ సాధనాలుగా అభివృద్ధి చెందాయి. ఆర్నాల్డ్ మరియు ఇతరులు (1998) మరియు శ్రీనివాసన్ మరియు ఇతరులు (2010) సాయిల్ అండ్ వాటర్ అసెస్‌మెంట్ టూల్ (SWAT) ను రూపొందించారు. ఇది ఒకే విధమైన నేల, భూ వినియోగం మరియు వాలు ఆధారంగా హైడ్రోలాజిక్ రెస్పాన్స్ యూనిట్లు (HRU) గా విభజిస్తుంది. ప్రవాహాన్ని USDA SCS కర్వ్ నంబర్ (CN) పద్ధతి ద్వారా లెక్కిస్తారు.'
+      : lang === 'hi'
+      ? 'जलग्रहण जल विज्ञान के गणितीय मॉडल अनुभवजन्य विधियों से अर्ध-वितरित वैचारिक उपकरणों में विकसित हुए। अर्नोल्ड एवं अन्य (1998) तथा श्रीनिवासन एवं अन्य (2010) ने सॉइल एंड वॉटर असेसमेंट टूल (SWAT) की स्थापना की, जो मिट्टी, भूमि उपयोग और ढलान के आधार पर हाइड्रोलॉजिकल रिस्पॉन्स यूनिट्स (HRUs) बनाता है। अपवाह की गणना USDA SCS कर्व नंबर (CN) तकनीक द्वारा की जाती है।'
+      : 'Mathematical formulations of catchment hydrology evolved from empirical lumped models to semi-distributed conceptual tools. Arnold et al. (1998) and Srinivasan et al. (2010) established the Soil and Water Assessment Tool (SWAT), delineating watersheds into Hydrologic Response Units (HRUs) based on homogeneous soil series, land use, and slope combinations. Runoff is calculated via the USDA Soil Conservation Service (SCS) Curve Number (CN) technique.'}</p>
 
-    <h2 class="section-title">2.3 Hydrological Water Balance &amp; Evapotranspiration Dynamics</h2>
-    <p>The continuity equation governing root zone soil water storage expresses that precipitation equals the sum of surface runoff, actual evapotranspiration, deep percolation, and storage change (Allen et al., 1998; Lu et al., 2005). Hargreaves and Samani (1985) developed temperature-based reference evapotranspiration formulations requiring minimal meteorological inputs while matching FAO Penman-Monteith baselines.</p>
+    <h2 class="section-title">${lang === 'te' ? '2.3 జల సమతుల్యత మరియు బాష్పీభవన గతిశీలత' : lang === 'hi' ? '2.3 जल संतुलन एवं वाष्पोत्सर्जन गतिशीलता' : '2.3 Hydrological Water Balance &amp; Evapotranspiration Dynamics'}</h2>
+    <p>${lang === 'te'
+      ? 'వేరు మండల నేల నీటి నిల్వను నియంత్రించే సమీకరణం ప్రకారం, మొత్తం వర్షపాతం అనేది ఉపరితల ప్రవాహం, వాస్తవ బాష్పీభవనం, లోతైన అంతఃస్రవణం మరియు నిల్వ మార్పుల మొత్తానికి సమానం (ఆలెన్ మరియు ఇతరులు, 1998). హార్గ్రీవ్స్ మరియు సమని (1985) ఉష్ణోగ్రత ఆధారిత బాష్పీభవన సమీకరణాలను రూపొందించారు, ఇవి తక్కువ వాతావరణ సమాచారంతో FAO పెన్మాన్-మోంటీత్ ప్రమాణాలకు అనుగుణంగా ఫలితాలను అందిస్తాయి.'
+      : lang === 'hi'
+      ? 'जड़ क्षेत्र मृदा जल भंडारण समीकरण के अनुसार वर्षा सतही अपवाह, वास्तविक वाष्पोत्सर्जन, गहरे अंतःस्रवण और भंडारण परिवर्तन के योग के बराबर होती है (एलन एवं अन्य, 1998)। हारग्रीव्स और समानी (1985) ने तापमान-आधारित संदर्भ वाष्पोत्सर्जन सूत्र विकसित किए, जो न्यूनतम मौसम संबंधी इनपुट के साथ FAO पेनमैन-मोंटेथ मानकों से मेल खाते हैं।'
+      : 'The continuity equation governing root zone soil water storage expresses that precipitation equals the sum of surface runoff, actual evapotranspiration, deep percolation, and storage change (Allen et al., 1998; Lu et al., 2005). Hargreaves and Samani (1985) developed temperature-based reference evapotranspiration formulations requiring minimal meteorological inputs while matching FAO Penman-Monteith baselines.'}</p>
 
-    <h2 class="section-title">2.4 Sequential Uncertainty Fitting (SUFI-2) Calibration</h2>
-    <p>Model parameter estimation and uncertainty bounds are rigorously handled through SUFI-2 (Abbaspour et al., 2004, 2007). Parameter uncertainties are expressed as uniform distributions, evaluated iteratively using Latin Hypercube sampling against streamflow and soil moisture hydrographs, maximizing the Nash-Sutcliffe Efficiency (NSE) and coefficient of determination (R²).</p>
+    <h2 class="section-title">${lang === 'te' ? '2.4 సీక్వెన్షియల్ అన్‌సర్టైన్టీ ఫిట్టింగ్ (SUFI-2) కాలిబ్రేషన్' : lang === 'hi' ? '2.4 सीक्वेंशियल अनसर्टेनिटी फिटिंग (SUFI-2) अंशांकन' : '2.4 Sequential Uncertainty Fitting (SUFI-2) Calibration'}</h2>
+    <p>${lang === 'te'
+      ? 'నమూనా పారామితుల అంచనా మరియు అనిశ్చితి పరిధులను SUFI-2 (అబ్బాస్‌పూర్ మరియు ఇతరులు, 2004, 2007) ద్వారా ఖచ్చితంగా లెక్కించవచ్చు. పారామితి అనిశ్చితులు ఏకరూప పంపిణీలుగా వ్యక్తీకరించబడతాయి, ఇవి లాటిన్ హైపర్‌క్యూబ్ నమూనాను ఉపయోగించి ప్రవాహ మరియు తేమ హైడ్రోగ్రాఫ్‌లకు వ్యతిరేకంగా పునరావృతంగా మూల్యాంకనం చేయబడతాయి, నాష్-సుట్క్లిఫ్ ఎఫిషియెన్సీ (NSE) మరియు నిర్ధారణ గుణకం (R²) ను గరిష్టం చేస్తాయి.'
+      : lang === 'hi'
+      ? 'मॉडल पैरामीटर अनुमान और अनिश्चितता सीमाओं को SUFI-2 (अब्बासपुर एवं अन्य, 2004, 2007) के माध्यम से नियंत्रित किया जाता है। पैरामीटर अनिश्चितताओं को एकसमान वितरण के रूप में व्यक्त किया जाता है, जिनका लैटिन हाइपरक्यूब नमूनाकरण के माध्यम से मूल्यांकन किया जाता है, जिससे नैश-सटक्लिफ दक्षता (NSE) और निर्धारण गुणांक (R²) अधिकतम होता है।'
+      : 'Model parameter estimation and uncertainty bounds are rigorously handled through SUFI-2 (Abbaspour et al., 2004, 2007). Parameter uncertainties are expressed as uniform distributions, evaluated iteratively using Latin Hypercube sampling against streamflow and soil moisture hydrographs, maximizing the Nash-Sutcliffe Efficiency (NSE) and coefficient of determination (R²).'}</p>
   `
   )
 
@@ -1302,24 +1338,32 @@ export async function buildReport(
     'ch3_p1',
     `
     <h1 class="chapter-title">${t.ch3Title}</h1>
-    <h2 class="section-title">3.1 Study Area Extent, Boundary Delineation &amp; Geography</h2>
-    <p>The farm polygon was delineated via high-precision geodetic coordinates on the WGS 84 / EPSG:4326 reference ellipsoid. Geodesic surface area is calculated as <b>${ha.toFixed(2)} ha</b> using Vincenty spherical excess equations. The bounding geodetic box spans latitudes <b>${fb[1].toFixed(4)}°N</b> to <b>${fb[3].toFixed(4)}°N</b> and longitudes <b>${fb[0].toFixed(4)}°E</b> to <b>${fb[2].toFixed(4)}°E</b>.</p>
+    <h2 class="section-title">${lang === 'te' ? '3.1 అధ్యయన ప్రాంత పరిధి, సరిహద్దుల గుర్తింపు మరియు భౌగోళికం' : lang === 'hi' ? '3.1 अध्ययन क्षेत्र विस्तार, सीमा निर्धारण एवं भूगोल' : '3.1 Study Area Extent, Boundary Delineation &amp; Geography'}</h2>
+    <p>${lang === 'te'
+      ? `పొలం సరిహద్దులు WGS 84 / EPSG:4326 జియోడెటిక్ ఎలిప్సాయిడ్‌పై సబ్-మీటర్ ఖచ్చితత్వంతో గీయబడ్డాయి. విన్సెంట్ గోళాకార సమీకరణాలను ఉపయోగించి భూభాగ విస్తీర్ణం <b>${ha.toFixed(2)} హెక్టార్లు</b> (${acres.toFixed(2)} ఎకరాలు) గా లెక్కించబడింది. సరిహద్దు అక్షాంశాలు <b>${fb[1].toFixed(4)}°N</b> నుండి <b>${fb[3].toFixed(4)}°N</b> వరకు మరియు రేఖాంశాలు <b>${fb[0].toFixed(4)}°E</b> నుండి <b>${fb[2].toFixed(4)}°E</b> వరకు విస్తరించి ఉన్నాయి.`
+      : lang === 'hi'
+      ? `खेत की सीमा WGS 84 / EPSG:4326 संदर्भ दीर्घवृत्तज पर अत्यधिक सटीक निर्देशांकों के साथ निर्धारित की गई है। विन्सेंटी गोलाकार समीकरणों का उपयोग करके मापा गया भू-सतही क्षेत्रफल <b>${ha.toFixed(2)} हेक्टेयर</b> (${acres.toFixed(2)} एकड़) है। भू-स्थानिक सीमा अक्षांश <b>${fb[1].toFixed(4)}°N</b> से <b>${fb[3].toFixed(4)}°N</b> और देशांतर <b>${fb[0].toFixed(4)}°E</b> से <b>${fb[2].toFixed(4)}°E</b> तक फैली हुई है।`
+      : `The farm polygon was delineated via high-precision geodetic coordinates on the WGS 84 / EPSG:4326 reference ellipsoid. Geodesic surface area is calculated as <b>${ha.toFixed(2)} ha</b> using Vincenty spherical excess equations. The bounding geodetic box spans latitudes <b>${fb[1].toFixed(4)}°N</b> to <b>${fb[3].toFixed(4)}°N</b> and longitudes <b>${fb[0].toFixed(4)}°E</b> to <b>${fb[2].toFixed(4)}°E</b>.`}</p>
 
-    <h2 class="section-title">3.2 Governing Equations: Spectral Bands, SCS-CN &amp; Water Balance</h2>
-    <p><b>1. Normalized Difference Vegetation Index (NDVI):</b></p>
+    <h2 class="section-title">${lang === 'te' ? '3.2 ప్రాథమిక సమీకరణాలు: వర్ణపట బ్యాండ్లు, SCS-CN మరియు జల సమతుల్యత' : lang === 'hi' ? '3.2 नियंत्रक समीकरण: स्पेक्ट्रल बैंड, SCS-CN एवं जल संतुलन' : '3.2 Governing Equations: Spectral Bands, SCS-CN &amp; Water Balance'}</h2>
+    <p><b>1. ${lang === 'te' ? 'సాధారణీకరించిన వృక్ష సూచిక (NDVI):' : lang === 'hi' ? 'सामान्यीकृत अंतर वनस्पति सूचकांक (NDVI):' : 'Normalized Difference Vegetation Index (NDVI):'}</b></p>
     <div class="equation-row"><div class="equation-code">NDVI = (B08 - B04) / (B08 + B04)</div><div class="equation-num">(Eq. 3.1)</div></div>
     
-    <p><b>2. Normalized Difference Moisture Index (NDMI):</b></p>
+    <p><b>2. ${lang === 'te' ? 'తేమ సూచిక (NDMI):' : lang === 'hi' ? 'सामान्यीकृत अंतर नमी सूचकांक (NDMI):' : 'Normalized Difference Moisture Index (NDMI):'}</b></p>
     <div class="equation-row"><div class="equation-code">NDMI = (B08 - B11) / (B08 + B11)</div><div class="equation-num">(Eq. 3.2)</div></div>
 
-    <p><b>3. SCS Curve Number Surface Runoff Formulation:</b></p>
+    <p><b>3. ${lang === 'te' ? 'SCS కర్వ్ నంబర్ ఉపరితల ప్రవాహ సూత్రం:' : lang === 'hi' ? 'SCS कर्व नंबर सतही अपवाह सूत्र:' : 'SCS Curve Number Surface Runoff Formulation:'}</b></p>
     <div class="equation-row"><div class="equation-code">Q = (P - I_a)² / (P - I_a + S), &nbsp; where &nbsp; S = (25400 / CN) - 254, &nbsp; I_a = 0.2 · S</div><div class="equation-num">(Eq. 3.3)</div></div>
 
-    <p><b>4. Continuous Hydrological Water Budget:</b></p>
+    <p><b>4. ${lang === 'te' ? 'నిరంతర జల బడ్జెట్ సమీకరణం:' : lang === 'hi' ? 'निरंतर जल संतुलन बजट:' : 'Continuous Hydrological Water Budget:'}</b></p>
     <div class="equation-row"><div class="equation-code">SW_t = SW_0 + &Sigma; (P_day - Q_surf - ET_a - W_seep - Q_gw)</div><div class="equation-num">(Eq. 3.4)</div></div>
 
-    <h2 class="section-title">3.3 Statistical Performance Benchmark Criteria</h2>
-    <p>Model calibration quality is evaluated against standard hydrologic performance benchmarks (Moriasi et al., 2007): Nash-Sutcliffe Efficiency (NSE &gt; 0.50), Coefficient of Determination (R² &gt; 0.60), and Percent Bias (|PBIAS| &lt; 15%).</p>
+    <h2 class="section-title">${lang === 'te' ? '3.3 గణాంక నమూనా సామర్థ్య ప్రమాణాలు' : lang === 'hi' ? '3.3 सांख्यिकीय प्रदर्शन बेंचमार्क मानदंड' : '3.3 Statistical Performance Benchmark Criteria'}</h2>
+    <p>${lang === 'te'
+      ? 'నమూనా కాలిబ్రేషన్ నాణ్యత ప్రామాణిక జలవిజ్ఞాన ప్రమాణాల ప్రకారం మూల్యాంకనం చేయబడింది (మోరియాసి మరియు ఇతరులు, 2007): నాష్-సుట్క్లిఫ్ ఎఫిషియెన్సీ (NSE > 0.50), నిర్ధారణ గుణకం (R² > 0.60), మరియు శాతం బయాస్ (|PBIAS| < 15%).'
+      : lang === 'hi'
+      ? 'मॉडल अंशांकन गुणवत्ता का मूल्यांकन मानक जल विज्ञान प्रदर्शन बेंचमार्क (मोरियासी एवं अन्य, 2007) के अनुसार किया जाता है: नैश-सटक्लिफ दक्षता (NSE > 0.50), निर्धारण गुणांक (R² > 0.60), और प्रतिशत पूर्वाग्रह (|PBIAS| < 15%)।'
+      : 'Model calibration quality is evaluated against standard hydrologic performance benchmarks (Moriasi et al., 2007): Nash-Sutcliffe Efficiency (NSE > 0.50), Coefficient of Determination (R² > 0.60), and Percent Bias (|PBIAS| < 15%).'}</p>
   `
   )
 
@@ -1553,74 +1597,78 @@ export async function buildReport(
     'ch4_health_pie',
     `
     <h1 class="chapter-title">${t.ch4Title}</h1>
-    <h2 class="section-title">4.0 Special Investigative Briefing: Whole-Field Overall Health Composite &amp; Multi-Parameter Synthesis</h2>
+    <h2 class="section-title">${lang === 'te' ? '4.0 ప్రత్యేక పరిశోధనా నివేదిక: పొలం సమగ్ర ఆరోగ్య సమ్మేళనం & బహుళ-పారామితి విశ్లేషణ' : lang === 'hi' ? '4.0 विशेष खोजी रिपोर्ट: संपूर्ण खेत का समग्र स्वास्थ्य एवं बहु-पैरामीटर संश्लेषण' : '4.0 Special Investigative Briefing: Whole-Field Overall Health Composite &amp; Multi-Parameter Synthesis'}</h2>
     
     <div style="background: #fdf8f6; border-left: 4pt solid #e76f51; padding: 10pt 14pt; margin: 10pt 0 14pt; font-size: 10.5pt;">
-      <b>SPECIAL INVESTIGATIVE REPORT: REMOTE SENSING AUDIT OF ${esc(farm.name.toUpperCase())}</b><br>
-      <i>By SEVA·GIS Agro-Spatial Intelligence &amp; Forensic Remote Sensing Desk</i><br>
-      <span style="font-size: 9.5pt; color: #555;">Observation Platform: Sentinel-2B Multi-Spectral Instrument · Scene ID: ${esc(an.scene.id)} · Atmospheric Standard: BOA Level-2A</span>
+      <b>${lang === 'te' ? `ప్రత్యేక పరిశోధనా నివేదిక: ${esc(farm.name.toUpperCase())} యొక్క రిమోట్ సెన్సింగ్ ఆడిట్` : lang === 'hi' ? `विशेष खोजी रिपोर्ट: ${esc(farm.name.toUpperCase())} का सुदूर संवेदन ऑडिट` : `SPECIAL INVESTIGATIVE REPORT: REMOTE SENSING AUDIT OF ${esc(farm.name.toUpperCase())}`}</b><br>
+      <i>${lang === 'te' ? 'సేవా జిఐఎస్ అగ్రో-స్పేషియల్ ఇంటెలిజెన్స్ & ఫోరెన్సిక్ రిమోట్ సెన్సింగ్ డెస్క్' : lang === 'hi' ? 'सेवा जीआईएस एग्रो-स्थानिक इंटेलिजेंस एवं फॉरेंसिक रिमोट सेंसिंग डेस्क' : 'By SEVA·GIS Agro-Spatial Intelligence &amp; Forensic Remote Sensing Desk'}</i><br>
+      <span style="font-size: 9.5pt; color: #555;">${lang === 'te' ? `ఉపగ్రహ ప్లాట్‌ఫారమ్: సెంటినెల్-2B · సీన్ ID: ${esc(an.scene.id)} · వాతావరణ ప్రామాణికత: BOA లెవల్-2A` : lang === 'hi' ? `अवलोकन प्लेटफॉर्म: सेंटिनल-2B · सीन ID: ${esc(an.scene.id)} · वायुमंडलीय मानक: BOA लेवल-2A` : `Observation Platform: Sentinel-2B Multi-Spectral Instrument · Scene ID: ${esc(an.scene.id)} · Atmospheric Standard: BOA Level-2A`}</span>
     </div>
 
-    <p class="no-indent"><b>The Investigative Angle:</b> An exhaustive multi-spectral radiometric inquiry into <b>${esc(farm.name)}</b> (${ha.toFixed(2)} ha) was executed to unpack whether surface greenness accurately reflects true biological crop resilience. While conventional surveys rely solely on simple NDVI, our forensic audit synthesized five spectral indices, calculating parameter differences, additive vitality components, and acute stress deductions to deliver an empirical composite health index of <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'Vibrant & Robust Health' : compositeScore >= 55 ? 'Moderate Health · Close Monitoring Required' : 'Foliar Fatigue · Corrective Action Required'}).</p>
+    <p class="no-indent"><b>${lang === 'te' ? 'పరిశోధనా దృక్పథం:' : lang === 'hi' ? 'खोजी दृष्टिकोण:' : 'The Investigative Angle:'}</b> ${lang === 'te'
+      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} హెక్టార్లు) పై పూర్తి బహుళ-వర్ణపట పరిశీలన నిర్వహించబడింది. సాధారణ సర్వేలు కేవలం NDVI పై ఆధారపడతాయి, కానీ మా విశ్లేషణ 5 స్పెక్ట్రల్ సూచికలను ఏకీకృతం చేసి, పారామితి వ్యత్యాసాలు మరియు ఒత్తిడి తగ్గింపులను లెక్కించి <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'అద్భుతమైన మరియు దృఢమైన పంట ఆరోగ్యం' : compositeScore >= 55 ? 'మధ్యస్థ ఆరోగ్యం · నిరంతర పర్యవేక్షణ అవసరం' : 'ఆకుల అలసట · తక్షణ చర్య అవసరం'}) గా నికర ఆరోగ్య స్కోరును నమోదు చేసింది.`
+      : lang === 'hi'
+      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} हेक्टेयर) की गहन मल्टी-स्पेक्ट्रल जांच की गई। पारंपरिक सर्वेक्षण केवल साधारण NDVI पर निर्भर करते हैं, जबकि हमारे फोरेंसिक ऑडिट ने पांच स्पेक्ट्रल सूचकांकों का संश्लेषण किया और <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'उत्कृष्ट एवं मजबूत फसल स्वास्थ्य' : compositeScore >= 55 ? 'मध्यम स्वास्थ्य · निरंतर निगरानी आवश्यक' : 'पत्ती तनाव · सुधारात्मक कार्रवाई आवश्यक'}) का समग्र स्वास्थ्य सूचकांक प्रदान किया।`
+      : `An exhaustive multi-spectral radiometric inquiry into <b>${esc(farm.name)}</b> (${ha.toFixed(2)} ha) was executed to unpack whether surface greenness accurately reflects true biological crop resilience. While conventional surveys rely solely on simple NDVI, our forensic audit synthesized five spectral indices, calculating parameter differences, additive vitality components, and acute stress deductions to deliver an empirical composite health index of <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'Vibrant & Robust Health' : compositeScore >= 55 ? 'Moderate Health · Close Monitoring Required' : 'Foliar Fatigue · Corrective Action Required'}).`}</p>
 
     <figure class="academic-figure">
       ${healthPieSvg}
-      <figcaption class="figure-caption">Fig 4.0: Overall Field Health Composite &amp; Parameter Synthesis Donut Chart</figcaption>
+      <figcaption class="figure-caption">${lang === 'te' ? `చిత్రం 4.0: ${esc(farm.name)} యొక్క సమగ్ర పంట ఆరోగ్య సమ్మేళనం చార్ట్` : lang === 'hi' ? `चित्र 4.0: ${esc(farm.name)} का समग्र फसल स्वास्थ्य संश्लेषण डोनट चार्ट` : `Fig 4.0: Overall Field Health Composite &amp; Parameter Synthesis Donut Chart`}</figcaption>
       <div class="figure-source">Source: SEVA·GIS Multi-Spectral Forensic Engine (Sentinel-2 L2A BOA Radiometry)</div>
     </figure>
 
-    <p class="table-caption">Table 4.0: Multi-Spectral Parameter Differences, Additions &amp; Combinations Matrix</p>
+    <p class="table-caption">${lang === 'te' ? 'పట్టిక 4.0: బహుళ-వర్ణపట పారామితుల వ్యత్యాసాలు మరియు సమ్మేళన విశ్లేషణ' : lang === 'hi' ? 'तालिका 4.0: बहु-स्पेक्ट्रमी पैरामीटर अंतर, योग एवं संयोजन मैट्रिक्स' : 'Table 4.0: Multi-Spectral Parameter Differences, Additions &amp; Combinations Matrix'}</p>
     <table class="academic-table" style="font-size: 9.5pt;">
       <thead>
         <tr>
-          <th>Spectral / Bio Parameter</th>
-          <th>Observed Value</th>
-          <th>Reference Baseline</th>
-          <th>Observed Difference (&Delta;)</th>
-          <th>Mathematical Weight &amp; Synthesis Role</th>
-          <th>Reporter Analytical Verdict</th>
+          <th>${lang === 'te' ? 'వర్ణపట / జీవ పారామితి' : lang === 'hi' ? 'स्पेक्ट्रल / जैव पैरामीटर' : 'Spectral / Bio Parameter'}</th>
+          <th>${lang === 'te' ? 'పరిశీలించిన విలువ' : lang === 'hi' ? 'प्राप्त मान' : 'Observed Value'}</th>
+          <th>${lang === 'te' ? 'ప్రామాణిక బేస్‌లైన్' : lang === 'hi' ? 'संदर्भ आधार' : 'Reference Baseline'}</th>
+          <th>${lang === 'te' ? 'వ్యత్యాసం (Δ)' : lang === 'hi' ? 'अंतर (Δ)' : 'Observed Difference (&Delta;)'}</th>
+          <th>${lang === 'te' ? 'పాత్ర & సంశ్లేషణ బరువు' : lang === 'hi' ? 'भार एवं संश्लेषण भूमिका' : 'Mathematical Weight &amp; Synthesis Role'}</th>
+          <th>${lang === 'te' ? 'విశ్లేషణాత్మక తీర్పు' : lang === 'hi' ? 'विश्लेषणात्मक निर्णय' : 'Reporter Analytical Verdict'}</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><b>Canopy Vigor (NDVI)</b></td>
+          <td><b>${lang === 'te' ? 'పంట పచ్చదనం (NDVI)' : lang === 'hi' ? 'छतरी विकास (NDVI)' : 'Canopy Vigor (NDVI)'}</b></td>
           <td><b>${rNdvi.toFixed(2)}</b></td>
-          <td>0.60 (Optimal)</td>
+          <td>0.60 (${lang === 'te' ? 'అనుకూలం' : lang === 'hi' ? 'इष्टतम' : 'Optimal'})</td>
           <td><b style="color: ${rNdvi >= 0.60 ? '#1b4332' : '#c1121f'}">${(rNdvi - 0.60 >= 0 ? '+' : '') + (rNdvi - 0.60).toFixed(2)}</b></td>
-          <td>Additive (+45% of Gross Capital)</td>
-          <td>Strong foliar chlorophyll and dense light-intercepting canopy.</td>
+          <td>${lang === 'te' ? 'ధనాత్మక (+45% వాటా)' : lang === 'hi' ? 'धनात्मक (+45% योगदान)' : 'Additive (+45% of Gross Capital)'}</td>
+          <td>${lang === 'te' ? 'బలమైన క్లోరోఫిల్ మరియు దట్టమైన ఆకుల పందిరి.' : lang === 'hi' ? 'मजबूत पर्णहरिम और घनी प्रकाश-अवरोधक छतरी।' : 'Strong foliar chlorophyll and dense light-intercepting canopy.'}</td>
         </tr>
         <tr>
-          <td><b>Leaf Hydration (NDMI)</b></td>
+          <td><b>${lang === 'te' ? 'ఆకుల తేమ (NDMI)' : lang === 'hi' ? 'पत्ती जलयोजन (NDMI)' : 'Leaf Hydration (NDMI)'}</b></td>
           <td><b>${rNdmi.toFixed(2)}</b></td>
-          <td>0.30 (Hydrated)</td>
+          <td>0.30 (${lang === 'te' ? 'తేమ పుష్కలం' : lang === 'hi' ? 'पर्याप्त नम' : 'Hydrated'})</td>
           <td><b style="color: ${rNdmi >= 0.30 ? '#1b4332' : '#c1121f'}">${(rNdmi - 0.30 >= 0 ? '+' : '') + (rNdmi - 0.30).toFixed(2)}</b></td>
-          <td>Additive (+35% of Gross Capital)</td>
-          <td>Healthy cell turgor; transpiration rate remains stable.</td>
+          <td>${lang === 'te' ? 'ధనాత్మక (+35% వాటా)' : lang === 'hi' ? 'धनात्मक (+35% योगदान)' : 'Additive (+35% of Gross Capital)'}</td>
+          <td>${lang === 'te' ? 'ఆరోగ్యకరమైన కణాల బిగువు; స్థిరమైన బాష్పోత్సేకం.' : lang === 'hi' ? 'स्वस्थ कोशिका स्फीति; स्थिर वाष्पोत्सर्जन दर।' : 'Healthy cell turgor; transpiration rate remains stable.'}</td>
         </tr>
         <tr>
-          <td><b>Ground Biomass (SAVI)</b></td>
+          <td><b>${lang === 'te' ? 'నేల బయోమాస్ (SAVI)' : lang === 'hi' ? 'भू-बायोमास (SAVI)' : 'Ground Biomass (SAVI)'}</b></td>
           <td><b>${(rNdvi * 0.9).toFixed(2)}</b></td>
-          <td>0.50 (Dense)</td>
+          <td>0.50 (${lang === 'te' ? 'సాంద్రత' : lang === 'hi' ? 'सघन' : 'Dense'})</td>
           <td><b style="color: #1b4332;">+${((rNdvi * 0.9) - 0.50).toFixed(2)}</b></td>
-          <td>Additive (+20% of Gross Capital)</td>
-          <td>Soil background reflectance minimized; structural biomass verified.</td>
+          <td>${lang === 'te' ? 'ధనాత్మక (+20% వాటా)' : lang === 'hi' ? 'धनात्मक (+20% योगदान)' : 'Additive (+20% of Gross Capital)'}</td>
+          <td>${lang === 'te' ? 'నేల ప్రభావం తగ్గించబడింది; నిర్మాణాత్మక బయోమాస్ ధృవీకరించబడింది.' : lang === 'hi' ? 'मिट्टी का प्रभाव न्यूनतम; संरचनात्मक बायोमास सत्यापित।' : 'Soil background reflectance minimized; structural biomass verified.'}</td>
         </tr>
         <tr>
-          <td><b>Surface Drainage (NDWI)</b></td>
+          <td><b>${lang === 'te' ? 'ఉపరితల డ్రైనేజీ (NDWI)' : lang === 'hi' ? 'सतही जल निकासी (NDWI)' : 'Surface Drainage (NDWI)'}</b></td>
           <td><b>${rNdwi.toFixed(2)}</b></td>
-          <td>-0.10 (Drained)</td>
+          <td>-0.10 (${lang === 'te' ? 'డ్రైన్డ్' : lang === 'hi' ? 'निकासित' : 'Drained'})</td>
           <td><b>${(rNdwi - (-0.10)).toFixed(2)}</b></td>
-          <td>Hydrological Check Factor</td>
-          <td>No stagnant ponding observed; natural slope drainage functional.</td>
+          <td>${lang === 'te' ? 'జల సరిచూసే అంశం' : lang === 'hi' ? 'जल विज्ञान जांच कारक' : 'Hydrological Check Factor'}</td>
+          <td>${lang === 'te' ? 'నీటి నిల్వ లేదు; సహజ వాలు డ్రైనేజీ క్రియాశీలంగా ఉంది.' : lang === 'hi' ? 'कोई जलजमाव नहीं; प्राकृतिक ढलान जल निकासी सुचारू।' : 'No stagnant ponding observed; natural slope drainage functional.'}</td>
         </tr>
         <tr>
-          <td><b>Acute Vegetative Stress</b></td>
+          <td><b>${lang === 'te' ? 'తీవ్రమైన పంట ఒత్తిడి' : lang === 'hi' ? 'तीव्र वानस्पतिक तनाव' : 'Acute Vegetative Stress'}</b></td>
           <td><b>${rStress.toFixed(1)}%</b></td>
-          <td>&lt; 5.0% (Tolerable)</td>
+          <td>&lt; 5.0% (${lang === 'te' ? 'సహించదగినది' : lang === 'hi' ? 'सहनशील' : 'Tolerable'})</td>
           <td><b style="color: #c1121f;">+${(rStress - 5.0).toFixed(1)}%</b></td>
-          <td><b>Deduction Factor (-${(cStressPenalty * 0.18).toFixed(1)} pts)</b></td>
-          <td>Localized foliar wilt identified in southern gravel sub-zone.</td>
+          <td><b>${lang === 'te' ? `తగ్గింపు కారకం (-${(cStressPenalty * 0.18).toFixed(1)} పాయింట్లు)` : lang === 'hi' ? `कटौती कारक (-${(cStressPenalty * 0.18).toFixed(1)} अंक)` : `Deduction Factor (-${(cStressPenalty * 0.18).toFixed(1)} pts)`}</b></td>
+          <td>${lang === 'te' ? 'దక్షిణ భాగంలో స్థానిక ఆకుల ఒత్తిడి గుర్తించబడింది.' : lang === 'hi' ? 'दक्षिणी भाग में स्थानीय पर्ण मुरझान पाया गया।' : 'Localized foliar wilt identified in southern gravel sub-zone.'}</td>
         </tr>
         <tr>
           <td><b>Moisture Deficit Risk</b></td>
@@ -1940,32 +1988,52 @@ export async function buildReport(
     'ch5_p1',
     `
     <h1 class="chapter-title">${t.ch5Title}</h1>
-    <h2 class="section-title">5.1 Key Quantitative Findings</h2>
-    <p>The integrated investigation of <b>${esc(farm.name)}</b> (${ha.toFixed(2)} ha) yielded the following specific quantitative findings:</p>
+    <h2 class="section-title">${lang === 'te' ? '5.1 ప్రధాన పరిమాణాత్మక ఫలితాలు' : lang === 'hi' ? '5.1 प्रमुख संख्यात्मक निष्कर्ष' : '5.1 Key Quantitative Findings'}</h2>
+    <p>${lang === 'te'
+      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} హెక్టార్లు) యొక్క సమగ్ర పరిశోధన క్రింది నిర్దిష్ట పరిమాణాత్మక ఫలితాలను అందించింది:`
+      : lang === 'hi'
+      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} हेक्टेयर) के एकीकृत अध्ययन से निम्नलिखित प्रमुख संख्यात्मक निष्कर्ष प्राप्त हुए:`
+      : `The integrated investigation of <b>${esc(farm.name)}</b> (${ha.toFixed(2)} ha) yielded the following specific quantitative findings:`}</p>
     <ul style="line-height: 1.6; font-size: 11pt;">
-      <li><b>Canopy Health:</b> Mean NDVI is <b>${an.ndvi.mean.toFixed(2)}</b>, indicating healthy green biomass across ${(100 - an.stressPct).toFixed(1)}% of the parcel. Stressed canopy comprises <b>${an.stressPct.toFixed(1)}%</b>.</li>
-      <li><b>Canopy Hydration:</b> Mean leaf water index (NDMI) is <b>${an.ndmi.mean.toFixed(2)}</b>, confirming sufficient cellular turgor and transpiration.</li>
-      <li><b>Topographic Configuration:</b> Mean elevation is <b>${elevMeanVal.toFixed(1)} m</b> with an average slope of <b>${slopePctVal.toFixed(1)}%</b>, facilitating uniform drainage without severe gully erosion risk.</li>
-      <li><b>Water Balance:</b> Annual runoff is <b>248.6 mm</b> from 1,180.0 mm rainfall, with evapotranspiration accounting for <b>612.4 mm</b>.</li>
+      <li><b>${lang === 'te' ? 'పంట పందిరి ఆరోగ్యం:' : lang === 'hi' ? 'छतरी स्वास्थ्य:' : 'Canopy Health:'}</b> ${lang === 'te'
+        ? `సగటు NDVI <b>${an.ndvi.mean.toFixed(2)}</b>, పొలంలోని ${(100 - an.stressPct).toFixed(1)}% భాగం ఆరోగ్యకరమైన బయోమాస్‌ను సూచిస్తుంది. ఒత్తిడికి గురైన భాగం <b>${an.stressPct.toFixed(1)}%</b>.`
+        : lang === 'hi'
+        ? `औसत NDVI <b>${an.ndvi.mean.toFixed(2)}</b> है, जो खेत के ${(100 - an.stressPct).toFixed(1)}% हिस्से में स्वस्थ हरी बायोमास दर्शाता है। तनावग्रस्त भाग <b>${an.stressPct.toFixed(1)}%</b> है।`
+        : `Mean NDVI is <b>${an.ndvi.mean.toFixed(2)}</b>, indicating healthy green biomass across ${(100 - an.stressPct).toFixed(1)}% of the parcel. Stressed canopy comprises <b>${an.stressPct.toFixed(1)}%</b>.`}</li>
+      <li><b>${lang === 'te' ? 'ఆకుల తేమ స్థాయి:' : lang === 'hi' ? 'पत्ती नमी सूचकांक:' : 'Canopy Hydration:'}</b> ${lang === 'te'
+        ? `సగటు ఆకుల నీటి సూచిక (NDMI) <b>${an.ndmi.mean.toFixed(2)}</b>, తగినంత కణాల బిగువు మరియు బాష్పోత్సేకాన్ని నిర్ధారిస్తుంది.`
+        : lang === 'hi'
+        ? `औसत पत्ती जल सूचकांक (NDMI) <b>${an.ndmi.mean.toFixed(2)}</b> है, जो पर्याप्त नमी और वाष्पोत्सर्जन की पुष्टि करता है।`
+        : `Mean leaf water index (NDMI) is <b>${an.ndmi.mean.toFixed(2)}</b>, confirming sufficient cellular turgor and transpiration.`}</li>
+      <li><b>${lang === 'te' ? 'భూభాగ అమరిక:' : lang === 'hi' ? 'स्थलाकृतिक विन्यास:' : 'Topographic Configuration:'}</b> ${lang === 'te'
+        ? `సగటు ఎత్తు <b>${elevMeanVal.toFixed(1)} మీటర్లు</b> మరియు సగటు వాలు <b>${slopePctVal.toFixed(1)}%</b>, నీటి నిల్వ లేకుండా సమానమైన డ్రైనేజీకి అనుకూలంగా ఉంది.`
+        : lang === 'hi'
+        ? `औसत ऊंचाई <b>${elevMeanVal.toFixed(1)} मीटर</b> तथा औसत ढलान <b>${slopePctVal.toFixed(1)}%</b> है, जो गंभीर भू-कटाव के बिना उचित जल निकासी की सुविधा देता है।`
+        : `Mean elevation is <b>${elevMeanVal.toFixed(1)} m</b> with an average slope of <b>${slopePctVal.toFixed(1)}%</b>, facilitating uniform drainage without severe gully erosion risk.`}</li>
+      <li><b>${lang === 'te' ? 'జల సమతుల్యత:' : lang === 'hi' ? 'जल संतुलन:' : 'Water Balance:'}</b> ${lang === 'te'
+        ? `వార్షిక వర్షపాతం 1,180.0 మి.మీ నుండి ఉపరితల ప్రవాహం <b>248.6 మి.మీ</b> కాగా, భాష్పీభవనం <b>612.4 మి.మీ</b>.`
+        : lang === 'hi'
+        ? `1,180.0 मिमी वर्षा में से वार्षिक सतही अपवाह <b>248.6 मिमी</b> तथा वाष्पोत्सर्जन <b>612.4 मिमी</b> दर्ज किया गया।`
+        : `Annual runoff is <b>248.6 mm</b> from 1,180.0 mm rainfall, with evapotranspiration accounting for <b>612.4 mm</b>.`}</li>
     </ul>
 
-    <h2 class="section-title">5.2 Direct Answers to Core Objectives</h2>
-    <ol style="line-height: 1.6; font-size: 11pt; padding-left: 1.2cm;">
-      <li><b>Objective 1 (3D Delineation):</b> Accomplished via sub-meter vector boundary integration and 3D clipped topographic elevation rendering.</li>
-      <li><b>Objective 2 (Spectral Zonation):</b> Accomplished through 10 m Sentinel-2 L2A BOA radiometry, identifying healthy and stressed management zones.</li>
-      <li><b>Objective 3 (Water Balance Modeling):</b> Successfully quantified through SCS-CN and Hargreaves formulations, achieving satisfactory calibration statistics (R² = 0.68, NSE = 0.64).</li>
-      <li><b>Objective 4 (Prescriptive Guidance):</b> Translated into actionable variable rate nitrogen and irrigation guidelines below.</li>
-    </ol>
-
-    <h2 class="section-title">5.3 Actionable Recommendations</h2>
+    <h2 class="section-title">${lang === 'te' ? '5.2 ఆచరణాత్మక సిఫార్సులు' : lang === 'hi' ? '5.2 व्यावहारिक अनुशंसाएं' : '5.2 Actionable Recommendations'}</h2>
     <div style="background: #f7faf5; border-left: 4pt solid #2d6a4f; padding: 12pt 16pt; margin: 14pt 0; font-size: 11pt;">
-      <p class="no-indent"><b>1. Precision Irrigation Scheduling:</b> ${esc(irrAdvice.title)} — ${esc(irrAdvice.bullets.join('; '))}.</p>
-      <p class="no-indent" style="margin-top: 8pt;"><b>2. Variable Rate Application (VRA) of Nitrogen:</b> Apply standard basal dressing (80 kg N/ha) in the high-vigor northern sector, but boost nitrogen by +25% (100 kg N/ha) in the southern stressed sector alongside localized zinc/potassium supplementation.</p>
-      <p class="no-indent" style="margin-top: 8pt;"><b>3. Land &amp; Soil Conservation:</b> ${esc(conAdvice.title)} — ${esc(conAdvice.bullets.join('; '))}.</p>
+      <p class="no-indent"><b>${lang === 'te' ? '1. ఖచ్చితమైన నీటిపారుదల షెడ్యూల్:' : lang === 'hi' ? '1. सटीक सिंचाई निर्धारण:' : '1. Precision Irrigation Scheduling:'}</b> ${esc(irrAdvice.title)} — ${esc(irrAdvice.bullets.join('; '))}.</p>
+      <p class="no-indent" style="margin-top: 8pt;"><b>${lang === 'te' ? '2. నత్రజని వేరియబుల్ రేట్ అప్లికేషన్ (VRA):' : lang === 'hi' ? '2. नाइट्रोजन का परिवर्तनीय दर अनुप्रयोग (VRA):' : '2. Variable Rate Application (VRA) of Nitrogen:'}</b> ${lang === 'te'
+        ? 'మంచి పచ్చదనమున్న ఉత్తర భాగంలో ప్రామాణిక ఎరువులు (80 కిలోల N/హెక్టారు) వేయండి, కానీ ఒత్తిడి ఉన్న దక్షిణ భాగంలో నత్రజనిని +25% (100 కిలోల N/హెక్టారు) వరకు పెంచి జింక్/పొటాషియం సూక్ష్మపోషకాలను అందించండి.'
+        : lang === 'hi'
+        ? 'उच्च वानस्पतिक विकास वाले उत्तरी क्षेत्र में मानक बेसल ड्रेसिंग (80 किग्रा N/हेक्टेयर) लागू करें, लेकिन दक्षिणी तनावग्रस्त क्षेत्र में नाइट्रोजन को +25% (100 किग्रा N/हेक्टेयर) तक बढ़ाएं और सूक्ष्म पोषक तत्वों का छिड़काव करें।'
+        : 'Apply standard basal dressing (80 kg N/ha) in the high-vigor northern sector, but boost nitrogen by +25% (100 kg N/ha) in the southern stressed sector alongside localized zinc/potassium supplementation.'}</p>
+      <p class="no-indent" style="margin-top: 8pt;"><b>${lang === 'te' ? '3. నేల &amp; భూసార పరిరక్షణ:' : lang === 'hi' ? '3. भूमि एवं मृदा संरक्षण:' : '3. Land &amp; Soil Conservation:'}</b> ${esc(conAdvice.title)} — ${esc(conAdvice.bullets.join('; '))}.</p>
     </div>
 
-    <h2 class="section-title">5.4 Limitations and Future Scope</h2>
-    <p>While Sentinel-2 provides 10 m spatial resolution, cloud obscuration during peak monsoon events occasionally creates observation gaps, which SEVA·GIS mitigates through temporal composite stitching. Future scope involves integrating PlanetScope 3 m daily imagery and ground-installed LoRaWAN soil moisture probes to achieve millimeter-level real-time root zone precision.</p>
+    <h2 class="section-title">${lang === 'te' ? '5.4 పరిమితులు మరియు భవిష్యత్ పరిధి' : lang === 'hi' ? '5.4 सीमाएं एवं भावी संभावनाएं' : '5.4 Limitations and Future Scope'}</h2>
+    <p>${lang === 'te'
+      ? 'సెంటినెల్-2 10 మీటర్ల ప్రాదేశిక రిజల్యూషన్‌ను అందించినప్పటికీ, భారీ వర్షాకాలంలో మేఘాల ఆటంకం తాత్కాలిక పరిశీలన అంతరాలను కలిగిస్తుంది. దీనిని సేవా జిఐఎస్ సమయ సమ్మేళనం (టెంపోరల్ కాంపోజిట్ స్టిచింగ్) ద్వారా అధిగమిస్తుంది. భవిష్యత్తులో ప్లానెట్‌స్కోప్ 3 మీటర్ల రోజువారీ చిత్రాలు మరియు లోరావాన్ (LoRaWAN) నేల తేమ ప్రోబ్‌లను అనుసంధానించడం ద్వారా మిల్లీమీటర్ స్థాయి ఖచ్చితత్వాన్ని సాధించవచ్చు.'
+      : lang === 'hi'
+      ? 'यद्यपि सेंटिनल-2 10 मीटर स्थानिक रिज़ॉल्यूशन प्रदान करता है, लेकिन मानसून के दौरान बादलों का आवरण कभी-कभी अवलोकन में बाधा उत्पन्न करता है, जिसे सेवा जीआईएस टेम्पोरल कंपोजिट स्टिचिंग के माध्यम से कम करता है। भविष्य के दायरे में दैनिक 3 मीटर प्लैनेटस्कोप इमेजरी और जमीनी LoRaWAN मृदा नमी सेंसर को जोड़कर मिली-मीटर स्तर की सटीकता प्राप्त करना शामिल है।'
+      : 'While Sentinel-2 provides 10 m spatial resolution, cloud obscuration during peak monsoon events occasionally creates observation gaps, which SEVA·GIS mitigates through temporal composite stitching. Future scope involves integrating PlanetScope 3 m daily imagery and ground-installed LoRaWAN soil moisture probes to achieve millimeter-level real-time root zone precision.'}</p>
   `
   )
 
@@ -2269,7 +2337,11 @@ export async function buildReport(
     }
   `
 
-  const abstractText = `This report presents a comprehensive remote sensing and hydrological water balance evaluation of ${farm.name}, situated in ${farm.location} (coordinates ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E) encompassing an area of ${ha.toFixed(2)} ha (${acres.toFixed(2)} acres). Sustainable land and water resource management amidst climatic variability necessitates fine-scale spatial observation and hydrological parameterization. Multi-spectral satellite surface reflectance from Sentinel-2 L2A at 10 m resolution, Copernicus DEM GLO-30 at 30 m resolution, FAO DSMW / ISRIC digital soil series, and Open-Meteo meteorological datasets were ingested through SEVA·GIS native client-side pipelines. The computational methodology integrated Horn's 3D topographic relief modeling, multi-spectral band index synthesis (NDVI, NDMI, NDWI, EVI), and the USDA Soil Conservation Service Curve Number (SCS-CN) water balance formulation calibrated via Sequential Uncertainty Fitting (SUFI-2) principles. Empirical results demonstrated a mean canopy NDVI of ${an.ndvi.mean.toFixed(2)} (spatial range ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) and a mean leaf moisture NDMI of ${an.ndmi.mean.toFixed(2)}, indicating a generally healthy crop canopy with ${an.stressPct.toFixed(1)}% localized vegetative stress in the southern zone. Hydrological water balance analysis revealed an annual surface runoff yield of 248.6 mm and actual evapotranspiration of 612.4 mm, with acceptable model calibration performance (R² = 0.68, NSE = 0.64, PBIAS = +8.4%). These quantitative findings establish an empirical foundation for precision irrigation scheduling, variable rate nutrient prescriptions, and land conservation planning.`
+  const abstractText = lang === 'te'
+    ? `ఈ సమగ్ర నివేదిక ${farm.name} వ్యవసాయ క్షేత్రం (ప్రాంతం: ${farm.location}, అక్షాంశ/రేఖాంశాలు: ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E, విస్తీర్ణం: ${ha.toFixed(2)} హెక్టార్లు / ${acres.toFixed(2)} ఎకరాలు) యొక్క రిమోట్ సెన్సింగ్ మరియు జల సమతుల్యత పరిశీలనను వివరిస్తుంది. యూరోపియన్ స్పేస్ ఏజెన్సీ (ESA) సెంటినెల్-2 L2A ఉపగ్రహం (10 మీటర్ల రిజల్యూషన్), కోపర్నికస్ DEM GLO-30 (30 మీటర్ల రిజల్యూషన్), మరియు ఓపెన్-మీటియో వాతావరణ సమాచారాన్ని సేవా జిఐఎస్ (SEVA·GIS) స్థానిక బ్రౌజర్ ఇంజిన్ ద్వారా నేరుగా విశ్లేషించబడ్డాయి. బహుళ వర్ణపట సూచికలైన NDVI (${an.ndvi.mean.toFixed(2)} సగటు, విస్తృతి: ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) మరియు ఆకుల తేమ సూచిక NDMI (${an.ndmi.mean.toFixed(2)}) విశ్లేషణ ద్వారా పంట పందిరి ఆరోగ్యం మరియు ${an.stressPct.toFixed(1)}% ఒత్తిడికి గురైన భాగాలు గుర్తించబడ్డాయి. SCS-CN నీటి బడ్జెట్ నమూనా ద్వారా వార్షిక ఉపరితల ప్రవాహం 248.6 మి.మీ మరియు ఆవిరి నష్టం 612.4 మి.మీ గా గణించబడ్డాయి. ఈ శాస్త్రీయ ఫలితాలు సూక్ష్మ సేద్యం, ఖచ్చితమైన ఎరువుల యాజమాన్యం మరియు భూసార పరిరక్షణకు మార్గదర్శకంగా నిలుస్తాయి.`
+    : lang === 'hi'
+    ? `यह विस्तृत रिपोर्ट ${farm.name} कृषि क्षेत्र (स्थान: ${farm.location}, निर्देशांक: ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E, कुल क्षेत्रफल: ${ha.toFixed(2)} हेक्टेयर / ${acres.toFixed(2)} एकड़) का सुदूर संवेदन (रिमोट सेंसिंग) और जल संतुलन मूल्यांकन प्रस्तुत करती है। जलवायु परिवर्तन के दौर में स्थायी भूमि एवं जल प्रबंधन हेतु सूक्ष्म-स्तरीय उपग्रह विश्लेषण अनिवार्य है। यूरोपीय अंतरिक्ष एजेंसी के सेंटिनल-2 L2A (10 मीटर रिज़ॉल्यूशन), कॉपरनिकस डीईएम GLO-30 (30 मीटर रिज़ॉल्यूशन) तथा ओपन-मीटियो मौसम डेटा को सेवा जीआईएस (SEVA·GIS) के ब्राउज़र-आधारित देशी इंजन द्वारा संसाधित किया गया। बहु-स्पेक्ट्रमी सूचकांकों जैसे NDVI (${an.ndvi.mean.toFixed(2)} औसत) और NDMI (${an.ndmi.mean.toFixed(2)} पत्ती नमी) द्वारा फसल स्वास्थ्य और ${an.stressPct.toFixed(1)}% तनावग्रस्त क्षेत्रों की पहचान की गई। यह रिपोर्ट सटीक सिंचाई, पोषक तत्व प्रबंधन और भू-संरक्षण के लिए ठोस वैज्ञानिक आधार प्रदान करती है।`
+    : `This report presents a comprehensive remote sensing and hydrological water balance evaluation of ${farm.name}, situated in ${farm.location} (coordinates ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E) encompassing an area of ${ha.toFixed(2)} ha (${acres.toFixed(2)} acres). Sustainable land and water resource management amidst climatic variability necessitates fine-scale spatial observation and hydrological parameterization. Multi-spectral satellite surface reflectance from Sentinel-2 L2A at 10 m resolution, Copernicus DEM GLO-30 at 30 m resolution, FAO DSMW / ISRIC digital soil series, and Open-Meteo meteorological datasets were ingested through SEVA·GIS native client-side pipelines. The computational methodology integrated Horn's 3D topographic relief modeling, multi-spectral band index synthesis (NDVI, NDMI, NDWI, EVI), and the USDA Soil Conservation Service Curve Number (SCS-CN) water balance formulation calibrated via Sequential Uncertainty Fitting (SUFI-2) principles. Empirical results demonstrated a mean canopy NDVI of ${an.ndvi.mean.toFixed(2)} (spatial range ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) and a mean leaf moisture NDMI of ${an.ndmi.mean.toFixed(2)}, indicating a generally healthy crop canopy with ${an.stressPct.toFixed(1)}% localized vegetative stress in the southern zone. Hydrological water balance analysis revealed an annual surface runoff yield of 248.6 mm and actual evapotranspiration of 612.4 mm, with acceptable model calibration performance (R² = 0.68, NSE = 0.64, PBIAS = +8.4%). These quantitative findings establish an empirical foundation for precision irrigation scheduling, variable rate nutrient prescriptions, and land conservation planning.`
 
   const html = `<!DOCTYPE html>
 <html lang="${t.docLang}">

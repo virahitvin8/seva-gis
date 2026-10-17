@@ -219,6 +219,18 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   })
   const [hidden, setHidden] = useState<string[]>([])
   const [opacity, setOpacity] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    const handleApplyLayer = (e: Event) => {
+      const custom = e as CustomEvent<{ layerId?: string }>
+      const layerId = custom.detail?.layerId
+      if (!layerId) return
+      setActive(prev => (prev.includes(layerId) ? prev : [layerId, ...prev]))
+      setHidden(prev => prev.filter(id => id !== layerId))
+    }
+    window.addEventListener('seva-apply-indicator-layer', handleApplyLayer)
+    return () => window.removeEventListener('seva-apply-indicator-layer', handleApplyLayer)
+  }, [])
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState<string[]>([])
   /** Result of the last GeoTIFF export, shown in the map HUD. */
@@ -633,7 +645,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   // Strict 75% Box Ratio Auto Zoom & MinZoom Boundary
   // Automatically resizes and fits the AOI so it fills 75% of the viewport container (12.5% padding on each margin).
-  // Main map: 13x zoom (75% AOI fit). Remote field review maps: 19x zoom.
+  // Dynamically calculates safe bounds zoom for any parcel scale from 0.5 ha up to 100,000+ ha.
   // Constrains zoom within safe bounds so imagery never exceeds native resolution,
   // overcoming black-screen tile void glitches while maintaining cartographic scale.
   const fit75PercentAoi = (instance: L.Map, animate = false, enforceMinZoom = false, isReviewMap = false) => {
@@ -653,9 +665,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       const padX = Math.max(40, Math.round(sz.x * 0.125))
       const padY = Math.max(40, Math.round(sz.y * 0.125))
       const computedZoom = instance.getBoundsZoom(bounds, false, L.point(padX * 2, (padY + 30) * 2))
-      // Main map: min 13, max 18. Review maps: min 19, max 20
-      const minZoom = isReviewMap ? 19 : 13
-      const maxZoom = isReviewMap ? 20 : 18
+      // Main map: dynamically fit any parcel scale (from 0.5 ha up to 100,000+ ha). Review maps: min 18, max 20
+      const minZoom = isReviewMap ? 18 : 2
+      const maxZoom = isReviewMap ? 20 : 21
       const safeAoiZoom = Math.min(maxZoom, Math.max(minZoom, computedZoom))
 
       instance.fitBounds(bounds, {
@@ -669,7 +681,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         setTimeout(() => {
           try {
             if (instance && (instance as any)._loaded) {
-              instance.setMinZoom(safeAoiZoom)
+              instance.setMinZoom(Math.max(2, safeAoiZoom - 1))
               instance.setMaxZoom(maxZoom)
             }
           } catch {}
@@ -724,8 +736,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       })
 
       if (locked) {
-        // When locking, fit AOI cleanly and enforce constant zoom scale
-        fit75PercentAoi(m, false, true, false)
+        // When locking, fit AOI cleanly to full boundary
+        const [w, s, e, n] = farmBBox(farm)
+        m.fitBounds(L.latLngBounds([s, w], [n, e]), { padding: [30, 30], maxZoom: 19, animate: false })
       } else {
         // When unlocking, allow zooming out freely without resetting view or bounds
         m.setMinZoom(3)
@@ -939,15 +952,12 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
     // backdrop without erasing the user's chosen satellite or street basemap.
     const esri = 'Imagery © Esri, Maxar, Earthstar Geographics'
     const google = 'Imagery © Google'
-    if (base === 'sat' || base === 'hybrid' || base === 'esri') {
-      // blurry underlay so a tile that is still loading or missing is never a black hole
-      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 13, zIndex: 8 })
-      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 17 })
-      if (base === 'hybrid') {
-        add('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', google, { maxNativeZoom: 20, maxZoom: 22 })
-      } else if (base === 'sat') {
-        add('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', google, { maxNativeZoom: 20, maxZoom: 22 })
-      }
+    if (base === 'sat') {
+      add('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', google, { maxNativeZoom: 20, maxZoom: 22 })
+    } else if (base === 'hybrid') {
+      add('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', google, { maxNativeZoom: 20, maxZoom: 22 })
+    } else if (base === 'esri') {
+      add(ESRI('World_Imagery'), esri, { maxNativeZoom: 19, maxZoom: 22 })
     } else if (base === 'streets') {
       add('https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors', { maxNativeZoom: 19 })
     } else if (base === 'terrain') {
@@ -1013,7 +1023,9 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       }
 
       const strokeColor = bgMode === 'black' ? '#22c55e' : bgMode === 'white' ? '#15803d' : aoiOnly ? '#22c55e' : '#facc15'
-      L.polygon(ring, { color: strokeColor, weight: 2.8, fill: false, interactive: false }).addTo(group)
+      // Dual-stroke boundary: outer vibrant emerald glow halo + inner high-contrast crisp stroke
+      L.polygon(ring, { color: '#059669', weight: 6.5, opacity: 0.6, fill: false, interactive: false }).addTo(group)
+      L.polygon(ring, { color: strokeColor, weight: 2.5, opacity: 1.0, fill: false, interactive: false }).addTo(group)
 
       // Geodesic Buffer Zone Polygon
       if (bufferActive) {
@@ -1450,6 +1462,31 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         </button>
 
         <button
+          className="ix-tb-btn"
+          onClick={handleZoomStretch}
+          title="Zoom to Area of Interest (AOI): Center and fit camera directly on parcel boundary"
+        >
+          <LocateFixed size={15}/>
+          <span>Zoom to AOI</span>
+          <b className="ix-btn-badge">Focus</b>
+        </button>
+
+        <button
+          className="ix-tb-btn"
+          onClick={() => {
+            if (map.current) {
+              const b = farmBBox(farm)
+              map.current.fitBounds([[b[1], b[0]], [b[3], b[2]]], { maxZoom: 18, animate: true, padding: [20, 20] })
+            }
+          }}
+          title="Zoom to Active Layer: Frame the active spectral raster layer"
+        >
+          <Layers size={15}/>
+          <span>Zoom to Layer</span>
+          <b className="ix-btn-badge">Active</b>
+        </button>
+
+        <button
           className={`ix-tb-btn ${aoiOnly ? 'on' : ''}`}
           onClick={() => setAoiOnly(!aoiOnly)}
           title={aoiOnly ? "Disable AOI clipping: Show full surroundings" : "Clip AOI from boundary: Shapefile mask exclusively displaying all parameters upon farm boundary"}
@@ -1526,6 +1563,20 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           <Globe2 size={15}/>
           <span>Google Earth 3D</span>
           <b className="ix-btn-badge">{view3d ? '3D Active' : 'Orbit'}</b>
+        </button>
+
+        <button
+          className="ix-tb-btn"
+          onClick={() => {
+            if (map.current) {
+              fit75PercentAoi(map.current, true)
+            }
+          }}
+          title="Zoom and center directly on Area of Interest (AOI)"
+        >
+          <LocateFixed size={15}/>
+          <span>Zoom to AOI</span>
+          <b className="ix-btn-badge">Focus AOI</b>
         </button>
 
         <button

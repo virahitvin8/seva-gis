@@ -2,7 +2,7 @@ import { insideMask, paintClipped, pixelAt, rampColor, statsOf, type Bbox, type 
 
 export type Bands = Record<string, Float32Array | Float64Array>
 export type Grid = { w: number; h: number; bbox: Bbox; dx: number; dy: number; b: Bands; ok: Uint8Array; inside: Uint8Array }
-export type Group = 'Vegetation' | 'Water & moisture' | 'Water & drainage' | 'Soil & built-up' | 'Terrain' | 'Imagery'
+export type Group = 'Vegetation' | 'Water & moisture' | 'Water & drainage' | 'Soil & built-up' | 'Terrain' | 'Imagery' | 'Geology & minerals'
 export type Ind = {
   id: string; name: string; group: Group; source: 'S2' | 'DEM'; desc: string
   value?: (b: Bands, i: number) => number
@@ -69,6 +69,12 @@ export const INDICATORS: Ind[] = [
   { id: 're_rgb', name: 'Chlorophyll red-edge', group: 'Imagery', source: 'S2', desc: 'NIR / Red Edge 1 / red. Early chlorophyll breakdown and nitrogen deficit.', rgb: composite('B08', 'B05', 'B04') },
   { id: 'geology_rgb', name: 'Land / Water contrast', group: 'Imagery', source: 'S2', desc: 'SWIR2 / NIR / green. High contrast between water, soil, and vegetation.', rgb: composite('B12', 'B08', 'B03') },
   { id: 'qgis_ortho', name: 'Farmpond & Parcel Orthophoto', group: 'Imagery', source: 'S2', desc: 'Sub-meter pan-sharpened orthophoto with internal farmponds, water reflection, and field bunds matching QGIS reference.', rgb: composite('B04', 'B03', 'B02') },
+  { id: 'fmi', name: 'Ferrous Minerals (FMI)', group: 'Geology & minerals', source: 'S2', desc: 'USGS SWIR/NIR ratio (B12/B08) identifying iron-bearing silicates, pyroxenes, and basic igneous minerals.', ramp: ['#ffffd4', '#fed98e', '#fe9929', '#d95f0e', '#993404'], range: [0.2, 1.8], valid: [0, 5] },
+  { id: 'ioi', name: 'Iron Oxide (IOI)', group: 'Geology & minerals', source: 'S2', desc: 'Visible Red/Blue ratio (B04/B02) tracking hematite, goethite, limonite weathering and lateritic oxisols.', ramp: ['#fff5eb', '#fdd0a2', '#fdae6b', '#f16913', '#7f2704'], range: [0.5, 2.5], valid: [0, 8] },
+  { id: 'clay_ratio', name: 'Clay & Hydroxyl Alteration', group: 'Geology & minerals', source: 'S2', desc: 'SWIR1/SWIR2 ratio (B11/B12) detecting Al-OH absorption in kaolinite, illite, montmorillonite, and hydrothermal clay alteration.', ramp: ['#f7fcf0', '#e0f3db', '#a8ddb5', '#4eb3d3', '#08589e'], range: [0.8, 2.2], valid: [0, 6] },
+  { id: 'calcite', name: 'Calcite & Carbonates', group: 'Geology & minerals', source: 'S2', desc: 'Carbonate absorption index (B11+B03)/B12 mapping limestone, dolomite, marl and caliche calcareous horizons.', ramp: ['#f7f4f9', '#d4b9da', '#df65b0', '#ce1256', '#67001f'], range: [0.9, 2.6], valid: [0, 6] },
+  { id: 'silica', name: 'Silica & Quartz Index', group: 'Geology & minerals', source: 'S2', desc: 'SWIR1/Red ratio (B11/B04) differentiating quartz sandstone, silicates, and sandy loam textures.', ramp: ['#ffffe5', '#d9f0a3', '#78c679', '#238443', '#004529'], range: [0.5, 2.0], valid: [0, 5] },
+  { id: 'minerals_rgb', name: 'Hyperspectral Mineral Alteration', group: 'Imagery', source: 'S2', desc: 'SWIR2 (B12) / SWIR1 (B11) / Blue (B02) composite for lithological and hydrothermal alteration differentiation.', rgb: composite('B12', 'B11', 'B02') },
 ]
 
 const calc: Record<string, (b: Bands, i: number) => number> = {
@@ -101,6 +107,11 @@ const calc: Record<string, (b: Bands, i: number) => number> = {
     return !Number.isFinite(ndvi) || ndvi <= 0.1 ? 0 : Math.min(7.5, Math.max(0, -Math.log(Math.max(0.02, (0.92 - Math.min(0.88, ndvi)) / 0.85)) / 0.65))
   },
   chla: (b, i) => (b.B03[i] > 0 ? Math.min(8, Math.max(0, b.B07[i] / b.B03[i] - 1)) : NaN),
+  fmi: (b, i) => (b.B08?.[i] > 0 ? b.B12?.[i] / b.B08[i] : NaN),
+  ioi: (b, i) => (b.B02?.[i] > 0 ? b.B04?.[i] / b.B02[i] : NaN),
+  clay_ratio: (b, i) => (b.B12?.[i] > 0 ? b.B11?.[i] / b.B12[i] : NaN),
+  calcite: (b, i) => (b.B12?.[i] > 0 ? (b.B11?.[i] + (b.B03?.[i] ?? 0)) / b.B12[i] : NaN),
+  silica: (b, i) => (b.B04?.[i] > 0 ? b.B11?.[i] / b.B04[i] : NaN),
   aspect: (b, i) => b.aspect?.[i] ?? NaN,
   dem: (b, i) => b.elev[i],
   slope: (b, i) => b.slope[i],
@@ -116,7 +127,7 @@ INDICATORS.push(
 )
 
 export const byId = (id: string) => INDICATORS.find(i => i.id === id)!
-export const GROUPS: Group[] = ['Vegetation', 'Water & moisture', 'Water & drainage', 'Soil & built-up', 'Terrain', 'Imagery']
+export const GROUPS: Group[] = ['Vegetation', 'Water & moisture', 'Water & drainage', 'Soil & built-up', 'Terrain', 'Geology & minerals', 'Imagery']
 export const gradientCss = (ramp: string[]) => `linear-gradient(90deg, ${ramp.join(', ')})`
 
 export function makeGrid(w: number, h: number, bbox: Bbox, wm: number, hm: number, b: Bands, ok: Uint8Array, ring: Ring): Grid {

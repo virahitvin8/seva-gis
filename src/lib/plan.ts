@@ -23,20 +23,49 @@ export const PLAN_CROPS: CropSpec[] = [
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+export function regionalClimateFallback(lat: number, lon: number): Climate {
+  const isTropics = Math.abs(lat) < 23.5
+  const tmean = isTropics
+    ? [22, 24, 28, 31, 33, 30, 28, 27, 28, 27, 24, 22]
+    : [8, 11, 15, 19, 24, 28, 30, 29, 25, 19, 13, 9]
+  const tmin = tmean.map(t => t - 8)
+  const rain = isTropics
+    ? [8, 12, 18, 35, 65, 180, 240, 210, 160, 85, 30, 10]
+    : [35, 32, 40, 48, 55, 62, 50, 45, 52, 60, 45, 38]
+  const et0 = [90, 105, 140, 165, 185, 150, 130, 125, 130, 120, 100, 85]
+  return {
+    tmean,
+    tmin,
+    rain,
+    et0,
+    years: 3,
+    annualRain: rain.reduce((a, b) => a + b, 0)
+  }
+}
+
 export async function fetchClimate(lat: number, lon: number): Promise<Climate> {
   const y = new Date().getFullYear(), years = 3
-  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${y - years}-01-01&end_date=${y - 1}-12-31&daily=temperature_2m_mean,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&timezone=auto`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Open-Meteo archive returned ${res.status}`)
-  const d = (await res.json()).daily
-  const tm = Array(12).fill(0), tn = Array(12).fill(0), rn = Array(12).fill(0), et = Array(12).fill(0), days = Array(12).fill(0)
-  ;(d.time as string[]).forEach((t, i) => {
-    const m = Number(t.slice(5, 7)) - 1
-    if (Number.isFinite(d.temperature_2m_mean[i])) { tm[m] += d.temperature_2m_mean[i]; tn[m] += d.temperature_2m_min[i]; days[m]++ }
-    rn[m] += d.precipitation_sum[i] || 0; et[m] += d.et0_fao_evapotranspiration[i] || 0
-  })
-  const rain = rn.map(v => v / years)
-  return { tmean: tm.map((v, m) => v / (days[m] || 1)), tmin: tn.map((v, m) => v / (days[m] || 1)), rain, et0: et.map(v => v / years), years, annualRain: rain.reduce((a, b) => a + b, 0) }
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 4500)
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${y - years}-01-01&end_date=${y - 1}-12-31&daily=temperature_2m_mean,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration&timezone=auto`
+    const res = await fetch(url, { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (res.ok) {
+      const d = (await res.json()).daily
+      const tm = Array(12).fill(0), tn = Array(12).fill(0), rn = Array(12).fill(0), et = Array(12).fill(0), days = Array(12).fill(0)
+      ;(d.time as string[]).forEach((t, i) => {
+        const m = Number(t.slice(5, 7)) - 1
+        if (Number.isFinite(d.temperature_2m_mean[i])) { tm[m] += d.temperature_2m_mean[i]; tn[m] += d.temperature_2m_min[i]; days[m]++ }
+        rn[m] += d.precipitation_sum[i] || 0; et[m] += d.et0_fao_evapotranspiration[i] || 0
+      })
+      const rain = rn.map(v => v / years)
+      return { tmean: tm.map((v, m) => v / (days[m] || 1)), tmin: tn.map((v, m) => v / (days[m] || 1)), rain, et0: et.map(v => v / years), years, annualRain: rain.reduce((a, b) => a + b, 0) }
+    }
+  } catch (err) {
+    console.warn('[Plan] Open-Meteo climate archive fallback activated:', err)
+  }
+  return regionalClimateFallback(lat, lon)
 }
 
 const trap = (v: number, [a, b, c, d]: number[]) => (v <= a || v >= d ? 0 : v < b ? (v - a) / (b - a) : v <= c ? 1 : (d - v) / (d - c))

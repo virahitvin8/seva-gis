@@ -13,7 +13,7 @@
  * 5. Transparent reporting: No fake "dispatched via third-party" messages.
  */
 
-import { dispatchExport } from './googleDriveVault'
+import { dispatchExport, uploadToGoogleDrive, getGoogleUser } from './googleDriveVault'
 
 export interface EmailReportParams {
   recipientEmail: string
@@ -25,6 +25,7 @@ export interface EmailReportParams {
   filename: string
   htmlContent: string
   senderName?: string
+  downloadEml?: boolean
 }
 
 export interface EmailGenerationResult {
@@ -248,14 +249,26 @@ export async function executeEmailPackageDelivery(params: EmailReportParams): Pr
 }> {
   const packageData = generateEmlPackage(params)
 
-  // 1. Save .eml bundle directly to device & Google Drive
-  await dispatchExport({
-    category: 'reports',
-    fileName: packageData.emlFilename,
-    blob: packageData.emlBlob,
-    mimeType: 'message/rfc822',
-    silent: true,
-  })
+  // 1. Only download .eml to device if explicitly requested by user
+  if (params.downloadEml) {
+    await dispatchExport({
+      category: 'reports',
+      fileName: packageData.emlFilename,
+      blob: packageData.emlBlob,
+      mimeType: 'message/rfc822',
+      silent: true,
+    })
+  } else {
+    // Sync directly to Google Drive vault if connected, without forcing device download
+    try {
+      const user = getGoogleUser()
+      if (user && user.isGoogleUser) {
+        await uploadToGoogleDrive('reports', packageData.emlFilename, packageData.emlBlob, 'message/rfc822')
+      }
+    } catch (e) {
+      console.info('[EmailDelivery] Drive vault sync:', e)
+    }
+  }
 
   // 2. Try native mobile share if available and user requested
   let sharedViaNative = false
@@ -278,8 +291,10 @@ export async function executeEmailPackageDelivery(params: EmailReportParams): Pr
   }
 
   const message = sharedViaNative
-    ? `Shared via device mail app! .eml package also saved to device & Google Drive.`
-    : `Standard .eml email file downloaded & organized in Google Drive! Ready to open in Gmail, Outlook, or Apple Mail.`
+    ? `Shared via device mail app to ${params.recipientEmail}!`
+    : params.downloadEml
+    ? `Standard .eml email file downloaded & organized in Google Drive! Ready to open in Gmail or Outlook.`
+    : `Report package generated for ${params.recipientEmail}! Ready to dispatch or open in Gmail.`
 
   return {
     success: true,

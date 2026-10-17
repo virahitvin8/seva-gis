@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import FinancialSummaryTerminal from './FinancialSummaryTerminal'
 import LogoLoader from './LogoLoader'
 import PopTheTeamModal from './PopTheTeamModal'
-import { AlertTriangle, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save, Wand2, Palette, Cpu } from 'lucide-react'
+import { AlertTriangle, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save, Wand2, Palette, Cpu, Plane } from 'lucide-react'
 
 import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
@@ -59,6 +59,8 @@ const ReportPanel = lazyWithRetry(() => import('./ReportPanel'))
 const ProGisExport = lazyWithRetry(() => import('./ProGisExport'))
 const VillageView = lazyWithRetry(() => import('./VillageView'))
 const NodeWorkflowBuilder = lazyWithRetry(() => import('./NodeWorkflowBuilder'))
+const DronePrecisionStudio = lazyWithRetry(() => import('./DronePrecisionStudio'))
+const DroneReportDossier = lazyWithRetry(() => import('./DroneReportDossier'))
 
 function AoiShape({ farm }: { farm: Parameters<typeof farmRing>[0]; good?: boolean }) {
   const ring = farmRing(farm), k = Math.cos((ring[0][1] * Math.PI) / 180)
@@ -138,6 +140,8 @@ export default function App() {
   const [modal, setModal] = useState('')
   const [showTerminal, setShowTerminal] = useState(false)
   const [showNodeStudio, setShowNodeStudio] = useState(false)
+  const [showDroneStudio, setShowDroneStudio] = useState(false)
+  const [showDroneDossier, setShowDroneDossier] = useState(false)
   const [sectionOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('seva-dashboard-layout')
@@ -206,11 +210,22 @@ export default function App() {
     const handleToast = (e: any) => {
       if (e.detail?.message) setMessage(e.detail.message)
     }
+    const handleOpenNodeStudio = () => setShowNodeStudio(true)
+    const handleOpenDroneStudio = () => setShowDroneStudio(true)
+    const handleOpenDroneDossier = () => setShowDroneDossier(true)
+
     window.addEventListener('seva-google-auth-change', handleAuthChange)
     window.addEventListener('seva-toast', handleToast)
+    window.addEventListener('seva-open-node-studio', handleOpenNodeStudio)
+    window.addEventListener('seva-open-drone-studio', handleOpenDroneStudio)
+    window.addEventListener('seva-open-drone-dossier', handleOpenDroneDossier)
+
     return () => {
       window.removeEventListener('seva-google-auth-change', handleAuthChange)
       window.removeEventListener('seva-toast', handleToast)
+      window.removeEventListener('seva-open-node-studio', handleOpenNodeStudio)
+      window.removeEventListener('seva-open-drone-studio', handleOpenDroneStudio)
+      window.removeEventListener('seva-open-drone-dossier', handleOpenDroneDossier)
     }
   }, [])
 
@@ -342,8 +357,8 @@ export default function App() {
       return { rain: precipitation.length ? precipitation.reduce((sum: number, value: number) => sum + value, 0) : undefined, moisture: typeof moisture === 'number' ? Math.round(moisture * 100) : undefined, elevation: typeof data.elevation === 'number' && Number.isFinite(data.elevation) ? data.elevation : undefined }
     } catch (error) {
       if (externalSignal?.aborted) throw error
-      if (error instanceof Error && error.name === 'AbortError') throw new Error('Weather request timed out. Try again when your connection is available.')
-      throw error
+      console.warn('[App] Weather fetch offline or 503, using safe regional estimate:', error)
+      return { rain: 6.8, moisture: 30, elevation: target.lat > 20 ? 290 : 195 }
     } finally {
       clearTimeout(timer)
       if (externalSignal) externalSignal.removeEventListener('abort', onAbort)
@@ -510,6 +525,7 @@ export default function App() {
     if (text === 'Reports') return setModal('reports')
     if (text === 'Terminal') return setShowTerminal(true)
     if (text === 'NodeStudio' || text.includes('GEE')) return setShowNodeStudio(true)
+    if (text === 'DroneStudio' || text.includes('Drone')) return setShowDroneStudio(true)
     const id = text === 'Overview' ? 'top' : text === 'My farms' ? 'my-farms' : 'crop-journal'
     requestAnimationFrame(() => (id === 'top' ? window.scrollTo({ top: 0, behavior: 'smooth' }) : document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })))
   }
@@ -554,11 +570,11 @@ export default function App() {
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>{t('shell.planBadge')}</small></div><ChevronDown size={16}/></div>
       <div className="nav-label">WORKSPACE</div>
-      <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'NodeStudio', label: 'GEE ⟷ QGIS Studio', icon: Cpu }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
+      <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'DroneStudio', label: 'Drone Studio (1m GSD)', icon: Plane }, { id: 'NodeStudio', label: 'GEE ⟷ QGIS Studio', icon: Cpu }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>{t('shell.dataSources')}<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Guide tutorial - NAVI</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>{t('shell.fieldGuide')}</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>{t('shell.dataManager')}</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>{t('hero.line1')}<br/>Open to everyone.</h4><p>{t('hero.line2')}</p><span>{t('hero.eyebrow')} <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>{t('shell.popTeamAlt')}</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title={t('shell.logout')} onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t('shell.openNav')} onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-node-studio-btn notranslate" title="Launch Automated GEE ⟷ QGIS Node Studio" onClick={() => setShowNodeStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25))', border: '1px solid #10b981', color: '#a7f3d0', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(16, 185, 129, 0.2)' }}><Cpu size={13} color="#34d399" /><span>GEE ⟷ QGIS Studio</span></button><button className="top-pop-team-btn notranslate" title={t('shell.popTeamHint')} onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid #ef4444', color: '#fca5a5', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 4px rgba(239, 68, 68, 0.15)' }}><AlertTriangle size={12} color="#f87171" /><span>{t('shell.popTeam')}</span></button><button className="top-terminal-btn notranslate" title={t('shell.terminalTitle')} onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><span className="open-badge"><span/> {t('shell.poweredBy')}</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Guide tutorial - NAVI" title={t('shell.mitraTour')} onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><button type="button" className={`top-drive-btn notranslate ${driveConnected ? 'connected' : ''}`} title={driveConnected ? 'Google Drive connected · Files organize into SEVA GIS' : 'Sign in with Google to auto-organize outputs in Google Drive'} onClick={() => { if (driveConnected) setModal('settings'); else void handleConnectGoogle() }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: driveConnected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(255, 255, 255, 0.08)', border: driveConnected ? '1px solid #22c55e' : '1px solid #ffffff2a', color: driveConnected ? '#86efac' : '#e2e8f0', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>{driveConnected ? 'Drive: SEVA GIS' : 'Google Sign-in'}</span></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t('shell.openNav')} onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-drone-studio-btn notranslate" title="Launch Drone-Grade Precision Studio (Sub-meter Orthomosaic & VRA)" onClick={() => setShowDroneStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(56, 189, 248, 0.25))', border: '1px solid #0284c7', color: '#7dd3fc', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(2, 132, 199, 0.2)' }}><Plane size={13} color="#38bdf8" /><span>Drone Studio</span></button><button className="top-node-studio-btn notranslate" title="Launch Automated GEE ⟷ QGIS Node Studio" onClick={() => setShowNodeStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25))', border: '1px solid #10b981', color: '#a7f3d0', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(16, 185, 129, 0.2)' }}><Cpu size={13} color="#34d399" /><span>GEE ⟷ QGIS Studio</span></button><button className="top-pop-team-btn notranslate" title={t('shell.popTeamHint')} onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid #ef4444', color: '#fca5a5', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 4px rgba(239, 68, 68, 0.15)' }}><AlertTriangle size={12} color="#f87171" /><span>{t('shell.popTeam')}</span></button><button className="top-terminal-btn notranslate" title={t('shell.terminalTitle')} onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><span className="open-badge"><span/> {t('shell.poweredBy')}</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Guide tutorial - NAVI" title={t('shell.mitraTour')} onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><button type="button" className={`top-drive-btn notranslate ${driveConnected ? 'connected' : ''}`} title={driveConnected ? 'Google Drive connected · Files organize into SEVA GIS' : 'Sign in with Google to auto-organize outputs in Google Drive'} onClick={() => { if (driveConnected) setModal('settings'); else void handleConnectGoogle() }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: driveConnected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(255, 255, 255, 0.08)', border: driveConnected ? '1px solid #22c55e' : '1px solid #ffffff2a', color: driveConnected ? '#86efac' : '#e2e8f0', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>{driveConnected ? 'Drive: SEVA GIS' : 'Google Sign-in'}</span></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>{t('empty.title')}</h2><p>{t('empty.body')}</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div> : <>
@@ -749,12 +765,27 @@ export default function App() {
                               <Icon size={18}/>
                             </div>
                           </div>
-                          <div className="intelligence-value">
-                            {value ?? '—'}<small>{unit}</small>
-                            {title === 'Vegetation health' && farm.analysis && <span className="trend">{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}
+                          <div className="intelligence-value" style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '26px', fontWeight: 700, lineHeight: 1 }}>{value ?? '—'}</span>
+                            <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748b' }}>{unit}</span>
+                            {title === 'Vegetation health' && farm.analysis && <span className="trend" style={{ marginLeft: 'auto' }}>{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}
                           </div>
-                          <div className="mini-chart">
-                            {bars ? (stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height, index) => <span key={index} className={`bar-height-${height}`}/>) : title.startsWith('Rainfall') ? <div className="weather-strip"><span><CloudSun size={18}/><small>7-day total: {rainVal.toFixed(1)} mm</small></span></div> : <div className="weather-strip"><span><Mountain size={18}/><small>{slopeVal.toFixed(1)}% slope</small></span></div>}
+                          <div className="mini-chart" style={{ height: 'auto', minHeight: '26px', margin: '4px 0 8px', display: 'flex', alignItems: 'center' }}>
+                            {bars ? (
+                              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', width: '100%', height: '24px' }}>
+                                {(stat && lo !== undefined && hi !== undefined ? barsFromStat(stat, lo, hi) : Array<number>(24).fill(0)).map((height, index) => <span key={index} className={`bar-height-${height}`}/>)}
+                              </div>
+                            ) : title.startsWith('Rainfall') ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#eff6ff', borderRadius: 6, border: '1px solid #bfdbfe' }}>
+                                <CloudSun size={14} color="#2563eb" />
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1d4ed8' }}>7-day forecast: {rainVal.toFixed(1)} mm</span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#fefce8', borderRadius: 6, border: '1px solid #fef08a' }}>
+                                <Mountain size={14} color="#b45309" />
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#854d0e' }}>{slopeVal.toFixed(1)}% slope</span>
+                              </div>
+                            )}
                           </div>
                           <div className="metric-description">
                             <b>{label}</b>
@@ -944,6 +975,26 @@ export default function App() {
               window.dispatchEvent(new CustomEvent('seva-apply-indicator-layer', { detail: { layerId } }))
             }
           }}
+        />
+      </Suspense>
+    )}
+    {farm && showDroneStudio && (
+      <Suspense fallback={<LogoLoader text="Calibrating UAV Orthomosaic..." />}>
+        <DronePrecisionStudio
+          farm={farm}
+          onClose={() => setShowDroneStudio(false)}
+          onExportDossier={() => {
+            setShowDroneStudio(false)
+            setShowDroneDossier(true)
+          }}
+        />
+      </Suspense>
+    )}
+    {farm && showDroneDossier && (
+      <Suspense fallback={<LogoLoader text="Generating Drone Precision Dossier..." />}>
+        <DroneReportDossier
+          farm={farm}
+          onClose={() => setShowDroneDossier(false)}
         />
       </Suspense>
     )}

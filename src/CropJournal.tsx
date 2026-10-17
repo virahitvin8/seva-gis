@@ -13,6 +13,9 @@ const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 
 
 function Growth({ rows }: { rows: Candle[] }) {
   const W = 860, H = 300, L = 44, R = 16, T = 14, B = 34, lo = -0.1, hi = 1
+  const [hovered, setHovered] = useState<Candle | null>(null)
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null)
+
   if (rows.length < 2) return <div className="cj-empty">Not enough clear satellite pictures in this period yet. Try a longer period.</div>
   const t0 = +new Date(rows[0].scene.datetime), t1 = +new Date(rows[rows.length - 1].scene.datetime)
   const X = (c: Candle) => L + ((+new Date(c.scene.datetime) - t0) / Math.max(1, t1 - t0)) * (W - L - R)
@@ -20,16 +23,122 @@ function Growth({ rows }: { rows: Candle[] }) {
   const mean = rows.map(c => `${X(c).toFixed(1)},${Y(c.ndvi.mean).toFixed(1)}`)
   const band = [...rows.map(c => `${X(c).toFixed(1)},${Y(c.ndvi.p90).toFixed(1)}`), ...[...rows].reverse().map(c => `${X(c).toFixed(1)},${Y(c.ndvi.p10).toFixed(1)}`)].join(' ')
   const last = rows[rows.length - 1]
-  return <svg className="cj-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Crop health score over time">
-    {ZONES.map(z => <g key={z.l}><rect x={L} y={Y(z.to)} width={W - L - R} height={Y(z.from) - Y(z.to)} fill={z.c} opacity=".7"/><text x={L + 10} y={Y(z.to) + 18} textAnchor="start" fontSize="15" fontWeight="700" fill="#4a5f52" opacity=".8">{z.l}</text></g>)}
-    {[0, 0.25, 0.5, 0.75, 1].map(v => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#fff" strokeOpacity=".8"/><text x={L - 8} y={Y(v) + 4} textAnchor="end" fontSize="14" fill="#6b7b6c">{v}</text></g>)}
-    <polygon points={band} fill="#2f8f46" opacity=".16"/>
-    <polyline points={mean.join(' ')} fill="none" stroke="#1f6b3a" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round"/>
-    {rows.map(c => <circle key={c.scene.id} cx={X(c)} cy={Y(c.ndvi.mean)} r="5" fill="#fff" stroke={tone(c.ndvi.mean)} strokeWidth="3"/>)}
-    {rows.map((c, i) => i % Math.ceil(rows.length / 6) === 0 && <text key={'d' + c.scene.id} x={X(c)} y={H - 12} textAnchor="middle" fontSize="14" fill="#6b7b6c">{day(c.scene.datetime)}</text>)}
-    <g transform={`translate(${Math.min(X(last), W - 118)} ${Math.max(Y(last.ndvi.mean) - 42, 4)})`}><rect width="112" height="34" rx="17" fill="#183e30"/><text x="56" y="23" textAnchor="middle" fontSize="16" fontWeight="800" fill="#b6f36a">Now {last.ndvi.mean.toFixed(2)}</text></g>
-    <text x={L} y={T + 2} fontSize="14" fill="#6b7b6c">Score (0 = bare soil, 1 = very dense leaves)</text>
-  </svg>
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svg = e.currentTarget
+    const rect = svg.getBoundingClientRect()
+    const mouseX = ((e.clientX - rect.left) / rect.width) * W
+    // Find closest pass row
+    let closest: Candle | null = null
+    let minDist = Infinity
+    for (const r of rows) {
+      const rx = X(r)
+      const dist = Math.abs(mouseX - rx)
+      if (dist < minDist) {
+        minDist = dist
+        closest = r
+      }
+    }
+    if (closest && minDist < 60) {
+      setHovered(closest)
+      setHoverPos({ x: X(closest), y: Y(closest.ndvi.mean) })
+    } else {
+      setHovered(null)
+      setHoverPos(null)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setHovered(null)
+    setHoverPos(null)
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg
+        className="cj-chart"
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label="Crop health score over time"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: 'crosshair', display: 'block', width: '100%', height: 'auto' }}
+      >
+        {ZONES.map(z => (
+          <g key={z.l}>
+            <rect x={L} y={Y(z.to)} width={W - L - R} height={Y(z.from) - Y(z.to)} fill={z.c} opacity=".7"/>
+            <text x={L + 10} y={Y(z.to) + 18} textAnchor="start" fontSize="15" fontWeight="700" fill="#4a5f52" opacity=".8">{z.l}</text>
+          </g>
+        ))}
+        {[0, 0.25, 0.5, 0.75, 1].map(v => (
+          <g key={v}>
+            <line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke="#fff" strokeOpacity=".8"/>
+            <text x={L - 8} y={Y(v) + 4} textAnchor="end" fontSize="14" fill="#6b7b6c">{v}</text>
+          </g>
+        ))}
+        <polygon points={band} fill="#2f8f46" opacity=".16"/>
+        <polyline points={mean.join(' ')} fill="none" stroke="#1f6b3a" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round"/>
+        {rows.map(c => {
+          const isHov = hovered?.scene.id === c.scene.id
+          return (
+            <circle
+              key={c.scene.id}
+              cx={X(c)}
+              cy={Y(c.ndvi.mean)}
+              r={isHov ? 7 : 5}
+              fill="#fff"
+              stroke={isHov ? '#047857' : tone(c.ndvi.mean)}
+              strokeWidth={isHov ? 4 : 3}
+            />
+          )
+        })}
+        {rows.map((c, i) => i % Math.ceil(rows.length / 6) === 0 && (
+          <text key={'d' + c.scene.id} x={X(c)} y={H - 12} textAnchor="middle" fontSize="14" fill="#6b7b6c">
+            {day(c.scene.datetime)}
+          </text>
+        ))}
+
+        {/* Hover Guideline & Interactive Cursor Tracker */}
+        {hovered && hoverPos && (
+          <g>
+            <line
+              x1={hoverPos.x}
+              x2={hoverPos.x}
+              y1={T}
+              y2={H - B}
+              stroke="#0f172a"
+              strokeWidth="1.5"
+              strokeDasharray="4 3"
+              opacity="0.6"
+            />
+            <circle cx={hoverPos.x} cy={hoverPos.y} r="8" fill="#10b981" opacity="0.35"/>
+            <circle cx={hoverPos.x} cy={hoverPos.y} r="5" fill="#fff" stroke="#047857" strokeWidth="3"/>
+          </g>
+        )}
+
+        {/* Floating Tooltip Pill */}
+        {hovered && hoverPos ? (
+          <g transform={`translate(${Math.max(L, Math.min(W - 200, hoverPos.x - 90))}, ${Math.max(T + 6, hoverPos.y - 68)})`}>
+            <rect width="180" height="58" rx="8" fill="#0f291e" stroke="#34d399" strokeWidth="1.2" filter="drop-shadow(0 4px 12px rgba(0,0,0,0.3))"/>
+            <text x="12" y="22" fontSize="13" fontWeight="800" fill="#f8fafc">
+              📅 {day(hovered.scene.datetime)} ({new Date(hovered.scene.datetime).getFullYear()})
+            </text>
+            <text x="12" y="44" fontSize="14" fontWeight="900" fill="#a7f3d0">
+              NDVI: {hovered.ndvi.mean.toFixed(2)}
+              <tspan fontSize="11" fontWeight="600" fill="#cbd5e1"> · {classify(hovered.ndvi.mean).label}</tspan>
+            </text>
+          </g>
+        ) : (
+          <g transform={`translate(${Math.min(X(last), W - 118)} ${Math.max(Y(last.ndvi.mean) - 42, 4)})`}>
+            <rect width="112" height="34" rx="17" fill="#183e30"/>
+            <text x="56" y="23" textAnchor="middle" fontSize="16" fontWeight="800" fill="#b6f36a">Now {last.ndvi.mean.toFixed(2)}</text>
+          </g>
+        )}
+
+        <text x={L} y={T + 2} fontSize="14" fill="#6b7b6c">Score (0 = bare soil, 1 = very dense leaves)</text>
+      </svg>
+    </div>
+  )
 }
 
 export default function CropJournal({ farms, selected, onSelect, onRefresh, loading }: { farms: JFarm[]; selected: string; onSelect: (id: string) => void; onRefresh: () => void; loading: boolean }) {

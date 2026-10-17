@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import {
   ArrowDownToLine, Share2, FileSpreadsheet, FileCode, Map, Compass,
-  Check, Copy, ShieldAlert, Landmark, FileText, Upload, Cpu, Download, ExternalLink
+  Check, Copy, ShieldAlert, Landmark, FileText, Upload, Cpu, Download, ExternalLink,
+  FolderArchive, ChevronRight
 } from 'lucide-react'
 import { decimalToSexagesimal } from 'geolib'
 import type { FarmData } from './lib/seva'
@@ -431,35 +432,67 @@ SEVA.GIS Official Audit Record - https://sevagis.dpdns.org
         </div>
       </div>
 
-      {/* Official Dossiers: Insurance & Bank Reports */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button
-          onClick={exportInsuranceDossier}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 6, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-        >
-          <ShieldAlert size={14} /> PMFBY Crop Insurance Damage Pack
-        </button>
+      {/* Workspace Dossiers & System Backup Tree (Clean tree format to avoid dashboard clutter) */}
+      <details style={{ marginTop: 14, border: '1px solid var(--border)', borderRadius: 8, background: '#f8fafc', overflow: 'hidden' }}>
+        <summary style={{ padding: '9px 13px', fontSize: 12, fontWeight: 600, color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none' }}>
+          <FolderArchive size={15} color="#475569" />
+          <span>Workspace Tree · Official Dossiers &amp; System Backups</span>
+          <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 'auto', fontWeight: 500 }}>Click to expand tree</span>
+        </summary>
+        <div style={{ padding: '12px 14px', background: '#ffffff', borderTop: '1px solid var(--border)', fontSize: 11.5 }}>
+          {/* Tree Node 1: Official Regulatory & Bank Dossiers */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+              <span>📁</span> <span>Official Regulatory &amp; Banking Dossiers</span>
+            </div>
+            <div style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>├─ 📄</span>
+                <button
+                  onClick={exportInsuranceDossier}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 5, background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}
+                >
+                  <ShieldAlert size={13} /> PMFBY Crop Insurance Damage Pack (.md/.json)
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>└─ 📄</span>
+                <button
+                  onClick={exportBankLoanReport}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 5, background: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}
+                >
+                  <Landmark size={13} /> Bank Loan Health Appraisal Report (.md/.json)
+                </button>
+              </div>
+            </div>
+          </div>
 
-        <button
-          onClick={exportBankLoanReport}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 6, background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-        >
-          <Landmark size={14} /> Bank Loan Health Appraisal Report
-        </button>
-
-        {/* Multi-field Backup */}
-        <button
-          onClick={exportAllFarmsBackup}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 6, background: '#f1f5f9', color: '#334155', border: '1px solid var(--border)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-        >
-          <ArrowDownToLine size={14} /> Export Backup ({farms.length} farms)
-        </button>
-
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 6, background: '#f1f5f9', color: '#334155', border: '1px solid var(--border)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-          <Upload size={14} /> Restore Backup JSON
-          <input type="file" accept=".json" onChange={handleBackupUpload} style={{ display: 'none' }} />
-        </label>
-      </div>
+          {/* Tree Node 2: Multi-field Backup & Restore */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
+              <span>📁</span> <span>Workspace Migration &amp; Multi-Field Backups</span>
+            </div>
+            <div style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>├─ 📥</span>
+                <button
+                  onClick={exportAllFarmsBackup}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 5, background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}
+                >
+                  <ArrowDownToLine size={13} /> Export Backup ({farms.length} farms JSON)
+                </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#94a3b8', fontFamily: 'monospace' }}>└─ 📤</span>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 5, background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1', fontWeight: 600, fontSize: 11, cursor: 'pointer' }}>
+                  <Upload size={13} /> Restore Backup JSON
+                  <input type="file" accept=".json" onChange={handleBackupUpload} style={{ display: 'none' }} />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
     </section>
   )
 }

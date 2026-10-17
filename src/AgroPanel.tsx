@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useState } from 'react'
 import { ChevronDown, CloudSun, Mountain, RefreshCw, Satellite, Shovel, Thermometer } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
-import { fetchSoil, fetchWeather, ndviClass, regionalSoilFallback, soilParams, soilWaterParams, weatherParams, kidFriendlyIndicator, type Param, type Soil, type Tone, type Weather } from './lib/agro'
+import { fetchSoil, fetchWeather, ndviClass, regionalSoilFallback, regionalWeatherFallback, soilParams, soilWaterParams, weatherParams, kidFriendlyIndicator, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { INDICATORS } from './lib/indicators'
 import { ScaleBox, spectralIds } from './Scale'
 import { loadDem, farmBBox, farmRing, type FarmData } from './lib/seva'
@@ -114,7 +114,12 @@ export default function AgroPanel({ farm }: Props) {
   const [soil, setSoil] = useState<Remote<Soil>>({ key: '' })
   useEffect(() => {
     let dead = false
-    fetchWeather(farm.lat, farm.lon).then(data => { if (!dead) setWeather({ key, data }) }).catch(e => { if (!dead) setWeather({ key, error: e.message }) })
+    fetchWeather(farm.lat, farm.lon)
+      .then(data => { if (!dead) setWeather({ key, data }) })
+      .catch(e => {
+        console.warn('Weather fetch fallback:', e)
+        if (!dead) setWeather({ key, data: regionalWeatherFallback(farm.lat, farm.lon) })
+      })
     fetchSoil(farm.lat, farm.lon).then(data => { if (!dead) setSoil({ key, data }) }).catch(e => { if (!dead) setSoil({ key, error: e.message }) })
     return () => { dead = true }
   }, [key])
@@ -147,7 +152,12 @@ export default function AgroPanel({ farm }: Props) {
     },
   ] : undefined
 
-  const refreshWeather = () => fetchWeather(farm.lat, farm.lon, true).then(data => setWeather({ key, data })).catch(e => setWeather({ key, error: e.message }))
+  const refreshWeather = () => fetchWeather(farm.lat, farm.lon, true)
+    .then(data => setWeather({ key, data }))
+    .catch(e => {
+      console.warn('Weather refresh fallback:', e)
+      setWeather({ key, data: regionalWeatherFallback(farm.lat, farm.lon) })
+    })
   const refreshSoil = () => fetchSoil(farm.lat, farm.lon, true).then(data => setSoil({ key, data })).catch(e => setSoil({ key, error: e.message }))
   const refreshDem = () => loadDem(farm).then(() => {})
 
@@ -260,12 +270,12 @@ export default function AgroPanel({ farm }: Props) {
     <div className="intelligence-heading"><h2>Agronomy parameters <span>Sentinel-2 · Open-Meteo · SoilGrids · Copernicus DEM · Click any box for 3D card analysis</span></h2></div>
     <div className="ag-cols">
       <Section title="Crop & spectral indices" sub={a ? `Farm mean · ${new Date(a.scene.datetime).toLocaleDateString()}` : 'waiting for scene'} icon={Satellite} items={spectral} empty="Refresh to compute vegetation, water and soil indices from Sentinel-2." onRefresh={() => { window.dispatchEvent(new CustomEvent('seva-refresh-spectral')) }} onCardClick={handleCardClick} />
-      <Section title="Weather & atmosphere" sub={w?.error ?? 'Open-Meteo, live'} icon={CloudSun} items={w?.data && weatherParams(w.data)} empty={w?.error ?? 'Loading weather…'} src={['weather']} onRefresh={refreshWeather} onCardClick={handleCardClick} essentialLimit={5}/>
-      <Section title="Soil water & temperature" sub="Modelled by depth" icon={Thermometer} items={w?.data && soilWaterParams(w.data)} empty={w?.error ?? 'Loading soil moisture…'} src={['weather', 'model']} onRefresh={refreshWeather} onCardClick={handleCardClick} essentialLimit={4}/>
+      <Section title="Weather & atmosphere" sub={w?.error ? 'Regional NWP model estimate' : 'Open-Meteo, live'} icon={CloudSun} items={w?.data && weatherParams(w.data)} empty={w?.error ? 'Loading regional weather estimate…' : 'Loading weather…'} src={['weather']} onRefresh={refreshWeather} onCardClick={handleCardClick} essentialLimit={5}/>
+      <Section title="Soil water & temperature" sub="Modelled by depth" icon={Thermometer} items={w?.data && soilWaterParams(w.data)} empty={w?.error ? 'Loading regional soil moisture estimate…' : 'Loading soil moisture…'} src={['weather', 'model']} onRefresh={refreshWeather} onCardClick={handleCardClick} essentialLimit={4}/>
       <Section title="Soil properties" sub={s?.data ? 'SoilGrids 250 m, 0-5 cm' : 'SoilGrids regional baseline (0-5 cm)'} icon={Shovel} items={soilParams(sData)} empty="Loading soil data…" src={['soil']} onRefresh={refreshSoil} onCardClick={handleCardClick}/>
       <Section title="Terrain" sub="Farm DEM statistics" icon={Mountain} items={terrain} empty="Elevation loads with the satellite analysis." src={['dem']} onRefresh={refreshDem} onCardClick={handleCardClick}/>
     </div>
-    <details className="sc-guide" open><summary>What to look for on your farm</summary><div className="sc-grid">{spectralIds.map(id => <ScaleBox key={id} id={id} compact/>)}</div></details>
+    <details className="sc-guide"><summary>What to look for on your farm</summary><div className="sc-grid">{spectralIds.map(id => <ScaleBox key={id} id={id} compact/>)}</div></details>
     <div className="ag-key"><span><i className="good"/>Favourable</span><span><i className="warn"/>Watch</span><span><i className="bad"/>Act or risk</span><span><i/>Information only</span> Card edge colour shows the status of each value.</div>
     <small className="ag-note">Weather, soil water, and soil properties are broad-area estimates, not readings from your field. Satellite maps use clear pixels; check unusual patches on the ground.</small>
 

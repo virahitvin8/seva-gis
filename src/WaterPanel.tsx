@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useEffect, useMemo, useState } from 'react'
 import { CircleDot, Droplets, RefreshCw, Route, Trash2, Waves, BarChart3, Activity, Compass, MessageCircle, Sparkles } from 'lucide-react'
 import SourceNote, { type SourceKey } from './SourceNote'
-import { fetchSoil, fetchWeather, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
+import { fetchSoil, fetchWeather, regionalWeatherFallback, textureClass, type Param, type Soil, type Tone, type Weather } from './lib/agro'
 import { CROPS, METHODS, pipeHydraulics, pumpKw, soilHydraulics } from './lib/hydro'
 import { addBorewell, removeBorewell, removePipeline, updateBorewell, updatePipeline, lengthM, useAssets, type Pipeline } from './lib/assets'
 import { bandFor, sampleAt, type Grid } from './lib/indicators'
@@ -51,6 +51,7 @@ export default function WaterPanel({ farm }: Props) {
   const [soil, setSoil] = useState<Remote<Soil>>({ key: '' })
   const [dem, setDem] = useState<{ key: string; grid?: Grid }>({ key: '' })
   const [showFriendHydrology, setShowFriendHydrology] = useState(false)
+  const [selectedSwatParam, setSelectedSwatParam] = useState<string | null>(null)
   const [cfgAll, setCfgAll] = useState<Record<string, Cfg>>(() => { try { return JSON.parse(localStorage.getItem(CFG) || '{}') } catch { return {} } })
   const cfg = cfgAll[farm.id] ?? { crop: 'wheat', method: 'furrow' }
   const setCfg = (p: Partial<Cfg>) => setCfgAll(a => { const n = { ...a, [farm.id]: { ...cfg, ...p } }; localStorage.setItem(CFG, JSON.stringify(n)); return n })
@@ -59,7 +60,12 @@ export default function WaterPanel({ farm }: Props) {
 
   useEffect(() => {
     let dead = false
-    fetchWeather(farm.lat, farm.lon).then(data => { if (!dead) setWeather({ key, data }) }).catch(e => { if (!dead) setWeather({ key, error: e.message }) })
+    fetchWeather(farm.lat, farm.lon)
+      .then(data => { if (!dead) setWeather({ key, data }) })
+      .catch(e => {
+        console.warn('Weather fetch fallback in WaterPanel:', e)
+        if (!dead) setWeather({ key, data: regionalWeatherFallback(farm.lat, farm.lon) })
+      })
     fetchSoil(farm.lat, farm.lon).then(data => { if (!dead) setSoil({ key, data }) }).catch(e => { if (!dead) setSoil({ key, error: e.message }) })
     loadDem(farm).then(grid => { if (!dead) setDem({ key, grid }) }).catch(() => { if (!dead) setDem({ key }) })
     return () => { dead = true }
@@ -152,7 +158,12 @@ export default function WaterPanel({ farm }: Props) {
   }
   const deepestLevel = borewells.length ? Math.max(...borewells.map(b => b.level)) : 0
 
-  const refreshWeather = () => fetchWeather(farm.lat, farm.lon, true).then(data => setWeather({ key, data })).catch(e => setWeather({ key, error: e.message }))
+  const refreshWeather = () => fetchWeather(farm.lat, farm.lon, true)
+    .then(data => setWeather({ key, data }))
+    .catch(e => {
+      console.warn('Weather refresh fallback in WaterPanel:', e)
+      setWeather({ key, data: regionalWeatherFallback(farm.lat, farm.lon) })
+    })
   const refreshSoil = () => fetchSoil(farm.lat, farm.lon, true).then(data => setSoil({ key, data })).catch(e => setSoil({ key, error: e.message }))
   const refreshDem = () => loadDem(farm).then(grid => setDem({ key, grid })).catch(() => setDem({ key }))
 
@@ -351,36 +362,84 @@ export default function WaterPanel({ farm }: Props) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { rank: 1, name: 'r__CN2.mgt', desc: 'Initial SCS runoff curve number II value', why: 'Governs the division between instant surface runoff and infiltration. High CN2 means rapid sheet runoff and erosion; lower CN2 allows water to soak into the soil profile.', tStat: -14.2, pVal: '0.0001', pct: 96, barColor: '#e11d48' },
-                  { rank: 2, name: 'v__ALPHA_BF.gw', desc: 'Baseflow alpha factor (days)', why: 'Baseflow recession constant. Characterizes how rapidly or slowly the unconfined groundwater aquifer discharges return flow into stream channels following recharge events.', tStat: 8.4, pVal: '0.0032', pct: 82, barColor: '#0284c7' },
-                  { rank: 3, name: 'v__EPCO.bsn', desc: 'Plant uptake compensation factor', why: 'Controls plant water uptake compensation. When upper soil layers dry out, allows deeper crop root systems to pull moisture from lower vadose horizons.', tStat: -6.2, pVal: '0.0084', pct: 71, barColor: '#d97706' },
-                  { rank: 4, name: 'v__REVAPMN.gw', desc: 'Threshold depth in shallow aquifer for revap (mm)', why: 'Minimum water level threshold required before capillary suction can draw groundwater upward to replenish dry topsoil and sustain transpiration.', tStat: -4.7, pVal: '0.0142', pct: 62, barColor: '#7c3aed' },
-                  { rank: 5, name: 'v__ESCO.bsn', desc: 'Soil evaporation compensation factor', why: 'Adjusts the depth distribution of evaporative demand from solar radiation penetrating into the upper soil crumb structure.', tStat: 3.9, pVal: '0.0210', pct: 54, barColor: '#059669' },
-                  { rank: 6, name: 'r__SOL_AWC(..).sol', desc: 'Available water capacity of soil layer (mm/mm)', why: 'The volumetric storage difference between field capacity and permanent wilting point—defines the root-zone plant-available water reservoir.', tStat: 3.1, pVal: '0.0381', pct: 45, barColor: '#0891b2' },
-                  { rank: 7, name: 'v__GWQMN.gw', desc: 'Threshold depth for return flow (mm)', why: 'Minimum shallow aquifer water height before lateral baseflow discharge into streams and agricultural drainage channels begins.', tStat: -2.6, pVal: '0.0450', pct: 38, barColor: '#4f46e5' },
-                  { rank: 8, name: 'v__GW_REVAP.gw', desc: 'Groundwater revap coefficient', why: 'Governs water movement from shallow aquifers back into unsaturated root zones via capillary fringe ascent.', tStat: 2.2, pVal: '0.0520', pct: 31, barColor: '#64748b' },
-                ].map(param => (
-                  <details key={param.rank} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 8px' }}>
-                    <summary style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, cursor: 'pointer', listStyle: 'none' }}>
-                      <span style={{ width: 18, fontWeight: 700, color: '#64748b' }}>#{param.rank}</span>
-                      <div style={{ width: 135, flexShrink: 0 }}>
-                        <strong style={{ fontFamily: 'monospace', color: '#0f172a', display: 'block', fontSize: 10.5 }}>{param.name}</strong>
-                        <span style={{ fontSize: 8.5, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{param.desc}</span>
+                  { rank: 1, name: 'r__CN2.mgt', layerId: 'flow', desc: 'Initial SCS runoff curve number II value', why: 'Governs the division between instant surface runoff and infiltration. High CN2 means rapid sheet runoff and erosion; lower CN2 allows water to soak into the soil profile.', where: 'Active across high-slope field borders; controls sheet wash into lower collection furrows.', tStat: -14.2, pVal: '0.0001', pct: 96, barColor: '#e11d48' },
+                  { rank: 2, name: 'v__ALPHA_BF.gw', layerId: 'sink', desc: 'Baseflow alpha factor (days)', why: 'Baseflow recession constant. Characterizes how rapidly or slowly the unconfined groundwater aquifer discharges return flow into stream channels following recharge events.', where: 'Deep unconfined sub-aquifer layer sustaining perennial well recharge.', tStat: 8.4, pVal: '0.0032', pct: 82, barColor: '#0284c7' },
+                  { rank: 3, name: 'v__EPCO.bsn', layerId: 'ndmi', desc: 'Plant uptake compensation factor', why: 'Controls plant water uptake compensation. When upper soil layers dry out, allows deeper crop root systems to pull moisture from lower vadose horizons.', where: 'Active crop rooting horizon (0–60 cm depth) across vegetative canopy.', tStat: -6.2, pVal: '0.0084', pct: 71, barColor: '#d97706' },
+                  { rank: 4, name: 'v__REVAPMN.gw', layerId: 'sink', desc: 'Threshold depth in shallow aquifer for revap (mm)', why: 'Minimum water level threshold required before capillary suction can draw groundwater upward to replenish dry topsoil and sustain transpiration.', where: 'Capillary fringe overlying local shallow water table.', tStat: -4.7, pVal: '0.0142', pct: 62, barColor: '#7c3aed' },
+                  { rank: 5, name: 'v__ESCO.bsn', layerId: 'ndmi', desc: 'Soil evaporation compensation factor', why: 'Adjusts the depth distribution of evaporative demand from solar radiation penetrating into the upper soil crumb structure.', where: 'Topsoil surface layer (0–10 cm) exposed to direct sun insolation.', tStat: 3.9, pVal: '0.0210', pct: 54, barColor: '#059669' },
+                  { rank: 6, name: 'r__SOL_AWC(..).sol', layerId: 'twi', desc: 'Available water capacity of soil layer (mm/mm)', why: 'The volumetric storage difference between field capacity and permanent wilting point—defines the root-zone plant-available water reservoir.', where: 'Loam/clay soil profile across the entire delineated farm parcel.', tStat: 3.1, pVal: '0.0381', pct: 45, barColor: '#0891b2' },
+                  { rank: 7, name: 'v__GWQMN.gw', layerId: 'flow', desc: 'Threshold depth for return flow (mm)', why: 'Minimum shallow aquifer water height before lateral baseflow discharge into streams and agricultural drainage channels begins.', where: 'Lower natural drainage outlet along parcel boundary perimeter.', tStat: -2.6, pVal: '0.0450', pct: 38, barColor: '#4f46e5' },
+                  { rank: 8, name: 'v__GW_REVAP.gw', layerId: 'sink', desc: 'Groundwater revap coefficient', why: 'Governs water movement from shallow aquifers back into unsaturated root zones via capillary fringe ascent.', where: 'Subsurface vadose zone feeding upward root hydration.', tStat: 2.2, pVal: '0.0520', pct: 31, barColor: '#64748b' },
+                ].map(param => {
+                  const isSelected = selectedSwatParam === param.name
+                  return (
+                    <details
+                      key={param.rank}
+                      open={isSelected}
+                      style={{
+                        background: isSelected ? '#f0fdf4' : '#f8fafc',
+                        border: isSelected ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+                        borderRadius: 6,
+                        padding: '6px 8px',
+                        boxShadow: isSelected ? '0 0 10px rgba(16, 185, 129, 0.2)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <summary
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const next = isSelected ? null : param.name
+                          setSelectedSwatParam(next)
+                          if (param.layerId) {
+                            window.dispatchEvent(new CustomEvent('seva-apply-indicator-layer', { detail: { layerId: param.layerId } }))
+                          }
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, cursor: 'pointer', listStyle: 'none' }}
+                      >
+                        <span style={{ width: 18, fontWeight: 700, color: isSelected ? '#059669' : '#64748b' }}>#{param.rank}</span>
+                        <div style={{ width: 140, flexShrink: 0 }}>
+                          <strong style={{ fontFamily: 'monospace', color: isSelected ? '#065f46' : '#0f172a', display: 'block', fontSize: 10.5 }}>{param.name}</strong>
+                          <span style={{ fontSize: 8.5, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{param.desc}</span>
+                        </div>
+                        <div style={{ flex: 1, background: '#e2e8f0', height: 10, borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${param.pct}%`, height: '100%', background: param.barColor, borderRadius: 2 }} />
+                        </div>
+                        <div style={{ width: 110, textAlign: 'right', flexShrink: 0, fontSize: 9.5 }}>
+                          <span style={{ color: '#475569', marginRight: 6 }}>t: <b>{param.tStat}</b></span>
+                          <span style={{ color: '#059669', fontWeight: 700 }}>p: {param.pVal}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.dispatchEvent(new CustomEvent('seva-apply-indicator-layer', { detail: { layerId: param.layerId } }))
+                          }}
+                          style={{
+                            fontSize: 9,
+                            color: isSelected ? '#fff' : '#0284c7',
+                            background: isSelected ? '#059669' : '#e0f2fe',
+                            border: 'none',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontWeight: 700,
+                            marginLeft: 4,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {isSelected ? '✓ Marked on Map' : `Show ${param.layerId.toUpperCase()}`}
+                        </button>
+                      </summary>
+                      <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #cbd5e1', fontSize: 10, color: '#334155', lineHeight: 1.45, paddingLeft: 26 }}>
+                        <div style={{ marginBottom: 4 }}>
+                          <b style={{ color: '#0284c7' }}>Physical Definition: </b>{param.why}
+                        </div>
+                        <div style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <b>Spatial Footprint on Field: </b><span>{param.where}</span>
+                        </div>
                       </div>
-                      <div style={{ flex: 1, background: '#e2e8f0', height: 10, borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ width: `${param.pct}%`, height: '100%', background: param.barColor, borderRadius: 2 }} />
-                      </div>
-                      <div style={{ width: 110, textAlign: 'right', flexShrink: 0, fontSize: 9.5 }}>
-                        <span style={{ color: '#475569', marginRight: 6 }}>t: <b>{param.tStat}</b></span>
-                        <span style={{ color: '#059669', fontWeight: 700 }}>p: {param.pVal}</span>
-                      </div>
-                      <span style={{ fontSize: 9, color: '#0284c7', fontWeight: 700, marginLeft: 4 }}>Why? ▾</span>
-                    </summary>
-                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px dashed #cbd5e1', fontSize: 10, color: '#334155', lineHeight: 1.45, paddingLeft: 26 }}>
-                      <b style={{ color: '#0284c7' }}>Why this matters: </b>{param.why}
-                    </div>
-                  </details>
-                ))}
+                    </details>
+                  )
+                })}
               </div>
             </div>
           </section>

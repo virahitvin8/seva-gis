@@ -6,8 +6,21 @@ import {
   isGoogleDriveConnected,
   dispatchExport,
   disconnectGoogle,
+  isRealGoogleClientId,
   type GoogleUser
 } from '../googleDriveVault.ts'
+
+test('isRealGoogleClientId detects real GCP OAuth Client IDs vs placeholders', () => {
+  // Placeholder in .env or default:
+  assert.equal(isRealGoogleClientId('419602015618-sevagis.apps.googleusercontent.com'), false)
+  assert.equal(isRealGoogleClientId(''), false)
+  assert.equal(isRealGoogleClientId('YOUR_CLIENT_ID.apps.googleusercontent.com'), false)
+  assert.equal(isRealGoogleClientId('placeholder-123'), false)
+
+  // Authentic GCP OAuth 2.0 Web Client ID pattern:
+  assert.equal(isRealGoogleClientId('419602015618-abcd1234efgh5678ijkl9012mnop3456.apps.googleusercontent.com'), true)
+  assert.equal(isRealGoogleClientId('96520749785-r3al0authcl13nt1d4567890abcdef.apps.googleusercontent.com'), true)
+})
 
 test('Google user management and storage round-trip', () => {
   // Clear any previous state

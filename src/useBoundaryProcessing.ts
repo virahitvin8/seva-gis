@@ -22,7 +22,19 @@ export function useBoundaryProcessing(
     const first = points[0];
     if (!first) { renderer.remove(); return; }
     points.push([first[0], first[1]]);
-    const layers = ['rail', 'halo', 'comet'].map(kind => {
+
+    const createdLayers: L.Layer[] = [];
+
+    // 1. Holographic interior radar polygon fill
+    const radarFill = L.polygon(points, {
+      renderer, pane: paneName, interactive: false,
+      className: 'seva-boundary-radar-fill', smoothFactor: 0,
+    }).addTo(map);
+    createdLayers.push(radarFill);
+
+    // 2. High-precision laser and rail perimeter lines
+    const lineKinds = ['rail', 'halo', 'laser', 'pulse'];
+    lineKinds.forEach(kind => {
       const layer = L.polyline(points, {
         renderer, pane: paneName, interactive: false,
         className: `seva-boundary-${kind}`, smoothFactor: 0,
@@ -33,10 +45,21 @@ export function useBoundaryProcessing(
         path.setAttribute('aria-hidden', 'true');
         path.setAttribute('focusable', 'false');
       }
-      return layer;
+      createdLayers.push(layer);
     });
+
+    // 3. Vertex targeting beacons on boundary corners
+    boundary.forEach(([lat, lng]) => {
+      const beacon = L.circleMarker([lat, lng], {
+        renderer, pane: paneName, interactive: false,
+        radius: 3.5,
+        className: 'seva-boundary-beacon',
+      }).addTo(map);
+      createdLayers.push(beacon);
+    });
+
     return () => {
-      layers.forEach(layer => layer.remove());
+      createdLayers.forEach(layer => layer.remove());
       renderer.remove();
       // The pane itself is a plain div that Leaflet never reclaims. Leaving it behind
       // accumulates one empty SVG pane per farm visit, so remove it when we made it.

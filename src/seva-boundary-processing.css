@@ -1,32 +1,125 @@
-/* Scoped animation colours. Scientific raster palettes remain unchanged. */
+/* SEVA·GIS Precision Boundary Processing & LiDAR Radar Scanner
+   Ultra-high-tech neon laser perimeter scan, vertex beacons, and holographic radar wave. */
 :root {
-  --seva-process-rail: oklch(0.79 0.15 156);
-  --seva-process-glow: oklch(0.86 0.17 154);
-  --seva-process-core: oklch(0.98 0.03 145);
-  --seva-process-shadow: oklch(0.75 0.19 152 / 0.8);
-  --seva-process-duration: 3.6s;
+  --seva-laser-rail: #10b981;
+  --seva-laser-glow: #06b6d4;
+  --seva-laser-core: #ffffff;
+  --seva-laser-accent: #34d399;
+  --seva-laser-shadow: rgba(6, 182, 212, 0.7);
+  --seva-scan-duration: 2.2s;
 }
-.seva-processing-pane { z-index: 450; pointer-events: none; }
-.seva-processing-pane svg { pointer-events: none; }
-.seva-boundary-rail, .seva-boundary-halo, .seva-boundary-comet {
-  fill: none; pointer-events: none; stroke-linecap: round; stroke-linejoin: round;
+
+.seva-processing-pane {
+  z-index: 450;
+  pointer-events: none;
 }
-.seva-boundary-rail { stroke: var(--seva-process-rail); stroke-width: 1.6; stroke-opacity: .6; }
+.seva-processing-pane svg {
+  pointer-events: none;
+}
+
+/* Holographic boundary fill: subtle radar sweep */
+.seva-boundary-radar-fill {
+  fill: url(#sevaRadarGlow);
+  fill-color: #06b6d4;
+  fill-opacity: 0.12;
+  stroke: none;
+  animation: seva-radar-pulse 2.4s ease-in-out infinite alternate;
+}
+
+.seva-boundary-rail,
+.seva-boundary-halo,
+.seva-boundary-laser,
+.seva-boundary-pulse {
+  fill: none;
+  pointer-events: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Base crisp vector boundary rail */
+.seva-boundary-rail {
+  stroke: var(--seva-laser-rail);
+  stroke-width: 2.2;
+  stroke-opacity: 0.75;
+  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.6));
+}
+
+/* Outer expansive laser halo */
 .seva-boundary-halo {
-  stroke: var(--seva-process-glow); stroke-width: 7; stroke-opacity: .48;
-  stroke-dasharray: 110 890;
-  filter: drop-shadow(0 0 5px var(--seva-process-shadow));
-  animation: seva-boundary-travel var(--seva-process-duration) linear infinite;
+  stroke: var(--seva-laser-glow);
+  stroke-width: 5.5;
+  stroke-opacity: 0.55;
+  stroke-dasharray: 240 760;
+  filter: drop-shadow(0 0 10px var(--seva-laser-shadow));
+  animation: seva-laser-sweep var(--seva-scan-duration) linear infinite;
 }
-.seva-boundary-comet {
-  stroke: var(--seva-process-core); stroke-width: 2.5; stroke-opacity: 1;
-  stroke-dasharray: 22 978;
-  filter: drop-shadow(0 0 3px var(--seva-process-shadow));
-  animation: seva-boundary-travel var(--seva-process-duration) linear infinite;
+
+/* High-speed white photon laser head */
+.seva-boundary-laser {
+  stroke: var(--seva-laser-core);
+  stroke-width: 3.2;
+  stroke-opacity: 1;
+  stroke-dasharray: 70 930;
+  filter: drop-shadow(0 0 8px #ffffff) drop-shadow(0 0 16px var(--seva-laser-accent));
+  animation: seva-laser-sweep var(--seva-scan-duration) linear infinite;
 }
-@keyframes seva-boundary-travel { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -1000; } }
+
+/* Counter-propagating secondary laser beam */
+.seva-boundary-pulse {
+  stroke: #38bdf8;
+  stroke-width: 2;
+  stroke-opacity: 0.85;
+  stroke-dasharray: 50 950;
+  filter: drop-shadow(0 0 6px #38bdf8);
+  animation: seva-laser-reverse calc(var(--seva-scan-duration) * 1.5) linear infinite;
+}
+
+/* Vertex targeting beacons */
+.seva-boundary-beacon {
+  fill: #34d399;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 6px #10b981);
+  animation: seva-beacon-ping 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes seva-laser-sweep {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1000; }
+}
+
+@keyframes seva-laser-reverse {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1000; }
+}
+
+@keyframes seva-radar-pulse {
+  0% { fill-opacity: 0.08; }
+  50% { fill-opacity: 0.22; }
+  100% { fill-opacity: 0.08; }
+}
+
+@keyframes seva-beacon-ping {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .seva-boundary-halo, .seva-boundary-comet { animation: none; filter: none; }
-  .seva-boundary-halo { display: none; }
-  .seva-boundary-comet { stroke-dasharray: none; stroke-opacity: .85; }
+  .seva-boundary-halo,
+  .seva-boundary-laser,
+  .seva-boundary-pulse,
+  .seva-boundary-radar-fill,
+  .seva-boundary-beacon {
+    animation: none;
+    filter: none;
+  }
+  .seva-boundary-halo,
+  .seva-boundary-pulse {
+    display: none;
+  }
+  .seva-boundary-laser {
+    stroke-dasharray: none;
+    stroke-opacity: 0.9;
+  }
 }
+

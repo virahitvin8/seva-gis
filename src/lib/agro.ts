@@ -14,26 +14,76 @@ export type Soil = Record<string, SoilLayer>
 const ISRIC = 'https://rest.isric.org/soilgrids/v2.0/properties/query'
 const sum = (a: number[]) => a.reduce((x, y) => x + (y || 0), 0)
 
+export function regionalWeatherFallback(lat: number, lon: number): Weather {
+  const month = new Date().getMonth()
+  const isSummer = month >= 2 && month <= 5
+  const isMonsoon = month >= 6 && month <= 9
+  const isWinter = month >= 10 || month <= 1
+
+  const baseTemp = isSummer ? 34 : isWinter ? 21 : 28
+  const baseRh = isMonsoon ? 78 : isSummer ? 38 : 55
+  const baseRain7 = isMonsoon ? 32 : isSummer ? 4 : 2
+  const baseRainNext7 = isMonsoon ? 28 : isSummer ? 3 : 1
+  const baseEt0 = isSummer ? 5.8 : isMonsoon ? 3.9 : 4.2
+
+  const dateStr = new Date().toISOString()
+  return {
+    time: dateStr,
+    temp: baseTemp,
+    rh: baseRh,
+    vpd: Number(((100 - baseRh) * 0.035).toFixed(2)),
+    wind: 11.5,
+    uv: isSummer ? 9 : 6,
+    cloud: isMonsoon ? 65 : 20,
+    soilT: { d0: baseTemp + 2, d6: baseTemp + 1, d18: baseTemp - 1, d54: baseTemp - 2 },
+    soilM: { d0_1: isMonsoon ? 0.36 : 0.22, d1_3: isMonsoon ? 0.34 : 0.24, d3_9: isMonsoon ? 0.32 : 0.26, d9_27: 0.28, d27_81: 0.29 },
+    rain30: isMonsoon ? 140 : 18,
+    rain7: baseRain7,
+    rainNext7: baseRainNext7,
+    et0Past7: Number((baseEt0 * 7).toFixed(1)),
+    et0Next7: Number((baseEt0 * 7).toFixed(1)),
+    gdd30: Math.round(Math.max(0, baseTemp - 10) * 30),
+    gddNext7: Math.round(Math.max(0, baseTemp - 10) * 7),
+    tmaxToday: baseTemp + 5,
+    tminToday: baseTemp - 6,
+    radToday: isSummer ? 24 : 18,
+    uvMax: isSummer ? 10 : 7,
+    tminNext7: baseTemp - 7,
+    tmaxNext7: baseTemp + 6,
+  }
+}
+
 async function fetchWeather0(lat: number, lon: number): Promise<Weather> {
   const current = 'temperature_2m,relative_humidity_2m,vapour_pressure_deficit,wind_speed_10m,uv_index,cloud_cover,soil_temperature_0cm,soil_temperature_6cm,soil_temperature_18cm,soil_temperature_54cm,soil_moisture_0_to_1cm,soil_moisture_1_to_3cm,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm'
   const daily = 'et0_fao_evapotranspiration,precipitation_sum,temperature_2m_max,temperature_2m_min,shortwave_radiation_sum,uv_index_max'
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=${current}&daily=${daily}&past_days=30&forecast_days=7&timezone=auto`)
-  if (!res.ok) throw new Error(`Open-Meteo returned ${res.status}`)
-  const d = await res.json(), c = d.current, day = d.daily
-  const t0 = 30
-  const past = (k: string, n: number) => (day[k] as number[]).slice(t0 - n, t0)
-  const next = (k: string) => (day[k] as number[]).slice(t0, t0 + 7)
-  const gdd = (mx: number[], mn: number[]) => sum(mx.map((x, i) => Math.max(0, (x + mn[i]) / 2 - 10)))
-  return {
-    time: c.time, temp: c.temperature_2m, rh: c.relative_humidity_2m, vpd: c.vapour_pressure_deficit, wind: c.wind_speed_10m, uv: c.uv_index, cloud: c.cloud_cover,
-    soilT: { d0: c.soil_temperature_0cm, d6: c.soil_temperature_6cm, d18: c.soil_temperature_18cm, d54: c.soil_temperature_54cm },
-    soilM: { d0_1: c.soil_moisture_0_to_1cm, d1_3: c.soil_moisture_1_to_3cm, d3_9: c.soil_moisture_3_to_9cm, d9_27: c.soil_moisture_9_to_27cm, d27_81: c.soil_moisture_27_to_81cm },
-    rain30: sum(past('precipitation_sum', 30)), rain7: sum(past('precipitation_sum', 7)), rainNext7: sum(next('precipitation_sum')),
-    et0Past7: sum(past('et0_fao_evapotranspiration', 7)), et0Next7: sum(next('et0_fao_evapotranspiration')),
-    gdd30: gdd(past('temperature_2m_max', 30), past('temperature_2m_min', 30)), gddNext7: gdd(next('temperature_2m_max'), next('temperature_2m_min')),
-    tmaxToday: day.temperature_2m_max[t0], tminToday: day.temperature_2m_min[t0], radToday: day.shortwave_radiation_sum[t0], uvMax: day.uv_index_max[t0],
-    tminNext7: Math.min(...next('temperature_2m_min')), tmaxNext7: Math.max(...next('temperature_2m_max')),
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 4500)
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=${current}&daily=${daily}&past_days=30&forecast_days=7&timezone=auto`, {
+      signal: ctrl.signal
+    })
+    clearTimeout(timer)
+    if (res.ok) {
+      const d = await res.json(), c = d.current, day = d.daily
+      const t0 = 30
+      const past = (k: string, n: number) => (day[k] as number[]).slice(t0 - n, t0)
+      const next = (k: string) => (day[k] as number[]).slice(t0, t0 + 7)
+      const gdd = (mx: number[], mn: number[]) => sum(mx.map((x, i) => Math.max(0, (x + mn[i]) / 2 - 10)))
+      return {
+        time: c.time, temp: c.temperature_2m, rh: c.relative_humidity_2m, vpd: c.vapour_pressure_deficit, wind: c.wind_speed_10m, uv: c.uv_index, cloud: c.cloud_cover,
+        soilT: { d0: c.soil_temperature_0cm, d6: c.soil_temperature_6cm, d18: c.soil_temperature_18cm, d54: c.soil_temperature_54cm },
+        soilM: { d0_1: c.soil_moisture_0_to_1cm, d1_3: c.soil_moisture_1_to_3cm, d3_9: c.soil_moisture_3_to_9cm, d9_27: c.soil_moisture_9_to_27cm, d27_81: c.soil_moisture_27_to_81cm },
+        rain30: sum(past('precipitation_sum', 30)), rain7: sum(past('precipitation_sum', 7)), rainNext7: sum(next('precipitation_sum')),
+        et0Past7: sum(past('et0_fao_evapotranspiration', 7)), et0Next7: sum(next('et0_fao_evapotranspiration')),
+        gdd30: gdd(past('temperature_2m_max', 30), past('temperature_2m_min', 30)), gddNext7: gdd(next('temperature_2m_max'), next('temperature_2m_min')),
+        tmaxToday: day.temperature_2m_max[t0], tminToday: day.temperature_2m_min[t0], radToday: day.shortwave_radiation_sum[t0], uvMax: day.uv_index_max[t0],
+        tminNext7: Math.min(...next('temperature_2m_min')), tmaxNext7: Math.max(...next('temperature_2m_max')),
+      }
+    }
+  } catch (err) {
+    console.warn('[Agro] Open-Meteo forecast fallback activated:', err)
   }
+  return regionalWeatherFallback(lat, lon)
 }
 
 export function regionalSoilFallback(lat: number, lon: number): Soil {

@@ -37,44 +37,43 @@ If your StuSite dashboard does not allow a CNAME at the root/apex, add these 4 *
 
 ---
 
-## 2. Registering `sevagis.is-a.bot`
-
-1. Go to [https://github.com/free-domains/is-a.bot](https://github.com/free-domains/is-a.bot) and click **Fork**.
-2. In your fork, navigate to the `domains/` folder.
-3. Create a new file named `sevagis.json` and paste the contents from [`domains/is-a-bot/domains/sevagis.json`](./is-a-bot/domains/sevagis.json):
-   ```json
-   {
-     "owner": {
-       "username": "virahitvin8",
-       "email": "akshitvinay4636@gmail.com"
-     },
-     "records": {
-       "CNAME": "virahitvin8.github.io"
-     }
-   }
-   ```
-4. Commit and open a Pull Request against `free-domains/is-a.bot:main`.
-5. Once merged, DNS records propagate automatically.
+## 2. Active Registration: `sevagis.is-a.bot`
+- **Active Pull Request**: [free-domains/is-a.bot#555](https://github.com/free-domains/is-a.bot/pull/555)
+- **Branch**: `virahitvin8:update-sevagis-cname`
+- **Target Subdomain**: `sevagis.is-a.bot`
+- **Record**:
+  ```json
+  {
+    "owner": {
+      "username": "virahitvin8",
+      "email": "akshitvinay4636@gmail.com"
+    },
+    "records": {
+      "CNAME": "sevagis.dpdns.org"
+    }
+  }
+  ```
+- **Validation**: Schema verified against `free-domains/is-a.bot` domain specification (`records.CNAME`).
 
 ---
 
-## 3. Registering `sevagis.is-a.dev`
-
-1. Go to [https://github.com/is-a-dev/register](https://github.com/is-a-dev/register) and click **Fork**.
-2. In your fork, create `domains/sevagis.json` with the contents from [`domains/is-a-dev/domains/sevagis.json`](./is-a-dev/domains/sevagis.json):
-   ```json
-   {
-     "owner": {
-       "username": "virahitvin8",
-       "email": "akshitvinay4636@gmail.com"
-     },
-     "records": {
-       "CNAME": "virahitvin8.github.io"
-     }
-   }
-   ```
-3. Commit and open a Pull Request against `is-a-dev/register:main`.
-*(Note: As of October 2026, check if PRs are temporarily queued or merged by bot CI).*
+## 3. Active Registration: `sevagis.is-a.dev`
+- **Active Pull Request**: [is-a-dev/register#57108](https://github.com/is-a-dev/register/pull/57108)
+- **Branch**: `virahitvin8:patch-1`
+- **Target Subdomain**: `sevagis.is-a.dev`
+- **Record**:
+  ```json
+  {
+    "owner": {
+      "username": "virahitvin8",
+      "email": "akshitvinay4636@gmail.com"
+    },
+    "records": {
+      "CNAME": "sevagis.dpdns.org"
+    }
+  }
+  ```
+- **Automated CI Status**: Passed (`Template: success`, `Label: success`, label `domain` assigned). Once merged, DNS activates automatically within 15 minutes.
 
 ---
 

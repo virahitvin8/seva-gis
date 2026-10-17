@@ -53,14 +53,30 @@ Automates USGS and Copernicus spectral absorption algorithms for regional geolog
 
 ### 5. 🗺️ High-Clarity Satellite Imagery & Geodesy
 - Dual-engine Leaflet + MapLibre streaming up to **Zoom 22** without resolution breakdown.
-- LiDAR laser perimeter boundary scanning with neon pulse animations.
+- LiDAR laser perimeter boundary scanning with smooth neon pulse animations.
 - Dedicated "Zoom to AOI" toolbar control respecting smallholdings (0.5 ha) to mega-catchments (80,000+ ha).
 
-### 6. 📄 Autonomous Multi-Lingual Dossier Generation
+### 6. 🛸 Drone Precision Studio (1m GSD UAV Suite)
+- **High-Resolution UAV Orthomosaics**: Sub-meter (1.0 m GSD) ortho-rectification and flight mission simulation.
+- **Smallholder Sentinel-2 Purity Analysis**: Flags mixed-pixel border contamination on smallholdings (< 2.0 ha) and calculates pure internal pixel shares.
+- **Fields2Cover Swath Robotics**: Autonomous coverage path planning generating parallel swaths, headland turns, waypoint logs, and flight distance metrics.
+- **Leaf Color Chart (LCC) Ground Truth Engine**: Calibrates satellite NDVI readings against IRRI 6-panel field leaf color charts to prevent over-fertilization.
+- **Automated UAV Dossier**: One-click generation of the Drone Mission Dossier with geodetic telemetry and pilot checklist.
+
+### 7. 📄 Autonomous Multi-Lingual Dossier Generation
 - Official academic, banking, and insurance dossiers available in **English**, **Hindi (हिन्दी)**, and **Telugu (తెలుగు)**.
 - Selectable formats: **HTML Dossier**, **Print-Ready PDF**, **Word Document (.doc)**, **Raw JSON**, **GitHub Markdown README**, and **Complete ZIP Bundle**.
 - One-click **Cartographic Images Export** (.zip) preserving North arrows, geodetic neatlines, and scale bars.
 - Automated audience onboarding and email delivery via **EmailOctopus** without forced `.eml` downloads.
+
+---
+
+## 🌐 Live Subdomains & Automated DNS
+SEVA·GIS is accessible worldwide across zero-cost developer domains:
+- **`sevagis.dpdns.org`** — [https://sevagis.dpdns.org](https://sevagis.dpdns.org) *(Live Primary Deployment)*
+- **`sevagis.is-a.dev`** — Active Pull Request [is-a-dev/register#57108](https://github.com/is-a-dev/register/pull/57108) (Automated CI checks passed)
+- **`sevagis.is-a.bot`** — Active Pull Request [free-domains/is-a.bot#555](https://github.com/free-domains/is-a.bot/pull/555) (CNAME target: `sevagis.dpdns.org`)
+- **`sevagis.stusite.me`** — Managed DNS via StuSite dashboard
 
 ---
 

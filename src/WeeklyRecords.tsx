@@ -28,7 +28,7 @@ function aggregate(records: WeekRec[] | undefined, p: Period): WeekRec[] {
 function compare(farm: WFarm, p: Period) {
   const now = farm.analysis?.ndvi.mean
   const cfg = PERIODS.find(x => x.id === p)!
-  const current = farm.analysis ? keyOf(farm.analysis.scene.datetime, p) : keyOf(new Date().toISOString(), p)
+  const current = farm.analysis?.scene?.datetime ? keyOf(farm.analysis.scene.datetime, p) : keyOf(new Date().toISOString(), p)
   const rows = aggregate(farm.passes, p)
   const past = rows.filter(r => r.week < current)
   const last = past[past.length - 1], back = past[past.length - cfg.backN], peak = past.length ? Math.max(...past.map(r => r.ndvi)) : undefined

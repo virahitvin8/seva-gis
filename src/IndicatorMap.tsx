@@ -1197,6 +1197,14 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         crossOrigin: true,
         className: 'seva-raster-pixels',
       })
+      let eeTileFailures = 0
+      eeLayer.on('tileerror', () => {
+        eeTileFailures++
+        if (eeTileFailures >= 4) {
+          setEarthEngineOverlay(null)
+          setEarthEngineStatus('Planetary Computer · Sentinel-2 (Auto Fallback)')
+        }
+      })
       eeLayer.addTo(instance)
       earthEngineTiles.current = eeLayer
     }

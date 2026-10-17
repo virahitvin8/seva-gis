@@ -1187,10 +1187,10 @@ export async function buildReport(
   const sessions = historyRows.length
     ? historyRows.map((row, index) => ({
       num: index + 1,
-      date: row.scene.datetime.slice(0, 10),
-      ndvi: row.ndvi.mean,
-      ndmi: row.ndmi,
-      stress: row.stressPct,
+      date: row.scene?.datetime ? row.scene.datetime.slice(0, 10) : 'Pass',
+      ndvi: row.ndvi?.mean ?? 0.5,
+      ndmi: row.ndmi ?? 0.2,
+      stress: row.stressPct ?? 0,
       rain: farm.rain ?? 0,
       runoff: 0,
       et: 0,
@@ -1198,10 +1198,10 @@ export async function buildReport(
     }))
     : [{
       num: 1,
-      date: an.scene.datetime.slice(0, 10),
-      ndvi: an.ndvi.mean,
-      ndmi: an.ndmi.mean,
-      stress: an.stressPct,
+      date: an.scene?.datetime ? an.scene.datetime.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      ndvi: an.ndvi?.mean ?? 0.5,
+      ndmi: an.ndmi?.mean ?? 0.2,
+      stress: an.stressPct ?? 0,
       rain: farm.rain ?? 0,
       runoff: 0,
       et: 0,

@@ -79,9 +79,9 @@ export default function ProGisExport({ farm, farms, onImportBackup }: Props) {
             centroid_lat: farm.lat,
             centroid_lon: farm.lon,
             utm_zone: utm.zone,
-            ndvi_mean: farm.analysis?.ndvi.mean ?? null,
-            ndmi_mean: farm.analysis?.ndmi.mean ?? null,
-            scene_date: farm.analysis?.scene.datetime || null,
+            ndvi_mean: farm.analysis?.ndvi?.mean ?? null,
+            ndmi_mean: farm.analysis?.ndmi?.mean ?? null,
+            scene_date: farm.analysis?.scene?.datetime || null,
             platform: 'SEVA.GIS (Sentinel-2 L2A + Copernicus GLO-30 DEM)',
           },
           geometry: {
@@ -135,12 +135,12 @@ Latitude,${farm.lat},degrees,"Centroid (WGS84)"
 Longitude,${farm.lon},degrees,"Centroid (WGS84)"
 DMS Coordinates,"${dmsLat} N, ${dmsLon} E",,"Sexagesimal"
 UTM Projection,"${utm.zone} Easting: ${utm.easting} Northing: ${utm.northing}",,"Transverse Mercator"
-Mean NDVI,${farm.analysis?.ndvi.mean.toFixed(3) ?? 'N/A'},,"Sentinel-2 vegetation vigour"
-Mean NDMI,${farm.analysis?.ndmi.mean.toFixed(3) ?? 'N/A'},,"Canopy moisture index"
-Stress Percentage,${farm.analysis?.stressPct.toFixed(1) ?? 'N/A'},%,"Canopy pixels below 0.30"
+Mean NDVI,${farm.analysis?.ndvi?.mean?.toFixed(3) ?? 'N/A'},,"Sentinel-2 vegetation vigour"
+Mean NDMI,${farm.analysis?.ndmi?.mean?.toFixed(3) ?? 'N/A'},,"Canopy moisture index"
+Stress Percentage,${farm.analysis?.stressPct?.toFixed(1) ?? 'N/A'},%,"Canopy pixels below 0.30"
 Elevation,${farm.analysis?.elevMean?.toFixed(1) ?? 'N/A'},m,"Copernicus GLO-30 DEM"
 Slope,${farm.analysis?.slopeDeg?.toFixed(1) ?? 'N/A'},degrees,"DEM slope gradient"
-Scene Date,"${farm.analysis?.scene.datetime || 'N/A'}",,"Satellite capture timestamp"
+Scene Date,"${farm.analysis?.scene?.datetime || 'N/A'}",,"Satellite capture timestamp"
 `
     downloadFile(`${slug}-data.csv`, csv, 'text/csv')
   }
@@ -157,13 +157,13 @@ Scene Date,"${farm.analysis?.scene.datetime || 'N/A'}",,"Satellite capture times
       <Row><Cell><Data ss:Type="String">Farm Name</Data></Cell><Cell><Data ss:Type="String">${farm.name}</Data></Cell><Cell><Data ss:Type="String"></Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">Crop</Data></Cell><Cell><Data ss:Type="String">${farm.crop || 'General'}</Data></Cell><Cell><Data ss:Type="String"></Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">Area</Data></Cell><Cell><Data ss:Type="Number">${farm.area || 1.0}</Data></Cell><Cell><Data ss:Type="String">ha</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">Mean NDVI</Data></Cell><Cell><Data ss:Type="Number">${farm.analysis?.ndvi.mean.toFixed(2) ?? 0}</Data></Cell><Cell><Data ss:Type="String">index</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">Mean NDMI</Data></Cell><Cell><Data ss:Type="Number">${farm.analysis?.ndmi.mean.toFixed(2) ?? 0}</Data></Cell><Cell><Data ss:Type="String">index</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Mean NDVI</Data></Cell><Cell><Data ss:Type="Number">${farm.analysis?.ndvi?.mean?.toFixed(2) ?? 0}</Data></Cell><Cell><Data ss:Type="String">index</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Mean NDMI</Data></Cell><Cell><Data ss:Type="Number">${farm.analysis?.ndmi?.mean?.toFixed(2) ?? 0}</Data></Cell><Cell><Data ss:Type="String">index</Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">UTM Zone</Data></Cell><Cell><Data ss:Type="String">${utm.zone}</Data></Cell><Cell><Data ss:Type="String"></Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">UTM Easting</Data></Cell><Cell><Data ss:Type="Number">${utm.easting}</Data></Cell><Cell><Data ss:Type="String">m</Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">UTM Northing</Data></Cell><Cell><Data ss:Type="Number">${utm.northing}</Data></Cell><Cell><Data ss:Type="String">m</Data></Cell></Row>
       <Row><Cell><Data ss:Type="String">Elevation</Data></Cell><Cell><Data ss:Type="Number">${farm.analysis?.elevMean?.toFixed(0) ?? 0}</Data></Cell><Cell><Data ss:Type="String">m ASL</Data></Cell></Row>
-      <Row><Cell><Data ss:Type="String">Satellite Date</Data></Cell><Cell><Data ss:Type="String">${farm.analysis?.scene.datetime.slice(0, 10) ?? 'N/A'}</Data></Cell><Cell><Data ss:Type="String"></Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Satellite Date</Data></Cell><Cell><Data ss:Type="String">${farm.analysis?.scene?.datetime?.slice(0, 10) ?? 'N/A'}</Data></Cell><Cell><Data ss:Type="String"></Data></Cell></Row>
     </Table>
   </Worksheet>
 </Workbook>`
@@ -220,11 +220,11 @@ Scene Date,"${farm.analysis?.scene.datetime || 'N/A'}",,"Satellite capture times
     const text = `🌾 *SEVA.GIS Field Health Report*
 📍 *Field:* ${farm.name}
 🌱 *Crop:* ${farm.crop || 'Standing crop'} (${farm.area ? `${farm.area} ha` : 'Plot'})
-🛰️ *Sentinel-2 NDVI:* ${farm.analysis?.ndvi.mean.toFixed(2) ?? 'Pending'}
-💧 *Canopy Water (NDMI):* ${farm.analysis?.ndmi.mean.toFixed(2) ?? 'Normal'}
-⚠️ *Stress Area:* ${farm.analysis?.stressPct.toFixed(0) ?? '0'}%
+🛰️ *Sentinel-2 NDVI:* ${farm.analysis?.ndvi?.mean?.toFixed(2) ?? 'Pending'}
+💧 *Canopy Water (NDMI):* ${farm.analysis?.ndmi?.mean?.toFixed(2) ?? 'Normal'}
+⚠️ *Stress Area:* ${farm.analysis?.stressPct?.toFixed(0) ?? '0'}%
 📍 *Coordinates:* ${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E (${utm.zone})
-📅 *Pass Date:* ${farm.analysis?.scene.datetime.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
+📅 *Pass Date:* ${farm.analysis?.scene?.datetime?.slice(0, 10) ?? new Date().toISOString().slice(0, 10)}
 
 _Generated on SEVA.GIS — Free Satellite Land Intelligence_
 https://sevagis.dpdns.org/`
@@ -252,11 +252,11 @@ UTM Coordinate:     ${utm.zone} (E: ${utm.easting} m, N: ${utm.northing} m)
 2. SATELLITE MULTI-SPECTRAL CHANGE DETECTION
 --------------------------------------------------------------------------------
 Satellite Platform: European Space Agency Sentinel-2 L2A (10 m Spatial Resolution)
-Analysis Date:      ${farm.analysis?.scene.datetime || 'Current observation'}
-Cloud Cover:        ${farm.analysis?.scene.cloud ?? 0}%
-Mean NDVI Vigour:   ${farm.analysis?.ndvi.mean.toFixed(3) ?? 'N/A'} (Normal healthy range: 0.65 - 0.85)
-Canopy Water NDMI:  ${farm.analysis?.ndmi.mean.toFixed(3) ?? 'N/A'}
-Field Stress Ratio: ${farm.analysis?.stressPct.toFixed(1) ?? 'N/A'}% of boundary pixels below 0.30 threshold
+Analysis Date:      ${farm.analysis?.scene?.datetime || 'Current observation'}
+Cloud Cover:        ${farm.analysis?.scene?.cloud ?? 0}%
+Mean NDVI Vigour:   ${farm.analysis?.ndvi?.mean?.toFixed(3) ?? 'N/A'} (Normal healthy range: 0.65 - 0.85)
+Canopy Water NDMI:  ${farm.analysis?.ndmi?.mean?.toFixed(3) ?? 'N/A'}
+Field Stress Ratio: ${farm.analysis?.stressPct?.toFixed(1) ?? 'N/A'}% of boundary pixels below 0.30 threshold
 
 3. RADAR & HYDROLOGICAL ASSESSMENTS
 --------------------------------------------------------------------------------

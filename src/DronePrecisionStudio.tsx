@@ -45,15 +45,15 @@ export default function DronePrecisionStudio({ farm, onClose, onExportDossier }:
     return generateScientificProvenance(
       farm.lat,
       farm.lon,
-      farm.analysis?.scene.datetime,
-      farm.analysis?.scene.cloud || 0
+      farm.analysis?.scene?.datetime,
+      farm.analysis?.scene?.cloud || 0
     )
-  }, [farm.lat, farm.lon, farm.analysis?.scene.datetime, farm.analysis?.scene.cloud])
+  }, [farm.lat, farm.lon, farm.analysis?.scene?.datetime, farm.analysis?.scene?.cloud])
 
   // 3. Simulated Drone Orthomosaic Grid
   const bounds = useMemo(() => {
-    const lat = farm.lat
-    const lon = farm.lon
+    const lat = farm.lat || 24.6404
+    const lon = farm.lon || 78.0524
     const delta = 0.0018 // approx ~200m field envelope
     return {
       minLat: lat - delta,
@@ -63,8 +63,8 @@ export default function DronePrecisionStudio({ farm, onClose, onExportDossier }:
     }
   }, [farm.lat, farm.lon])
 
-  const baseMeanNdvi = farm.analysis?.ndvi.mean || 0.58
-  const baseMeanElevation = farm.analysis?.elevation.mean || 240
+  const baseMeanNdvi = farm.analysis?.ndvi?.mean || 0.58
+  const baseMeanElevation = farm.analysis?.elevation?.mean || 240
 
   const orthomosaicPixels = useMemo(() => {
     return generateDroneOrthomosaicGrid(bounds, baseMeanNdvi, baseMeanElevation, 24)
@@ -100,8 +100,8 @@ export default function DronePrecisionStudio({ farm, onClose, onExportDossier }:
   function addGroundTruthObservation() {
     const newPt: GroundTruthPoint = {
       id: `gt-${Date.now().toString(36)}`,
-      lat: farm.lat + (Math.random() - 0.5) * 0.001,
-      lon: farm.lon + (Math.random() - 0.5) * 0.001,
+      lat: (farm?.lat || 24.6404) + (Math.random() - 0.5) * 0.001,
+      lon: (farm?.lon || 78.0524) + (Math.random() - 0.5) * 0.001,
       label: `Field Pin #${groundTruthPoints.length + 1}`,
       observedHealth: newObsHealth,
       leafColorChartScore: newLccScore,

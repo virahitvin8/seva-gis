@@ -23,15 +23,15 @@ export default function DroneReportDossier({ farm, onClose }: Props) {
 
   const provenance = useMemo(() => {
     return generateScientificProvenance(
-      farm.lat,
-      farm.lon,
-      farm.analysis?.scene.datetime,
-      farm.analysis?.scene.cloud || 0
+      farm.lat || 24.6404,
+      farm.lon || 78.0524,
+      farm.analysis?.scene?.datetime,
+      farm.analysis?.scene?.cloud || 0
     )
-  }, [farm.lat, farm.lon, farm.analysis?.scene.datetime, farm.analysis?.scene.cloud])
+  }, [farm.lat, farm.lon, farm.analysis?.scene?.datetime, farm.analysis?.scene?.cloud])
 
-  const meanNdvi = farm.analysis?.ndvi.mean || 0.58
-  const meanElevation = farm.analysis?.elevation.mean || 240
+  const meanNdvi = farm.analysis?.ndvi?.mean || 0.58
+  const meanElevation = farm.analysis?.elevation?.mean || 240
   const droneIndices = useMemo(() => computeDroneIndices(85, 160, 45), [])
 
   function handlePrint() {
@@ -214,7 +214,7 @@ export default function DroneReportDossier({ farm, onClose }: Props) {
 
             <div style={{ textAlign: 'right', fontSize: 11, color: '#475569' }}>
               <div><b>Dossier No:</b> DRONE-SEVA-{Date.now().toString(36).toUpperCase()}</div>
-              <div><b>Survey Date:</b> {farm.analysis?.scene.datetime.slice(0, 10) || new Date().toISOString().slice(0, 10)}</div>
+              <div><b>Survey Date:</b> {farm.analysis?.scene?.datetime?.slice(0, 10) || new Date().toISOString().slice(0, 10)}</div>
               <div><b>Security Hash:</b> SHA256-CERTIFIED-AUTHENTIC</div>
             </div>
           </div>

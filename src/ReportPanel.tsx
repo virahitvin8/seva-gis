@@ -225,11 +225,11 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           format: 'HTML',
           htmlContent: r.html,
           summary: {
-            ndviMean: farm.analysis?.ndvi.mean ?? 0.58,
+            ndviMean: farm.analysis?.ndvi?.mean ?? 0.58,
             stressPct: farm.analysis?.stressPct ?? 14.5,
             areaHa: farm.area ?? 2.4,
             location: farm.location,
-            sceneDate: farm.analysis?.scene.datetime.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+            sceneDate: farm.analysis?.scene?.datetime?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
           },
           devicePath: `/seva-gis/reports/${baseFilename}_${l.toUpperCase()}.html`,
         })
@@ -413,7 +413,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             farmName: farm.name,
             reportId: curReport.id,
             areaHa: farm.area,
-            ndvi: farm.analysis?.ndvi.mean,
+            ndvi: farm.analysis?.ndvi?.mean,
             filename: `${baseFilename}.html`,
             htmlContent: curReport.html,
             senderName: who.name || 'SEVA·GIS Autonomous Sentinel',

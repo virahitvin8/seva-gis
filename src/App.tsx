@@ -78,8 +78,26 @@ import { analyze, barsFromStat, classify, constructionSuitability, farmNeedsAtte
 
 type Farm = { id: string; name: string; location: string; crop: string; area: number; lat: number; lon: number; status: string; ndvi?: number; moisture?: number; rain?: number; elevation?: number; sample: boolean; analysis?: Analysis; polygon?: [number, number][]; passes?: WeekRec[] }
 type Zone = { lat: number; lon: number; ndvi?: number; ndmi?: number }
-const mappedBoundaryAreaHa = (farm: Pick<Farm, 'polygon'>) => farm.polygon && farm.polygon.length >= 3 ? areaHa(farm.polygon) : 0
-const initialFarms: Farm[] = []
+const mappedBoundaryAreaHa = (farm?: Pick<Farm, 'polygon'>) => farm?.polygon && farm.polygon.length >= 3 ? areaHa(farm.polygon) : 0
+
+export const DEFAULT_FARM: Farm = {
+  id: 'chanderi-farm-1',
+  name: 'Chanderi Research Farm',
+  location: '24.6404° N, 78.0524° E',
+  crop: 'Soybean / Wheat',
+  area: 14.8,
+  lat: 24.6404,
+  lon: 78.0524,
+  polygon: [
+    [78.048, 24.638],
+    [78.056, 24.638],
+    [78.056, 24.644],
+    [78.048, 24.644]
+  ],
+  status: 'Awaiting satellite data',
+  sample: false
+}
+const initialFarms: Farm[] = [DEFAULT_FARM]
 import Lang from './Lang'
 import { useI18n } from './lib/i18n'
 import { MitraGuide, MitraAvatar } from './Mitra'
@@ -131,9 +149,20 @@ function BrandLogo() {
 
 export default function App() {
   const { who, signOut } = useAccount()
-  const { t } = useI18n()
-  const [farms, setFarms] = useState<Farm[]>(() => { try { return (JSON.parse(localStorage.getItem('seva-farms') || 'null') || initialFarms).filter((x: Farm) => !x.sample) } catch { return initialFarms } })
-  const [selected, setSelected] = useState(farms[0]?.id || '')
+  const [farms, setFarms] = useState<Farm[]>(() => {
+    try {
+      const saved = localStorage.getItem('seva-farms')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.filter((x: Farm) => x && typeof x === 'object' && x.id)
+          if (valid.length > 0) return valid
+        }
+      }
+    } catch {}
+    return initialFarms
+  })
+  const [selected, setSelected] = useState(farms[0]?.id || DEFAULT_FARM.id)
   const [layersPanelTarget, setLayersPanelTarget] = useState<HTMLDivElement | null>(null)
   const selectedRef = useRef(selected)
   selectedRef.current = selected
@@ -200,9 +229,9 @@ export default function App() {
   const [nav, setNav] = useState('Overview')
   const [menu, setMenu] = useState(false)
   const [mapFocus, setMapFocus] = useState(false)
-  const farm = (farms.find(item => item.id === selected) || farms[0]) as Farm
+  const farm = (farms.find(item => item.id === selected) || farms[0] || DEFAULT_FARM) as Farm
   const loading = !!farm && loadingFarmIds.includes(farm.id)
-  const hi = useMemo(() => pickGreeting(who.name, who.id === 'guest' || who.name === 'Guest'), [who.name])
+  const hi = useMemo(() => pickGreeting(who?.name || 'Guest', who?.id === 'guest' || who?.name === 'Guest'), [who?.name, who?.id])
   useEffect(() => { localStorage.setItem('seva-farms', JSON.stringify(farms)) }, [farms])
 
   useEffect(() => {
@@ -453,15 +482,15 @@ export default function App() {
       }))
       const reason = satellite.status === 'rejected' ? (satellite.reason instanceof Error ? satellite.reason.message : 'Satellite service unavailable') : ''
       if (selectedRef.current === target.id && !controller.signal.aborted) {
-        setMessage(satellite.status === 'fulfilled' ? `Live Sentinel-2 analysis complete (${new Date(satellite.value.scene.datetime).toLocaleDateString()}, ${satellite.value.scene.cloud}% cloud${satellite.value.scene.filled ? `, gaps filled from ${satellite.value.scene.filled} other pass${satellite.value.scene.filled > 1 ? 'es' : ''}` : ''}).${weather.status === 'rejected' ? ' Weather could not be fetched.' : ''}` : `Satellite analysis failed: ${reason}. Existing values are unchanged.`)
+        setMessage(satellite.status === 'fulfilled' ? `Live Sentinel-2 analysis complete (${new Date(satellite.value.scene?.datetime || Date.now()).toLocaleDateString()}, ${satellite.value.scene?.cloud ?? 0}% cloud${satellite.value.scene?.filled ? `, gaps filled from ${satellite.value.scene.filled} other pass${satellite.value.scene.filled > 1 ? 'es' : ''}` : ''}).${weather.status === 'rejected' ? ' Weather could not be fetched.' : ''}` : `Satellite analysis failed: ${reason}. Existing values are unchanged.`)
       }
     } finally {
       // Ensure controller is cleaned up from map (but only if it's still the current controller for this farm)
       if (inFlightAbortRef.current.get(target.id) === controller) {
         inFlightAbortRef.current.delete(target.id)
       }
+      setLoadingFarmIds(current => current.filter(id => id !== target.id))
     }
-    setLoadingFarmIds(current => current.filter(id => id !== target.id))
   }
   useEffect(() => { if (farm && !farm.analysis && !attempted.current.has(farm.id)) refresh(farm) }, [farm?.id])
   const weeklyTried = useRef(new Set<string>())
@@ -540,7 +569,7 @@ export default function App() {
     const json = JSON.stringify(data, null, 2)
     void dispatchExport({
       category: 'data',
-      fileName: `seva-${farm.name.toLowerCase().replace(/\s+/g, '-')}.json`,
+      fileName: `seva-${(farm?.name || 'field').toLowerCase().replace(/\s+/g, '-')}.json`,
       blob: json,
       mimeType: 'application/json',
       customToast: `Saved farm record to device & Google Drive: SEVA GIS / User Data & Cache`
@@ -572,9 +601,9 @@ export default function App() {
       <div className="nav-label">WORKSPACE</div>
       <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'DroneStudio', label: 'Drone Studio (1m GSD)', icon: Plane }, { id: 'NodeStudio', label: 'GEE ⟷ QGIS Studio', icon: Cpu }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>{t('shell.dataSources')}<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Guide tutorial - NAVI</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>{t('shell.fieldGuide')}</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>{t('shell.dataManager')}</button></nav>
-      <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>{t('hero.line1')}<br/>Open to everyone.</h4><p>{t('hero.line2')}</p><span>{t('hero.eyebrow')} <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>{t('shell.popTeamAlt')}</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who.name}<small>{who.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title={t('shell.logout')} onClick={signOut}><LogOut size={18}/></button></div></div>
+      <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>{t('hero.line1')}<br/>Open to everyone.</h4><p>{t('hero.line2')}</p><span>{t('hero.eyebrow')} <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>{t('shell.popTeamAlt')}</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who?.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who?.name || 'Guest'}<small>{who?.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title={t('shell.logout')} onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t('shell.openNav')} onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-drone-studio-btn notranslate" title="Launch Drone-Grade Precision Studio (Sub-meter Orthomosaic & VRA)" onClick={() => setShowDroneStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(56, 189, 248, 0.25))', border: '1px solid #0284c7', color: '#7dd3fc', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(2, 132, 199, 0.2)' }}><Plane size={13} color="#38bdf8" /><span>Drone Studio</span></button><button className="top-node-studio-btn notranslate" title="Launch Automated GEE ⟷ QGIS Node Studio" onClick={() => setShowNodeStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25))', border: '1px solid #10b981', color: '#a7f3d0', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(16, 185, 129, 0.2)' }}><Cpu size={13} color="#34d399" /><span>GEE ⟷ QGIS Studio</span></button><button className="top-pop-team-btn notranslate" title={t('shell.popTeamHint')} onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid #ef4444', color: '#fca5a5', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 4px rgba(239, 68, 68, 0.15)' }}><AlertTriangle size={12} color="#f87171" /><span>{t('shell.popTeam')}</span></button><button className="top-terminal-btn notranslate" title={t('shell.terminalTitle')} onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><span className="open-badge"><span/> {t('shell.poweredBy')}</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Guide tutorial - NAVI" title={t('shell.mitraTour')} onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><button type="button" className={`top-drive-btn notranslate ${driveConnected ? 'connected' : ''}`} title={driveConnected ? 'Google Drive connected · Files organize into SEVA GIS' : 'Sign in with Google to auto-organize outputs in Google Drive'} onClick={() => { if (driveConnected) setModal('settings'); else void handleConnectGoogle() }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: driveConnected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(255, 255, 255, 0.08)', border: driveConnected ? '1px solid #22c55e' : '1px solid #ffffff2a', color: driveConnected ? '#86efac' : '#e2e8f0', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>{driveConnected ? 'Drive: SEVA GIS' : 'Google Sign-in'}</span></button><span className="top-avatar" title={who.name}>{(who.name || 'G')[0].toUpperCase()}</span></div></header>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t('shell.openNav')} onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-drone-studio-btn notranslate" title="Launch Drone-Grade Precision Studio (Sub-meter Orthomosaic & VRA)" onClick={() => setShowDroneStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(56, 189, 248, 0.25))', border: '1px solid #0284c7', color: '#7dd3fc', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(2, 132, 199, 0.2)' }}><Plane size={13} color="#38bdf8" /><span>Drone Studio</span></button><button className="top-node-studio-btn notranslate" title="Launch Automated GEE ⟷ QGIS Node Studio" onClick={() => setShowNodeStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25))', border: '1px solid #10b981', color: '#a7f3d0', padding: '3px 9px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 1px 4px rgba(16, 185, 129, 0.2)' }}><Cpu size={13} color="#34d399" /><span>GEE ⟷ QGIS Studio</span></button><button className="top-pop-team-btn notranslate" title={t('shell.popTeamHint')} onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(127, 29, 29, 0.25)', border: '1px solid #ef4444', color: '#fca5a5', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 4px rgba(239, 68, 68, 0.15)' }}><AlertTriangle size={12} color="#f87171" /><span>{t('shell.popTeam')}</span></button><button className="top-terminal-btn notranslate" title={t('shell.terminalTitle')} onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#13281b', border: '1px solid #2d6a4f', color: '#86efac', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><span className="open-badge"><span/> {t('shell.poweredBy')}</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Guide tutorial - NAVI" title={t('shell.mitraTour')} onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><button type="button" className={`top-drive-btn notranslate ${driveConnected ? 'connected' : ''}`} title={driveConnected ? 'Google Drive connected · Files organize into SEVA GIS' : 'Sign in with Google to auto-organize outputs in Google Drive'} onClick={() => { if (driveConnected) setModal('settings'); else void handleConnectGoogle() }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: driveConnected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(255, 255, 255, 0.08)', border: driveConnected ? '1px solid #22c55e' : '1px solid #ffffff2a', color: driveConnected ? '#86efac' : '#e2e8f0', padding: '3px 8px', height: '28px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>{driveConnected ? 'Drive: SEVA GIS' : 'Google Sign-in'}</span></button><span className="top-avatar" title={who?.name || 'Guest'}>{(who?.name || 'G')[0].toUpperCase()}</span></div></header>
       <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>{t('empty.title')}</h2><p>{t('empty.body')}</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div> : <>
@@ -636,7 +665,7 @@ export default function App() {
       </div>
       <div className="summary-grid"><div className="summary-card"><span className="metric-icon"><MapPinned size={21}/></span><div><span>{t('dash.totalFarms')}</span><strong>{farms.length}<small>Across {new Set(farms.map(item => item.location)).size} locations</small></strong></div></div><div className="summary-card"><span className="metric-icon"><Sprout size={21}/></span><div><span>{t('dash.mappedArea')}</span><strong>{farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0).toFixed(1)} <em>ha</em><small>{(farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0) * 2.47105381).toFixed(1)} acres · outlines only</small></strong></div></div><div className="summary-card"><span className="metric-icon healthy"><Leaf size={21}/></span><div><span>{t('dash.strongCover')}</span><strong>{farms.filter(item => item.status === 'Healthy').length}<small><i className="dot green"/>{t('dash.strongSignal')}</small></strong></div></div><div className="summary-card"><span className="metric-icon attention"><Droplets size={21}/></span><div><span>Fields to review</span><strong>{farms.filter(farmNeedsAttention).length}<small><i className="dot amber"/>{t('dash.reviewFlagged')}</small></strong></div><ArrowUpRight size={17}/></div></div>
       <div className={`farm-workspace ${mapFocus ? 'map-focus' : ''}`} id="my-farms"><section className="farm-list"><div className="section-top"><h2>{t('farms.title')} <span>{farms.length}</span></h2><button aria-label={t('farm.add')} onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder={t('farms.search')} value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => startTransition(() => setSelected(item.id))}><div className="farm-thumb aoi" title={t('farm.thumbTitle')}><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.polygon && item.polygon.length >= 3 ? `${mappedBoundaryAreaHa(item).toFixed(2)} ha · ${(mappedBoundaryAreaHa(item) * 2.47105381).toFixed(2)} ac` : 'Location pin · area unknown'}<b>·</b>{item.crop}</span><div className="farm-badges-row"><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span><span role="button" tabIndex={0} className="farm-maps-btn" title={`View this field location in Google Maps: ${item.name} (${item.lat.toFixed(4)}°, ${item.lon.toFixed(4)}°)`} onClick={event => { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') } }}><Navigation size={11} className="maps-symbol-icon"/><span>{t('farm.viewLocation')}</span></span></div></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>{t('action.addAnother')}</button><div ref={setLayersPanelTarget} className="ix-panel-dock" aria-label="Layers and symbology controls"/><div className="list-note"><ShieldCheck size={16}/><span>{t('shell.privacy')}</span></div></section>
-       <section className="map-card"><div className="map-header"><div><h2>{farm.name}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm.location}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm.name} (${farm.lat.toFixed(4)}°, ${farm.lon.toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>{t('farm.viewLocation')}</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">{t('load.map')}</div>}><IndicatorMap farm={farm} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm.analysis?.scene} intent={analysisIntent}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>{t('shell.aboutData')}<ArrowUpRight size={13}/></button></div></section></div>
+       <section className="map-card"><div className="map-header"><div><h2>{farm?.name || 'My Field'}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm?.location || 'Location not set'}<b>·</b>{farm?.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm?.name || 'Field'} (${(farm?.lat ?? 24.6404).toFixed(4)}°, ${(farm?.lon ?? 78.0524).toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm?.lat ?? 24.6404},${farm?.lon ?? 78.0524}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>{t('farm.viewLocation')}</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">{t('load.map')}</div>}><IndicatorMap farm={farm || DEFAULT_FARM} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm?.analysis?.scene} intent={analysisIntent}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm?.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm?.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>{t('shell.aboutData')}<ArrowUpRight size={13}/></button></div></section></div>
 
       {activeSectionOrder.map((secId, idx) => {
         let content = null
@@ -662,12 +691,12 @@ export default function App() {
             content = (
               <>
                 <div className="intelligence-heading">
-                  <h2>{t('fieldIntel.title')}<span>{farm.analysis ? 'Live Sentinel-2 metrics' : 'Awaiting satellite analysis'}</span></h2>
+                  <h2>{t('fieldIntel.title')}<span>{farm?.analysis ? 'Live Sentinel-2 metrics' : 'Awaiting satellite analysis'}</span></h2>
                   <button id="create-report-button" onClick={() => setModal('reports')}><ArrowDownToLine size={15}/>{t('action.createReport')}</button>
                 </div>
                 <div className="intelligence-grid">
                   {(() => {
-                    const ndviVal = farm.analysis?.ndvi.mean
+                    const ndviVal = farm.analysis?.ndvi?.mean
                     const moistVal = farm.moisture ?? 32
                     const rainVal = farm.rain ?? 0.7
                     const slopeVal = farm.analysis?.slopePct ?? 2.1
@@ -678,7 +707,7 @@ export default function App() {
                         icon: Leaf,
                         value: ndviVal?.toFixed(2),
                         unit: 'NDVI',
-                        label: farm.analysis ? classify(ndviVal!).label : 'Awaiting analysis',
+                        label: farm.analysis && ndviVal !== undefined ? classify(ndviVal).label : 'Awaiting analysis',
                         color: 'green',
                         bars: true,
                         stat: farm.analysis?.ndvi,
@@ -686,7 +715,7 @@ export default function App() {
                         hi: 1,
                         benchmarks: 'Benchmark: Vigorous ≥ 0.50 · Moderate 0.30–0.50 · Stressed < 0.30',
                         reasoning: farm.analysis
-                          ? `${farm.analysis.stressPct.toFixed(0)}% of pixels show NDVI < 0.30 (sparse canopy). If persistent over consecutive clear passes, inspect for root-zone moisture deficit or nutrient deficiency.`
+                          ? `${(farm.analysis.stressPct ?? 0).toFixed(0)}% of pixels show NDVI < 0.30 (sparse canopy). If persistent over consecutive clear passes, inspect for root-zone moisture deficit or nutrient deficiency.`
                           : 'Computed from Sentinel-2 10 m multi-spectral bands (B4 Red & B8 NIR).'
                       },
                       {
@@ -768,7 +797,7 @@ export default function App() {
                           <div className="intelligence-value" style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '8px', marginBottom: '4px' }}>
                             <span style={{ fontSize: '26px', fontWeight: 700, lineHeight: 1 }}>{value ?? '—'}</span>
                             <span style={{ fontSize: '11.5px', fontWeight: 600, color: '#64748b' }}>{unit}</span>
-                            {title === 'Vegetation health' && farm.analysis && <span className="trend" style={{ marginLeft: 'auto' }}>{farm.analysis.stressPct.toFixed(0)}% <small>stressed</small></span>}
+                            {title === 'Vegetation health' && farm.analysis && <span className="trend" style={{ marginLeft: 'auto' }}>{(farm.analysis.stressPct ?? 0).toFixed(0)}% <small>stressed</small></span>}
                           </div>
                           <div className="mini-chart" style={{ height: 'auto', minHeight: '26px', margin: '4px 0 8px', display: 'flex', alignItems: 'center' }}>
                             {bars ? (
@@ -917,7 +946,7 @@ export default function App() {
       })}
       </>}
       <Contact/>
-      <MitraGuide name={who.name} guest={who.name === 'Guest'}/>
+      <MitraGuide name={who?.name || 'Guest'} guest={who?.name === 'Guest' || !who}/>
       <Credits/>
       <footer className="page-footer"><span><BrandLogo/>{t('shell.tagline')}</span><span>{t('shell.credit')}<span className="footer-dot">●</span>seva.gis</span></footer>
       </main>
@@ -925,9 +954,9 @@ export default function App() {
     {message && <div className="toast" role="status"><ShieldCheck size={19}/>{message}<button aria-label="Dismiss" onClick={() => setMessage('')}><X size={17}/></button></div>}
     {modal && <div className="modal-backdrop" onClick={() => setModal('')}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={event => event.stopPropagation()}><button className="modal-close" aria-label={t('common.close')} onClick={() => setModal('')}><X size={20}/></button><span className="modal-icon"><BrandLogo/></span><div className="eyebrow">{t('shell.wordmark')}</div><h2 id="modal-title">{modal === 'add' ? 'Set up an Area of Interest for remote analysis.' : modal === 'zone' ? 'Understand this spot.' : modal === 'sources' ? 'Open data. Transparent limits.' : modal === 'alerts' ? 'Area advisories.' : modal === 'reports' ? 'Take your insights with you.' : modal === 'data' ? 'Your account and data.' : modal === 'settings' ? 'Your personal workspace.' : 'From coordinates to clarity.'}</h2>
       {modal === 'data' ? <Suspense fallback={<div className="reveal-loading">{t('load.dataManager')}</div>}><DataManager/></Suspense> : modal === 'add' ? <AddFarm onAdd={addBoundary} onError={setMessage}/> : modal === 'zone' ? (() => {
-        const verdict = classify(zone ? zone.ndvi : farm?.analysis?.ndvi.mean)
-        return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm?.analysis ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Area average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm?.analysis?.ndvi.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm?.analysis?.ndmi.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm?.analysis ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>{t('advice.title')}</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>{t('src.note')}</div></>
-      })() : modal === 'sources' ? <><p>{t('src.intro')}</p>{[['Satellite imagery','Sentinel-2 L2A preview from Microsoft Planetary Computer. Native band resolution varies.'],['Google Earth Engine tiles','Optional Cloud Run rendering for the selected spectral layer. Summary values and terrain models remain labelled by their own source until separately migrated and checked.'],['Vegetation indices','Calculated in the browser from available Sentinel-2 preview bands. Cloud and shadow masking uses the scene classification layer when available.'],['Weather & soil','Open-Meteo forecast data and SoilGrids estimates. Soil moisture is modeled at coarse resolution, not measured by an in-situ probe.'],['Terrain','Copernicus GLO-30 digital elevation data for elevation, slope, aspect and hillshade. This is not an engineering survey.']].map(([title,description]) => <div className="source-item" key={title}><Check size={17}/><div><h3>{title}</h3><p>{description}</p></div></div>)}<a className="external-link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">{t('src.openMeteo')}<ExternalLink size={15}/></a></> : modal === 'alerts' ? <>{farms.filter(farmNeedsAttention).map(item => <button className="alert-row" key={item.id} onClick={() => { startTransition(() => setSelected(item.id)); setZone(null); setModal('zone') }}><Droplets size={21}/><div><h3>{item.name}</h3><p>{item.status} · {item.analysis!.stressPct.toFixed(0)}% of pixels stressed</p></div><ChevronRight size={18}/></button>)}{!farms.some(farmNeedsAttention) && <p>{t('alert.none')}</p>}<p>{t('alert.note')}</p></> : modal === 'reports' ? <Suspense fallback={<div className="reveal-loading">{t('load.report')}</div>}><ReportPanel farm={farm as any}/></Suspense> : modal === 'guide' ? <Suspense fallback={<div className="reveal-loading">{t('load.fieldGuide')}</div>}><Guide/></Suspense> : modal === 'settings' ? <><p>{t('privacy.storage')}</p><p>{t('privacy.payment')}</p>{driveConnected ? (
+        const verdict = classify(zone ? zone.ndvi : farm?.analysis?.ndvi?.mean)
+        return <><span className={`status ${verdict.level === 'good' ? 'good' : verdict.level === 'neutral' ? 'neutral' : 'warning'}`}><i/>{verdict.label}</span><p>{zone ? `Pixel at ${zone.lat.toFixed(5)}°, ${zone.lon.toFixed(5)}° from the ${farm?.analysis?.scene?.datetime ? new Date(farm.analysis.scene.datetime).toLocaleDateString() : ''} Sentinel-2 scene.` : 'Area average from the latest Sentinel-2 scene.'}</p><div className="advisory-facts"><span>NDVI<strong>{(zone ? zone.ndvi : farm?.analysis?.ndvi?.mean)?.toFixed(2) ?? '—'}</strong></span><span>NDMI<strong>{(zone ? zone.ndmi : farm?.analysis?.ndmi?.mean)?.toFixed(2) ?? '—'}</strong></span><span>Cloud<strong>{farm?.analysis?.scene?.cloud !== undefined ? `${farm.analysis.scene.cloud}%` : '—'}</strong></span></div><h3>{t('advice.title')}</h3><p>{verdict.advice}</p><div className="privacy-note"><ShieldCheck size={18}/>{t('src.note')}</div></>
+      })() : modal === 'sources' ? <><p>{t('src.intro')}</p>{[['Satellite imagery','Sentinel-2 L2A preview from Microsoft Planetary Computer. Native band resolution varies.'],['Google Earth Engine tiles','Optional Cloud Run rendering for the selected spectral layer. Summary values and terrain models remain labelled by their own source until separately migrated and checked.'],['Vegetation indices','Calculated in the browser from available Sentinel-2 preview bands. Cloud and shadow masking uses the scene classification layer when available.'],['Weather & soil','Open-Meteo forecast data and SoilGrids estimates. Soil moisture is modeled at coarse resolution, not measured by an in-situ probe.'],['Terrain','Copernicus GLO-30 digital elevation data for elevation, slope, aspect and hillshade. This is not an engineering survey.']].map(([title,description]) => <div className="source-item" key={title}><Check size={17}/><div><h3>{title}</h3><p>{description}</p></div></div>)}<a className="external-link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">{t('src.openMeteo')}<ExternalLink size={15}/></a></> : modal === 'alerts' ? <>{farms.filter(farmNeedsAttention).map(item => <button className="alert-row" key={item.id} onClick={() => { startTransition(() => setSelected(item.id)); setZone(null); setModal('zone') }}><Droplets size={21}/><div><h3>{item.name}</h3><p>{item.status} · {item.analysis?.stressPct?.toFixed(0) ?? 0}% of pixels stressed</p></div><ChevronRight size={18}/></button>)}{!farms.some(farmNeedsAttention) && <p>{t('alert.none')}</p>}<p>{t('alert.note')}</p></> : modal === 'reports' ? <Suspense fallback={<div className="reveal-loading">{t('load.report')}</div>}><ReportPanel farm={(farm || DEFAULT_FARM) as any}/></Suspense> : modal === 'guide' ? <Suspense fallback={<div className="reveal-loading">{t('load.fieldGuide')}</div>}><Guide/></Suspense> : modal === 'settings' ? <><p>{t('privacy.storage')}</p><p>{t('privacy.payment')}</p>{driveConnected ? (
   <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 10, margin: '14px 0' }}>
     <h3 style={{ margin: '0 0 6px', fontSize: 14, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6 }}>
       <Check size={16}/> Google Drive Cloud Vault Active
@@ -961,43 +990,60 @@ export default function App() {
       <ArrowUpRight size={14}/>
     </button>
   </div>
-)}<button className="outline" onClick={signOut}><LogOut size={16}/>Log out of {who.name}</button></> : <><p>1. Add or select an Area of Interest (AOI) boundary.<br/>2. Inspect acquisition date and cloud masking of satellite and DEM passes.<br/>3. Switch between spectral and hydrological layers to assess spatial variability.<br/>4. Query any point or cluster to review zonal values and uncertainty.<br/>5. Generate and export academic reports or GIS rasters for remote verification.</p><div className="privacy-note"><ShieldCheck size={20}/>{t('ground.note')}</div></>}
+)}<button className="outline" onClick={signOut}><LogOut size={16}/>Log out of {who?.name || 'Workspace'}</button></> : <><p>1. Add or select an Area of Interest (AOI) boundary.<br/>2. Inspect acquisition date and cloud masking of satellite and DEM passes.<br/>3. Switch between spectral and hydrological layers to assess spatial variability.<br/>4. Query any point or cluster to review zonal values and uncertainty.<br/>5. Generate and export academic reports or GIS rasters for remote verification.</p><div className="privacy-note"><ShieldCheck size={20}/>{t('ground.note')}</div></>}
     </section></div>}
-    {farm && <FinancialSummaryTerminal farm={farm} isOpen={showTerminal} onClose={() => setShowTerminal(false)} />}
-    {farm && showNodeStudio && (
-      <Suspense fallback={<LogoLoader text="Loading GEE ⟷ QGIS Studio..." />}>
-        <NodeWorkflowBuilder
-          farm={farm}
-          onClose={() => setShowNodeStudio(false)}
-          onApplyLayer={(layerId) => {
-            setShowNodeStudio(false)
-            if (layerId) {
-              window.dispatchEvent(new CustomEvent('seva-apply-indicator-layer', { detail: { layerId } }))
-            }
-          }}
-        />
-      </Suspense>
-    )}
-    {farm && showDroneStudio && (
-      <Suspense fallback={<LogoLoader text="Calibrating UAV Orthomosaic..." />}>
-        <DronePrecisionStudio
-          farm={farm}
-          onClose={() => setShowDroneStudio(false)}
-          onExportDossier={() => {
-            setShowDroneStudio(false)
-            setShowDroneDossier(true)
-          }}
-        />
-      </Suspense>
-    )}
-    {farm && showDroneDossier && (
-      <Suspense fallback={<LogoLoader text="Generating Drone Precision Dossier..." />}>
-        <DroneReportDossier
-          farm={farm}
-          onClose={() => setShowDroneDossier(false)}
-        />
-      </Suspense>
-    )}
+    {(() => {
+      const activeStudioFarm = farm || (farms[0] ?? {
+        id: 'default-aoi',
+        name: 'Ashoknagar Precision AOI',
+        location: '24.6404° N, 78.0524° E',
+        crop: 'Precision Agronomy',
+        area: 2.4,
+        lat: 24.6404,
+        lon: 78.0524,
+        status: 'Ready for UAV survey',
+        sample: false,
+      })
+      return (
+        <>
+          <FinancialSummaryTerminal farm={activeStudioFarm} isOpen={showTerminal} onClose={() => setShowTerminal(false)} />
+          {showNodeStudio && (
+            <Suspense fallback={<LogoLoader text="Loading GEE ⟷ QGIS Studio..." />}>
+              <NodeWorkflowBuilder
+                farm={activeStudioFarm}
+                onClose={() => setShowNodeStudio(false)}
+                onApplyLayer={(layerId) => {
+                  setShowNodeStudio(false)
+                  if (layerId) {
+                    window.dispatchEvent(new CustomEvent('seva-apply-indicator-layer', { detail: { layerId } }))
+                  }
+                }}
+              />
+            </Suspense>
+          )}
+          {showDroneStudio && (
+            <Suspense fallback={<LogoLoader text="Calibrating UAV Orthomosaic..." />}>
+              <DronePrecisionStudio
+                farm={activeStudioFarm}
+                onClose={() => setShowDroneStudio(false)}
+                onExportDossier={() => {
+                  setShowDroneStudio(false)
+                  setShowDroneDossier(true)
+                }}
+              />
+            </Suspense>
+          )}
+          {showDroneDossier && (
+            <Suspense fallback={<LogoLoader text="Generating Drone Precision Dossier..." />}>
+              <DroneReportDossier
+                farm={activeStudioFarm}
+                onClose={() => setShowDroneDossier(false)}
+              />
+            </Suspense>
+          )}
+        </>
+      )
+    })()}
     <PopTheTeamModal
       isOpen={showPopTeam}
       onClose={() => setShowPopTeam(false)}

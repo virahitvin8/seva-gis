@@ -8,6 +8,7 @@ import './seva-premium.css'
 
 import PopTheTeamModal from './PopTheTeamModal'
 import { I18nProvider } from './lib/i18n'
+import { Brand } from './components/Brand'
 
 // Handle Vite dynamic import chunk reload error automatically (e.g. after new deployment on sevagis.dpdns.org)
 if (typeof window !== 'undefined') {
@@ -78,9 +79,8 @@ class GlobalErrorBoundary extends Component<Props, State> {
       return (
         <div style={{ padding: 24, textAlign: 'center', background: '#06100c', color: '#cfe3d3', minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
           <div style={{ maxWidth: 500, width: '100%', margin: '0 auto', background: '#0c1b14', border: '1.5px solid #193829', borderRadius: 18, padding: '32px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' }}>
-            <div className="brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, margin: '0 auto 16px' }}>
-              <img src="/logo.svg" alt="Seva GIS logo" width={56} height={56} onError={(e) => { e.currentTarget.src = '/logo.png' }} />
-              <h1 style={{ color: '#38f2d0', fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: '0.04em' }}>SEVA·GIS</h1>
+            <div style={{ margin: '0 auto 16px' }}>
+              <Brand size={56} />
             </div>
             <h2 style={{ color: '#86efac', fontSize: 17, fontWeight: 600, margin: '0 0 10px' }}>needs to reload</h2>
             <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.5, margin: '0 0 22px' }}>

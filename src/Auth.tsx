@@ -290,14 +290,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <span>Sentinel-2 L2A BOA · Copernicus DEM · Google Drive Vault · Zero Fees</span>
           </div>
 
-          <h1 className="au-brand-title notranslate" translate="no" style={{ fontSize: 'clamp(30px, 4.2vw, 48px)', lineHeight: 1.15, marginBottom: 12, fontWeight: 900, letterSpacing: '-0.02em', color: '#f8fafc' }}>
-            SEVA·GIS: <span style={{ background: 'linear-gradient(135deg, #34d399, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Spatio-Ecological Vector &amp; Analysis GIS</span>
+          <h1 className="au-brand-title notranslate" translate="no" style={{ fontSize: 'clamp(28px, 4vw, 44px)', lineHeight: 1.18, marginBottom: 10, fontWeight: 900, letterSpacing: '-0.02em', color: '#f8fafc' }}>
+            SEVA.GIS: <span style={{ background: 'linear-gradient(135deg, #34d399, #38bdf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Spatial Evaluation &amp; Vegetation Analytics — Geographic Information System</span>
           </h1>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#38bdf8', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Reverse Engineering QGIS · ArcMap · MATLAB · Google Earth Engine into Zero-Backend Client GIS
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#38bdf8', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Where Satellites Meet Soil: Open-Source Multi-Sensor Earth Observation &amp; Agronomic Intelligence
           </div>
-          <p className="au-cherish" style={{ fontSize: 15.5, lineHeight: 1.65, color: '#cbd5e1', marginBottom: 24, maxWidth: 640 }}>
-            Autonomous browser-first spatial analysis. Ingest any layer, any Area of Interest (AOI). Compute 30+ spectral insights and export 19+ thesis cartography &amp; auto-sync to your Google Drive. Zero subscription fees, zero API key walls, and complete on-device privacy powered by client-side WebAssembly &amp; WebGL.
+          <p className="au-cherish" style={{ fontSize: 15.5, lineHeight: 1.65, color: '#cbd5e1', marginBottom: 24, maxWidth: 660 }}>
+            Autonomous browser-first spatial analysis. Pick any area of interest, compute 30+ spectral insights, export 19+ cartography and analysis outputs to your Google Drive. Zero subscription fee, zero API keys, complete privacy on your device.
           </p>
 
           <ul className="au-stats">

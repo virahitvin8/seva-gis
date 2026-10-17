@@ -80,16 +80,42 @@ SEVA·GIS is accessible worldwide across zero-cost developer domains:
 
 ---
 
+## 🧭 Universal GIS Interoperability Suite (LeanREA Audited)
+
+Following the reverse-engineering methodology of **LeanREA** ([aicodeking/leanrea](https://github.com/aicodeking/leanrea)), SEVA·GIS reverse engineers and generates authentic, syntactically verified scripts and format definitions for all major GIS and CAD software ecosystems without requiring heavyweight desktop runtimes inside the browser:
+
+### 1. 🧭 QGIS 3.x Ecosystem (PyQGIS & Symbology)
+- **1-Click PyQGIS Console Script (`.py`)**: Paste directly into the QGIS Python Console (`Ctrl+Alt+P`) to instantly create an in-memory vector layer with your exact field geometry, populate agronomic attributes, apply high-contrast emerald symbology, add high-res ESRI satellite basemap tiles, and auto-zoom the canvas.
+- **QGIS Style XML (`.qml`)**: Generates valid QGIS 3.x `singlebandpseudocolor` raster symbology definitions with calibrated NDVI (-0.1 to 0.9) and GLO-30 elevation color ramps.
+- **QGIS Layer Definition (`.qlr`)**: Drag-and-drop XML layer definition to instantly bind your remote sensing layers in any QGIS workspace.
+- **Downloadable QGIS 3.x Plugin (`.zip`)**: Ready to install via `Plugins -> Manage and Install Plugins -> Install from ZIP`.
+
+### 2. 🗺️ ArcGIS Pro & ArcMap 10.x (ArcPy & CIM Symbology)
+- **Native ArcPy Script (`.py`)**: Runs directly inside ArcGIS Pro's Python Window or ArcMap 10.x. Creates an in-memory or scratch geodatabase feature class, inserts geometry via `arcpy.da.InsertCursor`, populates fields, and attaches to the active map document automatically.
+- **ArcGIS Pro CIM Layer (`.lyrx`)**: Produces official Cartographic Information Model (CIM) JSON layer files for 1-click styling in ArcGIS Pro.
+- **ArcGIS Python Toolbox (`.pyt`)**: Full standalone geoprocessing toolbox compatible with ArcGIS Pro & ArcMap.
+
+### 3. 🛰️ Google Earth Engine (GEE Code Editor & Python)
+- **GEE JavaScript Code Editor Script (`.js`)**: 100% production-ready script for [code.earthengine.google.com](https://code.earthengine.google.com/). Configured with `ee.Geometry.Polygon`, Sentinel-2 L2A Harmonized ingestion, SCL (Scene Classification Layer) cloud/shadow filtering, NDVI, NDMI, SAVI, EVI, Copernicus DEM elevation and slope, zonal statistics, and automated `Export.image.toDrive` tasks.
+- **GEE Headless Python Batch Pipeline (`.py`)**: Automated Python CLI batch script using `ee.Initialize()` to query collections and generate direct GeoTIFF download URLs.
+
+### 4. ⚙️ Related GIS Softwares (GDAL / OGR, ISO-XML & CAD)
+- **GDAL / OGR Shell Script (`.sh` / `.bat`)**: Automated CLI pipelines for converting GeoJSON to ESRI Shapefile, OGC GeoPackage, projecting to local UTM zones, clipping S2 bands, and compiling Cloud Optimized GeoTIFFs (COG) with Deflate compression and overviews.
+- **Precision Agriculture ISO-XML (`TASKDATA.XML`)**: Compliant with **ISO 11783-10** standard for tractor terminals and rate controllers. Can be placed directly on a FAT32 USB drive under `TASKDATA/` and inserted into John Deere GreenStar, Trimble TMX-2050, Topcon, or Case IH AFS monitors for Variable Rate Application (VRA).
+- **AutoCAD DXF (`.dxf`)**: Clean ASCII DXF (Release 12 AC1009) interchange format for civil engineers, drone surveyors, and CAD operators.
+
+---
+
 ## 🖥️ Desktop GIS Plugins (QGIS & ArcMap)
 
-SEVA·GIS provides native open-source plugins in the [`plugins/`](plugins/) folder:
+SEVA·GIS provides native open-source plugins in the [`public/plugins/`](public/plugins/) folder:
 
-1. **QGIS 3.x Plugin (`plugins/qgis/`)**:
-   - Installable via QGIS Plugin Manager (`plugins/public/seva_gee_flow_qgis.zip`).
-   - Standalone Python runner: [`plugins/qgis/sevagis_qgis_plugin.py`](plugins/qgis/sevagis_qgis_plugin.py) for the QGIS Python Console.
-2. **ArcMap 10.x & ArcGIS Pro Toolbox (`plugins/arcgis/`)**:
-   - Native Python Toolbox: [`plugins/arcgis/SEVA_GIS_Toolbox.pyt`](plugins/arcgis/SEVA_GIS_Toolbox.pyt).
-   - Ingests vector polygons, computes Map Algebra indices, and calculates SCS-CN water balance without external dependencies.
+1. **QGIS 3.x Plugin (`public/plugins/seva_gee_flow_qgis.zip`)**:
+   - Installable via QGIS Plugin Manager (`Plugins -> Install from ZIP`).
+   - Clean UTF-8 metadata and multi-box visual workflow.
+2. **ArcMap 10.x & ArcGIS Pro Toolbox (`public/plugins/seva_gee_flow_arcgis.zip`)**:
+   - Native Python Toolbox: `SEVA_GEE_Flow.pyt`.
+   - Ingests vector polygons, computes Map Algebra indices, and extracts hydrological drainage streams without external dependencies.
 
 ---
 

@@ -7,8 +7,12 @@ import {
 } from 'lucide-react'
 import type { FarmData } from './lib/seva'
 import { farmRing, farmBBox } from './lib/seva'
-import { areaHa, perimeterM, type Ring } from './lib/geo'
 import { hydroBands, soilHydraulics } from './lib/hydro'
+import {
+  generateGeeCodeEditorScript,
+  generatePyQgisScript,
+  generateArcPyScript
+} from './lib/gisInteroperability'
 
 export interface NodeWorkflowBuilderProps {
   farm: FarmData & { id: string; name: string; crop?: string }
@@ -575,83 +579,9 @@ export default function NodeWorkflowBuilder({ farm, onClose, onApplyLayer }: Nod
 
   // Script Generators
   const generatedCodes = useMemo(() => {
-    const coords = ring.map(([lon, lat]) => `[${lon.toFixed(6)}, ${lat.toFixed(6)}]`).join(',\n    ')
-    
-    const gee = `// ========================================================
-// SEVA·GIS Multi-Engine Pipeline ➔ Google Earth Engine (GEE)
-// Target AOI: ${farm.name} (${area.toFixed(2)} ha)
-// Generated: ${new Date().toISOString()}
-// ========================================================
-
-var aoi = ee.Geometry.Polygon([[
-    ${coords}
-]]);
-
-Map.centerObject(aoi, 15);
-Map.addLayer(aoi, {color: 'FF0000'}, 'AOI Boundary');
-
-// 1. Sentinel-2 L2A Harmonized Collection
-var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-  .filterBounds(aoi)
-  .filterDate(ee.Date(Date.now()).advance(-30, 'day'), ee.Date(Date.now()))
-  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
-  .median()
-  .clip(aoi);
-
-// 2. Spectral Indices
-var ndvi = s2.normalizedDifference(['B8', 'B4']).rename('NDVI');
-var ndwi = s2.normalizedDifference(['B3', 'B8']).rename('NDWI');
-var ndmi = s2.normalizedDifference(['B8', 'B11']).rename('NDMI');
-
-// 3. Copernicus GLO-30 Digital Elevation Model
-var dem = ee.Image('COPERNICUS/DEM/GLO30').select('DEM').clip(aoi);
-var slope = ee.Terrain.slope(dem);
-
-Map.addLayer(ndvi, {min: 0.1, max: 0.85, palette: ['#d73027', '#fee08b', '#1a9850']}, 'NDVI Canopy');
-Map.addLayer(dem, {min: 200, max: 600, palette: ['#2b83ba', '#abdda4', '#ffffbf', '#fdae61', '#d7191c']}, 'GLO-30 Elevation');
-`
-
-    const qgis = `# ========================================================
-# SEVA·GIS PyQGIS Processing Engine
-# Target AOI: ${farm.name} (${area.toFixed(2)} ha)
-# Paste directly into QGIS Python Console (Ctrl+Alt+P)
-# ========================================================
-
-from qgis.core import QgsProject, QgsVectorLayer, QgsRasterLayer, QgsGeometry, QgsPointXY
-import processing
-
-aoi_wkt = "POLYGON((${ring.map(([lon, lat]) => `${lon} ${lat}`).join(', ')}))"
-print("[SEVA·GIS] Initializing PyQGIS processing over ${farm.name}...")
-
-# 1. Execute D8 Priority-Flood Pit Removal & Hydrology
-# processing.run("grass7:r.watershed", {'elevation': dem_layer, 'threshold': 100, 'drainage': 'flow_acc.tif'})
-# processing.run("native:slope", {'INPUT': dem_layer, 'Z_FACTOR': 1.0, 'OUTPUT': 'slope.tif'})
-
-print("[SEVA·GIS] Hydrological and slope morphometry layers compiled.")
-`
-
-    const arcmap = `# ========================================================
-# SEVA·GIS ArcPy Script (ArcMap / ArcGIS Pro)
-# Target AOI: ${farm.name} (${area.toFixed(2)} ha)
-# Paste into ArcGIS Python Window or run as a standalone toolbox script
-# ========================================================
-
-import arcpy
-from arcpy.sa import *
-
-arcpy.env.overwriteOutput = True
-arcpy.CheckOutExtension("Spatial")
-
-print("[SEVA·GIS] Executing ArcPy Spatial Analyst pipeline for ${farm.name}...")
-
-# 1. Fill Sinks in Digital Elevation Model
-# out_fill = Fill("dem_glo30.tif")
-# out_flow_dir = FlowDirection(out_fill)
-# out_flow_acc = FlowAccumulation(out_flow_dir)
-# out_flow_acc.save("arcpy_flow_accumulation.tif")
-
-print("[SEVA·GIS] ArcPy Spatial Analyst execution complete.")
-`
+    const gee = generateGeeCodeEditorScript(farm)
+    const qgis = generatePyQgisScript(farm)
+    const arcmap = generateArcPyScript(farm)
 
     const matlab = `% ========================================================
 % SEVA·GIS MATLAB GIS Toolbox Analysis

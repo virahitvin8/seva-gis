@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { decimalToSexagesimal } from 'geolib'
 import type { FarmData } from './lib/seva'
+import UniversalGisSuite from './components/UniversalGisSuite'
 
 type Props = {
   farm: FarmData & { id: string; name: string; crop?: string }
@@ -388,6 +389,9 @@ SEVA.GIS Official Audit Record - https://sevagis.dpdns.org
           <FileCode size={14} /> Grafana Dashboard JSON
         </button>
       </div>
+
+      {/* Universal GIS Interoperability Suite (QGIS, ArcGIS, GEE, GDAL, ISO-XML) */}
+      <UniversalGisSuite farm={farm} />
 
       {/* SEVA GEE Flow Suite: Desktop GIS Plugins & In-Browser Node Studio */}
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', color: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #334155', marginBottom: 14 }}>

@@ -149,6 +149,7 @@ function BrandLogo() {
 
 export default function App() {
   const { who, signOut } = useAccount()
+  const { t } = useI18n()
   const [farms, setFarms] = useState<Farm[]>(() => {
     try {
       const saved = localStorage.getItem('seva-farms')

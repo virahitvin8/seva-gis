@@ -8,6 +8,7 @@ import { decimalToSexagesimal } from 'geolib'
 import type { FarmData } from './lib/seva'
 import UniversalGisSuite from './components/UniversalGisSuite'
 import FarmerSmsWhatsAppDispatch from './components/FarmerSmsWhatsAppDispatch'
+import AwwwardsBentoShowcase from './components/AwwwardsBentoShowcase'
 
 type Props = {
   farm: FarmData & { id: string; name: string; crop?: string }
@@ -401,6 +402,13 @@ SEVA.GIS Official Audit Record - https://sevagis.dpdns.org
           <FileCode size={14} /> Grafana Dashboard JSON
         </button>
       </div>
+
+      {/* Award-Winning Awwwards Bento Showcase (3D Tilt Physics · Ambient Audio · Kinetic Typography) */}
+      <AwwwardsBentoShowcase
+        farm={farm}
+        onOpenResponsively={() => window.dispatchEvent(new CustomEvent('seva-open-responsively'))}
+        onOpenScreenshotStudio={() => window.dispatchEvent(new CustomEvent('seva-open-marketing-studio'))}
+      />
 
       {/* Farmer Advisory & Dispatch Studio (SMS · WhatsApp · OpenSMS) */}
       <div id="farmer-sms-dispatch-section">

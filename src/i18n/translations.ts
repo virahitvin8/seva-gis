@@ -70,7 +70,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     brandOneLineMeaning:
       'ఉపగ్రహాలు మరియు నేల కలిసే వేదిక: భారతీయ వ్యవసాయం కోసం ఉచిత ఓపెన్-సోర్స్ ఉపగ్రహ పంట మరియు భూ విశ్లేషణ వేదిక.',
     signInTagline:
-      'Autonomous browser-first spatial analysis. Pick any area of interest, compute 30+ spectral insights, export 19+ cartography and analysis outputs to your Google Drive. Zero subscription fee, zero API keys, complete privacy on your device.',
+      'స్వయంచాలిత బ్రౌజర్-ఫస్ట్ స్పేషియల్ విశ్లేషణ. ఏదైనా పొలం / ప్రాంతాన్ని ఎంచుకుని, 30+ స్పెక్ట్రల్ అంచనాలు లెక్కించి, 19+ కార్టోగ్రాఫిక్ ఫైళ్ళు మీ Google Drive కు ఎగుమతి చేయండి. సభ్యత్వ రుసుము లేదు, API కీలు లేవు, పూర్తి గోప్యత మీ పరికరంలోనే.',
     continueWithGoogle: 'Google ఖాతాతో కొనసాగండి (ఆటో డ్రైవ్ సింక్)',
     continueAsGuest: 'అతిథి (Guest) ఖాతాగా ప్రవేశించండి — పూర్తి పరికర గోప్యత',
     methodologyHeading: 'SEVA.GIS పనితీరు మరియు సాంకేతిక పద్ధతి (SEVA.GIS Methodology)',
@@ -103,7 +103,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     brandOneLineMeaning:
       'जहाँ उपग्रह मिट्टी से मिलते हैं: भारतीय कृषि के लिए निःशुल्क ओपन-सोर्स उपग्रह फसल एवं मृदा विश्लेषण मंच।',
     signInTagline:
-      'Autonomous browser-first spatial analysis. Pick any area of interest, compute 30+ spectral insights, export 19+ cartography and analysis outputs to your Google Drive. Zero subscription fee, zero API keys, complete privacy on your device.',
+      'स्वचालित ब्राउज़र-फर्स्ट स्थानिक विश्लेषण। कोई भी खेत / क्षेत्र चुनें, 30+ स्पेक्ट्रल जानकारियाँ प्राप्त करें, 19+ कार्टोग्राफी फ़ाइलें अपने Google Drive में निर्यात करें। कोई सदस्यता शुल्क नहीं, कोई API कुंजी नहीं, पूर्ण गोपनीयता आपके डिवाइस पर।',
     continueWithGoogle: 'Google के साथ जारी रखें (ऑटो ड्राइव सिंक)',
     continueAsGuest: 'अतिथि (Guest) मोड में प्रवेश करें — पूर्ण डिवाइस गोपनीयता',
     methodologyHeading: 'SEVA.GIS कार्यप्रणाली (SEVA.GIS Methodology)',

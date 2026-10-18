@@ -106,7 +106,8 @@ export async function fetchResilientWeather(lat: number, lon: number): Promise<W
             humidityPct: params.RH2M?.[latest] ?? null,
             precipitationMm: params.PRECTOTCORR?.[latest] ?? 0,
             windSpeedKmh: params.WS10M?.[latest] ? Number((params.WS10M[latest] * 3.6).toFixed(1)) : null,
-            soilTemp0cmC: Number((params.T2M[latest] - 0.7).toFixed(1)),
+            // soilTemp0cmC not provided by NASA POWER AG community — use null, never synthesise
+            soilTemp0cmC: null,
             soilMoistureM3M3: params.GWETTOP?.[latest] ?? null,
           },
           daily: validDates.slice(-7).map((dKey) => ({
@@ -114,7 +115,8 @@ export async function fetchResilientWeather(lat: number, lon: number): Promise<W
             tempMaxC: params.T2M_MAX?.[dKey] ?? null,
             tempMinC: params.T2M_MIN?.[dKey] ?? null,
             precipMm: params.PRECTOTCORR?.[dKey] ?? 0,
-            et0Mm: 4.2,
+            // ET0 not available in NASA POWER AG temporal/daily — render as n/a in UI
+            et0Mm: null,
           })),
         };
         saveWeatherCache(key, payload);

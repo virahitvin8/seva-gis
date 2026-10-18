@@ -1,16 +1,51 @@
 name: build
+
 on:
   pull_request:
     branches: [main]
   push:
     branches-ignore: [main]
+
 jobs:
-  build:
+  secret-scan:
+    name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history for gitleaks --no-git
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Typecheck + Build
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-      - run: npm run build
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Use npm ci for reproducible installs.
+      # If only pnpm-lock.yaml exists (Figma Make scaffold), fall back to npm install.
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_BASE: ""   # static build; backend not wired in CI

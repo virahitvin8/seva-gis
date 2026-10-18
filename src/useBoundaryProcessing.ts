@@ -33,7 +33,7 @@ export function useBoundaryProcessing(
     createdLayers.push(radarFill);
 
     // 2. High-precision laser and rail perimeter lines
-    const lineKinds = ['rail', 'halo', 'laser', 'pulse'];
+    const lineKinds = ['rail', 'halo', 'laser'];
     lineKinds.forEach(kind => {
       const layer = L.polyline(points, {
         renderer, pane: paneName, interactive: false,
@@ -48,11 +48,11 @@ export function useBoundaryProcessing(
       createdLayers.push(layer);
     });
 
-    // 3. Vertex targeting beacons on boundary corners
+    // 3. Vertex precision micro-anchors on boundary corners
     boundary.forEach(([lat, lng]) => {
       const beacon = L.circleMarker([lat, lng], {
         renderer, pane: paneName, interactive: false,
-        radius: 3.5,
+        radius: 2.5,
         className: 'seva-boundary-beacon',
       }).addTo(map);
       createdLayers.push(beacon);

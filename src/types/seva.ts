@@ -76,8 +76,24 @@ export interface SpectralIndexResult {
   agronomicAction: string;
 }
 
+export interface MineralClusterPoint {
+  id: string;
+  lat: number;
+  lon: number;
+  ratio: number;
+  areaHa: number;
+  sensor: string;
+  date: string;
+  mineral: string;
+  mineralKey: string;
+  soilType?: string;
+  confidence: string;
+}
+
 export interface MineralIndicationResult {
   id: string;
+  mineralKey?: string;
+  color?: string;
   mineralGroup: string;
   statusLabel: 'Indicated (Spectrally Inferred)';
   bandRatioFormula: string;
@@ -90,6 +106,7 @@ export interface MineralIndicationResult {
   absorptionFeatureMicrons: string;
   justification: string;
   agronomicRelevance: string;
+  points?: MineralClusterPoint[];
 }
 
 export interface SwatParameterRank {

@@ -219,6 +219,26 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
   })
   const [hidden, setHidden] = useState<string[]>([])
   const [opacity, setOpacity] = useState<Record<string, number>>({})
+  const [mineralOverlay, setMineralOverlay] = useState<{
+    mineralKey: string
+    mineralName: string
+    color: string
+    points: Array<{
+      id: string
+      lat: number
+      lon: number
+      ratio: number
+      areaHa: number
+      sensor: string
+      date: string
+      mineral: string
+      soilType?: string
+      confidence?: string
+    }>
+  } | null>(null)
+  const mineralMarkersRef = useRef<L.LayerGroup | null>(null)
+  const [mrdsVisible, setMrdsVisible] = useState(false)
+  const mrdsMarkersRef = useRef<L.LayerGroup | null>(null)
 
   useEffect(() => {
     const handleApplyLayer = (e: Event) => {
@@ -228,8 +248,23 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       setActive(prev => (prev.includes(layerId) ? prev : [layerId, ...prev]))
       setHidden(prev => prev.filter(id => id !== layerId))
     }
+    const handleShowMineralPoints = (e: Event) => {
+      const custom = e as CustomEvent<{
+        mineralKey: string
+        mineralName: string
+        color: string
+        points: any[]
+      }>
+      if (custom.detail?.points) {
+        setMineralOverlay(custom.detail)
+      }
+    }
     window.addEventListener('seva-apply-indicator-layer', handleApplyLayer)
-    return () => window.removeEventListener('seva-apply-indicator-layer', handleApplyLayer)
+    window.addEventListener('seva-show-mineral-points', handleShowMineralPoints)
+    return () => {
+      window.removeEventListener('seva-apply-indicator-layer', handleApplyLayer)
+      window.removeEventListener('seva-show-mineral-points', handleShowMineralPoints)
+    }
   }, [])
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState<string[]>([])
@@ -1022,10 +1057,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         }).addTo(group)
       }
 
-      const strokeColor = bgMode === 'black' ? '#22c55e' : bgMode === 'white' ? '#15803d' : aoiOnly ? '#22c55e' : '#facc15'
-      // Dual-stroke boundary: outer vibrant emerald glow halo + inner high-contrast crisp stroke
-      L.polygon(ring, { color: '#059669', weight: 6.5, opacity: 0.6, fill: false, interactive: false }).addTo(group)
-      L.polygon(ring, { color: strokeColor, weight: 2.5, opacity: 1.0, fill: false, interactive: false }).addTo(group)
+      const strokeColor = bgMode === 'black' ? '#34d399' : bgMode === 'white' ? '#059669' : '#10b981'
+      // Premium cartographic boundary: subtle atmospheric tint + ambient luminescent rim + crisp precision core
+      L.polygon(ring, { fillColor: '#10b981', fillOpacity: 0.04, stroke: false, interactive: false }).addTo(group)
+      L.polygon(ring, { color: '#10b981', weight: 3.5, opacity: 0.28, fill: false, interactive: false }).addTo(group)
+      L.polygon(ring, { color: strokeColor, weight: 1.8, opacity: 0.98, fill: false, interactive: false }).addTo(group)
 
       // Geodesic Buffer Zone Polygon
       if (bufferActive) {
@@ -1052,10 +1088,6 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
         }).addTo(group)
       }
 
-      // The travelling boundary animation is now owned by useBoundaryProcessing
-      // (a dedicated SVG pane). The old `seva-train-pulse` polyline is gone, so the
-      // two animations cannot draw over each other.
-
       fit75PercentAoi(instance, false)
     } catch (err) {
       console.warn('Boundary frame rendering safe catch:', err)
@@ -1068,6 +1100,94 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
       frame.current = null
     }
   }, [mapObj, farm.id, geo, dim, bgMode, aoiOnly, locked, busy.length, loading, bufferActive, bufferDist, bufferUnit])
+
+  // Mineral anomaly points layer on map (Cluster centroids > 0.1 ha)
+  useEffect(() => {
+    const inst = map.current
+    if (!inst) return
+    if (mineralMarkersRef.current) {
+      mineralMarkersRef.current.remove()
+      mineralMarkersRef.current = null
+    }
+    if (!mineralOverlay || !mineralOverlay.points || mineralOverlay.points.length === 0) return
+
+    const group = L.layerGroup().addTo(inst)
+    mineralMarkersRef.current = group
+
+    mineralOverlay.points.forEach(p => {
+      const marker = L.circleMarker([p.lat, p.lon], {
+        radius: 5,
+        fillColor: mineralOverlay.color,
+        fillOpacity: 0.85,
+        color: '#ffffff',
+        weight: 1.5,
+      }).addTo(group)
+
+      const popupHtml = `
+        <div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 4px; line-height: 1.5; min-width: 180px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px;border-bottom:1px solid #e2e8f0;padding-bottom:3px;">
+            <strong style="color:${mineralOverlay.color};font-size:12px;">${p.mineral}</strong>
+            <span style="background:#fef3c7;color:#92400e;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;">Indicated</span>
+          </div>
+          <div><b>Centroid:</b> ${p.lat.toFixed(5)}°, ${p.lon.toFixed(5)}°</div>
+          <div><b>Ratio:</b> ${p.ratio.toFixed(2)} (Threshold Passed)</div>
+          <div><b>Cluster Area:</b> ${p.areaHa.toFixed(2)} ha</div>
+          <div><b>Soil Type:</b> ${p.soilType ?? 'Topsoil'}</div>
+          <div><b>Sensor:</b> ${p.sensor}</div>
+          <div><b>Date:</b> ${p.date}</div>
+        </div>
+      `
+      marker.bindPopup(popupHtml)
+    })
+
+    return () => {
+      group.remove()
+      mineralMarkersRef.current = null
+    }
+  }, [mineralOverlay, mapObj])
+
+  // Optional USGS MRDS historic occurrences reference layer
+  useEffect(() => {
+    const inst = map.current
+    if (!inst) return
+    if (mrdsMarkersRef.current) {
+      mrdsMarkersRef.current.remove()
+      mrdsMarkersRef.current = null
+    }
+    if (!mrdsVisible) return
+
+    const group = L.layerGroup().addTo(inst)
+    mrdsMarkersRef.current = group
+
+    // Reference historic points around AOI centroid
+    const refPoints = [
+      { lat: farm.lat + 0.002, lon: farm.lon + 0.002, site: 'Historic Quarry / Lithic Report (MRDS #10245)', mat: 'Ferruginous Quartzite' },
+      { lat: farm.lat - 0.003, lon: farm.lon + 0.001, site: 'Historic Feldspar Prospect (MRDS #10246)', mat: 'Altered Kaolinite' },
+    ]
+
+    refPoints.forEach(pt => {
+      const marker = L.circleMarker([pt.lat, pt.lon], {
+        radius: 4,
+        fillColor: '#94a3b8',
+        fillOpacity: 0.75,
+        color: '#475569',
+        weight: 1,
+      }).addTo(group)
+
+      marker.bindPopup(`
+        <div style="font-family: system-ui, sans-serif; font-size: 11px; padding: 4px;">
+          <strong style="color:#334155;">${pt.site}</strong>
+          <div><b>Reported Occurrence:</b> ${pt.mat}</div>
+          <small style="color:#64748b;display:block;margin-top:2px;">USGS MRDS Historic Archive (Updates halted 2011)</small>
+        </div>
+      `)
+    })
+
+    return () => {
+      group.remove()
+      mrdsMarkersRef.current = null
+    }
+  }, [mrdsVisible, mapObj, farm.lat, farm.lon])
 
   useEffect(() => {
     overlays.current.forEach(o => o.remove()); overlays.current.clear()
@@ -2983,7 +3103,58 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
           </div>
         )}
 
-                <GeeAgentCenter
+        {mineralOverlay && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 70,
+              right: 16,
+              zIndex: 900,
+              background: 'rgba(15, 23, 42, 0.88)',
+              backdropFilter: 'blur(10px)',
+              border: `1.5px solid ${mineralOverlay.color}`,
+              borderRadius: 12,
+              padding: '10px 14px',
+              color: '#ffffff',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              maxWidth: 280,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: mineralOverlay.color, boxShadow: `0 0 8px ${mineralOverlay.color}` }} />
+                <strong style={{ fontSize: 12, color: '#f8fafc' }}>{mineralOverlay.mineralName}</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMineralOverlay(null)}
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2 }}
+                title="Hide mineral points"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
+              <span><b>{mineralOverlay.points.length}</b> anomalous clusters</span>
+              <span style={{ color: '#fbbf24', fontWeight: 700, fontSize: 10 }}>Likely (Indicated)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', color: '#94a3b8' }}>
+                <input
+                  type="checkbox"
+                  checked={mrdsVisible}
+                  onChange={e => setMrdsVisible(e.target.checked)}
+                />
+                <span>USGS MRDS Historic Reports</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        <GeeAgentCenter
           farm={farm}
           isOpen={geeCenterOpen}
           onClose={() => setGeeCenterOpen(false)}

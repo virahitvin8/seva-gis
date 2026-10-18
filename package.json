@@ -1,5 +1,8 @@
 {
-  "name": "figma-make-app",
+  "name": "seva-gis",
+  "displayName": "SEVA.GIS",
+  "description": "Spatial Evaluation & Vegetation Analytics, Geographic Information System - Where Satellites Meet Soil",
+  "license": "Apache-2.0",
   "private": true,
   "version": "1.0.0",
   "type": "module",

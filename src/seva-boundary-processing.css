@@ -1,12 +1,14 @@
-/* SEVA·GIS Precision Boundary Processing & LiDAR Radar Scanner
-   Ultra-high-tech neon laser perimeter scan, vertex beacons, and holographic radar wave. */
+/* SEVA·GIS Precision Boundary Processing & Optical Telemetry
+   High-end, bespoke architectural geospatial styling.
+   Clean ambient luminescence, razor-sharp vector perimeter, and subtle telemetry sweep. */
+
 :root {
-  --seva-laser-rail: #10b981;
-  --seva-laser-glow: #06b6d4;
-  --seva-laser-core: #ffffff;
-  --seva-laser-accent: #34d399;
-  --seva-laser-shadow: rgba(6, 182, 212, 0.7);
-  --seva-scan-duration: 2.2s;
+  --seva-boundary-primary: #10b981;
+  --seva-boundary-core: #34d399;
+  --seva-boundary-halo: rgba(16, 185, 129, 0.22);
+  --seva-boundary-glow: rgba(52, 211, 153, 0.35);
+  --seva-boundary-fill: rgba(16, 185, 129, 0.05);
+  --seva-telemetry-duration: 3.6s;
 }
 
 .seva-processing-pane {
@@ -17,12 +19,12 @@
   pointer-events: none;
 }
 
-/* Holographic boundary fill: subtle radar sweep */
+/* 1. Luminous Atmospheric Interior Tint (Subtle glassmorphic fill) */
 .seva-boundary-radar-fill {
-  fill: #06b6d4;
-  fill-opacity: 0.12;
+  fill: var(--seva-boundary-primary);
+  fill-opacity: 0.06;
   stroke: none;
-  animation: seva-radar-pulse 2.4s ease-in-out infinite alternate;
+  animation: seva-boundary-breathe 4.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
 }
 
 .seva-boundary-rail,
@@ -35,90 +37,77 @@
   stroke-linejoin: round;
 }
 
-/* Base crisp vector boundary rail */
+/* 2. Base Razor-Sharp Vector Boundary Rail */
 .seva-boundary-rail {
-  stroke: var(--seva-laser-rail);
-  stroke-width: 2.2;
-  stroke-opacity: 0.75;
-  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.6));
-}
-
-/* Outer expansive laser halo */
-.seva-boundary-halo {
-  stroke: var(--seva-laser-glow);
-  stroke-width: 5.5;
-  stroke-opacity: 0.55;
-  stroke-dasharray: 240 760;
-  filter: drop-shadow(0 0 10px var(--seva-laser-shadow));
-  animation: seva-laser-sweep var(--seva-scan-duration) linear infinite;
-}
-
-/* High-speed white photon laser head */
-.seva-boundary-laser {
-  stroke: var(--seva-laser-core);
-  stroke-width: 3.2;
-  stroke-opacity: 1;
-  stroke-dasharray: 70 930;
-  filter: drop-shadow(0 0 8px #ffffff) drop-shadow(0 0 16px var(--seva-laser-accent));
-  animation: seva-laser-sweep var(--seva-scan-duration) linear infinite;
-}
-
-/* Counter-propagating secondary laser beam */
-.seva-boundary-pulse {
-  stroke: #38bdf8;
+  stroke: var(--seva-boundary-primary);
   stroke-width: 2;
-  stroke-opacity: 0.85;
-  stroke-dasharray: 50 950;
-  filter: drop-shadow(0 0 6px #38bdf8);
-  animation: seva-laser-reverse calc(var(--seva-scan-duration) * 1.5) linear infinite;
+  stroke-opacity: 0.95;
+  filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4));
 }
 
-/* Vertex targeting beacons */
-.seva-boundary-beacon {
-  fill: #34d399;
+/* 3. Soft Ambient Luminous Halo (Gentle outer aura, never harsh) */
+.seva-boundary-halo {
+  stroke: var(--seva-boundary-core);
+  stroke-width: 4.5;
+  stroke-opacity: 0.35;
+  filter: drop-shadow(0 0 6px var(--seva-boundary-halo));
+  animation: seva-halo-breathe 3.6s ease-in-out infinite alternate;
+}
+
+/* 4. Single Elegant Satellite Radar Telemetry Sweep (Glides along perimeter during active compute) */
+.seva-boundary-laser {
   stroke: #ffffff;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 6px #10b981);
-  animation: seva-beacon-ping 1.6s ease-in-out infinite alternate;
+  stroke-width: 2.4;
+  stroke-opacity: 0.95;
+  stroke-dasharray: 120 880;
+  filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 8px var(--seva-boundary-primary));
+  animation: seva-telemetry-sweep var(--seva-telemetry-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
 }
 
-@keyframes seva-laser-sweep {
+/* 5. Minimalist Micro-Engineered Corner Vertex Anchors */
+.seva-boundary-beacon {
+  fill: #ffffff;
+  stroke: var(--seva-boundary-primary);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.6));
+  animation: seva-vertex-glow 2.8s ease-in-out infinite alternate;
+}
+
+/* Smooth, calming animations */
+@keyframes seva-telemetry-sweep {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: -1000; }
 }
 
-@keyframes seva-laser-reverse {
-  from { stroke-dashoffset: 0; }
-  to { stroke-dashoffset: 1000; }
-}
-
-@keyframes seva-radar-pulse {
-  0% { fill-opacity: 0.08; }
-  50% { fill-opacity: 0.22; }
+@keyframes seva-boundary-breathe {
+  0% { fill-opacity: 0.04; }
   100% { fill-opacity: 0.08; }
 }
 
-@keyframes seva-beacon-ping {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  100% { transform: scale(1.3); opacity: 1; }
+@keyframes seva-halo-breathe {
+  0% { stroke-opacity: 0.22; stroke-width: 4; }
+  100% { stroke-opacity: 0.42; stroke-width: 5; }
 }
 
+@keyframes seva-vertex-glow {
+  0% { transform: scale(0.95); opacity: 0.85; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Respect reduced-motion accessibility */
 @media (prefers-reduced-motion: reduce) {
   .seva-boundary-halo,
   .seva-boundary-laser,
-  .seva-boundary-pulse,
   .seva-boundary-radar-fill,
   .seva-boundary-beacon {
     animation: none;
     filter: none;
   }
-  .seva-boundary-halo,
-  .seva-boundary-pulse {
+  .seva-boundary-laser {
     display: none;
   }
-  .seva-boundary-laser {
-    stroke-dasharray: none;
-    stroke-opacity: 0.9;
+  .seva-boundary-halo {
+    stroke-opacity: 0.25;
+    stroke-width: 3.5;
   }
 }
-

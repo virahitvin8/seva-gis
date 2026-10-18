@@ -262,6 +262,27 @@ export const FieldIntelligenceDashboard: React.FC<FieldIntelligenceDashboardProp
                   <strong>Agronomic Note:</strong> {m.agronomicRelevance}
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('seva-show-mineral-points', {
+                    detail: {
+                      mineralKey: m.mineralKey ?? m.id,
+                      mineralName: m.mineralGroup,
+                      color: m.color ?? '#e65100',
+                      points: m.points ?? []
+                    }
+                  }));
+                  const el = document.getElementById('my-farms') || document.querySelector('.map-wrap');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full mt-2 py-1.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+                title="Display anomalous cluster centroids for this mineral on the map"
+              >
+                <Gem className="w-3.5 h-3.5" />
+                <span>Show points ({m.points?.length ?? 0})</span>
+              </button>
             </div>
           ))}
         </div>

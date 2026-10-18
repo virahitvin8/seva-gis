@@ -56,6 +56,17 @@ function ensureEvidenceDir() {
 }
 
 // ---------------------------------------------------------------------------
+// Executed case counter (logged in afterAll so CI proves the number)
+// ---------------------------------------------------------------------------
+let executed = 0;
+
+test.afterAll(() => {
+  console.log(`\n✅ SEVA.GIS QA Matrix — Executed cases: ${executed}`);
+  console.log(`   Evidence: ${EVIDENCE_DIR}`);
+  console.log(`   Run log:  ${path.join(EVIDENCE_DIR, 'run-log.ndjson')}`);
+});
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -125,6 +136,7 @@ for (const feature of FEATURES) {
             page.getByRole('alert').filter({ hasText: 'needs to reload' })
           ).toHaveCount(0);
 
+          executed++;
           logEvidence({
             suite: 'smoke',
             feature,
@@ -183,6 +195,7 @@ for (const feature of FEATURES) {
           const undefinedErrors = errors.filter((e) => /is not defined/i.test(e));
           expect(undefinedErrors).toEqual([]);
 
+          executed++;
           logEvidence({
             suite: 'mode',
             feature,
@@ -243,6 +256,7 @@ for (const feature of FEATURES) {
           page.getByRole('alert').filter({ hasText: 'needs to reload' })
         ).toHaveCount(0);
 
+        executed++;
         logEvidence({
           suite: 'api-resilience',
           feature,

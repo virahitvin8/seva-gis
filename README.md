@@ -1,196 +1,192 @@
-# SEVA·GIS (Spatio-Ecological Vector & Analysis GIS)
+# 🛰️ SEVA.GIS: Where Satellites Meet Soil
 
-> **Reverse Engineering Anything (REA) Project**  
-> *Autonomous Browser-First Precision GIS, Earth Observation & Remote Sensing Observatory*  
-> **Author & Architect**: N. Akshit Vinay ([@virahitvin8](https://github.com/virahitvin8/seva-gis))  
-> **License**: MIT Open Source
+**SEVA.GIS** stands for **S**patial **E**valuation & **V**egetation **A**nalytics, **G**eographic **I**nformation **S**ystem.
 
-[![Live Platform](https://img.shields.io/badge/Platform-Live%20Web%20App-10b981?style=flat-square)](https://github.com/virahitvin8/seva-gis)
-[![Sentinel-2 L2A](https://img.shields.io/badge/Radiometry-Sentinel--2%20BOA%2010m-3b82f6?style=flat-square)](https://dataspace.copernicus.eu/)
-[![Copernicus DEM](https://img.shields.io/badge/Elevation-Copernicus%20GLO--30-f59e0b?style=flat-square)](https://spacedata.copernicus.eu/)
-[![Zero Backend](https://img.shields.io/badge/Device%20Privacy-100%25%20Client--Side-6366f1?style=flat-square)](https://github.com/virahitvin8/seva-gis)
-[![Multi-Language](https://img.shields.io/badge/Languages-EN%20%7C%20HI%20%7C%20TE-ec4899?style=flat-square)](https://github.com/virahitvin8/seva-gis)
+> **No money. No keys. No code. No data processing.**  
+> Pick your land on the map. SEVA.GIS tells you how it is, why it is that way, where things are, what to do and what not to do.
+
+Free and open source, for everyone: farmers, students, officers, researchers, builders. Use it on the web, on a computer, on your phone, or as a Windows app.
 
 ---
 
-## 🌍 What is SEVA·GIS?
+## Live sites
 
-**SEVA·GIS** (*Spatial Evaluation & Vegetation Analytics*) is an open-source, client-side planetary observatory born from the **REA (Reverse Engineering Anything)** philosophy. 
-
-Traditional GIS workflows require hefty desktop installations (QGIS, ArcMap, ArcGIS Pro, MATLAB) or cloud subscriptions with strict quotas and paid API keys (Google Earth Engine). SEVA·GIS reverse engineers the computational pipelines of QGIS, ArcMap, MATLAB, and GEE into a unified, lightweight, zero-subscription, zero-API-key web interface running directly inside your browser.
-
-With SEVA·GIS, any student, farmer, research scholar, agronomist, or GIS analyst can delineate an Area of Interest (from 0.5 hectares up to 80,000+ hectares), ingest calibrated Sentinel-2 L2A bottom-of-atmosphere (BOA) reflectances, stream 30 m Copernicus DEM elevations, model surface water hydrology, detect mineral deposits, and compile official legal dossiers in seconds.
-
----
-
-## ⚡ Core Technological Capabilities
-
-### 1. 🔄 Multi-Platform Node Workflow Studio
-Reverse engineers 5 premier GIS & remote sensing environments:
-- **Google Earth Engine (GEE)**: Generates production `.js` Earth Engine scripts with reducer chains and image collection filters.
-- **PyQGIS (QGIS 3.x)**: Exports `.py` scripts utilizing `QgsRasterCalculator`, native symbology, and vector processing.
-- **ArcMap / ArcGIS Pro (ArcPy)**: Generates `.py` scripts utilizing `arcpy.sa` Map Algebra and raster calculators.
-- **MATLAB GIS Toolbox**: Generates `.m` scientific scripts using `multispectralImage`, matrix algebra, and surface meshing.
-- **SEVA·GIS Client Engine**: Executes pure JavaScript/WebGL raster processing with interactive node wire linking (emerald green for verified connections, crimson red for schema mismatches).
-
-### 2. 💎 Mineral Exploration & Hyperspectral Lithology Suite
-Automates USGS and Copernicus spectral absorption algorithms for regional geological prospecting:
-- **Ferrous Minerals Index (FMI)**: `SWIR2 / SWIR1` (Band 12 / Band 11) for detecting hematite, goethite, and iron sulfides.
-- **Iron Oxide Index (IOI)**: `Red / Blue` (Band 4 / Band 2) identifying gossan caps and limonite alterations.
-- **Clay & Hydroxyl Alteration**: `(SWIR1 / SWIR2) × (NIR / Red)` targeting hydrothermal kaolinite, illite, and sericite.
-- **Calcite & Carbonates Ratio**: `(Red + SWIR2) / SWIR1` for carbonate platforms, marble, and limestone karst.
-- **Silica & Quartz Enrichment**: `SWIR1 / Green` (Band 11 / Band 3) identifying chert and quartzite ridges.
-
-### 3. 🌱 Precision Agronomy & Variable Rate Application (VRA)
-- Computes 30+ vegetative indices: **NDVI, NDMI, NDWI, EVI, SAVI, MSAVI, GNDVI, NDRE, BSI, MSI**.
-- Canopy water stress detection with localized nitrogen booster prescriptions (+25% N/ha in stressed zones).
-- Micro-climate meteorological budgeting with regional fallback resilience (eliminating Open-Meteo 503 errors).
-
-### 4. 💧 Hydrological Modeling & Water Balance Engine
-- **USDA SCS-CN (Curve Number)** empirical water balance formulation.
-- **Hargreaves Reference Evapotranspiration (ETo)** and real-time surface runoff yield quantification.
-- Topographic wetness index (TWI), flow accumulation, and depression ponding risk modeling.
-
-### 5. 🗺️ High-Clarity Satellite Imagery & Geodesy
-- Dual-engine Leaflet + MapLibre streaming up to **Zoom 22** without resolution breakdown.
-- LiDAR laser perimeter boundary scanning with smooth neon pulse animations.
-- Dedicated "Zoom to AOI" toolbar control respecting smallholdings (0.5 ha) to mega-catchments (80,000+ ha).
-
-### 6. 🛸 Drone Precision Studio (1m GSD UAV Suite)
-- **High-Resolution UAV Orthomosaics**: Sub-meter (1.0 m GSD) ortho-rectification and flight mission simulation.
-- **Smallholder Sentinel-2 Purity Analysis**: Flags mixed-pixel border contamination on smallholdings (< 2.0 ha) and calculates pure internal pixel shares.
-- **Fields2Cover Swath Robotics**: Autonomous coverage path planning generating parallel swaths, headland turns, waypoint logs, and flight distance metrics.
-- **Leaf Color Chart (LCC) Ground Truth Engine**: Calibrates satellite NDVI readings against IRRI 6-panel field leaf color charts to prevent over-fertilization.
-- **Automated UAV Dossier**: One-click generation of the Drone Mission Dossier with geodetic telemetry and pilot checklist.
-
-### 7. 📄 Autonomous Multi-Lingual Dossier Generation
-- Official academic, banking, and insurance dossiers available in **English**, **Hindi (हिन्दी)**, and **Telugu (తెలుగు)**.
-- Selectable formats: **HTML Dossier**, **Print-Ready PDF**, **Word Document (.doc)**, **Raw JSON**, **GitHub Markdown README**, and **Complete ZIP Bundle**.
-- One-click **Cartographic Images Export** (.zip) preserving North arrows, geodetic neatlines, and scale bars.
-- Automated audience onboarding and email delivery via **EmailOctopus** without forced `.eml` downloads.
-
-### 8. 📨 Farmer SMS & WhatsApp Advisory Studio (OpenSMS Powered)
-- **Zero-Cost Android SMS Gateway**: Integrates with [OpenSMS](https://github.com/daslearning-org/OpenSMS) by daslearning-org to turn any personal Android phone into a local SMS API server (`http://<ip>:9292/sms/`), sending unlimited cellular SMS directly through your phone's SIM card at zero extra cost.
-- **Direct WhatsApp Messaging**: 1-click pre-composed agronomic health, irrigation scheduling, and PMFBY crop loss alerts opening directly in WhatsApp for any entered mobile number.
-- **Native Device SMS Protocol (`sms:`)**: Instant native messenger launcher for mobile, tablet, and desktop devices without any external server dependencies.
-- **Multi-Lingual Kisan Advisories**: Formats real-time Sentinel-2 L2A NDVI, canopy moisture (NDMI), and stress percentages into **Telugu (తెలుగు)**, **Hindi (हिन्दी)**, and **English** with live parcel coordinates.
-- **Local Dispatch Audit Trail**: Tracks all dispatched alerts with timestamps, status badges, and message previews stored in private browser storage.
+| Where | Link | Status |
+|---|---|---|
+| **Main site** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live Primary Production |
+| **Easebot site** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Deployed & DNS Active |
+| **Subdomain (is-a.dev)** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Registered & CI Verified |
+| **Student mirror** | [https://sevagis.stusite.me](https://sevagis.stusite.me) | Educational Mirror |
+| **Pending request** | `sevagis.is-a.dev` (PR #57108) & `sevagis.is-a.bot` (PR #555) | Under Review by maintainers |
 
 ---
 
-## 🌐 Live Subdomains & Automated DNS
-SEVA·GIS is accessible worldwide across zero-cost developer domains:
-- **`sevagis.dpdns.org`** — [https://sevagis.dpdns.org](https://sevagis.dpdns.org) *(Live Primary Deployment)*
-- **`sevagis.is-a.dev`** — Active Pull Request [is-a-dev/register#57108](https://github.com/is-a-dev/register/pull/57108) (Automated CI checks passed)
-- **`sevagis.is-a.bot`** — Active Pull Request [free-domains/is-a.bot#555](https://github.com/free-domains/is-a.bot/pull/555) (CNAME target: `sevagis.dpdns.org`)
-- **`sevagis.stusite.me`** — Managed DNS via StuSite dashboard
+## Why use SEVA.GIS?
+- **Zero technical barrier:** You do not need to know GIS, remote sensing, mathematics, or coding.
+- **Zero financial cost:** You do not need to pay subscription fees, buy tokens, or sign up for cloud API keys.
+- **Actionable clarity:** You get answers in plain words, with maps, charts, and clear next steps.
+- **Universal compatibility:** Your files open seamlessly in QGIS, ArcGIS, Excel, Google Earth Engine, or tractor consoles when you want to explore further.
 
 ---
 
-## 🧭 Universal GIS Interoperability Suite (LeanREA Audited)
-
-Following the reverse-engineering methodology of **LeanREA** ([aicodeking/leanrea](https://github.com/aicodeking/leanrea)), SEVA·GIS reverse engineers and generates authentic, syntactically verified scripts and format definitions for all major GIS and CAD software ecosystems without requiring heavyweight desktop runtimes inside the browser:
-
-### 1. 🧭 QGIS 3.x Ecosystem (PyQGIS & Symbology)
-- **1-Click PyQGIS Console Script (`.py`)**: Paste directly into the QGIS Python Console (`Ctrl+Alt+P`) to instantly create an in-memory vector layer with your exact field geometry, populate agronomic attributes, apply high-contrast emerald symbology, add high-res ESRI satellite basemap tiles, and auto-zoom the canvas.
-- **QGIS Style XML (`.qml`)**: Generates valid QGIS 3.x `singlebandpseudocolor` raster symbology definitions with calibrated NDVI (-0.1 to 0.9) and GLO-30 elevation color ramps.
-- **QGIS Layer Definition (`.qlr`)**: Drag-and-drop XML layer definition to instantly bind your remote sensing layers in any QGIS workspace.
-- **Downloadable QGIS 3.x Plugin (`.zip`)**: Ready to install via `Plugins -> Manage and Install Plugins -> Install from ZIP`.
-
-### 2. 🗺️ ArcGIS Pro & ArcMap 10.x (ArcPy & CIM Symbology)
-- **Native ArcPy Script (`.py`)**: Runs directly inside ArcGIS Pro's Python Window or ArcMap 10.x. Creates an in-memory or scratch geodatabase feature class, inserts geometry via `arcpy.da.InsertCursor`, populates fields, and attaches to the active map document automatically.
-- **ArcGIS Pro CIM Layer (`.lyrx`)**: Produces official Cartographic Information Model (CIM) JSON layer files for 1-click styling in ArcGIS Pro.
-- **ArcGIS Python Toolbox (`.pyt`)**: Full standalone geoprocessing toolbox compatible with ArcGIS Pro & ArcMap.
-
-### 3. 🛰️ Google Earth Engine (GEE Code Editor & Python)
-- **GEE JavaScript Code Editor Script (`.js`)**: 100% production-ready script for [code.earthengine.google.com](https://code.earthengine.google.com/). Configured with `ee.Geometry.Polygon`, Sentinel-2 L2A Harmonized ingestion, SCL (Scene Classification Layer) cloud/shadow filtering, NDVI, NDMI, SAVI, EVI, Copernicus DEM elevation and slope, zonal statistics, and automated `Export.image.toDrive` tasks.
-- **GEE Headless Python Batch Pipeline (`.py`)**: Automated Python CLI batch script using `ee.Initialize()` to query collections and generate direct GeoTIFF download URLs.
-
-### 4. ⚙️ Related GIS Softwares (GDAL / OGR, ISO-XML & CAD)
-- **GDAL / OGR Shell Script (`.sh` / `.bat`)**: Automated CLI pipelines for converting GeoJSON to ESRI Shapefile, OGC GeoPackage, projecting to local UTM zones, clipping S2 bands, and compiling Cloud Optimized GeoTIFFs (COG) with Deflate compression and overviews.
-- **Precision Agriculture ISO-XML (`TASKDATA.XML`)**: Compliant with **ISO 11783-10** standard for tractor terminals and rate controllers. Can be placed directly on a FAT32 USB drive under `TASKDATA/` and inserted into John Deere GreenStar, Trimble TMX-2050, Topcon, or Case IH AFS monitors for Variable Rate Application (VRA).
-- **AutoCAD DXF (`.dxf`)**: Clean ASCII DXF (Release 12 AC1009) interchange format for civil engineers, drone surveyors, and CAD operators.
+## Use it in 3 steps
+1. **Draw or upload your land** (AOI = Area of Interest). Draw on the interactive map or import GeoJSON, KML, or zipped Shapefile.
+2. **Wait while satellites do the work.** SEVA.GIS retrieves Sentinel-2, Sentinel-1 radar, Copernicus 30 m elevation, soil data, and local weather via Google Earth Engine and open APIs.
+3. **Read your land report.** Open the map, explore the cards, inspect the high-resolution layers, and download or email the complete dossier.
 
 ---
 
-## 🖥️ Desktop GIS Plugins (QGIS & ArcMap)
-
-SEVA·GIS provides native open-source plugins in the [`public/plugins/`](public/plugins/) folder:
-
-1. **QGIS 3.x Plugin (`public/plugins/seva_gee_flow_qgis.zip`)**:
-   - Installable via QGIS Plugin Manager (`Plugins -> Install from ZIP`).
-   - Clean UTF-8 metadata and multi-box visual workflow.
-2. **ArcMap 10.x & ArcGIS Pro Toolbox (`public/plugins/seva_gee_flow_arcgis.zip`)**:
-   - Native Python Toolbox: `SEVA_GEE_Flow.pyt`.
-   - Ingests vector polygons, computes Map Algebra indices, and extracts hydrological drainage streams without external dependencies.
+## What you get
+| Section | In plain words |
+|---|---|
+| **Crop health** | How green, dense, and vigorous the crops are, and how that changed over time (hover the chart for exact date and value). |
+| **Water and drainage** | Where water collects, where it runs off, slope steepness, flow paths, and which terrain factors matter most. |
+| **Soil** | Clay, sand, silt, organic carbon, pH acidity, and cation exchange capacity of your soil. |
+| **Minerals** | Where surface minerals are likely (tap **Show points** to inspect clusters directly on your field map). |
+| **Weather** | Live rain, temperature, soil temperature, and water balance, with automatic NASA POWER backup if primary servers are busy. |
+| **Pests and disease** | Early warning spectral anomaly patches to guide on-ground scouting. |
+| **Farm shape** | Width, compactness, autonomous tractor/drone path planning, and nearby farm relationships. |
+| **Reports** | Official PDF, Word (.doc), ZIP dossier, HTML, JSON, and georeferenced cartographic map images delivered directly to screen or email. |
+| **Languages** | Full native support across **English**, **తెలుగు (Telugu)**, and **हिन्दी (Hindi)**. |
 
 ---
 
-## 🚀 Quickstart & Local Development
+## How it works (the methodology)
 
-The project is built with **React 19**, **Vite 8**, **TypeScript 5.7**, and **Tailwind CSS v4**.
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/virahitvin8/seva-gis.git
-cd "seva gis"
-
-# 2. Install dependencies
-npm install
-
-# 3. Launch development server
-npm run dev
+```mermaid
+flowchart LR
+  A[1. You pick your land] --> B[2. Google Earth Engine collects satellite data]
+  B --> C[3. Clouds removed, data cleaned]
+  C --> D[4. Health, water, soil and mineral layers are computed]
+  D --> E[5. Layers become maps, points and charts]
+  E --> F[6. Plain-language advice and reports]
 ```
 
-Visit `http://localhost:8443` (or the port indicated by Vite) to access the workspace.
+### Step by step:
+1. **Your land:** You delineate a polygon in standard EPSG:4326 latitude/longitude coordinates.
+2. **Satellite data:** Sentinel-2 L2A (multispectral surface reflectance), Sentinel-1 (C-band SAR radar), Copernicus 30 m DEM elevation, and ISRIC soil grids are queried.
+3. **Cleaning:** Cloud pixels, cirrus, and terrain shadows are masked using the Scene Classification Layer (SCL).
+4. **Layers:** Over 30 vegetative, hydrological, soil, and mineral indices are computed specifically for your boundaries.
+5. **Meaning:** Raw pixel statistics are converted into intuitive color maps, cluster points, time-series charts, and agronomic guidance.
+6. **Delivery:** Displayed on screen, exportable to standard GIS formats, or sent directly to your email inbox.
 
 ---
 
-## 💰 Open-Source Monetization Blueprint for the Founder
+## Behind the scenes
 
-As an open-source creator of a cutting-edge platform like SEVA·GIS, here are the top 6 proven monetization opportunities and eligibility criteria tailored to your skill set:
+- **Front end (what you see):** React 19, TypeScript, Leaflet map engine, MapLibre GL, Tailwind CSS v4, and smooth motion graphics in English, Telugu, and Hindi. Runs in web browsers, Android mobile app (Capacitor), and Windows desktop app (Tauri).
+- **Back end (the engine room):** A secure Node.js server that communicates with Google Earth Engine using a dedicated service account. It computes regional statistics, fetches agro-weather, formats reports, dispatches emails, and connects with desktop GIS software.
 
-### 1. PMFBY Crop Insurance & Micro-Fintech Claims Verification API
-- **Opportunity**: Agricultural insurance companies (Pradhan Mantri Fasal Bima Yojana - PMFBY) and rural credit banks spend crores on manual ground surveys to verify crop damage before disbursing claims.
-- **Model**: Offer an automated B2B Verification API. Charge ₹50 to ₹250 per field appraisal report. Banks and insurers upload field coordinates; SEVA·GIS generates an authenticated pre/post-peril satellite health damage dossier.
-- **Eligibility**: You have already built the PMFBY and Bank Loan Health Appraisal engines directly into SEVA·GIS.
+### How they connect:
 
-### 2. Variable Rate Prescription (VRA) Data Feeds for Drones & Tractors
-- **Opportunity**: Agri-drone spraying services and tractor manufacturers need precise geo-referenced shapefiles (`.shp`, `.geojson`) to control variable spray nozzles for urea, DAP, and pesticides.
-- **Model**: Charge drone operator networks a per-acre or monthly subscription to generate VRA flight path prescription maps.
+```mermaid
+sequenceDiagram
+  participant U as You (front end)
+  participant S as SEVA.GIS server
+  participant G as Google Earth Engine
+  participant W as Weather / Soil sources
+  U->>S: Here is my land (GeoJSON)
+  S->>G: Compute layers for this land
+  S->>W: Fetch weather and soil
+  G-->>S: Real values, dates, scene count
+  W-->>S: Weather and soil values
+  S-->>U: Layers, points, charts, advice
+```
 
-### 3. Mineral Prospecting & Exploration Advisory Services
-- **Opportunity**: Junior mining companies, quarry operators, and geological survey consultants pay high fees for hyperspectral alteration mapping (FMI, Iron Oxide, Hydroxyl, Calcite, Silica) to narrow drilling targets.
-- **Model**: Provide regional geological exploration dossiers and customized remote sensing prospectivity maps.
-
-### 4. Enterprise White-Label Deployments for Agritech Startups
-- **Opportunity**: Agri-input companies (seed and fertilizer manufacturers) and digital farming apps want to provide satellite monitoring to their farmers under their own corporate brand.
-- **Model**: License a white-label SEVA·GIS instance (custom logo, domain, and database) for an annual enterprise license fee ($3,000 – $15,000/year).
-
-### 5. Open-Source Fellowships, Grants & Incubators
-You are strongly eligible to apply for leading geospatial and deep-tech grants:
-- **Copernicus Masters & ESA Open Space Innovation Platform (OSIP)**: Substantial non-dilutive equity-free grants for projects leveraging Copernicus Sentinel data for public good.
-- **Digital Transport & Agriculture Accelerator Grants (Govt of India / MeitY / BIRAC / NABARD)**.
-- **GitHub Sponsors & Open Collective**: Enable community contributions from research scholars and agronomy institutions.
-
-### 6. Custom Desktop Plugin Development & Training
-- **Opportunity**: Government irrigation departments, universities, and forestry boards often require specialized QGIS or ArcGIS toolboxes tailored to their state borders.
-- **Model**: Offer paid QGIS/ArcPy development contracts, specialized hydrology workshops, and professional GIS consulting.
+If any remote service is temporarily unreachable, SEVA.GIS displays **"Data unavailable"** along with the specific technical reason and a retry button. It never fills gaps with artificial numbers.
 
 ---
 
-## 🔒 Data Sovereignty & Privacy
+## Layers and how they relate
+- **Base map:** High-resolution optical satellite imagery and topographic street maps.
+- **Your land (AOI):** The field boundary that clips and standardizes all data layers.
+- **Crop health layers:** NDVI, NDRE, NDMI, EVI, SAVI, MSAVI, GNDVI, and canopy chlorophyll content.
+- **Water & drainage layers:** NDWI, Topographic Wetness Index (TWI), slope degrees, flow direction, and drainage stream channels.
+- **Soil and ground layers:** Soil texture, Bare Soil Index (BSI), and residue coverage.
+- **Mineral layers:** Iron oxide, hydrothermal clay, carbonate, ferrous silicates, and quartz enrichment ratios.
+- **Reference layers (optional):** Historic mineral occurrences from USGS MRDS records.
 
-SEVA·GIS adheres to strict data privacy principles:
-- **Zero Third-Party Tracking**: All vector boundaries, geometry measurements, and spectral stats remain inside your browser's IndexedDB.
-- **Optional Google Drive Vault**: Cloud storage is completely user-controlled; files sync only to the user's private Google Drive under `SEVA GIS/`.
-- **Offline First**: The application continues to function in the field even without active internet connectivity.
+Every layer is clipped precisely to your AOI, shares the same observation timestamps, and can be toggled, adjusted with the live opacity slider, and exported.
 
 ---
 
-## 🤝 Contributing
+## Minerals and points
+Open the **Minerals** section under Field Intelligence. Each mineral card includes a **Show points** button.
+- When clicked, real anomaly cluster points appear directly on your field map.
+- The map legend updates with the mineral name, color code, cluster count, and "Likely (Indicated)" badge.
+- Clicking any cluster point opens an interactive popup showing its exact centroid coordinates, ratio intensity, cluster area in hectares, regional soil type, sensor, and acquisition date.
+- Satellite ratios detect surface spectral characteristics in bare topsoil, providing **indicated** exploratory guidance rather than subsurface borehole confirmation.
 
-Contributions, feature requests, and bug reports are welcome!  
-Please open an issue or pull request at [https://github.com/virahitvin8/seva-gis](https://github.com/virahitvin8/seva-gis).
+---
 
-*Built with selfless service for every farmer, researcher, and earth explorer.*
+## The engine boxes (no typing, no code)
+In the **Workflow** view, you can design spatial analysis pipelines using visual engine boxes:
+- Dedicated boxes for **Google Earth Engine**, **QGIS**, **ArcMap / ArcGIS**, **MATLAB / Octave**, and **SEVA.GIS Client Engine**.
+- Tap any port toggle to activate or deactivate inputs and outputs.
+- Drag connections between boxes:
+  - **Green dotted line:** The inputs and outputs match and form a valid processing pipeline.
+  - **Red line:** Schema or format mismatch, accompanied by a plain-language explanation of why they cannot be joined.
+- **Compare Engines Mode:** Run the same AOI through two engines side-by-side (e.g., GEE vs. PyQGIS) with automated parity verification (tolerance ≤ 1.0%).
+
+---
+
+## Plugins
+
+| Plugin | What it does | File |
+|---|---|---|
+| **QGIS Plugin** | Connects SEVA.GIS with your local QGIS session; pulls active field boundaries and pushes Earth Engine raster composites directly onto the QGIS map canvas. | `public/plugins/seva_gee_flow_qgis.zip` |
+| **ArcGIS / ArcMap Toolbox** | Standalone Python Toolbox (`.pyt`) enabling 1-click import of SEVA.GIS GeoJSON, automatic Map Algebra index calculation, and raster extraction. | `public/plugins/seva_gee_flow_arcgis.zip` |
+| **Octave / MATLAB Scripts** | High-performance numerical matrix scripts for smoothing temporal noise, calculating unmixing endmembers, and statistical validation. | `bridges/` |
+
+### Installing the QGIS Plugin:
+1. Open QGIS (version 3.16 or newer).
+2. Go to **Plugins** → **Manage and Install Plugins...** → **Install from ZIP**.
+3. Choose `public/plugins/seva_gee_flow_qgis.zip` and click **Install Plugin**.
+4. Check the box next to **SEVA.GIS Flow** in your installed plugins list.
+
+### Installing the ArcGIS Toolbox:
+1. Open ArcGIS Pro or ArcMap 10.x.
+2. Open the **Catalog** pane, right-click **Toolboxes**, and select **Add Toolbox**.
+3. Navigate to and select `SEVA_GEE_Flow.pyt`.
+
+---
+
+## Install & Run Everywhere
+
+| Platform | How to run |
+|---|---|
+| **Web Browser** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org). On mobile, tap **Add to Home Screen** to use offline. |
+| **Android Mobile** | Download the latest `.apk` or `.aab` from the **Releases** tab and install directly on your device. |
+| **Windows Desktop** | Download the standalone `.exe` or `.msi` installer from **Releases** and run with zero configuration. |
+| **Developers** | `git clone https://github.com/virahitvin8/seva-gis`, then `cp .env.example .env`, `npm install`, and `npm run dev`. |
+
+---
+
+## Releases
+Official tagged releases on GitHub include:
+- Standalone Android APK / AAB packages (Capacitor mobile runtime)
+- Windows desktop installer `.exe` / `.msi` (Tauri desktop runtime)
+- Pre-compiled QGIS Plugin `.zip` and ArcGIS Python Toolbox `.pyt`
+- Complete source code archive with plain-language release summaries
+
+---
+
+## Licences
+- **Core Web Application, Backend Server, Mobile, Desktop, ArcGIS Toolbox, and Octave Scripts:** Licensed under the [Apache License 2.0](LICENSE) (see `LICENSE` and `NOTICE`).
+- **QGIS Integration Plugin:** Licensed under the [GNU General Public License v3.0 (GPL-3.0-or-later)](plugins/qgis/LICENSE) in compliance with QGIS ecosystem standards.
+- **Third-Party Libraries and Datasets:** All dependencies retain their original open-source licenses as documented in [CREDITS.md](CREDITS.md) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+---
+
+## Credits
+SEVA.GIS was created and architected by **N. Akshit Vinay** (MSc GIS & Remote Sensing, BSc Agriculture) as an autonomous vibe-coded project built with **Claude Code**, **Google Antigravity**, **FreeBuff**, and **Figma**.
+
+Heartfelt gratitude to the maintainers of all open-source projects, tools, and planetary datasets listed in [CREDITS.md](CREDITS.md).
+
+---
+
+## Contributing
+We welcome contributions from GIS researchers, software developers, agronomists, and students worldwide!
+1. Open an issue or submit a pull request on GitHub.
+2. Maintain our strict standard of authentic data (no artificial or placeholder metrics).
+3. Provide clear test results and visual evidence for any changes to spatial models or interface layouts.

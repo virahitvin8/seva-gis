@@ -9,18 +9,22 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 
 ---
 
-## Live sites
+## Live sites & domains
 
 | Where | Link | Status |
 |---|---|---|
-| **Main site** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live — verified serving over HTTPS |
-| **is-a.dev subdomain** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Registered, DNS active (PR #57108 merged). HTTPS serving pending — see note below |
-| **is-a.bot subdomain** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Registered, DNS active (PR #555 merged). HTTPS serving pending — see note below |
+| **Main production site** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live — serving over HTTPS |
+| **is-a.dev domain** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Merged & active (is-a-dev/register#57108) |
+| **is-a.bot domain** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Merged & active (free-domains/is-a.bot#555) |
 
-**Note on the extra subdomains.** Both subdomains already point (via DNS CNAME) at the main site. GitHub Pages serves exactly **one** custom domain per repository, and that is `sevagis.dpdns.org`. Until a redirect site is added, a visit to `sevagis.is-a.dev` or `sevagis.is-a.bot` shows GitHub's 404. Two clean ways to finish this:
+---
 
-1. **Switch the primary domain** to `sevagis.is-a.dev` (one line in the `CNAME` file and one field in the repository's Pages settings) if you prefer that address as the main one.
-2. **Keep all three working** by pointing the two extra subdomains at a tiny static redirect page (any host that supports multiple custom domains, e.g. a small GitHub Pages redirect repository, Cloudflare Pages or Netlify), which forwards visitors to `sevagis.dpdns.org`.
+## ⚡ What's new in v2.5
+
+- **Clockwise Parameter Engine**: Interactive 320×320 orbital radar sweep (1 → 2 → 3 → 4 → 5 → 6) cycling through 4 Domain Intelligence pillars (Precision Agriculture, Hydrology & Water, Soil & Terrain, Agro-Meteorology) with live spectral formulas and quality masks.
+- **Tinker (Thinking Machine) GeoAI Engine**: Cloud fine-tuning and inference pipeline in `tinker-seva-gis/` connecting Sentinel-2 spectral indices to predictive crop stress and agronomic advisories.
+- **Open Design MCP Architecture**: Local headless design protocol integration with prebundled daemon support.
+- **Official Brand SVG Emblem**: Shield-pin with cyan-to-emerald gradient, sky-blue water droplet, and dual ascending agricultural leaves.
 
 ---
 

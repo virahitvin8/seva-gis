@@ -31,7 +31,7 @@ export default function DroneReportDossier({ farm, onClose }: Props) {
   }, [farm.lat, farm.lon, farm.analysis?.scene?.datetime, farm.analysis?.scene?.cloud])
 
   const meanNdvi = farm.analysis?.ndvi?.mean || 0.58
-  const meanElevation = farm.analysis?.elevation?.mean || 240
+  const meanElevation = farm.analysis?.elevMean || 240
   const droneIndices = useMemo(() => computeDroneIndices(85, 160, 45), [])
 
   function handlePrint() {

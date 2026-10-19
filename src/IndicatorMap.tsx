@@ -1130,11 +1130,11 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             <span style="background:#fef3c7;color:#92400e;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;">Indicated</span>
           </div>
           <div><b>Centroid:</b> ${p.lat.toFixed(5)}°, ${p.lon.toFixed(5)}°</div>
-          <div><b>Ratio:</b> ${p.ratio.toFixed(2)} (Threshold Passed)</div>
+          <div><b>Ratio:</b> ${p.ratio.toFixed(2)} (Indicated)</div>
           <div><b>Cluster Area:</b> ${p.areaHa.toFixed(2)} ha</div>
           <div><b>Soil Type:</b> ${p.soilType ?? 'Topsoil'}</div>
           <div><b>Sensor:</b> ${p.sensor}</div>
-          <div><b>Date:</b> ${p.date}</div>
+          <div><b>Date:</b> ${p.date ?? 'date unavailable'}</div>
         </div>
       `
       marker.bindPopup(popupHtml)

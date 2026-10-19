@@ -112,5 +112,6 @@ export function createZipArchive(entries: ZipEntry[]): Blob {
   eocdView.setUint16(20, 0, true)          // Comment length
 
   const allParts: Uint8Array[] = [...localHeaders, ...centralHeaders, eocd]
-  return new Blob(allParts, { type: 'application/zip' })
+  // Each part owns a full ArrayBuffer; the cast narrows ArrayBufferLike for TS 5.7's BlobPart typing.
+  return new Blob(allParts.map((part) => part.buffer as ArrayBuffer), { type: 'application/zip' })
 }

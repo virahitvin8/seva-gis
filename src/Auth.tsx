@@ -24,6 +24,7 @@ import {
   Zap,
   Play,
   Check,
+  X,
 } from 'lucide-react'
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'

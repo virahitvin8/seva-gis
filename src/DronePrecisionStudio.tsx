@@ -64,7 +64,7 @@ export default function DronePrecisionStudio({ farm, onClose, onExportDossier }:
   }, [farm.lat, farm.lon])
 
   const baseMeanNdvi = farm.analysis?.ndvi?.mean || 0.58
-  const baseMeanElevation = farm.analysis?.elevation?.mean || 240
+  const baseMeanElevation = farm.analysis?.elevMean || 240
 
   const orthomosaicPixels = useMemo(() => {
     return generateDroneOrthomosaicGrid(bounds, baseMeanNdvi, baseMeanElevation, 24)

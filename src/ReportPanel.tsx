@@ -535,7 +535,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
       const zipBlob = createZipArchive(entries)
       await dispatchExport({
-        category: 'imagery',
+        category: 'images',
         fileName: `${baseFilename}_Cartographic_Maps.zip`,
         blob: zipBlob,
         mimeType: 'application/zip',

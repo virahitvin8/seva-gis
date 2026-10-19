@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { FarmData } from './lib/seva'
 import { farmRing, farmBBox } from './lib/seva'
+import { areaHa, perimeterM, type Ring } from './lib/geo'
 import { hydroBands, soilHydraulics } from './lib/hydro'
 import {
   generateGeeCodeEditorScript,

@@ -41,11 +41,20 @@ const mockFarm: FarmData & { id: string; name: string; crop: string } = {
 }
 
 test('computeUtmCoordinates calculates correct UTM zone and EPSG for southern India', () => {
+  // 78.850°E lies 2.15° west of zone 44's central meridian (81°E),
+  // so the easting must sit east-of-origin west: ~268 km (500 km - ~232 km).
   const utm = computeUtmCoordinates(14.435, 78.850)
   assert.equal(utm.zone, 'UTM 44N')
   assert.equal(utm.epsg, 32644)
-  assert.ok(utm.easting > 400000 && utm.easting < 600000)
-  assert.ok(utm.northing > 1500000 && utm.northing < 1700000)
+  assert.ok(utm.easting > 250000 && utm.easting < 280000, `easting ${utm.easting} outside 250k-280k`)
+  assert.ok(utm.northing > 1590000 && utm.northing < 1600000, `northing ${utm.northing} outside 1.59M-1.60M`)
+})
+
+test('computeUtmCoordinates returns 500,000 m easting on the central meridian', () => {
+  // Zone 44 central meridian is 81°E: the false easting convention must hold.
+  const utm = computeUtmCoordinates(14.435, 81.0)
+  assert.equal(utm.zone, 'UTM 44N')
+  assert.ok(Math.abs(utm.easting - 500000) < 500, `easting ${utm.easting} not within 500 m of 500000`)
 })
 
 test('getCleanPolygonRing returns existing closed or open ring with valid count', () => {

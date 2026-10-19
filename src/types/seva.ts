@@ -66,7 +66,8 @@ export interface SpectralIndexResult {
   formula: string;
   citation: string;
   sensor: string;
-  acquisitionDate: string;
+  /** Acquisition date reported by the backend; null when no date was supplied. */
+  acquisitionDate: string | null;
   value: number;
   unit: string;
   confidencePct: number;
@@ -83,7 +84,8 @@ export interface MineralClusterPoint {
   ratio: number;
   areaHa: number;
   sensor: string;
-  date: string;
+  /** Acquisition date reported by the backend; null when the backend did not supply one. */
+  date: string | null;
   mineral: string;
   mineralKey: string;
   soilType?: string;
@@ -99,7 +101,7 @@ export interface MineralIndicationResult {
   bandRatioFormula: string;
   citation: string;
   sensorSource: string;
-  acquisitionDate: string;
+  acquisitionDate: string | null;
   meanRatioValue: number;
   aoiCoveragePercent: number;
   confidencePct: number;
@@ -114,9 +116,11 @@ export interface SwatParameterRank {
   parameterCode: string;
   parameterName: string;
   formulation: 'SWAT-2012 / FQFA' | 'SCS-CN / Beven-Kirkby';
-  tStatSensitivity: number;
-  pValue: number;
-  fittedValue: number;
+  /** Calibrated sensitivity statistics — only populated after a real SWAT/SUFI-2 run on the backend. */
+  tStatSensitivity: number | null;
+  pValue: number | null;
+  /** Parameter value fitted by site calibration; null until a real run exists. */
+  fittedValue: number | null;
   validRange: string;
   whatItMeans: string;
   whereItIsOnAoi: string;
@@ -130,7 +134,8 @@ export interface TimeSeriesPoint {
   ndmi: number;
   ndre: number;
   sensorPass: string;
-  cloudCoverPct: number;
+  /** Cloud cover percentage for the pass; null when the data source does not report it. */
+  cloudCoverPct: number | null;
 }
 
 export interface WeatherTelemetry {

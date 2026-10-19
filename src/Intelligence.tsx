@@ -6,6 +6,7 @@ import { fetchSoil, fetchWeather } from './lib/agro'
 import { RISK_BANDS, changeAnalysis, hotspots, landCover, loadHistory, managementZones, pestRisks, phenology, riskBand, sceneNdvi, type ClassRow, type MapResult } from './lib/gee'
 import { MONTHS, PLAN_CROPS, SUIT_BANDS, fetchClimate, rotationAdvice, suitBand, suitability } from './lib/plan'
 import { farmRing, loadScene, type FarmData, type Scene } from './lib/seva'
+import { areaHa as ringAreaHa, perimeterM } from './lib/geo'
 import { generateRealMineralClusters } from './services/geeSpectralEngine'
 import type { AOIFeature } from './types/seva'
 import { ScaleBox } from './Scale'
@@ -433,6 +434,7 @@ function MineralsTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
   const key = `${farm.id}:${scene?.id}:${farm.polygon?.length}:${farm.area}`
   const grid = useAsync(key, () => loadScene(scene!, farm), !!scene)
   const [selectedMineral, setSelectedMineral] = useState<string>('ioi')
+  const [pointsNotice, setPointsNotice] = useState<string | null>(null)
 
   // Calculate mineral statistics across the valid AOI pixels
   const mineralStats = useMemo(() => {
@@ -554,24 +556,58 @@ function MineralsTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
   }
 
   const handleShowPoints = (key: string, name: string, color: string) => {
+    const g = grid.data
+    if (!g) {
+      setPointsNotice('Run the satellite analysis first — no real Sentinel-2 bands are loaded, so no mineral points were drawn.')
+      return
+    }
+
+    // AOI-mean reflectances from the loaded Sentinel-2 scene. No hardcoded bands.
+    let n = 0
+    let b2 = 0, b3 = 0, b4 = 0, b8 = 0, b11 = 0, b12 = 0
+    for (let i = 0; i < g.w * g.h; i++) {
+      if (!g.inside[i] || !g.ok[i]) continue
+      const r2 = g.b.B02?.[i] ?? 0
+      const r3 = g.b.B03?.[i] ?? 0
+      const r4 = g.b.B04?.[i] ?? 0
+      const r8 = g.b.B08?.[i] ?? 0
+      const r11 = g.b.B11?.[i] ?? 0
+      const r12 = g.b.B12?.[i] ?? 0
+      if (r2 <= 0 || r4 <= 0 || r8 <= 0) continue // require physically valid reflectance
+      b2 += r2; b3 += r3; b4 += r4; b8 += r8; b11 += r11; b12 += r12; n++
+    }
+    if (n === 0) {
+      setPointsNotice('No valid Sentinel-2 reflectance pixels inside this AOI — no mineral points were drawn.')
+      return
+    }
+
     const ring = farmRing(farm)
+    const lons = ring.map(([lon]) => lon)
+    const lats = ring.map(([, lat]) => lat)
+    const hectares = ring.length >= 3 ? ringAreaHa(ring) : (farm.area || 0)
+    const perimeterKm = perimeterM(ring) / 1000
     const aoiFeature: AOIFeature = {
       id: farm.id,
       name: farm.name,
-      createdAt: new Date().toISOString(),
-      hectares: farm.area || 10,
-      acres: (farm.area || 10) * 2.471,
-      perimeterKm: 1.0,
-      compactnessIndex: 0.8,
+      createdAt: scene?.datetime ?? '',
+      hectares,
+      acres: hectares * 2.471,
+      perimeterKm,
+      compactnessIndex: perimeterKm > 0 ? (4 * Math.PI * hectares * 0.01) / (perimeterKm * perimeterKm) : 0,
       centroid: { lat: farm.lat, lon: farm.lon },
-      bounds: [[farm.lat - 0.01, farm.lon - 0.01], [farm.lat + 0.01, farm.lon + 0.01]],
+      bounds: [[Math.min(...lats), Math.min(...lons)], [Math.max(...lats), Math.max(...lons)]],
       coordinates: ring.map(([lon, lat]) => ({ lat, lon })),
     }
     const pts = generateRealMineralClusters(aoiFeature, key, {
-      B2: 0.05, B3: 0.08, B4: 0.09, B5: 0.15, B6: 0.25, B8: 0.38, B8A: 0.40, B11: 0.20, B12: 0.14,
-      slopeDeg: 3.0, catchmentAreaM2: (farm.area || 10) * 400, acquisitionDate: scene?.datetime?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-      dataQuality: 'real', sensor: 'Sentinel-2 L2A (10m/20m BOA)'
+      B2: b2 / n, B3: b3 / n, B4: b4 / n, B8: b8 / n, B11: b11 / n, B12: b12 / n,
+      sensor: 'Copernicus Sentinel-2 L2A (AOI mean)',
+      acquisitionDate: scene?.datetime?.slice(0, 10) ?? null,
     })
+    if (pts.length === 0) {
+      setPointsNotice('No sample points fall inside this AOI boundary — no mineral points were drawn.')
+      return
+    }
+    setPointsNotice(null)
     window.dispatchEvent(new CustomEvent('seva-show-mineral-points', {
       detail: {
         mineralKey: key,
@@ -598,9 +634,9 @@ function MineralsTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
           { key: 'silica', name: 'Silica / Quartz', icon: '🏖️', stat: mineralStats?.silica, color: '#2e7d32' },
         ].map(item => {
           const isSelected = selectedMineral === item.key
-          const pct = item.stat ? item.stat.pctHigh : 18.5
-          const ha = item.stat ? item.stat.ha : (farm.area * 0.185)
-          const meanVal = item.stat ? item.stat.mean.toFixed(2) : '1.24'
+          const pct = item.stat ? item.stat.pctHigh : null
+          const ha = item.stat ? item.stat.ha : null
+          const meanVal = item.stat ? item.stat.mean.toFixed(2) : '—'
 
           return (
             <div
@@ -619,15 +655,15 @@ function MineralsTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 20 }}>{item.icon}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 6, background: isSelected ? item.color : '#e2e8f0', color: isSelected ? '#fff' : '#475569' }}>
-                  {f(pct, 0)}% of AOI
+                  {pct == null ? '—' : `${f(pct, 0)}% of AOI`}
                 </span>
               </div>
               <strong style={{ fontSize: 13, color: '#0f172a', display: 'block' }}>{item.name}</strong>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                Ratio: <b style={{ color: '#0f172a' }}>{meanVal}</b> · {f(ha, 2)} ha
+                Ratio: <b style={{ color: '#0f172a' }}>{meanVal}</b> · {ha == null ? '—' : `${f(ha, 2)} ha`}
               </div>
               <div style={{ height: 4, background: '#e2e8f0', borderRadius: 2, marginTop: 8, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, Math.max(5, pct))}%`, background: item.color, height: '100%', borderRadius: 2 }} />
+                <div style={{ width: `${pct == null ? 0 : Math.min(100, Math.max(5, pct))}%`, background: item.color, height: '100%', borderRadius: 2 }} />
               </div>
               <button
                 type="button"
@@ -641,6 +677,12 @@ function MineralsTab({ farm, scene }: { farm: Props['farm']; scene?: Scene }) {
           )
         })}
       </div>
+
+      {pointsNotice && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fdba74', color: '#7c2d12', borderRadius: 10, padding: '10px 14px', fontSize: 12, lineHeight: 1.5 }}>
+          {pointsNotice}
+        </div>
+      )}
 
       {/* Selected Mineral Deep Dive Card */}
       {activeInfo && (

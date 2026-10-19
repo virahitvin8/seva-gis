@@ -196,7 +196,7 @@ NDVI स्तर: ${ndvi}
 Field: ${farmName} (${crop}, ${areaHa} ha)
 Date: ${dateStr}
 Sentinel-2 NDVI: ${ndvi} (Optimal: >0.65)
-Canopy Moisture (NDMI): ${ndmi} | Stress Area: ${stress}%
+Canopy Moisture — NDMI: ${ndmi} | Stress Area: ${stress}%
 Advisory: Overall crop vigour is healthy. Provide targeted booster in low NDVI pockets.
 Full Live Dossier: https://sevagis.dpdns.org/`
 

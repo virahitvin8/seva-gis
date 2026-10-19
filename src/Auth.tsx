@@ -110,6 +110,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   const [selectedDomain, setSelectedDomain] = useState<'agri' | 'hydro' | 'terrain' | 'geology' | 'hazard' | 'vault'>('agri')
   const [activeTechniqueIndex, setActiveTechniqueIndex] = useState<number>(0)
+  const [dialRotation, setDialRotation] = useState(0)
+  const [dialTick, setDialTick] = useState(0)
+  const [dialEngaged, setDialEngaged] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState(false)
   const [googleModalOpen, setGoogleModalOpen] = useState(false)
   const [googleModalEmail, setGoogleModalEmail] = useState('')
   // Google sign-in only works when this deployment configures a real OAuth client ID.
@@ -216,6 +220,35 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   const currentDomain = DOMAIN_DATA[selectedDomain]
   const currentTechnique = currentDomain.techniques[activeTechniqueIndex] || currentDomain.techniques[0]
+
+  // Respect the visitor's reduced-motion preference: no auto-cycle, no orbiting motion.
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = () => setReducedMotion(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  // Clockwise parameter engine: advance one parameter every 3 seconds, always clockwise.
+  // Pauses while the visitor hovers or focuses the dial, and while the tab is hidden.
+  useEffect(() => {
+    if (reducedMotion || dialEngaged) return
+    const count = DOMAIN_DATA[selectedDomain].techniques.length
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      setActiveTechniqueIndex(prev => (prev + 1) % count)
+      setDialRotation(prev => prev + 360 / count)
+    }, 3000)
+    return () => window.clearInterval(id)
+  }, [reducedMotion, dialEngaged, selectedDomain, dialTick])
+
+  // Selection always travels clockwise: the dial only ever rotates forward.
+  const selectTechnique = (i: number) => {
+    setActiveTechniqueIndex(i)
+    setDialRotation(r => r + ((i * 60 - (r % 360) + 360) % 360))
+    setDialTick(t => t + 1)
+  }
 
   async function handleGoogleModalSignIn(e: React.FormEvent) {
     e.preventDefault()
@@ -400,6 +433,19 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     {/* Dedicated Clockwise Parameter Diagram Section */}
     <section className="au-intents-section" aria-label="Domain Explorer & Clockwise Techniques" style={{ width: '100%', background: 'linear-gradient(180deg, rgba(2, 27, 17, 0.85) 0%, rgba(3, 18, 12, 0.95) 100%)', borderTop: '1px solid rgba(52, 211, 153, 0.2)', padding: '72px 24px' }}>
+      <style>{`
+        @keyframes sevadial-spin { to { transform: rotate(360deg); } }
+        .sevadial-spin { animation: sevadial-spin 9s linear infinite; }
+        @keyframes sevadial-ripple { 0% { transform: scale(1); opacity: 0.65; } 100% { transform: scale(2.6); opacity: 0; } }
+        .sevadial-ripple { transform-box: fill-box; transform-origin: center; animation: sevadial-ripple 1.5s ease-out infinite; }
+        @keyframes sevadial-progress { from { stroke-dashoffset: 1162; } to { stroke-dashoffset: 0; } }
+        .sevadial-progress { animation: sevadial-progress 3s linear infinite; }
+        @keyframes sevadial-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .sevadial-fade { animation: sevadial-fade 0.5s ease-out; }
+        @media (prefers-reduced-motion: reduce) {
+          .sevadial-spin, .sevadial-ripple, .sevadial-progress, .sevadial-fade { animation: none; }
+        }
+      `}</style>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 44 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
@@ -409,7 +455,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             Domain Intelligence &amp; Clockwise Parameter Engine
           </h2>
           <p style={{ fontSize: 15.5, color: '#94a3b8', maxWidth: 740, margin: '0 auto', lineHeight: 1.6 }}>
-            Select any spatial discipline below to inspect its clockwise analytical parameters, satellite band math, and autonomous reverse-engineered algorithms.
+            Select any spatial discipline below. The dial auto-cycles clockwise through its six parameters every 3 seconds — hover to pause, or click any node to inspect it.
           </p>
         </div>
 
@@ -425,7 +471,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={() => {
                   setSelectedDomain(key)
-                  setActiveTechniqueIndex(0)
+                  selectTechnique(0)
                 }}
                 style={{
                   display: 'inline-flex',
@@ -451,7 +497,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
 
         {/* Interactive Clockwise Parameter Diagram Component */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 32, backdropFilter: 'blur(12px)' }}>
+        <div
+          onMouseEnter={() => setDialEngaged(true)}
+          onMouseLeave={() => setDialEngaged(false)}
+          onFocusCapture={() => setDialEngaged(true)}
+          onBlurCapture={() => setDialEngaged(false)}
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 32, backdropFilter: 'blur(12px)' }}
+        >
           {/* Circular Clockwise Dial SVG */}
           <div style={{ position: 'relative', width: '100%', maxWidth: 440, aspectRatio: '1/1', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="0 0 400 400" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
@@ -463,7 +515,29 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               </defs>
               {/* Outer guide ring */}
               <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              {/* Per-step progress ring: refills each 3-second cycle while auto-cycling */}
+              {!reducedMotion && !dialEngaged && (
+                <circle
+                  key={`sevadial-progress-${dialTick}-${activeTechniqueIndex}`}
+                  className="sevadial-progress"
+                  cx="200"
+                  cy="200"
+                  r="185"
+                  fill="none"
+                  stroke={currentDomain.color}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray="1162"
+                  strokeDashoffset="1162"
+                  opacity="0.75"
+                  transform="rotate(-90 200 200)"
+                />
+              )}
               <circle cx="200" cy="200" r="145" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeDasharray="4 6" />
+              {/* Ambient dispersion sweep: a slow continuous orbit for depth */}
+              <g className={reducedMotion ? undefined : 'sevadial-spin'} style={{ transformOrigin: '200px 200px' }}>
+                <circle cx="200" cy="200" r="165" fill="none" stroke={currentDomain.color} strokeWidth="1.25" strokeDasharray="30 900" strokeLinecap="round" opacity="0.45" />
+              </g>
               <circle cx="200" cy="200" r="110" fill="url(#dialGlow)" />
 
               {/* Connecting spokes from center to 6 clockwise nodes */}
@@ -489,6 +563,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 )
               })}
 
+              {/* Synced comet: glides clockwise to land on the active parameter */}
+              <g style={{ transformOrigin: '200px 200px', transform: `rotate(${dialRotation}deg)`, transition: reducedMotion ? 'none' : 'transform 0.9s cubic-bezier(0.22, 1, 0.36, 1)' }}>
+                <circle cx="200" cy="55" r="12" fill="none" stroke={currentDomain.color} strokeWidth="1" opacity="0.35" />
+                <circle cx="200" cy="55" r="5" fill={currentDomain.color} style={{ filter: `drop-shadow(0 0 10px ${currentDomain.color})` }} />
+              </g>
+
               {/* Center Domain Hub */}
               <circle cx="200" cy="200" r="46" fill="#0b2419" stroke={currentDomain.color} strokeWidth="2.5" />
               <text x="200" y="196" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="800" fontFamily="sans-serif">
@@ -509,9 +589,21 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 return (
                   <g
                     key={tech.title}
-                    onClick={() => setActiveTechniqueIndex(idx)}
+                    onClick={() => selectTechnique(idx)}
                     style={{ cursor: 'pointer', transition: 'all 0.2s' }}
                   >
+                    {isCurrent && !reducedMotion && (
+                      <circle
+                        key={`sevadial-ripple-${dialTick}-${activeTechniqueIndex}`}
+                        className="sevadial-ripple"
+                        cx={cx}
+                        cy={cy}
+                        r={20}
+                        fill="none"
+                        stroke={currentDomain.color}
+                        strokeWidth="2"
+                      />
+                    )}
                     <circle
                       cx={cx}
                       cy={cy}
@@ -536,10 +628,17 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 )
               })}
             </svg>
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em', color: reducedMotion ? '#94a3b8' : dialEngaged ? '#fbbf24' : '#6ee7b7' }}>
+              {reducedMotion
+                ? 'Reduced motion · select any parameter to inspect it'
+                : dialEngaged
+                  ? 'Paused · move away to resume the clockwise cycle'
+                  : 'Auto-cycling clockwise · one parameter every 3 seconds'}
+            </div>
           </div>
 
           {/* Active Parameter Detail Card */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div key={`${selectedDomain}-${activeTechniqueIndex}`} className="sevadial-fade" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 800, background: currentDomain.bg, color: currentDomain.color, border: `1px solid ${currentDomain.border}`, padding: '3px 10px', borderRadius: 999 }}>
                 Position {currentTechnique.angle} · Parameter #{activeTechniqueIndex + 1} of 6
@@ -577,7 +676,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 <button
                   key={t.title}
                   type="button"
-                  onClick={() => setActiveTechniqueIndex(i)}
+                  onClick={() => selectTechnique(i)}
                   style={{
                     padding: '5px 12px',
                     borderRadius: 6,

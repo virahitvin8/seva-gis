@@ -1,14 +1,17 @@
-/* SEVA·GIS Precision Boundary Processing & Optical Telemetry
-   High-end, bespoke architectural geospatial styling.
-   Clean ambient luminescence, razor-sharp vector perimeter, and subtle telemetry sweep. */
+/* SEVA·GIS Precision Boundary Processing — premium optical telemetry.
+   A calm emerald rail with a single luminous comet and a soft trailing tail.
+   Deliberately restrained: no neon-white sweep, no scale-pulsing markers, no
+   stacked drop shadows. All colours are scoped here; scientific raster
+   palettes elsewhere in the app are untouched. */
 
 :root {
-  --seva-boundary-primary: #10b981;
-  --seva-boundary-core: #34d399;
-  --seva-boundary-halo: rgba(16, 185, 129, 0.22);
-  --seva-boundary-glow: rgba(52, 211, 153, 0.35);
-  --seva-boundary-fill: rgba(16, 185, 129, 0.05);
-  --seva-telemetry-duration: 3.6s;
+  --seva-boundary-rail: oklch(0.82 0.13 158);
+  --seva-boundary-core: oklch(0.97 0.05 150);
+  --seva-boundary-tail: oklch(0.85 0.15 156 / 0.55);
+  --seva-boundary-aura: oklch(0.85 0.15 156 / 0.2);
+  --seva-boundary-glow: oklch(0.78 0.17 155 / 0.55);
+  --seva-boundary-fill: oklch(0.82 0.13 158 / 0.05);
+  --seva-boundary-duration: 6.4s;
 }
 
 .seva-processing-pane {
@@ -19,95 +22,127 @@
   pointer-events: none;
 }
 
-/* 1. Luminous Atmospheric Interior Tint (Subtle glassmorphic fill) */
+/* Screen-reader only: announces processing politely. The visible progress
+   toast lives in the map HUD; this node exists purely for assistive tech. */
+.seva-processing-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 1. Interior ambience: a barely-there glassmorphic tint that breathes. */
 .seva-boundary-radar-fill {
-  fill: var(--seva-boundary-primary);
-  fill-opacity: 0.06;
+  fill: var(--seva-boundary-fill);
   stroke: none;
-  animation: seva-boundary-breathe 4.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  animation: seva-boundary-breathe 7s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
 }
 
 .seva-boundary-rail,
 .seva-boundary-halo,
-.seva-boundary-laser,
-.seva-boundary-pulse {
+.seva-boundary-comet,
+.seva-boundary-aura {
   fill: none;
   pointer-events: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* 2. Base Razor-Sharp Vector Boundary Rail */
+/* 2. Base rail: crisp, quiet, always visible. */
 .seva-boundary-rail {
-  stroke: var(--seva-boundary-primary);
-  stroke-width: 2;
-  stroke-opacity: 0.95;
-  filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4));
+  stroke: var(--seva-boundary-rail);
+  stroke-width: 1.6;
+  stroke-opacity: 0.62;
 }
 
-/* 3. Soft Ambient Luminous Halo (Gentle outer aura, never harsh) */
+/* 3. Aura: the widest, faintest layer of the comet's wake. */
+.seva-boundary-aura {
+  stroke: var(--seva-boundary-aura);
+  stroke-width: 9;
+  stroke-dasharray: 160 840;
+  animation: seva-boundary-travel-aura var(--seva-boundary-duration) linear infinite;
+}
+
+/* 4. Tail: the luminous wake directly behind the comet head. */
 .seva-boundary-halo {
+  stroke: var(--seva-boundary-tail);
+  stroke-width: 5;
+  stroke-dasharray: 96 904;
+  filter: drop-shadow(0 0 4px var(--seva-boundary-glow));
+  animation: seva-boundary-travel-tail var(--seva-boundary-duration) linear infinite;
+}
+
+/* 5. Comet head: one bright, finite point of light travelling the perimeter. */
+.seva-boundary-comet {
   stroke: var(--seva-boundary-core);
-  stroke-width: 4.5;
-  stroke-opacity: 0.35;
-  filter: drop-shadow(0 0 6px var(--seva-boundary-halo));
-  animation: seva-halo-breathe 3.6s ease-in-out infinite alternate;
+  stroke-width: 2.2;
+  stroke-dasharray: 18 982;
+  filter: drop-shadow(0 0 3px var(--seva-boundary-glow));
+  animation: seva-boundary-travel var(--seva-boundary-duration) linear infinite;
 }
 
-/* 4. Single Elegant Satellite Radar Telemetry Sweep (Glides along perimeter during active compute) */
-.seva-boundary-laser {
-  stroke: #ffffff;
-  stroke-width: 2.4;
-  stroke-opacity: 0.95;
-  stroke-dasharray: 120 880;
-  filter: drop-shadow(0 0 4px #ffffff) drop-shadow(0 0 8px var(--seva-boundary-primary));
-  animation: seva-telemetry-sweep var(--seva-telemetry-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
-}
-
-/* 5. Minimalist Micro-Engineered Corner Vertex Anchors */
+/* 6. Vertex anchors: quiet waypoint ticks, no scaling, no glare. */
 .seva-boundary-beacon {
-  fill: #ffffff;
-  stroke: var(--seva-boundary-primary);
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.6));
-  animation: seva-vertex-glow 2.8s ease-in-out infinite alternate;
+  fill: var(--seva-boundary-core);
+  stroke: var(--seva-boundary-rail);
+  stroke-width: 1;
+  stroke-opacity: 0.7;
+  animation: seva-boundary-beacon-breathe 6s ease-in-out infinite alternate;
 }
 
-/* Smooth, calming animations */
-@keyframes seva-telemetry-sweep {
+/* The three travel layers share one constant speed. Their keyframe offsets
+   differ by exactly the dash lengths, so the aura trails the tail and the
+   tail trails the comet head — and the loop is seamless (each pass shifts
+   the dash pattern by exactly -1000, the intrinsic path length). */
+@keyframes seva-boundary-travel {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: -1000; }
 }
+@keyframes seva-boundary-travel-tail {
+  from { stroke-dashoffset: 96; }
+  to { stroke-dashoffset: -904; }
+}
+@keyframes seva-boundary-travel-aura {
+  from { stroke-dashoffset: 160; }
+  to { stroke-dashoffset: -840; }
+}
 
 @keyframes seva-boundary-breathe {
-  0% { fill-opacity: 0.04; }
-  100% { fill-opacity: 0.08; }
+  0% { fill-opacity: 0.7; }
+  100% { fill-opacity: 1; }
 }
 
-@keyframes seva-halo-breathe {
-  0% { stroke-opacity: 0.22; stroke-width: 4; }
-  100% { stroke-opacity: 0.42; stroke-width: 5; }
+@keyframes seva-boundary-beacon-breathe {
+  0% { fill-opacity: 0.55; }
+  100% { fill-opacity: 0.9; }
 }
 
-@keyframes seva-vertex-glow {
-  0% { transform: scale(0.95); opacity: 0.85; }
-  100% { transform: scale(1.1); opacity: 1; }
-}
-
-/* Respect reduced-motion accessibility */
+/* Respect reduced-motion: a static, precise perimeter — nothing travels. */
 @media (prefers-reduced-motion: reduce) {
-  .seva-boundary-halo,
-  .seva-boundary-laser,
   .seva-boundary-radar-fill,
+  .seva-boundary-halo,
+  .seva-boundary-comet,
+  .seva-boundary-aura,
   .seva-boundary-beacon {
     animation: none;
     filter: none;
   }
-  .seva-boundary-laser {
+  .seva-boundary-halo,
+  .seva-boundary-comet,
+  .seva-boundary-aura {
     display: none;
   }
-  .seva-boundary-halo {
-    stroke-opacity: 0.25;
-    stroke-width: 3.5;
+  .seva-boundary-rail {
+    stroke-opacity: 0.75;
+    stroke-width: 2;
+  }
+  .seva-boundary-radar-fill {
+    fill-opacity: 0.8;
   }
 }

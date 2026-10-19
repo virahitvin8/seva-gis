@@ -25,15 +25,16 @@ export function useBoundaryProcessing(
 
     const createdLayers: L.Layer[] = [];
 
-    // 1. Holographic interior radar polygon fill
+    // 1. Interior ambience: a barely-there glassmorphic tint
     const radarFill = L.polygon(points, {
       renderer, pane: paneName, interactive: false,
       className: 'seva-boundary-radar-fill', smoothFactor: 0,
     }).addTo(map);
     createdLayers.push(radarFill);
 
-    // 2. High-precision laser and rail perimeter lines
-    const lineKinds = ['rail', 'halo', 'laser'];
+    // 2. Premium perimeter: static rail + travelling comet with its luminous
+    //    tail (halo) and the faintest outer aura. One shared speed, seamless loop.
+    const lineKinds = ['rail', 'halo', 'comet', 'aura'];
     lineKinds.forEach(kind => {
       const layer = L.polyline(points, {
         renderer, pane: paneName, interactive: false,
@@ -48,11 +49,11 @@ export function useBoundaryProcessing(
       createdLayers.push(layer);
     });
 
-    // 3. Vertex precision micro-anchors on boundary corners
+    // 3. Quiet vertex waypoint anchors on boundary corners
     boundary.forEach(([lat, lng]) => {
       const beacon = L.circleMarker([lat, lng], {
         renderer, pane: paneName, interactive: false,
-        radius: 2.5,
+        radius: 1.8,
         className: 'seva-boundary-beacon',
       }).addTo(map);
       createdLayers.push(beacon);

@@ -42,15 +42,34 @@ const makeView = reportMakeView
 const pts = (ring: [number, number][], v: View) => ring.map(p => v.px(p[0], p[1]).map(n => n.toFixed(1)).join(',')).join(' ')
 
 /**
+ * Honest placeholder for a figure whose inputs SEVA.GIS cannot produce on the
+ * device (a calibrated SWAT run, a published gauging-station dataset, …).
+ * The frame keeps pagination and typography stable and the words state exactly
+ * what is missing. Invented curves, gauges or statistics are never drawn here.
+ */
+function renderUnavailableFigureSvg(figLabel: string, title: string, reasons: string[], H = 340) {
+  const W = 720
+  return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${W}" height="${H}" fill="#ffffff" stroke="#10231b" stroke-width="1.5"/>
+    <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="#fafcf9" stroke="#10231b" stroke-width="0.8" stroke-dasharray="6 4"/>
+    <text x="${W / 2}" y="56" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12" font-weight="700" fill="#b45309" letter-spacing="1">${esc(figLabel.toUpperCase())} · DATA UNAVAILABLE</text>
+    <text x="${W / 2}" y="90" text-anchor="middle" font-family="'Times New Roman',serif" font-size="14" font-weight="700" fill="#10231b">${esc(title)}</text>
+    <line x1="${W / 2 - 60}" y1="102" x2="${W / 2 + 60}" y2="102" stroke="#10231b" stroke-width="0.8"/>
+    ${reasons.map((r, i) => `<text x="${W / 2}" y="${132 + i * 22}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10" fill="#444">${esc(r)}</text>`).join('')}
+    <text x="${W / 2}" y="${H - 28}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" fill="#666">SEVA·GIS draws this figure only when its real inputs exist — illustrative or placeholder values are never shown.</text>
+  </svg>`
+}
+
+/**
  * 3D Isometric Clipped Topographic Mesh Generator
  */
 function render3dTerrainSvg(dem: Grid | null, ring: [number, number][], farmName: string, fb: [number, number, number, number]) {
   const W = 720, H = 420
   if (!dem) {
-    return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="${W}" height="${H}" fill="#f4f7f2" stroke="#10231b" stroke-width="1.5"/>
-      <text x="${W/2}" y="${H/2}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="16" fill="#4a5d4e">3D Elevation Model generating from Copernicus GLO-30 DEM...</text>
-    </svg>`
+    return renderUnavailableFigureSvg('Fig 1.1', '3D Topographic Model', [
+      'No Copernicus GLO-30 elevation grid is loaded for this area of interest.',
+      'Open the farm while online to fetch terrain, then generate the report again.',
+    ], H)
   }
 
   const elevs = dem.b.elev
@@ -62,7 +81,11 @@ function render3dTerrainSvg(dem: Grid | null, ring: [number, number][], farmName
       if (e > maxElev) maxElev = e
     }
   }
-  if (!Number.isFinite(minElev)) { minElev = 220; maxElev = 280 }
+  if (!Number.isFinite(minElev)) {
+    return renderUnavailableFigureSvg('Fig 1.1', `3D Topographic Model of ${farmName}`, [
+      'The loaded elevation grid holds no valid height cells for this area of interest.',
+    ], H)
+  }
   if (maxElev - minElev < 2) maxElev = minElev + 10
 
   const gw = Math.min(dem.w, 42)
@@ -185,6 +208,7 @@ function renderOverallHealthPieSvg(
   let currentAngle = -Math.PI / 2
 
   const paths = slices.map(s => {
+    if (s.pct <= 0) return '' // legend-only entry (e.g. deductions), no arc
     const angle = (s.pct / 100) * 2 * Math.PI
     const startAngle = currentAngle
     const endAngle = currentAngle + angle
@@ -213,7 +237,7 @@ function renderOverallHealthPieSvg(
     return `<path d="${d}" fill="${s.color}" stroke="#ffffff" stroke-width="2.5"/>`
   }).join('')
 
-  const statusLabel = rawScore >= 78 ? 'VIBRANT & ROBUST' : rawScore >= 55 ? 'MODERATE VITALITY' : 'STRESS DETECTED'
+  const statusLabel = rawScore >= 78 ? 'HIGH INDEX (ESTIMATE)' : rawScore >= 55 ? 'MODERATE INDEX' : 'LOW INDEX'
   const statusColor = rawScore >= 78 ? '#047857' : rawScore >= 55 ? '#b45309' : '#b91c1c'
 
   const legendItems = slices.map((s, idx) => {
@@ -221,7 +245,7 @@ function renderOverallHealthPieSvg(
     return `
       <g transform="translate(360, ${y})">
         <rect x="0" y="0" width="18" height="18" rx="4" fill="${s.color}" stroke="#10231b" stroke-width="0.5"/>
-        <text x="28" y="14" font-family="'Times New Roman',serif" font-size="11.5" font-weight="bold" fill="#10231b">${esc(s.label)} (${s.pct.toFixed(0)}%)</text>
+        <text x="28" y="14" font-family="'Times New Roman',serif" font-size="11.5" font-weight="bold" fill="#10231b">${esc(s.label)}${s.pct > 0 ? ` (weight ${s.pct.toFixed(0)}%)` : ''}</text>
         <text x="28" y="29" font-family="'Times New Roman',serif" font-size="9.5" fill="#444444">${esc(s.val)}</text>
       </g>
     `
@@ -237,7 +261,7 @@ function renderOverallHealthPieSvg(
     <!-- Center Badge -->
     <circle cx="${cx}" cy="${cy}" r="${ir - 3}" fill="#ffffff" stroke="#10231b" stroke-width="1.2"/>
     <text x="${cx}" y="${cy - 10}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="28" font-weight="bold" fill="${statusColor}">${rawScore}</text>
-    <text x="${cx}" y="${cy + 7}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="bold" fill="#666666">SCORE / 100</text>
+    <text x="${cx}" y="${cy + 7}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="bold" fill="#666666">EST. SCORE / 100</text>
     <text x="${cx}" y="${cy + 22}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8" font-weight="bold" fill="${statusColor}" letter-spacing="0.5">${statusLabel}</text>
 
     <!-- Title and Legend -->
@@ -245,7 +269,7 @@ function renderOverallHealthPieSvg(
     <line x1="360" y1="36" x2="${W - 24}" y2="36" stroke="#10231b" stroke-width="1"/>
     <g>${legendItems}</g>
 
-    <text x="${W - 20}" y="${H - 18}" text-anchor="end" font-family="'Times New Roman',serif" font-size="8.5" font-style="italic" fill="#666666">Calibrated Sentinel-2 Multi-Spectral Health Synthesis (SEVA·GIS Agro-Forensic Core)</text>
+    <text x="${W - 20}" y="${H - 18}" text-anchor="end" font-family="'Times New Roman',serif" font-size="8.5" font-style="italic" fill="#666666">Sentinel-2 Multi-Spectral Health Synthesis (SEVA·GIS Agro-Spatial Core)</text>
   </svg>`
 }
 
@@ -397,111 +421,12 @@ function render2dCartographicMap(
   </svg>`
 }
 
-/**
- * Generate Sensitivity Analysis & Dotty Plots
- */
-function renderSensitivityChartsSvg() {
-  const W = 720, H = 340
-  return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H}" fill="#ffffff" stroke="#10231b" stroke-width="1.5"/>
-    
-    <g transform="translate(18, 18)">
-      <rect width="330" height="${H - 36}" fill="#fafcf9" stroke="#10231b" stroke-width="0.8"/>
-      <text x="165" y="20" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12" font-weight="700" fill="#10231b">Global Parameter Sensitivity (SUFI-2)</text>
-      <text x="165" y="34" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" fill="#555">t-stat (orange magnitude) vs p-value (green significance)</text>
-      
-      ${[
-        { name: '1: r__CN2.mgt', t: 14.8, p: 0.001 },
-        { name: '2: v__ALPHA_BF.gw', t: 9.6, p: 0.004 },
-        { name: '3: a__GW_REVAP.gw', t: 7.2, p: 0.012 },
-        { name: '4: r__SOL_AWC().sol', t: 6.1, p: 0.025 },
-        { name: '5: v__ESCO.hru', t: 4.8, p: 0.038 },
-        { name: '6: v__EPCO.hru', t: 3.2, p: 0.071 },
-        { name: '7: r__OV_N.bsn', t: 2.1, p: 0.142 },
-      ].map((p, idx) => {
-        const y = 52 + idx * 34
-        const wT = p.t * 8.5
-        const wP = (1 - p.p) * 110
-        return `
-          <text x="12" y="${y + 12}" font-family="'Times New Roman',serif" font-size="9.5" font-weight="700" fill="#10231b">${p.name}</text>
-          <rect x="12" y="${y + 16}" width="${wT}" height="8" rx="2" fill="#e76f51"/>
-          <text x="${18 + wT}" y="${y + 24}" font-family="'Times New Roman',serif" font-size="8.5" fill="#e76f51">t=${p.t}</text>
-          <rect x="180" y="${y + 16}" width="${wP}" height="8" rx="2" fill="#2a9d8f"/>
-          <text x="${186 + wP}" y="${y + 24}" font-family="'Times New Roman',serif" font-size="8.5" fill="#2a9d8f">p=${p.p}</text>
-        `
-      }).join('')}
-    </g>
-
-    <g transform="translate(366, 18)">
-      <rect width="336" height="${H - 36}" fill="#fafcf9" stroke="#10231b" stroke-width="0.8"/>
-      <text x="168" y="20" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12" font-weight="700" fill="#10231b">Parameter Calibration Dotty Plots (NSE)</text>
-      
-      <g transform="translate(14, 38)">
-        <rect width="144" height="110" fill="#ffffff" stroke="#10231b" stroke-width="0.6"/>
-        <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(a) r__CN2.mgt</text>
-        ${Array.from({ length: 32 }).map((_, i) => {
-          const u = i / 31
-          const det = (Math.sin(i * 4.1 + 0.8) * 0.5) * 0.06
-          const nse = 0.35 + 0.38 * Math.sin(u * Math.PI) + det
-          const px = 12 + u * 120
-          const py = 100 - (nse - 0.2) * 110
-          return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
-        }).join('')}
-        <text x="12" y="106" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">-0.2</text>
-        <text x="132" y="106" text-anchor="end" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">+0.2</text>
-      </g>
-
-      <g transform="translate(176, 38)">
-        <rect width="144" height="110" fill="#ffffff" stroke="#10231b" stroke-width="0.6"/>
-        <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(b) r__SOL_AWC</text>
-        ${Array.from({ length: 32 }).map((_, i) => {
-          const u = i / 31
-          const det = (Math.cos(i * 3.7 + 1.2) * 0.5) * 0.07
-          const nse = 0.42 + 0.29 * Math.sin(u * Math.PI) + det
-          const px = 12 + u * 120
-          const py = 100 - (nse - 0.2) * 110
-          return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
-        }).join('')}
-        <text x="12" y="106" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">-0.25</text>
-        <text x="132" y="106" text-anchor="end" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">+0.25</text>
-      </g>
-
-      <g transform="translate(14, 162)">
-        <rect width="144" height="110" fill="#ffffff" stroke="#10231b" stroke-width="0.6"/>
-        <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(c) v__ALPHA_BF</text>
-        ${Array.from({ length: 32 }).map((_, i) => {
-          const u = i / 31
-          const det = (Math.sin(i * 5.3 + 2.1) * 0.5) * 0.06
-          const nse = 0.40 + 0.31 * Math.sin(u * Math.PI) + det
-          const px = 12 + u * 120
-          const py = 100 - (nse - 0.2) * 110
-          return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
-        }).join('')}
-        <text x="12" y="106" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">0.0</text>
-        <text x="132" y="106" text-anchor="end" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">1.0</text>
-      </g>
-
-      <g transform="translate(176, 162)">
-        <rect width="144" height="110" fill="#ffffff" stroke="#10231b" stroke-width="0.6"/>
-        <text x="72" y="14" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700">(d) v__ESCO</text>
-        ${Array.from({ length: 32 }).map((_, i) => {
-          const u = i / 31
-          const det = (Math.cos(i * 4.9 + 0.5) * 0.5) * 0.05
-          const nse = 0.45 + 0.26 * Math.sin(u * Math.PI) + det
-          const px = 12 + u * 120
-          const py = 100 - (nse - 0.2) * 110
-          return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.8" fill="#1b4332"/>`
-        }).join('')}
-        <text x="12" y="106" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">0.0</text>
-        <text x="132" y="106" text-anchor="end" font-family="'Times New Roman',serif" font-size="7.5" fill="#666">1.0</text>
-      </g>
-    </g>
-  </svg>`
-}
 
 /**
- * Fig 3.6: Ground Discharge Station & Stream Network Map
- * Directly matches 2.jpeg in MAPS REF
+ * Fig 3.6: Hydrology Context Map.
+ * The previous version drew an invented river network and three invented
+ * gauging stations. SEVA.GIS bundles no station dataset, so the figure now
+ * shows only the real base map and boundary, and says so in the legend.
  */
 function renderGroundDischargeStationMapSvg(
   v: View,
@@ -511,368 +436,104 @@ function renderGroundDischargeStationMapSvg(
 ): string {
   const leg = `<text x="12" y="16" font-family="'Times New Roman',serif" font-size="11" font-weight="700" fill="#10231b">Legend</text>
     <rect x="12" y="24" width="12" height="8" fill="none" stroke="#10231b" stroke-width="1.2"/><text x="28" y="31" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Study Area</text>
-    <circle cx="18" cy="42" r="3.5" fill="#d90429"/><text x="28" y="45" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Catchment Outlet Gauge</text>
-    <circle cx="18" cy="54" r="3.5" fill="#f77f00"/><text x="28" y="57" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Inflow Hydro-Station</text>
-    <circle cx="18" cy="66" r="3.5" fill="#7209b7"/><text x="28" y="69" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Riparian Monitoring Node</text>
-    <line x1="12" y1="78" x2="24" y2="78" stroke="#0077b6" stroke-width="2.5"/><text x="28" y="81" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Stream Reach (Order 1-3)</text>`
-
-  const riverNetwork = `
-    <!-- Sub-basin catchments -->
-    <path d="M 120 80 Q 240 140 340 110 T 520 180 T 600 320" fill="none" stroke="#0077b6" stroke-width="3" opacity="0.85"/>
-    <path d="M 220 160 Q 300 210 340 280 T 420 370" fill="none" stroke="#0096c7" stroke-width="2" opacity="0.8"/>
-    <path d="M 450 120 Q 420 220 380 290" fill="none" stroke="#48cae4" stroke-width="1.5" opacity="0.75"/>
-    <!-- Gauging station monuments -->
-    <g transform="translate(340, 275)"><circle cx="0" cy="0" r="5" fill="#d90429" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Outlet Gauge</text></g>
-    <g transform="translate(420, 365)"><circle cx="0" cy="0" r="5" fill="#f77f00" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Inflow Stn</text></g>
-    <g transform="translate(240, 145)"><circle cx="0" cy="0" r="5" fill="#7209b7" stroke="#fff" stroke-width="1.5"/><text x="8" y="3" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#10231b">Sub-basin Node</text></g>
-  `
+    <text x="12" y="48" font-family="'Times New Roman',serif" font-size="8.5" fill="#b45309">No gauging-station dataset is bundled.</text>
+    <text x="12" y="61" font-family="'Times New Roman',serif" font-size="8.5" fill="#b45309">Stream network needs external data.</text>`
 
   return render2dCartographicMap(
     'Fig 3.6',
-    `Ground Discharge Station & Hydrology Map of ${farmName}`,
+    `Hydrology Context Map of ${farmName}`,
     v,
     ring,
-    `${layerContent}${riverNetwork}`,
+    layerContent,
     leg,
-    'Source: Streamflow Records & Hydrology Sub-basin Network'
+    'Source: Esri World Imagery base map - no streamflow gauge dataset included'
   )
 }
-
 /**
- * Fig 4.1: Landuse Summary Bar Chart
- * Directly matches 6.jpeg in MAPS REF
+ * Fig 4.1: Landuse water partition - honest placeholder.
+ * Splitting rainfall into runoff / groundwater / evapotranspiration needs a
+ * calibrated hydrological model (SWAT-class) with observed streamflow records.
+ * SEVA.GIS does not run one on the device, so the figure states that instead
+ * of drawing invented proportions.
  */
-function renderLanduseSummaryChartSvg(precVal = 1171, studyAreaName = 'Study Area'): string {
-  const W = 720, H = 340
-  const surqVal = Math.round(precVal * 0.29)
-  const gwqVal = Math.round(precVal * 0.21)
-  const etVal = Math.round(precVal * 0.38)
-  const cats = [
-    { name: 'PREC (mm)', vals: [precVal, precVal, precVal, precVal] },
-    { name: 'SURQ (mm)', vals: [Math.round(surqVal * 1.05), surqVal, Math.round(surqVal * 0.8), Math.round(surqVal * 0.87)] },
-    { name: 'GWQ (mm)',  vals: [Math.round(gwqVal * 1.15), gwqVal, Math.round(gwqVal * 1.35), Math.round(gwqVal * 1.2)] },
-    { name: 'ET (mm)',   vals: [Math.round(etVal * 1.05), etVal, Math.round(etVal * 1.18), Math.round(etVal * 1.14)] },
-  ]
-  const colors = ['#1d4ed8', '#ea580c', '#64748b', '#eab308']
-  const names = ['AGRL', 'AGRR', 'FRSD', 'SWRN']
-  const maxVal = Math.max(1300, Math.round(precVal * 1.15))
-  const chartX = 70, chartY = 50, chartW = 590, chartH = 220
-
-  const bars = cats.map((c, cIdx) => {
-    const groupX = chartX + cIdx * (chartW / cats.length) + 20
-    const barW = 24
-    return `
-      <g transform="translate(${groupX}, 0)">
-        ${c.vals.map((v, vIdx) => {
-          const bH = (v / maxVal) * chartH
-          const bY = chartY + chartH - bH
-          const bX = vIdx * (barW + 4)
-          return `
-            <rect x="${bX}" y="${bY}" width="${barW}" height="${bH}" fill="${colors[vIdx]}" rx="1"/>
-            <text x="${bX + barW / 2}" y="${bY - 4}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">${v}</text>
-          `
-        }).join('')}
-        <text x="${(4 * (barW + 4)) / 2 - 2}" y="${chartY + chartH + 20}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10.5" font-weight="700" fill="#10231b">${c.name}</text>
-      </g>
-    `
-  }).join('')
-
-  return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H}" fill="#ffffff" stroke="#10231b" stroke-width="1.5"/>
-    <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="#fcfdfb" stroke="#10231b" stroke-width="0.8"/>
-    
-    <text x="${W / 2}" y="32" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12" font-weight="700" fill="#10231b" letter-spacing="1">LANDUSE SUMMARY · WATER BALANCE PARTITION (${esc(studyAreaName.toUpperCase())})</text>
-    
-    <!-- Y-Axis Gridlines -->
-    ${[0, Math.round(maxVal * 0.25), Math.round(maxVal * 0.5), Math.round(maxVal * 0.75), maxVal].map(yVal => {
-      const y = chartY + chartH - (yVal / maxVal) * chartH
-      return `
-        <line x1="${chartX}" y1="${y}" x2="${chartX + chartW}" y2="${y}" stroke="#e2e8f0" stroke-width="0.8"/>
-        <text x="${chartX - 8}" y="${y + 3}" text-anchor="end" font-family="'Times New Roman',serif" font-size="9" fill="#555">${yVal}</text>
-      `
-    }).join('')}
-    
-    <!-- Bars -->
-    ${bars}
-    
-    <!-- Legend -->
-    <g transform="translate(${W / 2 - 160}, ${H - 24})">
-      ${names.map((n, i) => `
-        <g transform="translate(${i * 85}, 0)">
-          <rect width="12" height="12" fill="${colors[i]}" rx="2"/>
-          <text x="18" y="10" font-family="'Times New Roman',serif" font-size="9.5" font-weight="700" fill="#10231b">${n}</text>
-        </g>
-      `).join('')}
-    </g>
-  </svg>`
+function renderLanduseSummaryChartSvg(studyAreaName: string): string {
+  return renderUnavailableFigureSvg('Fig 4.1', `Water Partition by Landuse - ${studyAreaName}`, [
+    'Splitting rainfall into runoff, groundwater and evapotranspiration needs a',
+    'calibrated hydrological model (SWAT-class) with observed streamflow records.',
+    'SEVA.GIS does not run such a model on the device, so no numbers are drawn.',
+  ], 300)
 }
-
 /**
- * Fig 4.2: Water Balance Report Schematic Diagram
- * Dynamic to the specific Study Area
+ * Fig 4.2: Water balance budget - honest placeholder.
+ * A continuous water-balance budget cannot be produced without a calibrated
+ * model run, so the figure states exactly what is missing.
  */
-function renderWaterBalanceReportSvg(precVal = 1171, studyAreaName = 'Study Area'): string {
-  const W = 720, H = 380
-  const surqVal = (precVal * 0.29).toFixed(1)
-  const etVal = (precVal * 0.38).toFixed(1)
-  const percVal = (precVal * 0.32).toFixed(1)
-  const gwqVal = (precVal * 0.21).toFixed(1)
-
-  return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H}" fill="#ffffff" stroke="#10231b" stroke-width="1.5"/>
-    <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="#f7faf6" stroke="#10231b" stroke-width="0.8"/>
-    
-    <!-- Header Title -->
-    <g transform="translate(${W / 2}, 30)">
-      <text text-anchor="middle" font-family="'Times New Roman',serif" font-size="12.5" font-weight="700" fill="#10231b" letter-spacing="0.5">WATER BALANCE REPORT &amp; FLOW BUDGET · ${esc(studyAreaName.toUpperCase())}</text>
-      <text y="15" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" fill="#555">Continuous Soil Moisture &amp; Aquifer Cycle (SWAT Model Simulation)</text>
-    </g>
-
-    <!-- Sky / Atmosphere -->
-    <rect x="30" y="55" width="660" height="90" fill="#e0f2fe" opacity="0.4"/>
-    
-    <!-- Ground Surface Slope -->
-    <path d="M 30 180 Q 220 180 340 210 T 560 250 L 690 250 L 690 340 L 30 340 Z" fill="#fef3c7" stroke="#b45309" stroke-width="1"/>
-    
-    <!-- Shallow Aquifer -->
-    <path d="M 30 250 L 560 270 L 690 270 L 690 320 L 30 320 Z" fill="#bae6fd" opacity="0.8"/>
-    
-    <!-- Deep Aquifer / Bedrock -->
-    <rect x="30" y="320" width="660" height="30" fill="#64748b" opacity="0.4"/>
-    
-    <!-- River / Drainage Channel on right -->
-    <path d="M 560 250 Q 610 250 630 280 L 690 280 L 690 340 L 560 340 Z" fill="#0284c7"/>
-    <text x="640" y="270" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#ffffff">River Reach</text>
-
-    <!-- Tree & Canopy -->
-    <g transform="translate(180, 100)">
-      <rect x="22" y="45" width="12" height="36" fill="#78350f"/>
-      <circle cx="28" cy="35" r="32" fill="#15803d"/>
-      <circle cx="15" cy="25" r="22" fill="#16a34a"/>
-      <circle cx="42" cy="25" r="24" fill="#22c55e"/>
-    </g>
-
-    <!-- Precipitation Stream -->
-    <g transform="translate(100, 70)">
-      <line x1="0" y1="0" x2="40" y2="70" stroke="#0284c7" stroke-width="2" stroke-dasharray="4 3"/>
-      <line x1="15" y1="0" x2="55" y2="70" stroke="#0284c7" stroke-width="2" stroke-dasharray="4 3"/>
-      <line x1="30" y1="0" x2="70" y2="70" stroke="#0284c7" stroke-width="2" stroke-dasharray="4 3"/>
-      <polygon points="70,70 62,64 68,60" fill="#0284c7"/>
-      <rect x="-10" y="8" width="120" height="26" rx="3" fill="#ffffff" stroke="#0284c7" stroke-width="1"/>
-      <text x="50" y="22" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#0369a1">Precipitation</text>
-      <text x="50" y="32" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="800" fill="#0284c7">${precVal.toLocaleString()} mm</text>
-    </g>
-
-    <!-- Evapotranspiration ET -->
-    <g transform="translate(255, 65)">
-      <path d="M 10 40 Q 15 20 10 0" fill="none" stroke="#ea580c" stroke-width="2"/>
-      <path d="M 25 40 Q 30 20 25 0" fill="none" stroke="#ea580c" stroke-width="2"/>
-      <polygon points="10,0 6,8 14,8" fill="#ea580c"/>
-      <polygon points="25,0 21,8 29,8" fill="#ea580c"/>
-      <rect x="35" y="8" width="135" height="30" rx="3" fill="#ffffff" stroke="#ea580c" stroke-width="1"/>
-      <text x="102" y="22" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#c2410c">Evaporation &amp; Transp.</text>
-      <text x="102" y="33" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="800" fill="#ea580c">${etVal} mm</text>
-    </g>
-
-    <!-- Surface Runoff SURQ -->
-    <g transform="translate(420, 210)">
-      <line x1="0" y1="0" x2="80" y2="18" stroke="#dc2626" stroke-width="2.5"/>
-      <polygon points="80,18 70,12 73,20" fill="#dc2626"/>
-      <rect x="0" y="-28" width="115" height="25" rx="3" fill="#ffffff" stroke="#dc2626" stroke-width="1"/>
-      <text x="57" y="-15" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#b91c1c">Surface Runoff</text>
-      <text x="57" y="-5" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="800" fill="#dc2626">${surqVal} mm</text>
-    </g>
-
-    <!-- Lateral Flow -->
-    <g transform="translate(380, 240)">
-      <line x1="0" y1="0" x2="60" y2="10" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="3 2"/>
-      <polygon points="60,10 52,6 54,12" fill="#f59e0b"/>
-      <text x="30" y="-4" text-anchor="middle" font-family="'Times New Roman',serif" font-size="7.5" font-weight="700" fill="#b45309">Lateral Flow: 9.95 mm</text>
-    </g>
-
-    <!-- Percolation to Shallow Aquifer -->
-    <g transform="translate(230, 220)">
-      <line x1="0" y1="0" x2="0" y2="35" stroke="#0284c7" stroke-width="2"/>
-      <polygon points="0,35 -4,27 4,27" fill="#0284c7"/>
-      <text x="6" y="20" font-family="'Times New Roman',serif" font-size="7.5" font-weight="700" fill="#0369a1">Percolation: ${percVal} mm</text>
-    </g>
-
-    <!-- Return Flow GWQ to River -->
-    <g transform="translate(480, 280)">
-      <line x1="0" y1="0" x2="70" y2="0" stroke="#0891b2" stroke-width="2.5"/>
-      <polygon points="70,0 62,-4 62,4" fill="#0891b2"/>
-      <rect x="-5" y="-24" width="115" height="22" rx="3" fill="#ffffff" stroke="#0891b2" stroke-width="1"/>
-      <text x="52" y="-13" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#0e7490">Groundwater Return (GWQ)</text>
-      <text x="52" y="-3" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" font-weight="800" fill="#0891b2">${gwqVal} mm</text>
-    </g>
-
-    <!-- Bottom Parameters Summary -->
-    <g transform="translate(30, ${H - 32})">
-      <rect width="660" height="22" fill="#f1f5f9" stroke="#cbd5e1" rx="3"/>
-      <text x="12" y="15" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#10231b">Average Curve Number (CN): 75.62</text>
-      <text x="260" y="15" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#10231b">Total Water Yield: ${(parseFloat(surqVal) + parseFloat(gwqVal)).toFixed(1)} mm</text>
-      <text x="490" y="15" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#10231b">Deep Aquifer Recharge: 23.40 mm</text>
-    </g>
-  </svg>`
+function renderWaterBalanceReportSvg(studyAreaName: string): string {
+  return renderUnavailableFigureSvg('Fig 4.2', `Water Balance Budget - ${studyAreaName}`, [
+    'A continuous water-balance budget requires a calibrated SWAT run.',
+    'Attach a completed model run (or observed streamflow) to populate this figure.',
+    'SEVA.GIS shows no illustrative budget in the meantime.',
+  ], 300)
 }
-
 /**
- * Fig 4.3: Calibration Output in SWAT-CUP Hydrograph
- * Directly matches 8.jpeg in MAPS REF
+ * Fig 4.3: SWAT-CUP calibration hydrograph - honest placeholder.
+ * Observed/simulated discharge and the 95PPU band can only be drawn from a
+ * real calibration run. NSE / R2 / PBIAS are withheld until such a run exists.
  */
 function renderCalibrationHydrographSvg(): string {
-  const W = 720, H = 320
-  const chartX = 60, chartY = 50, chartW = 620, chartH = 210
-
-  const ptsObs: [number, number][] = []
-  const ptsSim: [number, number][] = []
-  const ptsUpper: [number, number][] = []
-  const ptsLower: [number, number][] = []
-
-  for (let m = 0; m <= 36; m++) {
-    const x = chartX + (m / 36) * chartW
-    const seasonal = Math.sin((m / 12) * 2 * Math.PI - 1.2)
-    const baseFlow = 15
-    const peakFlow = seasonal > 0 ? Math.pow(seasonal, 3) * 165 : 0
-    const obs = baseFlow + peakFlow + Math.sin(m * 1.5) * 6
-    const sim = baseFlow + peakFlow * 0.94 + Math.cos(m * 1.2) * 5
-    const upper = Math.max(obs, sim) + 18 + Math.sin(m * 0.8) * 8
-    const lower = Math.max(2, Math.min(obs, sim) - 14 - Math.cos(m * 0.9) * 5)
-
-    const toY = (val: number) => chartY + chartH - (val / 220) * chartH
-    ptsObs.push([x, toY(obs)])
-    ptsSim.push([x, toY(sim)])
-    ptsUpper.push([x, toY(upper)])
-    ptsLower.push([x, toY(lower)])
-  }
-
-  const dUpper = ptsUpper.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-  const dLowerRev = ptsLower.slice().reverse().map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-  const bandPath = `${dUpper} ${dLowerRev} Z`
-
-  const dObs = ptsObs.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-  const dSim = ptsSim.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
-
-  return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H}" fill="#ffffff" stroke="#10231b" stroke-width="1.5"/>
-    <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="#fafcf9" stroke="#10231b" stroke-width="0.8"/>
-
-    <text x="${W / 2}" y="32" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12.5" font-weight="700" fill="#10231b">CALIBRATION OUTPUT IN SWAT-CUP (STREAMFLOW HYDROGRAPH)</text>
-
-    <!-- Y Grid & Labels -->
-    ${[0, 50, 100, 150, 200].map(v => {
-      const y = chartY + chartH - (v / 220) * chartH
-      return `
-        <line x1="${chartX}" y1="${y}" x2="${chartX + chartW}" y2="${y}" stroke="#e2e8f0" stroke-width="0.8"/>
-        <text x="${chartX - 8}" y="${y + 3}" text-anchor="end" font-family="'Times New Roman',serif" font-size="8.5" fill="#555">${v}</text>
-      `
-    }).join('')}
-    <text x="20" y="${chartY + chartH / 2}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#555" transform="rotate(-90 20 ${chartY + chartH / 2})">Discharge (m³/s)</text>
-
-    <!-- 95PPU Uncertainty Band -->
-    <path d="${bandPath}" fill="#2d6a4f" fill-opacity="0.25"/>
-
-    <!-- Simulation & Observed Lines -->
-    <path d="${dObs}" fill="none" stroke="#0077b6" stroke-width="2"/>
-    <path d="${dSim}" fill="none" stroke="#d90429" stroke-width="1.6" stroke-dasharray="4 3"/>
-
-    <!-- X Axis Months -->
-    <line x1="${chartX}" y1="${chartY + chartH}" x2="${chartX + chartW}" y2="${chartY + chartH}" stroke="#10231b" stroke-width="1.2"/>
-    ${[1, 6, 12, 18, 24, 30, 36].map(m => {
-      const x = chartX + (m / 36) * chartW
-      return `
-        <line x1="${x}" y1="${chartY + chartH}" x2="${x}" y2="${chartY + chartH + 4}" stroke="#10231b" stroke-width="1"/>
-        <text x="${x}" y="${chartY + chartH + 15}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" fill="#555">M${m}</text>
-      `
-    }).join('')}
-    <text x="${chartX + chartW / 2}" y="${chartY + chartH + 30}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9.5" font-weight="700" fill="#10231b">Calibration Simulation Months</text>
-
-    <!-- Legend & Statistical Performance Box -->
-    <g transform="translate(${chartX + 15}, ${chartY + 10})">
-      <rect width="210" height="48" fill="#ffffff" fill-opacity="0.9" stroke="#10231b" stroke-width="0.8" rx="2"/>
-      <rect x="10" y="8" width="14" height="8" fill="#2d6a4f" fill-opacity="0.35"/>
-      <text x="30" y="15" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">95PPU (Uncertainty)</text>
-      <line x1="10" y1="26" x2="24" y2="26" stroke="#0077b6" stroke-width="2"/>
-      <text x="30" y="29" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Observed Discharge</text>
-      <line x1="10" y1="38" x2="24" y2="38" stroke="#d90429" stroke-width="1.6" stroke-dasharray="3 2"/>
-      <text x="30" y="41" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Best Simulation</text>
-    </g>
-
-    <g transform="translate(${chartX + chartW - 200}, ${chartY + 10})">
-      <rect width="195" height="48" fill="#ffffff" fill-opacity="0.9" stroke="#10231b" stroke-width="0.8" rx="2"/>
-      <text x="10" y="16" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#2d6a4f">NSE: 0.74 · R²: 0.79</text>
-      <text x="10" y="29" font-family="'Times New Roman',serif" font-size="8" fill="#333">PBIAS: +4.2% (Very Good)</text>
-      <text x="10" y="41" font-family="'Times New Roman',serif" font-size="8" fill="#555">p-factor: 0.81 · r-factor: 0.68</text>
-    </g>
-  </svg>`
+  return renderUnavailableFigureSvg('Fig 4.3', 'Calibration Output in SWAT-CUP (Streamflow Hydrograph)', [
+    'No SWAT-CUP calibration run has been recorded for this area of interest.',
+    'Observed + simulated discharge and the 95PPU band appear only after a real run.',
+    'NSE / R2 / PBIAS are withheld until they can be computed from that run.',
+  ], 320)
 }
-
 /**
- * Fig 4.7: Global Sensitivity Analysis showing p-value and t-stat
- * Directly matches 10.jpeg in MAPS REF
+ * Fig 4.7: SUFI-2 parameter sensitivity - honest standings.
+ * Lists the standard SWAT calibration parameters with their literature valid
+ * ranges and states plainly that no calibration run exists yet. The previous
+ * version drew invented t-stat / p-value bars; ranking is only produced by a
+ * completed SUFI-2 run against observed streamflow.
  */
 function renderSufi2SensitivitySvg(): string {
-  const W = 720, H = 360
   const params = [
-    { name: '1: r__CN2.mgt', t: 14.8, p: 0.001 },
-    { name: '2: v__ALPHA_BF.gw', t: 9.6, p: 0.004 },
-    { name: '3: v__EPCO.hru', t: 8.4, p: 0.008 },
-    { name: '4: a__REVAPMN.gw', t: 7.2, p: 0.012 },
-    { name: '5: v__ESCO.hru', t: 5.9, p: 0.021 },
-    { name: '6: r__SOL_AWC().sol', t: 4.8, p: 0.038 },
-    { name: '7: a__GWQMN.gw', t: 3.5, p: 0.065 },
-    { name: '8: a__GW_REVAP.gw', t: 2.1, p: 0.142 },
+    { name: 'r__CN2.mgt', desc: 'SCS runoff curve number (relative delta)', range: '-0.40 to +0.40' },
+    { name: 'v__ALPHA_BF.gw', desc: 'Baseflow alpha factor', range: '0.00 to 1.00 per day' },
+    { name: 'v__EPCO.hru', desc: 'Plant uptake compensation factor', range: '0.00 to 1.00' },
+    { name: 'a__REVAPMN.gw', desc: 'Threshold depth for revap (shallow aquifer)', range: '0 to 500 mm' },
+    { name: 'v__ESCO.hru', desc: 'Soil evaporation compensation factor', range: '0.00 to 1.00' },
+    { name: 'r__SOL_AWC().sol', desc: 'Available water capacity (relative delta)', range: '-0.40 to +0.40' },
+    { name: 'a__GWQMN.gw', desc: 'Threshold depth for return flow (shallow aquifer)', range: '0 to 5000 mm' },
+    { name: 'a__GW_REVAP.gw', desc: 'Groundwater revap coefficient', range: '0.02 to 0.20' },
   ]
 
-  const maxT = 16
-  const rowH = 32
+  const W = 720, H = 460
+  const rowH = 40
+  const tableY = 96
 
   return `<svg class="cart-map-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <rect width="${W}" height="${H}" fill="#ffffff" stroke="#10231b" stroke-width="1.5"/>
     <rect x="10" y="10" width="${W - 20}" height="${H - 20}" fill="#fafcf9" stroke="#10231b" stroke-width="0.8"/>
 
-    <text x="${W / 2}" y="30" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12.5" font-weight="700" fill="#10231b">FIG 4.7: GLOBAL SENSITIVITY ANALYSIS (SUFI-2) - p-value &amp; t-stat</text>
-    
-    <g transform="translate(20, 60)">
-      ${params.map((p, i) => `
-        <text x="120" y="${i * rowH + 18}" text-anchor="end" font-family="'Times New Roman',serif" font-size="9.5" font-weight="700" fill="#10231b">${p.name}</text>
-      `).join('')}
-    </g>
+    <text x="${W / 2}" y="34" text-anchor="middle" font-family="'Times New Roman',serif" font-size="12.5" font-weight="700" fill="#10231b">FIG 4.7: SWAT PARAMETERS SELECTED FOR SENSITIVITY ANALYSIS (SUFI-2)</text>
+    <text x="${W / 2}" y="54" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10" fill="#b45309" font-weight="700">Status: NOT CALIBRATED - t-stat and p-value ranking require a completed SUFI-2 run</text>
+    <text x="${W / 2}" y="72" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" fill="#555">Ranges below are the standard calibration bounds from the SWAT literature (Abbaspour et al.).</text>
 
-    <!-- t-stat Chart (Orange/Red Magnitude) -->
-    <g transform="translate(150, 60)">
-      <text x="100" y="-8" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10" font-weight="700" fill="#ea580c">t-stat (Parameter Magnitude)</text>
-      <line x1="0" y1="0" x2="220" y2="0" stroke="#10231b" stroke-width="1"/>
-      <line x1="0" y1="0" x2="0" y2="${params.length * rowH}" stroke="#10231b" stroke-width="1"/>
-      ${params.map((p, i) => {
-        const w = (p.t / maxT) * 200
-        return `
-          <rect x="0" y="${i * rowH + 6}" width="${w}" height="18" fill="#ea580c" rx="2"/>
-          <text x="${w + 6}" y="${i * rowH + 18}" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#c2410c">${p.t}</text>
-        `
-      }).join('')}
-    </g>
+    <line x1="30" y1="${tableY - 8}" x2="${W - 30}" y2="${tableY - 8}" stroke="#10231b" stroke-width="1"/>
 
-    <!-- p-value Chart (Green Statistical Significance) -->
-    <g transform="translate(420, 60)">
-      <text x="110" y="-8" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10" font-weight="700" fill="#15803d">p-value (Significance: smaller is more sensitive)</text>
-      <line x1="0" y1="0" x2="220" y2="0" stroke="#10231b" stroke-width="1"/>
-      <line x1="0" y1="0" x2="0" y2="${params.length * rowH}" stroke="#10231b" stroke-width="1"/>
-      ${params.map((p, i) => {
-        const w = (1 - Math.min(1, p.p * 5)) * 180 + 10
-        return `
-          <rect x="0" y="${i * rowH + 6}" width="${w}" height="18" fill="#15803d" rx="2"/>
-          <text x="${w + 6}" y="${i * rowH + 18}" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#166534">p=${p.p}</text>
-        `
-      }).join('')}
-    </g>
+    ${params.map((p, i) => {
+      const y = tableY + i * rowH
+      return `
+        <text x="30" y="${y + 16}" font-family="'Courier New',monospace" font-size="10" font-weight="700" fill="#10231b">${p.name}</text>
+        <text x="250" y="${y + 16}" font-family="'Times New Roman',serif" font-size="9.5" fill="#333">${p.desc}</text>
+        <text x="${W - 190}" y="${y + 16}" font-family="'Times New Roman',serif" font-size="9.5" fill="#10231b">Valid range: <tspan font-weight="700">${p.range}</tspan></text>
+        <text x="${W - 30}" y="${y + 16}" text-anchor="end" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#b45309">Not calibrated</text>
+        <line x1="30" y1="${y + 26}" x2="${W - 30}" y2="${y + 26}" stroke="#e2e8f0" stroke-width="0.8"/>
+      `
+    }).join('')}
 
-    <g transform="translate(${W / 2}, ${H - 20})">
-      <text text-anchor="middle" font-family="'Times New Roman',serif" font-size="8.5" fill="#555">CN2 is seen to be most sensitive, followed by ALPHA_BF, EPCO, REVAPMN, ESCO, SOL_AWC, GWQMN, GW_REVAP</text>
-    </g>
+    <text x="${W / 2}" y="${H - 20}" text-anchor="middle" font-family="'Times New Roman',serif" font-size="9" fill="#666">A sensitivity ranking is shown only after a real SWAT-CUP run on observed streamflow - never from illustrative values.</text>
   </svg>`
 }
-
 /**
  * Primary Report Builder with Dynamic Two-Pass Pagination & Real GEE/S2 Ingestion
  */
@@ -883,6 +544,11 @@ export async function buildReport(
 ): Promise<{ html: string; data: unknown; id: string; lang: ReportLang }> {
   const lang = opts.lang ?? 'en'
   const t = I18N[lang]
+  // Trilingual honest placeholder for values whose real source is not loaded.
+  // Report content uses these instead of invented fallback numbers.
+  const naText = lang === 'te' ? 'డేటా అందుబాటులో లేదు' : lang === 'hi' ? 'डेटा उपलब्ध नहीं है' : 'Data unavailable'
+  const fmt1 = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : naText)
+  const fmtU = (v: number | null | undefined, unit: string) => (typeof v === 'number' && Number.isFinite(v) ? `${v.toFixed(1)} ${unit}` : naText)
   const now = new Date()
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const reportTimestamp = now.toLocaleString(lang === 'hi' ? 'hi-IN' : lang === 'te' ? 'te-IN' : 'en-US', {
@@ -917,18 +583,13 @@ export async function buildReport(
   let an: Analysis
   try {
     an = farm.analysis ?? (await analyze(farm, { mode: 'latest', maxCloud: 30 }))
-  } catch {
-    an = {
-      scene: { id: 'S2B_MSIL2A_GEE_PROCESSED', datetime: now.toISOString(), cloud: 12 },
-      ndvi: { mean: 0.58, min: 0.18, max: 0.82, p10: 0.28, p50: 0.59, p90: 0.76, n: 100 },
-      ndmi: { mean: 0.32, min: 0.05, max: 0.54, p10: 0.14, p50: 0.33, p90: 0.48, n: 100 },
-      ndwi: { mean: -0.15, min: -0.42, max: 0.22, p10: -0.32, p50: -0.16, p90: 0.02, n: 100 },
-      stressPct: 14.5,
-      slopePct: 4.2,
-      slopeDeg: 2.4,
-      elevMean: farm.elevation ?? 245,
-      analysedAt: now.toISOString(),
-    }
+  } catch (e) {
+    // Honesty gate: a satellite report with no satellite scene would have to
+    // invent numbers. Stop instead, with a plain reason the user can act on.
+    throw new Error(
+      `Satellite analysis unavailable (${e instanceof Error ? e.message : 'no scene could be loaded'}). ` +
+      'Check the connection and run the report again — SEVA·GIS never fills missing satellite results with made-up figures.',
+    )
   }
 
   let dem: Grid | null = null
@@ -936,6 +597,20 @@ export async function buildReport(
     dem = await loadDem(farm)
   } catch {
     console.debug('[Report] DEM load fallback')
+  }
+
+  // Real elevation range from the loaded grid, for the DEM figure caption.
+  // When no grid is loaded the caption says so instead of naming values.
+  let demElevMin: number | null = null
+  let demElevMax: number | null = null
+  if (dem) {
+    for (let i = 0; i < dem.b.elev.length; i++) {
+      const e = dem.b.elev[i]
+      if (Number.isFinite(e) && e > -500 && e < 9000) {
+        if (demElevMin === null || e < demElevMin) demElevMin = e
+        if (demElevMax === null || e > demElevMax) demElevMax = e
+      }
+    }
   }
 
   let s2GridObj: Grid | null = null
@@ -953,13 +628,15 @@ export async function buildReport(
     historyRows = []
   }
 
-  const elevMeanVal = an.elevMean ?? farm.elevation ?? 245
-  const slopePctVal = an.slopePct ?? 4.2
-  const slopeDegVal = an.slopeDeg ?? 2.4
+  // Terrain values: real or nothing. The 245 m / 4.2 % style fallbacks that
+  // used to sit here were invented, so they are gone.
+  const elevMeanVal = an.elevMean ?? farm.elevation ?? null
+  const slopePctVal = an.slopePct ?? null
+  const slopeDegVal = an.slopeDeg ?? null
   const logo = await dataUrl(logoUrl)
 
   // Pre-render real raster layers for all chosen maps and band combinations
-  onProgress?.('Generating authentic GEE/S2 raster rasters & composites…')
+  onProgress?.('Generating GEE/S2 rasters & composites…')
   const rasterMap: Record<string, string> = {}
   const allNeededInds = Array.from(new Set([...opts.maps, ...(opts.bandSymbologies ?? [])]))
 
@@ -1026,18 +703,20 @@ export async function buildReport(
 
     for (let i = 0; i < w * h; i++) {
       if (s2GridObj.inside && s2GridObj.inside[i] === 0) continue
+      const b02 = B02?.[i], b03 = B03?.[i], b04 = B04?.[i], b08 = B08?.[i], b11 = B11?.[i]
+      // A pixel missing any reflectance band is skipped, never classified
+      // from an invented default band value.
+      if (b02 === undefined || b03 === undefined || b04 === undefined || b08 === undefined || b11 === undefined) continue
+      if (!Number.isFinite(b02) || !Number.isFinite(b03) || !Number.isFinite(b04) || !Number.isFinite(b08) || !Number.isFinite(b11)) continue
       totalInside++
-      const b02 = B02?.[i] ?? 0.1
-      const b03 = B03?.[i] ?? 0.1
-      const b04 = B04?.[i] ?? 0.1
-      const b08 = B08?.[i] ?? 0.2
-      const b11 = B11?.[i] ?? 0.15
 
       const ndvi = (b08 - b04) / (b08 + b04 + 1e-9)
       const ndwi = (b03 - b08) / (b03 + b08 + 1e-9)
       const bsi = ((b11 + b04) - (b08 + b02)) / ((b11 + b04) + (b08 + b02) + 1e-9)
 
-      let cls = 4 // Crops default
+      // Pixels that match none of the class rules stay unclassified instead of
+      // defaulting to a class, so the composition only counts what it can read.
+      let cls = -1
       if (ndwi > 0.08) cls = 0
       else if (ndvi > 0.68) cls = 1
       else if (ndwi > -0.05 && ndvi > 0.25) cls = 3
@@ -1046,6 +725,7 @@ export async function buildReport(
       else if (ndvi >= 0.20 && ndvi < 0.32) cls = 5
       else if (bsi > 0.18 && ndvi < 0.20) cls = 6
       else if (bsi > 0.02 || ndvi < 0.22) cls = 7
+      if (cls < 0) continue
 
       counts[cls]++
 
@@ -1080,20 +760,8 @@ export async function buildReport(
     }
   }
 
-  if (dwStats.every(s => s.count === 0)) {
-    const cropPct = Math.max(50, Math.min(85, Math.round(an.ndvi.mean * 100)))
-    const treePct = Math.round((100 - cropPct) * 0.35)
-    const grassPct = Math.round((100 - cropPct) * 0.25)
-    const barePct = Math.round((100 - cropPct) * 0.20)
-    const builtPct = Math.round((100 - cropPct) * 0.10)
-    const waterPct = Math.max(0, 100 - (cropPct + treePct + grassPct + barePct + builtPct))
-    const mapAlloc: Record<number, number> = { 4: cropPct, 1: treePct, 2: grassPct, 7: barePct, 6: builtPct, 0: waterPct }
-    dwStats = DW_CLASSES.map(cls => {
-      const pct = mapAlloc[cls.id] ?? 0
-      const classAreaHa = (pct / 100) * ha
-      return { ...cls, count: Math.round(pct * 10), pct, areaHa: classAreaHa, areaAcres: classAreaHa * 2.47105 }
-    })
-  }
+  // No real scene means every class keeps its zero count above; figures and
+  // tables that read these stats render "Data unavailable" instead of guesses.
 
   const baseSatelliteUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${view.bbox.join(',')}&bboxSR=4326&imageSR=4326&size=${view.W},${view.H}&format=jpg&f=image`
   const ptsString = pts(ring, view)
@@ -1123,54 +791,31 @@ export async function buildReport(
     }
 
     if (id === 'lulc') {
-      const clipId = `lulc-patch-clip-${Math.round(cLat * 1000)}`
-      const colors = ['#f2cb38', '#88c958', '#1b5e20', '#33a02c', '#73d99e', '#9c9447', '#b37492', '#00508c', '#d90000']
-      const gridPatches: string[] = []
-      const rows = 6, cols = 8
-      const cellW = view.W / cols, cellH = view.H / rows
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const colorIdx = (r * 3 + c * 2 + (r % 2)) % colors.length
-          gridPatches.push(`<rect x="${(c * cellW).toFixed(1)}" y="${(r * cellH).toFixed(1)}" width="${(cellW + 1).toFixed(1)}" height="${(cellH + 1).toFixed(1)}" fill="${colors[colorIdx]}" opacity="0.82" stroke="#ffffff" stroke-width="0.3"/>`)
-        }
-      }
+      // No classified raster for this run: show the real base map and boundary
+      // only. A patchwork of coloured cells would invent class positions.
       return `
-        <defs>
-          <clipPath id="${clipId}">
-            <polygon points="${ptsString}"/>
-          </clipPath>
-        </defs>
         <image href="${baseSatelliteUrl}" width="${view.W}" height="${view.H}"/>
-        <g clip-path="url(#${clipId})">
-          ${gridPatches.join('')}
-        </g>
         <polygon points="${ptsString}" fill="none" stroke="#ffffff" stroke-width="2.5"/>
         <polygon points="${ptsString}" fill="none" stroke="#10231b" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <g transform="translate(${(view.W / 2).toFixed(1)}, ${(view.H - 26).toFixed(1)})">
+          <rect x="-215" y="-16" width="430" height="24" fill="#ffffff" fill-opacity="0.92" stroke="#10231b" stroke-width="0.8" rx="3"/>
+          <text x="0" y="0" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10" font-weight="700" fill="#b45309">LULC class raster unavailable for this run · base map shown · no classes drawn</text>
+        </g>
       `
     }
 
     if (id === 'soil') {
-      const clipId = `soil-patch-clip-${Math.round(cLat * 1000)}`
-      const soilColors = ['#8c510a', '#e3c088', '#cb9958', '#b57530', '#543005']
-      const bands: string[] = []
-      const rows = 5
-      const bandH = view.H / rows
-      for (let r = 0; r < rows; r++) {
-        const c = soilColors[r % soilColors.length]
-        bands.push(`<rect x="0" y="${(r * bandH).toFixed(1)}" width="${view.W}" height="${(bandH + 1).toFixed(1)}" fill="${c}" opacity="0.84" stroke="#ffffff" stroke-width="0.4"/>`)
-      }
+      // The FAO DSMW series raster is not bundled with the app; horizontal
+      // colour bands would invent soil boundaries, so only the real base map
+      // and boundary are drawn.
       return `
-        <defs>
-          <clipPath id="${clipId}">
-            <polygon points="${ptsString}"/>
-          </clipPath>
-        </defs>
         <image href="${baseSatelliteUrl}" width="${view.W}" height="${view.H}"/>
-        <g clip-path="url(#${clipId})">
-          ${bands.join('')}
-        </g>
         <polygon points="${ptsString}" fill="none" stroke="#ffffff" stroke-width="2.5"/>
         <polygon points="${ptsString}" fill="none" stroke="#10231b" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <g transform="translate(${(view.W / 2).toFixed(1)}, ${(view.H - 26).toFixed(1)})">
+          <rect x="-215" y="-16" width="430" height="24" fill="#ffffff" fill-opacity="0.92" stroke="#10231b" stroke-width="0.8" rx="3"/>
+          <text x="0" y="0" text-anchor="middle" font-family="'Times New Roman',serif" font-size="10" font-weight="700" fill="#b45309">Spatial soil-series raster not bundled · base map shown · no soil boundaries drawn</text>
+        </g>
       `
     }
 
@@ -1187,24 +832,20 @@ export async function buildReport(
   const sessions = historyRows.length
     ? historyRows.map((row, index) => ({
       num: index + 1,
-      date: row.scene?.datetime ? row.scene.datetime.slice(0, 10) : 'Pass',
-      ndvi: row.ndvi?.mean ?? 0.5,
-      ndmi: row.ndmi ?? 0.2,
-      stress: row.stressPct ?? 0,
-      rain: farm.rain ?? 0,
-      runoff: 0,
-      et: 0,
+      date: row.scene?.datetime ? row.scene.datetime.slice(0, 10) : null,
+      ndvi: row.ndvi?.mean ?? null,
+      ndmi: row.ndmi ?? null,
+      stress: row.stressPct ?? null,
+      rain: farm.rain ?? null,
       status: index === historyRows.length - 1 ? 'Current Evaluation' : 'Historical Observation',
     }))
     : [{
       num: 1,
-      date: an.scene?.datetime ? an.scene.datetime.slice(0, 10) : new Date().toISOString().slice(0, 10),
-      ndvi: an.ndvi?.mean ?? 0.5,
-      ndmi: an.ndmi?.mean ?? 0.2,
-      stress: an.stressPct ?? 0,
-      rain: farm.rain ?? 0,
-      runoff: 0,
-      et: 0,
+      date: an.scene?.datetime ? an.scene.datetime.slice(0, 10) : null,
+      ndvi: an.ndvi?.mean ?? null,
+      ndmi: an.ndmi?.mean ?? null,
+      stress: an.stressPct ?? null,
+      rain: farm.rain ?? null,
       status: 'Current Evaluation',
     }]
 
@@ -1239,17 +880,17 @@ export async function buildReport(
       ? 'कृषि जलग्रहण क्षेत्रों और व्यक्तिगत खेतों का स्थानिक मॉडलिंग उपग्रह रेडियोमेट्री और जल-भौतिकीय गतिशीलता के सटीक एकीकरण पर निर्भर करता है। पारंपरिक जमीनी नमूनाकरण में स्थानिक अंतराल और देरी होती है। सेंटिनल-2 मल्टी-स्पेक्ट्रल प्रणाली और कॉपरनिकस डीईएम निरंतर अवलोकन की सुविधा प्रदान करते हैं।'
       : 'Spatial modeling of agricultural catchments and individual field parcels requires accurate integration of optical satellite radiometry and hydro-physical boundary dynamics. Traditional soil-moisture and vegetation surveillance relies on periodic ground sampling, which suffers from severe spatial gaps and logistical latency. High-resolution multi-spectral systems such as Sentinel-2 (European Space Agency) and terrain surface models (Copernicus DEM GLO-30) offer empirical, repeatable observation pipelines.'}</p>
     <p>${lang === 'te'
-      ? 'సేవా జిఐఎస్ (SEVA·GIS) బ్రౌజర్‌లోనే క్లయింట్-సైడ్ జియోస్పేషియల్ ఇంజిన్‌గా పనిచేస్తూ, ముడి ఉపగ్రహ సమాచారాన్ని ఆచరణాత్మక వ్యవసాయ నిర్ణయాలుగా మారుస్తుంది. జియోడెటిక్ రీ-ప్రొజెక్షన్, రేడియేటివ్ ట్రాన్స్‌ఫర్ ఇండెక్స్ సింథసిస్ మరియు జల బడ్జెట్‌ను నేరుగా మీ పరికరంలో నిర్వహించడం ద్వారా పూర్తి వేగం మరియు సమాచార గోప్యతను నిర్ధారిస్తుంది.'
+      ? 'సేవా జిఐఎస్ (SEVA·GIS) బ్రౌజర్‌లోనే క్లయింట్-సైడ్ జియోస్పేషియల్ ఇంజిన్‌గా పనిచేస్తూ, ముడి ఉపగ్రహ సమాచారాన్ని ఆచరణాత్మక వ్యవసాయ పఠనాలుగా మారుస్తుంది. జియోడెటిక్ రీ-ప్రొజెక్షన్ మరియు వర్ణపట సూచికల లెక్కింపు మీ పరికరంలోనే జరుగుతుంది, కాబట్టి ఫలితాలు వేగంగా వస్తాయి మరియు పొలం సమాచారం పరికరంలోనే ఉంటుంది. జల బడ్జెట్ లెక్కలు వేరుగా నమోదు చేసిన కాలిబ్రేటెడ్ నమూనా రన్‌కు వదిలివేయబడ్డాయి.'
       : lang === 'hi'
-      ? 'सेवा जीआईएस (SEVA·GIS) एक स्वायत्त, ब्राउज़र-आधारित भू-स्थानिक इंजन के रूप में कार्य करता है, जो उपग्रह अवलोकनों को व्यावहारिक कृषि निर्णयों में बदलता है। इन-ब्राउज़र भू-स्थानिक पुन: प्रक्षेपण, विकिरण सूचकांक संश्लेषण और जल संतुलन गणना के माध्यम से यह शून्य-विलंबता और पूर्ण डेटा गोपनीयता सुनिश्चित करता है।'
-      : 'SEVA·GIS operates as an autonomous, client-side geospatial engine designed to bridge the chasm between raw earth observation streams and practical farm-scale decision making. By executing geodetic re-projection, radiative transfer index synthesis, and hydrological water budgeting directly in-browser, SEVA·GIS guarantees zero-latency analytical delivery while upholding strict data sovereignty.'}</p>
+      ? 'सेवा जीआईएस (SEVA·GIS) एक ब्राउज़र-आधारित भू-स्थानिक इंजन के रूप में उपग्रह अवलोकनों को व्यावहारिक कृषि पठनों में बदलता है। भू-स्थानिक पुन: प्रक्षेपण एवं वर्णक्रमीय सूचकांक गणना आपके डिवाइस पर ही होती है, इसलिए परिणाम तुरंत मिलते हैं और खेत का डेटा डिवाइस पर रहता है। जल-संतुलन गणना जानबूझकर किसी बाहरी अंशांकित मॉडल रन पर छोड़ी गई है।'
+      : 'SEVA·GIS runs as a client-side geospatial engine that turns satellite observations into farm-scale readings in the browser. Geodetic re-projection and spectral index synthesis happen on the device, so results are immediate and farm coordinates stay local. Hydrological water budgeting is deliberately left to a calibrated external model run; this report never estimates it.'}</p>
 
     <h2 class="section-title">${lang === 'te' ? `1.2 అధ్యయన ప్రాంత నేపథ్యం (${esc(farm.name)})` : lang === 'hi' ? `1.2 अध्ययन क्षेत्र की पृष्ठभूमि (${esc(farm.name)})` : `1.2 Study Area Background (${esc(farm.name)})`}</h2>
     <p>${lang === 'te'
-      ? `వ్యవసాయ క్షేత్రం <b>${esc(farm.name)}</b> భౌగోళికంగా <b>${esc(farm.location)}</b> వద్ద <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326) అక్షాంశ/రేఖాంశాలలో ఉంది. దీని కొలవబడిన విస్తీర్ణం <b>${ha.toFixed(2)} హెక్టార్లు</b> (${acres.toFixed(2)} ఎకరాలు). ప్రధాన పంట <b>${esc(farm.crop)}</b>. సగటు సముద్ర మట్టం నుండి ఎత్తు <b>${elevMeanVal.toFixed(1)} మీటర్లు</b>, సగటు నేల వాలు <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°).`
+      ? `వ్యవసాయ క్షేత్రం <b>${esc(farm.name)}</b> భౌగోళికంగా <b>${esc(farm.location)}</b> వద్ద <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326) అక్షాంశ/రేఖాంశాలలో ఉంది. దీని కొలవబడిన విస్తీర్ణం <b>${ha.toFixed(2)} హెక్టార్లు</b> (${acres.toFixed(2)} ఎకరాలు). ప్రధాన పంట <b>${esc(farm.crop)}</b>. సగటు సముద్ర మట్టం నుండి ఎత్తు <b>${fmtU(elevMeanVal, 'm')}</b>, సగటు నేల వాలు <b>${fmtU(slopePctVal, '%')}</b> (${fmtU(slopeDegVal, '°')}).`
       : lang === 'hi'
-      ? `खेत <b>${esc(farm.name)}</b> भौगोलिक रूप से <b>${esc(farm.location)}</b> में <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326) पर स्थित है। इसका कुल मापा गया क्षेत्रफल <b>${ha.toFixed(2)} हेक्टेयर</b> (${acres.toFixed(2)} एकड़) है। प्रमुख फसल <b>${esc(farm.crop)}</b> है। औसत ऊंचाई <b>${elevMeanVal.toFixed(1)} मीटर</b> तथा औसत ढलान <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°) है।`
-      : `The farm parcel <b>${esc(farm.name)}</b> is situated in <b>${esc(farm.location)}</b> at geodetic coordinates <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326). It covers a measured geographic surface area of <b>${ha.toFixed(2)} hectares</b> (${acres.toFixed(2)} acres). The designated primary cultivation is <b>${esc(farm.crop)}</b>. The elevation averages <b>${elevMeanVal.toFixed(1)} m</b> above sea level, exhibiting an average topographical slope gradient of <b>${slopePctVal.toFixed(1)}%</b> (${slopeDegVal.toFixed(1)}°).`}</p>
+      ? `खेत <b>${esc(farm.name)}</b> भौगोलिक रूप से <b>${esc(farm.location)}</b> में <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326) पर स्थित है। इसका कुल मापा गया क्षेत्रफल <b>${ha.toFixed(2)} हेक्टेयर</b> (${acres.toFixed(2)} एकड़) है। प्रमुख फसल <b>${esc(farm.crop)}</b> है। औसत ऊंचाई <b>${fmtU(elevMeanVal, 'm')}</b> तथा औसत ढलान <b>${fmtU(slopePctVal, '%')}</b> (${fmtU(slopeDegVal, '°')}) है।`
+      : `The farm parcel <b>${esc(farm.name)}</b> is situated in <b>${esc(farm.location)}</b> at geodetic coordinates <b>${cLat.toFixed(5)}°N, ${cLon.toFixed(5)}°E</b> (WGS 84 / EPSG:4326). It covers a measured geographic surface area of <b>${ha.toFixed(2)} hectares</b> (${acres.toFixed(2)} acres). The designated primary cultivation is <b>${esc(farm.crop)}</b>. The elevation averages <b>${fmtU(elevMeanVal, 'm')}</b> above sea level, exhibiting an average topographical slope gradient of <b>${fmtU(slopePctVal, '%')}</b> (${fmtU(slopeDegVal, '°')}).`}</p>
 
     <h2 class="section-title">${lang === 'te' ? '1.3 పరిశోధన మరియు సాంకేతికత నేపథ్యం' : lang === 'hi' ? '1.3 अनुसंधान एवं तकनीकी अंतराल' : '1.3 Research &amp; Technological Gap'}</h2>
     <p>${lang === 'te'
@@ -1260,10 +901,10 @@ export async function buildReport(
 
     <h2 class="section-title">${lang === 'te' ? '1.4 పరిశోధన యొక్క ముఖ్య ఉద్దేశాలు' : lang === 'hi' ? '1.4 अध्ययन के मुख्य उद्देश्य' : '1.4 Objectives of the Investigation'}</h2>
     <ol style="line-height: 1.6; font-size: 11pt; padding-left: 1.2cm;">
-      <li><b>${lang === 'te' ? 'జియోడెటిక్ సరిహద్దుల గుర్తింపు:' : lang === 'hi' ? 'भू-स्थानिक सीमांकन:' : 'Geodetic Delineation:'}</b> ${lang === 'te' ? `${esc(farm.name)} కోసం సబ్-మీటర్ ఖచ్చితమైన సరిహద్దులు మరియు 3D భూభాగ నమూనాను సిద్ధం చేయడం.` : lang === 'hi' ? `${esc(farm.name)} के लिए उप-मीटर स्तर की सीमाएं और 3D स्थलाकृतिक मॉडल तैयार करना।` : `Establish calibrated sub-meter boundaries and 3D topographic terrain models for ${esc(farm.name)}.`}</li>
+      <li><b>${lang === 'te' ? 'జియోడెటిక్ సరిహద్దుల గుర్తింపు:' : lang === 'hi' ? 'भू-स्थानिक सीमांकन:' : 'Geodetic Delineation:'}</b> ${lang === 'te' ? `${esc(farm.name)} కోసం ఫీల్డ్-మ్యాప్ చేయబడిన సరిహద్దులు మరియు 3D భూభాగ నమూనాను సిద్ధం చేయడం.` : lang === 'hi' ? `${esc(farm.name)} के लिए फील्ड-मैप की गई सीमाएं और 3D स्थलाकृतिक मॉडल तैयार करना।` : `Establish field-mapped boundaries and 3D topographic terrain models for ${esc(farm.name)}.`}</li>
       <li><b>${lang === 'te' ? 'పంట పందిరి ఆరోగ్య వర్గీకరణ:' : lang === 'hi' ? 'फसल छतरी स्वास्थ्य वर्गीकरण:' : 'Canopy Health Zonation:'}</b> ${lang === 'te' ? 'బహుళ-వర్ణపట సూచికలను (NDVI, NDMI, NDWI, EVI) ఉపయోగించి పంట పచ్చదనం మరియు ఒత్తిడి ప్రాంతాలను వర్గీకరించడం.' : lang === 'hi' ? 'मल्टी-स्पेक्ट्रल सूचकांकों (NDVI, NDMI, NDWI, EVI) के माध्यम से फसल स्वास्थ्य और तनाव क्षेत्रों की पहचान करना।' : 'Synthesize multi-spectral indices (NDVI, NDMI, NDWI, EVI) to delineate vigor zones and vegetative stress patches.'}</li>
-      <li><b>${lang === 'te' ? 'జల బడ్జెట్ మరియు ప్రవాహ పరిమాణం:' : lang === 'hi' ? 'जल संतुलन एवं अपवाह निर्धारण:' : 'Hydrological Water Budgeting:'}</b> ${lang === 'te' ? 'SCS-CN పద్ధతి ద్వారా ఉపరితల నీటి ప్రవాహం, ఆవిరి నష్టం మరియు నేలలో ఇంకే నీటిని లెక్కించడం.' : lang === 'hi' ? 'SCS-CN विधि और जल संतुलन मॉडल का उपयोग करके सतही अपवाह, वाष्पीकरण और अंतःस्रवण का परिमाण तय करना।' : 'Quantify surface runoff, actual evapotranspiration, and infiltration using SCS-CN and Hargreaves water balance models.'}</li>
-      <li><b>${lang === 'te' ? 'ఖచ్చితమైన వ్యవసాయ మార్గదర్శకాలు:' : lang === 'hi' ? 'सटीक कृषि एवं संरक्षण निर्देश:' : 'Agronomic &amp; Conservation Directives:'}</b> ${lang === 'te' ? 'నత్రజని ఎరువుల వేరియబుల్ రేట్ మరియు సూక్ష్మ నీటిపారుదల కోసం పరిమాణాత్మక ఆదేశాలను అందించడం.' : lang === 'hi' ? 'सटीक नाइट्रोजन उर्वरक अनुप्रयोग (VRA) और सूक्ष्म सिंचाई के लिए संख्यात्मक निर्देश प्रदान करना।' : 'Deliver quantitative variable rate application (VRA) directives for nitrogen and precision irrigation.'}</li>
+      <li><b>${lang === 'te' ? 'జల వినియోగ సందర్భం:' : lang === 'hi' ? 'जल-संतुलन संदर्भ:' : 'Hydrological Context:'}</b> ${lang === 'te' ? 'SCS-CN మరియు Hargreaves సూత్రాలను వివరించడం మరియు నమూనా చేయబడిన జల పరిమాణాలు కాలిబ్రేటెడ్ బాహ్య నమూనా రన్ అవసరమని స్పష్టంగా తెలియజేయడం.' : lang === 'hi' ? 'SCS-CN एवं Hargreaves सूत्रों को समझाना और यह स्पष्ट करना कि मॉडल-आधारित जल मात्राओं हेतु बाहरी अंशांकित मॉडल रन आवश्यक है।' : 'Explain the SCS-CN and Hargreaves formulations and state plainly that modelled water quantities require a calibrated external model run.'}</li>
+      <li><b>${lang === 'te' ? 'వ్యవసాయ మార్గదర్శకాలు:' : lang === 'hi' ? 'कृषि एवं संरक्षण निर्देश:' : 'Agronomic &amp; Conservation Guidance:'}</b> ${lang === 'te' ? 'పంట ఎక్కడ భిన్నంగా ఉందో గుర్తించి, క్షేత్ర తనిఖీలకు మార్గనిర్దేశం చేయడం; ఎరువుల మోతాదు లెక్కలు రైతు అగ్రోనమీ ప్రణాళికకే.' : lang === 'hi' ? 'फसल कहाँ भिन्न है यह दिखाकर खेत जांच का मार्गदर्शन करना; उर्वरक मात्रा की गणना किसान की एग्रोनॉमी योजना पर छोड़ना।' : 'Show where the crop differs to direct field inspections; dose calculations stay with the farm agronomy plan.'}</li>
     </ol>
   `
   )
@@ -1321,12 +962,12 @@ export async function buildReport(
       ? 'जड़ क्षेत्र मृदा जल भंडारण समीकरण के अनुसार वर्षा सतही अपवाह, वास्तविक वाष्पोत्सर्जन, गहरे अंतःस्रवण और भंडारण परिवर्तन के योग के बराबर होती है (एलन एवं अन्य, 1998)। हारग्रीव्स और समानी (1985) ने तापमान-आधारित संदर्भ वाष्पोत्सर्जन सूत्र विकसित किए, जो न्यूनतम मौसम संबंधी इनपुट के साथ FAO पेनमैन-मोंटेथ मानकों से मेल खाते हैं।'
       : 'The continuity equation governing root zone soil water storage expresses that precipitation equals the sum of surface runoff, actual evapotranspiration, deep percolation, and storage change (Allen et al., 1998; Lu et al., 2005). Hargreaves and Samani (1985) developed temperature-based reference evapotranspiration formulations requiring minimal meteorological inputs while matching FAO Penman-Monteith baselines.'}</p>
 
-    <h2 class="section-title">${lang === 'te' ? '2.4 సీక్వెన్షియల్ అన్‌సర్టైన్టీ ఫిట్టింగ్ (SUFI-2) కాలిబ్రేషన్' : lang === 'hi' ? '2.4 सीक्वेंशियल अनसर्टेनिटी फिटिंग (SUFI-2) अंशांकन' : '2.4 Sequential Uncertainty Fitting (SUFI-2) Calibration'}</h2>
+    <h2 class="section-title">${lang === 'te' ? '2.4 సీక్వెన్షియల్ అన్‌సర్టైన్టీ ఫిట్టింగ్ (SUFI-2) - కాలిబ్రేషన్ ఫ్రేమ్‌వర్క్ (రన్ చేయలేదు)' : lang === 'hi' ? '2.4 सीक्वेंशियल अनसर्टेनिटी फिटिंग (SUFI-2) - अंशांकन रूपरेखा (रन नहीं हुआ)' : '2.4 Sequential Uncertainty Fitting (SUFI-2) - Calibration Framework (Not Run)'}</h2>
     <p>${lang === 'te'
-      ? 'నమూనా పారామితుల అంచనా మరియు అనిశ్చితి పరిధులను SUFI-2 (అబ్బాస్‌పూర్ మరియు ఇతరులు, 2004, 2007) ద్వారా ఖచ్చితంగా లెక్కించవచ్చు. పారామితి అనిశ్చితులు ఏకరూప పంపిణీలుగా వ్యక్తీకరించబడతాయి, ఇవి లాటిన్ హైపర్‌క్యూబ్ నమూనాను ఉపయోగించి ప్రవాహ మరియు తేమ హైడ్రోగ్రాఫ్‌లకు వ్యతిరేకంగా పునరావృతంగా మూల్యాంకనం చేయబడతాయి, నాష్-సుట్క్లిఫ్ ఎఫిషియెన్సీ (NSE) మరియు నిర్ధారణ గుణకం (R²) ను గరిష్టం చేస్తాయి.'
+      ? 'కాలిబ్రేటెడ్ జలవిజ్ఞాన నమూనాను అనుసంధానించినప్పుడు, పారామితి అంచనా మరియు అనిశ్చితి పరిధులు SUFI-2 (అబ్బాస్‌పూర్ మరియు ఇతరులు, 2004, 2007) ద్వారా నిర్వహించబడతాయి. ఈ ప్రాంతానికి అటువంటి SWAT-CUP రన్ నమోదు కానందున, ఈ నివేదిక ఫ్రేమ్‌వర్క్ మరియు పారామితుల చెల్లుబాటు పరిధులను మాత్రమే చూపుతుంది - ఎటువంటి ఫిట్ గణాంకాలు (NSE, R²) నివేదించబడవు.'
       : lang === 'hi'
-      ? 'मॉडल पैरामीटर अनुमान और अनिश्चितता सीमाओं को SUFI-2 (अब्बासपुर एवं अन्य, 2004, 2007) के माध्यम से नियंत्रित किया जाता है। पैरामीटर अनिश्चितताओं को एकसमान वितरण के रूप में व्यक्त किया जाता है, जिनका लैटिन हाइपरक्यूब नमूनाकरण के माध्यम से मूल्यांकन किया जाता है, जिससे नैश-सटक्लिफ दक्षता (NSE) और निर्धारण गुणांक (R²) अधिकतम होता है।'
-      : 'Model parameter estimation and uncertainty bounds are rigorously handled through SUFI-2 (Abbaspour et al., 2004, 2007). Parameter uncertainties are expressed as uniform distributions, evaluated iteratively using Latin Hypercube sampling against streamflow and soil moisture hydrographs, maximizing the Nash-Sutcliffe Efficiency (NSE) and coefficient of determination (R²).'}</p>
+      ? 'जब कोई अंशांकित जल-विज्ञान मॉडल जोड़ा जाता है, तब पैरामीटर अनुमान और अनिश्चितता सीमाएँ SUFI-2 (अब्बासपुर एवं अन्य, 2004, 2007) द्वारा संभाली जाती हैं। इस क्षेत्र के लिए ऐसा कोई SWAT-CUP रन दर्ज न होने से यह रिपोर्ट केवल रूपरेखा और पैरामीटरों की वैध सीमाएँ दिखाती है - कोई फिट आँकड़े (NSE, R²) प्रस्तुत नहीं किए जाते।'
+      : 'Where a calibrated hydrological model is attached, parameter estimation and uncertainty bounds are handled through SUFI-2 (Abbaspour et al., 2004, 2007). No such SWAT-CUP run is recorded for this area of interest, so this report presents the framework and the parameters\' valid ranges (Section 4.6) without reporting fitted statistics (NSE, R²).'}</p>
   `
   )
 
@@ -1340,10 +981,10 @@ export async function buildReport(
     <h1 class="chapter-title">${t.ch3Title}</h1>
     <h2 class="section-title">${lang === 'te' ? '3.1 అధ్యయన ప్రాంత పరిధి, సరిహద్దుల గుర్తింపు మరియు భౌగోళికం' : lang === 'hi' ? '3.1 अध्ययन क्षेत्र विस्तार, सीमा निर्धारण एवं भूगोल' : '3.1 Study Area Extent, Boundary Delineation &amp; Geography'}</h2>
     <p>${lang === 'te'
-      ? `పొలం సరిహద్దులు WGS 84 / EPSG:4326 జియోడెటిక్ ఎలిప్సాయిడ్‌పై సబ్-మీటర్ ఖచ్చితత్వంతో గీయబడ్డాయి. విన్సెంట్ గోళాకార సమీకరణాలను ఉపయోగించి భూభాగ విస్తీర్ణం <b>${ha.toFixed(2)} హెక్టార్లు</b> (${acres.toFixed(2)} ఎకరాలు) గా లెక్కించబడింది. సరిహద్దు అక్షాంశాలు <b>${fb[1].toFixed(4)}°N</b> నుండి <b>${fb[3].toFixed(4)}°N</b> వరకు మరియు రేఖాంశాలు <b>${fb[0].toFixed(4)}°E</b> నుండి <b>${fb[2].toFixed(4)}°E</b> వరకు విస్తరించి ఉన్నాయి.`
+      ? `పొలం సరిహద్దు వినియోగదారు మ్యాప్ చేసిన సరిహద్దు ఆధారంగా WGS 84 / EPSG:4326 భౌగోళిక నిర్దేశాంకాలలో నిర్వచించబడింది. గోళాకార అధిక-క్షేత్ర సమీకరణాలను (spherical excess) ఉపయోగించి భూభాగ విస్తీర్ణం <b>${ha.toFixed(2)} హెక్టార్లు</b> (${acres.toFixed(2)} ఎకరాలు) గా లెక్కించబడింది. సరిహద్దు అక్షాంశాలు <b>${fb[1].toFixed(4)}°N</b> నుండి <b>${fb[3].toFixed(4)}°N</b> వరకు మరియు రేఖాంశాలు <b>${fb[0].toFixed(4)}°E</b> నుండి <b>${fb[2].toFixed(4)}°E</b> వరకు విస్తరించి ఉన్నాయి.`
       : lang === 'hi'
-      ? `खेत की सीमा WGS 84 / EPSG:4326 संदर्भ दीर्घवृत्तज पर अत्यधिक सटीक निर्देशांकों के साथ निर्धारित की गई है। विन्सेंटी गोलाकार समीकरणों का उपयोग करके मापा गया भू-सतही क्षेत्रफल <b>${ha.toFixed(2)} हेक्टेयर</b> (${acres.toFixed(2)} एकड़) है। भू-स्थानिक सीमा अक्षांश <b>${fb[1].toFixed(4)}°N</b> से <b>${fb[3].toFixed(4)}°N</b> और देशांतर <b>${fb[0].toFixed(4)}°E</b> से <b>${fb[2].toFixed(4)}°E</b> तक फैली हुई है।`
-      : `The farm polygon was delineated via high-precision geodetic coordinates on the WGS 84 / EPSG:4326 reference ellipsoid. Geodesic surface area is calculated as <b>${ha.toFixed(2)} ha</b> using Vincenty spherical excess equations. The bounding geodetic box spans latitudes <b>${fb[1].toFixed(4)}°N</b> to <b>${fb[3].toFixed(4)}°N</b> and longitudes <b>${fb[0].toFixed(4)}°E</b> to <b>${fb[2].toFixed(4)}°E</b>.`}</p>
+      ? `खेत की सीमा उपयोगकर्ता द्वारा मैप की गई सीमा के आधार पर WGS 84 / EPSG:4326 भौगोलिक निर्देशांकों में परिभाषित है। गोलाकार अधिशेष (spherical excess) गणना से मापा गया क्षेत्रफल <b>${ha.toFixed(2)} हेक्टेयर</b> (${acres.toFixed(2)} एकड़) है। भू-स्थानिक सीमा अक्षांश <b>${fb[1].toFixed(4)}°N</b> से <b>${fb[3].toFixed(4)}°N</b> और देशांतर <b>${fb[0].toFixed(4)}°E</b> से <b>${fb[2].toFixed(4)}°E</b> तक फैली हुई है।`
+      : `The farm polygon is defined by its mapped field boundary in geographic coordinates on the WGS 84 / EPSG:4326 reference ellipsoid. Surface area is computed as <b>${ha.toFixed(2)} ha</b> from spherical-excess geometry. The bounding geodetic box spans latitudes <b>${fb[1].toFixed(4)}°N</b> to <b>${fb[3].toFixed(4)}°N</b> and longitudes <b>${fb[0].toFixed(4)}°E</b> to <b>${fb[2].toFixed(4)}°E</b>.`}</p>
 
     <h2 class="section-title">${lang === 'te' ? '3.2 ప్రాథమిక సమీకరణాలు: వర్ణపట బ్యాండ్లు, SCS-CN మరియు జల సమతుల్యత' : lang === 'hi' ? '3.2 नियंत्रक समीकरण: स्पेक्ट्रल बैंड, SCS-CN एवं जल संतुलन' : '3.2 Governing Equations: Spectral Bands, SCS-CN &amp; Water Balance'}</h2>
     <p><b>1. ${lang === 'te' ? 'సాధారణీకరించిన వృక్ష సూచిక (NDVI):' : lang === 'hi' ? 'सामान्यीकृत अंतर वनस्पति सूचकांक (NDVI):' : 'Normalized Difference Vegetation Index (NDVI):'}</b></p>
@@ -1360,10 +1001,10 @@ export async function buildReport(
 
     <h2 class="section-title">${lang === 'te' ? '3.3 గణాంక నమూనా సామర్థ్య ప్రమాణాలు' : lang === 'hi' ? '3.3 सांख्यिकीय प्रदर्शन बेंचमार्क मानदंड' : '3.3 Statistical Performance Benchmark Criteria'}</h2>
     <p>${lang === 'te'
-      ? 'నమూనా కాలిబ్రేషన్ నాణ్యత ప్రామాణిక జలవిజ్ఞాన ప్రమాణాల ప్రకారం మూల్యాంకనం చేయబడింది (మోరియాసి మరియు ఇతరులు, 2007): నాష్-సుట్క్లిఫ్ ఎఫిషియెన్సీ (NSE > 0.50), నిర్ధారణ గుణకం (R² > 0.60), మరియు శాతం బయాస్ (|PBIAS| < 15%).'
+      ? 'కాలిబ్రేషన్ నమూనా అందుబాటులో ఉన్నప్పుడు దాని నాణ్యత ప్రామాణిక జలవిజ్ఞాన ప్రమాణాల ప్రకారం మూల్యాంకనం చేయబడుతుంది (మోరియాసి మరియు ఇతరులు, 2007): నాష్-సుట్క్లిఫ్ ఎఫిషియెన్సీ (NSE > 0.50), నిర్ధారణ గుణకం (R² > 0.60), శాతం బయాస్ (|PBIAS| < 15%). ఈ నివేదికకు అటువంటి రన్ నమోదు కానందున ఎటువంటి ఫిట్ విలువలు చూపబడవు.'
       : lang === 'hi'
-      ? 'मॉडल अंशांकन गुणवत्ता का मूल्यांकन मानक जल विज्ञान प्रदर्शन बेंचमार्क (मोरियासी एवं अन्य, 2007) के अनुसार किया जाता है: नैश-सटक्लिफ दक्षता (NSE > 0.50), निर्धारण गुणांक (R² > 0.60), और प्रतिशत पूर्वाग्रह (|PBIAS| < 15%)।'
-      : 'Model calibration quality is evaluated against standard hydrologic performance benchmarks (Moriasi et al., 2007): Nash-Sutcliffe Efficiency (NSE > 0.50), Coefficient of Determination (R² > 0.60), and Percent Bias (|PBIAS| < 15%).'}</p>
+      ? 'कोई अंशांकन रन उपलब्ध होने पर उसकी गुणवत्ता मानक जल विज्ञान प्रदर्शन बेंचमार्क (मोरियासी एवं अन्य, 2007) से आंकी जाती है: NSE > 0.50, R² > 0.60, |PBIAS| < 15%। इस रिपोर्ट के लिए ऐसा कोई रन दर्ज न होने से कोई फिट मान नहीं दिखाया गया है।'
+      : 'When a calibration run is available, its quality is judged against standard hydrologic performance benchmarks (Moriasi et al., 2007): Nash-Sutcliffe Efficiency (NSE > 0.50), Coefficient of Determination (R² > 0.60), and Percent Bias (|PBIAS| < 15%). No run is recorded for this report, so no fitted values are shown.'}</p>
   `
   )
 
@@ -1392,8 +1033,10 @@ export async function buildReport(
     )
   }
 
-  // Fig 3.2: DEM Elevation Map (SRTM 30m / Copernicus DEM) - directly matching 5.jpeg in MAPS REF
+  // Fig 3.2: DEM Elevation Map (Copernicus GLO-30, 30 m)
   if (opts.maps.includes('terrain')) {
+    const demHighText = demElevMax !== null ? `High : ${demElevMax.toFixed(0)} m` : 'High : Data unavailable'
+    const demLowText = demElevMin !== null ? `Low : ${demElevMin.toFixed(0)} m` : 'Low : Data unavailable'
     const fig3_2_Legend = `<text x="12" y="18" font-family="'Times New Roman',serif" font-size="11" font-weight="700" fill="#10231b">Legend</text>
       <rect x="12" y="26" width="12" height="8" fill="none" stroke="#10231b" stroke-width="1.2"/><text x="28" y="33" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Study Area</text>
       <text x="12" y="46" font-family="'Times New Roman',serif" font-size="9" font-weight="700" fill="#10231b">DEM (Value)</text>
@@ -1407,16 +1050,18 @@ export async function buildReport(
         </linearGradient>
       </defs>
       <rect x="12" y="52" width="16" height="42" fill="url(#dem-srtm-ramp)" stroke="#10231b" stroke-width="0.5"/>
-      <text x="34" y="59" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">High : 1012 m</text>
-      <text x="34" y="92" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">Low : 135 m</text>`
-    const fig3_2_Svg = render2dCartographicMap('Fig 3.2', `DEM Map of ${farm.name} (SRTM / Copernicus 30m)`, view, ring, makeLayerContent('terrain'), fig3_2_Legend, 'Source: Shuttle Radar Topography Mission & Copernicus DEM GLO-30 (QGIS SRTM)')
+      <text x="34" y="59" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">${demHighText}</text>
+      <text x="34" y="92" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">${demLowText}</text>`
+    const fig3_2_Svg = render2dCartographicMap('Fig 3.2', `DEM Map of ${farm.name} (Copernicus GLO-30)`, view, ring, makeLayerContent('terrain'), fig3_2_Legend, 'Source: Copernicus DEM GLO-30 Elevation Grid')
     const pFig = curPageNum
-    figEntries.push({ num: 'Fig 3.2', title: `DEM Map of ${farm.name} (SRTM / Copernicus 30m)`, pageNum: pFig })
+    figEntries.push({ num: 'Fig 3.2', title: `DEM Map of ${farm.name} (Copernicus GLO-30)`, pageNum: pFig })
     pushPage(
       'fig3_2',
       `
       <h2 class="section-title">3.5 Digital Elevation Model (DEM) &amp; Topographic Hypsometry</h2>
-      <p>Figure 3.2 illustrates the Shuttle Radar Topography Mission (SRTM) 30 m Digital Elevation Model covering ${esc(farm.name)}, displaying hypsometric tints from low river plains (135 m a.s.l.) to elevated ridgelines (1012 m a.s.l.).</p>
+      <p>Figure 3.2 shows the terrain over ${esc(farm.name)}. ${dem && demElevMin !== null && demElevMax !== null
+        ? `Elevations in the loaded grid run from <b>${demElevMin.toFixed(0)} m</b> to <b>${demElevMax.toFixed(0)} m</b> above sea level.`
+        : 'No elevation grid is loaded for this area of interest, so the hypsometric panel states "Data unavailable" (see figure).'}</p>
       <figure class="academic-figure">
         ${fig3_2_Svg}
         <figcaption class="figure-caption">Fig 3.2: DEM map of ${esc(farm.name)}</figcaption>
@@ -1426,28 +1071,31 @@ export async function buildReport(
     )
   }
 
-  // Fig 3.3 & Table 3.2: LULC Classification (Dynamic World 10m Native Sentinel-2 / SWAT)
+  // Fig 3.3 & Table 3.2: LULC Classification (Sentinel-2 L2A threshold rules, Dynamic World class scheme)
   if (opts.maps.includes('lulc')) {
-    const fig3_3_Legend = `<text x="12" y="15" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">Legend · Dynamic World LULC (10m Resolution)</text>
+    const lulcHasData = dwStats.some(s => s.count > 0)
+    const fig3_3_Legend = `<text x="12" y="15" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#10231b">Legend · LULC classes (Sentinel-2 10 m)</text>
       <g transform="translate(12, 22)">
-        ${dwStats.map((s, idx) => `
+        ${lulcHasData
+          ? dwStats.map((s, idx) => `
           <rect x="0" y="${idx * 9}" width="10" height="7" fill="${s.color}"/>
           <text x="14" y="${idx * 9 + 6}" font-family="'Times New Roman',serif" font-size="7.5" fill="#10231b">${s.name} (${s.swat}) · ${s.pct.toFixed(0)}%</text>
-        `).join('')}
+        `).join('')
+          : `<text x="0" y="8" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#b45309">Class raster unavailable for this run.</text>`}
       </g>`
-    const fig3_3_Svg = render2dCartographicMap('Fig 3.3', `LULC Map of ${farm.name} (Dynamic World 10m)`, view, ring, makeLayerContent('lulc', 'rgba(45, 106, 79, 0.3)'), fig3_3_Legend, 'Source: Dynamic World v1 & Sentinel-2 10m Surface Reflectance (SWAT Categories)')
+    const fig3_3_Svg = render2dCartographicMap('Fig 3.3', `LULC Map of ${farm.name} (Sentinel-2 10m classes)`, view, ring, makeLayerContent('lulc', 'rgba(45, 106, 79, 0.3)'), fig3_3_Legend, 'Source: Sentinel-2 L2A surface reflectance - in-browser threshold classification (Dynamic World class scheme)')
     const pFig = curPageNum
-    figEntries.push({ num: 'Fig 3.3', title: `LULC Map of ${farm.name} (Dynamic World 10m)`, pageNum: pFig })
+    figEntries.push({ num: 'Fig 3.3', title: `LULC Map of ${farm.name} (Sentinel-2 10m classes)`, pageNum: pFig })
     tableEntries.push({ num: 'Table 3.2', title: `Land Use / Land Cover Allocation Matrix (${farm.name})`, pageNum: pFig })
     pushPage(
       'fig3_3',
       `
       <h2 class="section-title">3.6 Land Use / Land Cover (LULC) Classification</h2>
-      <p>Figure 3.3 depicts the Land Use Land Cover (LULC) map classified via Google/DynamicWorld/v1 at 10 m native spatial resolution, cross-mapped into SWAT model hydrological classes to parameterize surface runoff curve numbers (CN2) and vegetative hydraulic roughness.</p>
+      <p>Figure 3.3 shows the LULC classes derived in-browser from Sentinel-2 L2A surface reflectance (10 m cells) using published threshold rules (NDVI, NDWI, BSI) mapped onto the Dynamic World class scheme. SEVA·GIS computes this from the loaded scene instead of downloading the Dynamic World product.</p>
       <figure class="academic-figure">
         ${fig3_3_Svg}
         <figcaption class="figure-caption">Fig 3.3: LULC map of ${esc(farm.name)}</figcaption>
-        <div class="figure-source">Source: Dynamic World v1 &amp; Sentinel-2 Surface Reflectance (10m Mode Composite)</div>
+        <div class="figure-source">Source: Sentinel-2 L2A surface reflectance - in-browser threshold classification (10 m)</div>
       </figure>
 
       <div style="margin-top: 18pt;">
@@ -1456,7 +1104,7 @@ export async function buildReport(
           <thead>
             <tr style="background: #f1f5f9; border-top: 1.5pt solid #10231b; border-bottom: 1.5pt solid #10231b;">
               <th style="padding: 4pt 6pt; text-align: center;">ID</th>
-              <th style="padding: 4pt 6pt; text-align: left;">Dynamic World Class</th>
+              <th style="padding: 4pt 6pt; text-align: left;">Class (Dynamic World scheme)</th>
               <th style="padding: 4pt 6pt; text-align: center;">SWAT Code</th>
               <th style="padding: 4pt 6pt; text-align: center;">Color</th>
               <th style="padding: 4pt 6pt; text-align: right;">Area (ha)</th>
@@ -1484,57 +1132,56 @@ export async function buildReport(
             </tr>
           </tbody>
         </table>
+        ${lulcHasData ? '' : `<div class="table-source" style="color: #b45309;">Class composition is unavailable for this run: the reflectance grid for the season's scene could not be loaded, so no class counts are shown. A loaded scene populates this table automatically.</div>`}
       </div>
     `
     )
   }
 
-  // Fig 3.4: Soil Series (FAO DSMW 5 Classes) - directly matching 3.jpeg in MAPS REF
+  // Fig 3.4: Soil context map (spatial FAO DSMW raster is not bundled)
   if (opts.maps.includes('soil')) {
-    const fig3_4_Legend = `<text x="12" y="16" font-family="'Times New Roman',serif" font-size="10.5" font-weight="700" fill="#10231b">Legend · Soil Classes</text>
+    const fig3_4_Legend = `<text x="12" y="16" font-family="'Times New Roman',serif" font-size="10.5" font-weight="700" fill="#10231b">Legend · Soil context</text>
       <g transform="translate(12, 24)">
-        <rect x="0" y="0" width="12" height="8" fill="#8c510a"/><text x="16" y="7" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">Bv12-3b-3696 (Pellic Vertisol)</text>
-        <rect x="0" y="14" width="12" height="8" fill="#e3c088"/><text x="16" y="21" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">I-Bc-Lc-3714 (Lithosol/Luvisol)</text>
-        <rect x="0" y="28" width="12" height="8" fill="#cb9958"/><text x="16" y="35" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">Lf62-1a-3791 (Ferric Luvisol)</text>
-        <rect x="0" y="42" width="12" height="8" fill="#b57530"/><text x="16" y="49" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">Vc43-3ab-3861 (Vertic Cambisol)</text>
-        <rect x="0" y="56" width="12" height="8" fill="#543005"/><text x="16" y="63" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">Vp20-3a-3866 (Deep Clay Vertisol)</text>
+        <rect x="0" y="0" width="12" height="8" fill="none" stroke="#10231b" stroke-width="1.2"/><text x="16" y="7" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">Study area boundary</text>
+        <text x="0" y="24" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#b45309">No spatial soil-series raster is</text>
+        <text x="0" y="35" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#b45309">bundled, so no soil boundaries</text>
+        <text x="0" y="46" font-family="'Times New Roman',serif" font-size="8" font-weight="700" fill="#b45309">are drawn on this base map.</text>
       </g>`
-    const fig3_4_Svg = render2dCartographicMap('Fig 3.4', `Soil Map of ${farm.name} (FAO DSMW)`, view, ring, makeLayerContent('soil', 'rgba(176, 137, 104, 0.3)'), fig3_4_Legend, 'Source: FAO Digital Soil Map of the World (DSMW) & MapWindows (MWSWAT)')
+    const fig3_4_Svg = render2dCartographicMap('Fig 3.4', `Soil Context Map of ${farm.name}`, view, ring, makeLayerContent('soil', 'rgba(176, 137, 104, 0.3)'), fig3_4_Legend, 'Source: Esri World Imagery base map - no soil raster included')
     const pFig = curPageNum
-    figEntries.push({ num: 'Fig 3.4', title: `Soil Map of ${farm.name} (FAO DSMW)`, pageNum: pFig })
+    figEntries.push({ num: 'Fig 3.4', title: `Soil Context Map of ${farm.name}`, pageNum: pFig })
     pushPage(
       'fig3_4',
       `
       <h2 class="section-title">3.7 Soil Series &amp; Physical Hydraulic Properties</h2>
-      <p>Figure 3.4 presents the FAO Digital Soil Map of the World (DSMW) 5-class series (Bv12-3b, I-Bc-Lc, Lf62-1a, Vc43-3ab, Vp20-3a) calibrated via MWSWAT to govern infiltration, hydraulic conductivity, and available water capacity (SOL_AWC).</p>
+      <p>Figure 3.4 shows the parcel over the satellite base map. SEVA·GIS does not bundle the FAO Digital Soil Map of the World (DSMW) raster, so no soil series boundaries or MWSWAT-calibrated classes are drawn. Soil observations recorded on the farm card remain the source of truth here; a spatial soil survey can be attached when available.</p>
       <figure class="academic-figure">
         ${fig3_4_Svg}
-        <figcaption class="figure-caption">Fig 3.4: Soil map of ${esc(farm.name)}</figcaption>
-        <div class="figure-source">Source: FAO DSMW &amp; ISRIC SoilGrids Global Repository</div>
+        <figcaption class="figure-caption">Fig 3.4: Soil context map of ${esc(farm.name)}</figcaption>
+        <div class="figure-source">Source: Esri World Imagery base map - spatial soil raster not bundled</div>
       </figure>
     `
     )
   }
 
-  // Fig 3.5: Weather Station Map - directly matching WhatsApp Image 2026-10-10 at 6.47.47 PM.jpeg
+  // Fig 3.5: Weather context map (gridded reanalysis, no station coordinates bundled)
   if (opts.maps.includes('stations')) {
     const fig3_5_Legend = `<text x="12" y="16" font-family="'Times New Roman',serif" font-size="11" font-weight="700" fill="#10231b">Legend</text>
       <rect x="12" y="24" width="12" height="8" fill="none" stroke="#10231b" stroke-width="1.2"/><text x="28" y="31" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Study Area</text>
-      <polygon points="18,46 22,54 14,54" fill="#000000"/><text x="28" y="52" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Temperature Station</text>
-      <polygon points="18,62 23,67 18,72 13,67" fill="#d90429"/><text x="28" y="69" font-family="'Times New Roman',serif" font-size="8.5" fill="#10231b">Rainfall Station</text>
-      <rect x="12" y="78" width="12" height="5" fill="#2d6a4f"/><text x="28" y="83" font-family="'Times New Roman',serif" font-size="8" fill="#10231b">DEM Background</text>`
-    const fig3_5_Svg = render2dCartographicMap('Fig 3.5', `Weather Station Details Map of ${farm.name}`, view, ring, makeLayerContent('stations', 'rgba(0, 119, 182, 0.25)'), fig3_5_Legend, 'Source: IMD 21-Year Climate Records & Open-Meteo High Resolution Grid')
+      <text x="12" y="48" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#b45309">No rain-gauge or temperature station</text>
+      <text x="12" y="61" font-family="'Times New Roman',serif" font-size="8.5" font-weight="700" fill="#b45309">coordinates are bundled with SEVA·GIS.</text>`
+    const fig3_5_Svg = render2dCartographicMap('Fig 3.5', `Weather Context Map of ${farm.name}`, view, ring, makeLayerContent('stations', 'rgba(0, 119, 182, 0.25)'), fig3_5_Legend, 'Source: Esri World Imagery base map - weather values come from Open-Meteo gridded reanalysis')
     const pFig = curPageNum
-    figEntries.push({ num: 'Fig 3.5', title: `Weather Station Details Map of ${farm.name}`, pageNum: pFig })
+    figEntries.push({ num: 'Fig 3.5', title: `Weather Context Map of ${farm.name}`, pageNum: pFig })
     pushPage(
       'fig3_5',
       `
-      <h2 class="section-title">3.8 Meteorological &amp; Agro-Climatic Station Network</h2>
-      <p>Figure 3.5 displays the spatial distribution of rain gauges (diamonds) and meteorological temperature stations (triangles) providing long-term climatic variables across ${esc(farm.name)}.</p>
+      <h2 class="section-title">3.8 Meteorological &amp; Agro-Climatic Context</h2>
+      <p>Figure 3.5 shows the parcel location for weather context. SEVA·GIS sources weather values from the Open-Meteo gridded reanalysis for the farm coordinates rather than from physical stations, and no station marker is drawn because no station-coordinate dataset is bundled. Weather values (when present on the farm card) are shown in the app itself.</p>
       <figure class="academic-figure">
         ${fig3_5_Svg}
-        <figcaption class="figure-caption">Fig 3.5: Weather Station Details of ${esc(farm.name)}</figcaption>
-        <div class="figure-source">Source: IMD / Open-Meteo Climate Reanalysis (1995–2026)</div>
+        <figcaption class="figure-caption">Fig 3.5: Weather context map of ${esc(farm.name)}</figcaption>
+        <div class="figure-source">Source: Open-Meteo gridded reanalysis (values shown in-app) - Esri World Imagery base map</div>
       </figure>
     `
     )
@@ -1544,16 +1191,16 @@ export async function buildReport(
   if (opts.maps.includes('discharge')) {
     const fig3_6_Svg = renderGroundDischargeStationMapSvg(view, ring, farm.name, makeLayerContent('stations'))
     const pFig = curPageNum
-    figEntries.push({ num: 'Fig 3.6', title: `Ground Discharge Station & Hydrology Map of ${farm.name}`, pageNum: pFig })
+    figEntries.push({ num: 'Fig 3.6', title: `Hydrology Context Map of ${farm.name}`, pageNum: pFig })
     pushPage(
       'fig3_6',
       `
-      <h2 class="section-title">3.9 Hydrology Ground Discharge &amp; Stream Network</h2>
-      <p>Figure 3.6 presents the river stream order reaches, sub-basin catchment delineations, and calibrated micro-catchment ground discharge gauging stations (Outlet Gauge, Inflow Station, Sub-basin Node) monitored for SWAT streamflow assessment.</p>
+      <h2 class="section-title">3.9 Hydrology Context</h2>
+      <p>Figure 3.6 shows the study area over the satellite base map. SEVA·GIS does not bundle a published gauging-station or stream-network dataset, so no stations or stream reaches are drawn; attach an external hydrography source to populate this context map.</p>
       <figure class="academic-figure">
         ${fig3_6_Svg}
-        <figcaption class="figure-caption">Fig 3.6: Hydrology Station map of ${esc(farm.name)}</figcaption>
-        <div class="figure-source">Source: Micro-Catchment Streamflow Records &amp; SWAT River Reach Model</div>
+        <figcaption class="figure-caption">Fig 3.6: Hydrology context map of ${esc(farm.name)}</figcaption>
+        <div class="figure-source">Source: Esri World Imagery base map - no streamflow gauge dataset included</div>
       </figure>
     `
     )
@@ -1582,15 +1229,15 @@ export async function buildReport(
   const compositeScore = Math.round(Math.max(15, Math.min(98, grossScore - stressDeduction)))
 
   const healthPieSlices = [
-    { label: 'Canopy Stamina (NDVI)', pct: 40, color: '#10b981', val: `Observed: ${rNdvi.toFixed(2)} (Ref: >0.60, Δ = ${(rNdvi - 0.60 >= 0 ? '+' : '') + (rNdvi - 0.60).toFixed(2)})` },
-    { label: 'Leaf Hydration (NDMI)', pct: 28, color: '#0ea5e9', val: `Observed: ${rNdmi.toFixed(2)} (Ref: >0.30, Δ = ${(rNdmi - 0.30 >= 0 ? '+' : '') + (rNdmi - 0.30).toFixed(2)})` },
-    { label: 'Ground Biomass (SAVI)', pct: 18, color: '#84cc16', val: `Vegetative Density: ${cBiomass}% (Soil-adjusted Canopy)` },
-    { label: 'Stress Deficit Deduction', pct: 14, color: '#ef4444', val: `Penalties: Foliar Stress ${rStress.toFixed(1)}% + Deficit ${cMoistureDeficit}%` },
+    { label: 'Canopy Index (NDVI-derived)', pct: 45, color: '#10b981', val: `Observed: ${rNdvi.toFixed(2)} (Ref: >0.60, Δ = ${(rNdvi - 0.60 >= 0 ? '+' : '') + (rNdvi - 0.60).toFixed(2)})` },
+    { label: 'Moisture Index (NDMI-derived)', pct: 35, color: '#0ea5e9', val: `Observed: ${rNdmi.toFixed(2)} (Ref: >0.30, Δ = ${(rNdmi - 0.30 >= 0 ? '+' : '') + (rNdmi - 0.30).toFixed(2)})` },
+    { label: 'Composite Biomass Estimate', pct: 20, color: '#84cc16', val: `NDVI/NDMI blend = ${cBiomass}/100 - an estimate, not a measured SAVI` },
+    { label: 'Deductions applied', pct: 0, color: '#ef4444', val: `Stress penalty -${(cStressPenalty * 0.18).toFixed(1)} pts + moisture deficit -${(cMoistureDeficit * 0.12).toFixed(1)} pts` },
   ]
 
   const healthPieSvg = renderOverallHealthPieSvg(compositeScore, healthPieSlices)
   const pFig0 = curPageNum
-  figEntries.push({ num: 'Fig 4.0', title: 'Overall Field Health Composite & Parameter Synthesis Donut Chart', pageNum: pFig0 })
+  figEntries.push({ num: 'Fig 4.0', title: 'Overall Field Health Composite (estimate) & Parameter Synthesis Donut Chart', pageNum: pFig0 })
   tableEntries.push({ num: 'Table 4.0', title: 'Multi-Spectral Parameter Differences, Additions & Combinations Matrix', pageNum: pFig0 })
 
   pushPage(
@@ -1601,20 +1248,20 @@ export async function buildReport(
     
     <div style="background: #fdf8f6; border-left: 4pt solid #e76f51; padding: 10pt 14pt; margin: 10pt 0 14pt; font-size: 10.5pt;">
       <b>${lang === 'te' ? `ప్రత్యేక పరిశోధనా నివేదిక: ${esc(farm.name.toUpperCase())} యొక్క రిమోట్ సెన్సింగ్ ఆడిట్` : lang === 'hi' ? `विशेष खोजी रिपोर्ट: ${esc(farm.name.toUpperCase())} का सुदूर संवेदन ऑडिट` : `SPECIAL INVESTIGATIVE REPORT: REMOTE SENSING AUDIT OF ${esc(farm.name.toUpperCase())}`}</b><br>
-      <i>${lang === 'te' ? 'సేవా జిఐఎస్ అగ్రో-స్పేషియల్ ఇంటెలిజెన్స్ & ఫోరెన్సిక్ రిమోట్ సెన్సింగ్ డెస్క్' : lang === 'hi' ? 'सेवा जीआईएस एग्रो-स्थानिक इंटेलिजेंस एवं फॉरेंसिक रिमोट सेंसिंग डेस्क' : 'By SEVA·GIS Agro-Spatial Intelligence &amp; Forensic Remote Sensing Desk'}</i><br>
-      <span style="font-size: 9.5pt; color: #555;">${lang === 'te' ? `ఉపగ్రహ ప్లాట్‌ఫారమ్: సెంటినెల్-2B · సీన్ ID: ${esc(an.scene.id)} · వాతావరణ ప్రామాణికత: BOA లెవల్-2A` : lang === 'hi' ? `अवलोकन प्लेटफॉर्म: सेंटिनल-2B · सीन ID: ${esc(an.scene.id)} · वायुमंडलीय मानक: BOA लेवल-2A` : `Observation Platform: Sentinel-2B Multi-Spectral Instrument · Scene ID: ${esc(an.scene.id)} · Atmospheric Standard: BOA Level-2A`}</span>
+      <i>${lang === 'te' ? 'సేవా జిఐఎస్ అగ్రో-స్పేషియల్ ఇంటెలిజెన్స్ & రిమోట్ సెన్సింగ్ డెస్క్' : lang === 'hi' ? 'सेवा जीआईएस एग्रो-स्थानिक इंटेलिजेंस एवं रिमोट सेंसिंग डेस्क' : 'By SEVA·GIS Agro-Spatial Intelligence &amp; Remote Sensing Desk'}</i><br>
+      <span style="font-size: 9.5pt; color: #555;">${lang === 'te' ? `ఉపగ్రహ ప్లాట్‌ఫారమ్: సెంటినెల్-2 (ESA/Copernicus) · సీన్ ID: ${esc(an.scene.id)} · వాతావరణ ప్రామాణికత: BOA లెవల్-2A` : lang === 'hi' ? `अवलोकन प्लेटफॉर्म: सेंटिनल-2 (ESA/कॉपरनिकस) · सीन ID: ${esc(an.scene.id)} · वायुमंडलीय मानक: BOA लेवल-2A` : `Observation Platform: Sentinel-2 (ESA/Copernicus) · Scene ID: ${esc(an.scene.id)} · Atmospheric Standard: BOA Level-2A`}</span>
     </div>
 
     <p class="no-indent"><b>${lang === 'te' ? 'పరిశోధనా దృక్పథం:' : lang === 'hi' ? 'खोजी दृष्टिकोण:' : 'The Investigative Angle:'}</b> ${lang === 'te'
-      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} హెక్టార్లు) పై పూర్తి బహుళ-వర్ణపట పరిశీలన నిర్వహించబడింది. సాధారణ సర్వేలు కేవలం NDVI పై ఆధారపడతాయి, కానీ మా విశ్లేషణ 5 స్పెక్ట్రల్ సూచికలను ఏకీకృతం చేసి, పారామితి వ్యత్యాసాలు మరియు ఒత్తిడి తగ్గింపులను లెక్కించి <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'అద్భుతమైన మరియు దృఢమైన పంట ఆరోగ్యం' : compositeScore >= 55 ? 'మధ్యస్థ ఆరోగ్యం · నిరంతర పర్యవేక్షణ అవసరం' : 'ఆకుల అలసట · తక్షణ చర్య అవసరం'}) గా నికర ఆరోగ్య స్కోరును నమోదు చేసింది.`
+      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} హెక్టార్లు) పై బహుళ-వర్ణపట విశ్లేషణ నిర్వహించబడింది. సూచికలు ఏకీకృతం చేయబడి <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'అధిక సూచిక - క్షేత్రంలో నిర్ధారించండి' : compositeScore >= 55 ? 'మధ్యస్థ సూచిక - నిరంతర పర్యవేక్షణ' : 'తక్కువ సూచిక - క్షేత్ర తనిఖీ అవసరం'}) అంచనా స్కోరు నమోదైంది. సూత్రాలు Eq. 4.0a-b లో చూపబడ్డాయి; ఇది ఒకే దృశ్యం నుండి వచ్చిన అంచనా, దిగుబడి కొలత కాదు.`
       : lang === 'hi'
-      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} हेक्टेयर) की गहन मल्टी-स्पेक्ट्रल जांच की गई। पारंपरिक सर्वेक्षण केवल साधारण NDVI पर निर्भर करते हैं, जबकि हमारे फोरेंसिक ऑडिट ने पांच स्पेक्ट्रल सूचकांकों का संश्लेषण किया और <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'उत्कृष्ट एवं मजबूत फसल स्वास्थ्य' : compositeScore >= 55 ? 'मध्यम स्वास्थ्य · निरंतर निगरानी आवश्यक' : 'पत्ती तनाव · सुधारात्मक कार्रवाई आवश्यक'}) का समग्र स्वास्थ्य सूचकांक प्रदान किया।`
-      : `An exhaustive multi-spectral radiometric inquiry into <b>${esc(farm.name)}</b> (${ha.toFixed(2)} ha) was executed to unpack whether surface greenness accurately reflects true biological crop resilience. While conventional surveys rely solely on simple NDVI, our forensic audit synthesized five spectral indices, calculating parameter differences, additive vitality components, and acute stress deductions to deliver an empirical composite health index of <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'Vibrant & Robust Health' : compositeScore >= 55 ? 'Moderate Health · Close Monitoring Required' : 'Foliar Fatigue · Corrective Action Required'}).`}</p>
+      ? `<b>${esc(farm.name)}</b> (${ha.toFixed(2)} हेक्टेयर) का बहु-स्पेक्ट्रमी विश्लेषण किया गया। सूचकांकों को संयोजित कर <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'उच्च सूचक - खेत पर सत्यापित करें' : compositeScore >= 55 ? 'मध्यम सूचक - निरंतर निगरानी' : 'निम्न सूचक - खेत जांच आवश्यक'}) के रूप में अनुमानित स्कोर दर्ज किया। सूत्र Eq. 4.0a-b में दर्शाए गए हैं; यह एक ही दृश्य से प्राप्त अनुमान है, उपज माप नहीं।`
+      : `A multi-spectral reading of <b>${esc(farm.name)}</b> (${ha.toFixed(2)} ha) was run to see how surface greenness and moisture signals agree. The audit combines the five spectral indices into one composite index estimate of <b>${compositeScore} / 100</b> (${compositeScore >= 78 ? 'High index - verify in field' : compositeScore >= 55 ? 'Moderate index - close monitoring advised' : 'Low index - field check advised'}). The formulas are shown in Eq. 4.0a-b; this is an estimate from one scene, not a yield measurement.`}</p>
 
     <figure class="academic-figure">
       ${healthPieSvg}
-      <figcaption class="figure-caption">${lang === 'te' ? `చిత్రం 4.0: ${esc(farm.name)} యొక్క సమగ్ర పంట ఆరోగ్య సమ్మేళనం చార్ట్` : lang === 'hi' ? `चित्र 4.0: ${esc(farm.name)} का समग्र फसल स्वास्थ्य संश्लेषण डोनट चार्ट` : `Fig 4.0: Overall Field Health Composite &amp; Parameter Synthesis Donut Chart`}</figcaption>
-      <div class="figure-source">Source: SEVA·GIS Multi-Spectral Forensic Engine (Sentinel-2 L2A BOA Radiometry)</div>
+      <figcaption class="figure-caption">${lang === 'te' ? `చిత్రం 4.0: ${esc(farm.name)} యొక్క సమగ్ర పంట ఆరోగ్య సమ్మేళనం చార్ట్ (అంచనా)` : lang === 'hi' ? `चित्र 4.0: ${esc(farm.name)} का समग्र फसल स्वास्थ्य संश्लेषण डोनट चार्ट (अनुमान)` : `Fig 4.0: Overall Field Health Composite (estimate) &amp; Parameter Synthesis Donut Chart`}</figcaption>
+      <div class="figure-source">Source: SEVA·GIS multi-spectral analysis pipeline (Sentinel-2 L2A BOA radiometry)</div>
     </figure>
 
     <p class="table-caption">${lang === 'te' ? 'పట్టిక 4.0: బహుళ-వర్ణపట పారామితుల వ్యత్యాసాలు మరియు సమ్మేళన విశ్లేషణ' : lang === 'hi' ? 'तालिका 4.0: बहु-स्पेक्ट्रमी पैरामीटर अंतर, योग एवं संयोजन मैट्रिक्स' : 'Table 4.0: Multi-Spectral Parameter Differences, Additions &amp; Combinations Matrix'}</p>
@@ -1636,7 +1283,7 @@ export async function buildReport(
           <td>0.60 (${lang === 'te' ? 'అనుకూలం' : lang === 'hi' ? 'इष्टतम' : 'Optimal'})</td>
           <td><b style="color: ${rNdvi >= 0.60 ? '#1b4332' : '#c1121f'}">${(rNdvi - 0.60 >= 0 ? '+' : '') + (rNdvi - 0.60).toFixed(2)}</b></td>
           <td>${lang === 'te' ? 'ధనాత్మక (+45% వాటా)' : lang === 'hi' ? 'धनात्मक (+45% योगदान)' : 'Additive (+45% of Gross Capital)'}</td>
-          <td>${lang === 'te' ? 'బలమైన క్లోరోఫిల్ మరియు దట్టమైన ఆకుల పందిరి.' : lang === 'hi' ? 'मजबूत पर्णहरिम और घनी प्रकाश-अवरोधक छतरी।' : 'Strong foliar chlorophyll and dense light-intercepting canopy.'}</td>
+          <td>${lang === 'te' ? 'ఈ దృశ్యంలో బలమైన పచ్చదనం; పంట పందిరి ఆరోగ్యానికి ప్రాక్సీ.' : lang === 'hi' ? 'इस दृश्य में मजबूत हरियाली; छतरी स्वास्थ्य का प्रॉक्सी।' : 'Strong greenness reading in this scene; a proxy for canopy vigor.'}</td>
         </tr>
         <tr>
           <td><b>${lang === 'te' ? 'ఆకుల తేమ (NDMI)' : lang === 'hi' ? 'पत्ती जलयोजन (NDMI)' : 'Leaf Hydration (NDMI)'}</b></td>
@@ -1644,15 +1291,15 @@ export async function buildReport(
           <td>0.30 (${lang === 'te' ? 'తేమ పుష్కలం' : lang === 'hi' ? 'पर्याप्त नम' : 'Hydrated'})</td>
           <td><b style="color: ${rNdmi >= 0.30 ? '#1b4332' : '#c1121f'}">${(rNdmi - 0.30 >= 0 ? '+' : '') + (rNdmi - 0.30).toFixed(2)}</b></td>
           <td>${lang === 'te' ? 'ధనాత్మక (+35% వాటా)' : lang === 'hi' ? 'धनात्मक (+35% योगदान)' : 'Additive (+35% of Gross Capital)'}</td>
-          <td>${lang === 'te' ? 'ఆరోగ్యకరమైన కణాల బిగువు; స్థిరమైన బాష్పోత్సేకం.' : lang === 'hi' ? 'स्वस्थ कोशिका स्फीति; स्थिर वाष्पोत्सर्जन दर।' : 'Healthy cell turgor; transpiration rate remains stable.'}</td>
+          <td>${lang === 'te' ? 'తేమ సూచిక ఈ దృశ్యంలో 0.30 ప్రామాణికం పైన ఉంది; రోజువారీ పోలికలతో ధోరణి చూడండి.' : lang === 'hi' ? 'नमी सूचक इस दृश्य में 0.30 संदर्भ से ऊपर है; दिन-प्रतिदिन तुलना से रुझान देखें।' : 'Moisture index sits above the 0.30 reference in this scene; compare across dates for a trend.'}</td>
         </tr>
         <tr>
           <td><b>${lang === 'te' ? 'నేల బయోమాస్ (SAVI)' : lang === 'hi' ? 'भू-बायोमास (SAVI)' : 'Ground Biomass (SAVI)'}</b></td>
-          <td><b>${(rNdvi * 0.9).toFixed(2)}</b></td>
+          <td><b>—</b></td>
           <td>0.50 (${lang === 'te' ? 'సాంద్రత' : lang === 'hi' ? 'सघन' : 'Dense'})</td>
-          <td><b style="color: #1b4332;">+${((rNdvi * 0.9) - 0.50).toFixed(2)}</b></td>
-          <td>${lang === 'te' ? 'ధనాత్మక (+20% వాటా)' : lang === 'hi' ? 'धनात्मक (+20% योगदान)' : 'Additive (+20% of Gross Capital)'}</td>
-          <td>${lang === 'te' ? 'నేల ప్రభావం తగ్గించబడింది; నిర్మాణాత్మక బయోమాస్ ధృవీకరించబడింది.' : lang === 'hi' ? 'मिट्टी का प्रभाव न्यूनतम; संरचनात्मक बायोमास सत्यापित।' : 'Soil background reflectance minimized; structural biomass verified.'}</td>
+          <td><b>—</b></td>
+          <td>${lang === 'te' ? 'ఈ రన్‌లో లెక్కించబడలేదు' : lang === 'hi' ? 'इस रन में परिकलित नहीं' : 'Not computed in this run'}</td>
+          <td>${lang === 'te' ? 'SAVI కి శాటిలైట్ బ్యాండ్లపై నేల-సర్దుబాటు సూత్రం అవసరం; సంఖ్యను ఊహించి చూపము.' : lang === 'hi' ? 'SAVI हेतु सैटेलाइट बैंडों पर मृदा-समायोजित सूत्र आवश्यक है; अनुमानित संख्या नहीं दिखाई जाती।' : 'SAVI needs the soil-adjusted formula run on the scene bands; no estimated number is shown.'}</td>
         </tr>
         <tr>
           <td><b>${lang === 'te' ? 'ఉపరితల డ్రైనేజీ (NDWI)' : lang === 'hi' ? 'सतही जल निकासी (NDWI)' : 'Surface Drainage (NDWI)'}</b></td>
@@ -1660,15 +1307,15 @@ export async function buildReport(
           <td>-0.10 (${lang === 'te' ? 'డ్రైన్డ్' : lang === 'hi' ? 'निकासित' : 'Drained'})</td>
           <td><b>${(rNdwi - (-0.10)).toFixed(2)}</b></td>
           <td>${lang === 'te' ? 'జల సరిచూసే అంశం' : lang === 'hi' ? 'जल विज्ञान जांच कारक' : 'Hydrological Check Factor'}</td>
-          <td>${lang === 'te' ? 'నీటి నిల్వ లేదు; సహజ వాలు డ్రైనేజీ క్రియాశీలంగా ఉంది.' : lang === 'hi' ? 'कोई जलजमाव नहीं; प्राकृतिक ढलान जल निकासी सुचारू।' : 'No stagnant ponding observed; natural slope drainage functional.'}</td>
+          <td>${lang === 'te' ? 'ఈ దృశ్యంలో బహిరంగ నీటి ఉపరితలం కనిపించలేదు (NDWI ఆధారంగా).' : lang === 'hi' ? 'इस दृश्य में खुला जल सतह नहीं दिखा (NDWI के आधार पर)।' : 'No open surface water visible in this scene (NDWI reading).'}</td>
         </tr>
         <tr>
           <td><b>${lang === 'te' ? 'తీవ్రమైన పంట ఒత్తిడి' : lang === 'hi' ? 'तीव्र वानस्पतिक तनाव' : 'Acute Vegetative Stress'}</b></td>
           <td><b>${rStress.toFixed(1)}%</b></td>
           <td>&lt; 5.0% (${lang === 'te' ? 'సహించదగినది' : lang === 'hi' ? 'सहनशील' : 'Tolerable'})</td>
-          <td><b style="color: #c1121f;">+${(rStress - 5.0).toFixed(1)}%</b></td>
+          <td><b style="color: #c1121f;">${rStress - 5.0 >= 0 ? '+' : ''}${(rStress - 5.0).toFixed(1)}%</b></td>
           <td><b>${lang === 'te' ? `తగ్గింపు కారకం (-${(cStressPenalty * 0.18).toFixed(1)} పాయింట్లు)` : lang === 'hi' ? `कटौती कारक (-${(cStressPenalty * 0.18).toFixed(1)} अंक)` : `Deduction Factor (-${(cStressPenalty * 0.18).toFixed(1)} pts)`}</b></td>
-          <td>${lang === 'te' ? 'దక్షిణ భాగంలో స్థానిక ఆకుల ఒత్తిడి గుర్తించబడింది.' : lang === 'hi' ? 'दक्षिणी भाग में स्थानीय पर्ण मुरझान पाया गया।' : 'Localized foliar wilt identified in southern gravel sub-zone.'}</td>
+          <td>${lang === 'te' ? 'తక్కువ పచ్చదనం ఉన్న పిక్సెల్‌లు గుర్తించబడ్డాయి; కారణాన్ని ఒక చిత్రం చెప్పదు - క్షేత్రంలో నిర్ధారించండి.' : lang === 'hi' ? 'कम हरियाली वाले पिक्सेल चिह्नित; कारण एक चित्र से तय नहीं होता - खेत पर जांचें।' : 'Low-vigour pixels flagged; the cause cannot be told from one image - walk and verify.'}</td>
         </tr>
         <tr>
           <td><b>Moisture Deficit Risk</b></td>
@@ -1676,38 +1323,38 @@ export async function buildReport(
           <td>&lt; 10.0% (Safe)</td>
           <td><b style="color: ${cMoistureDeficit > 10 ? '#c1121f' : '#1b4332'}">${(cMoistureDeficit - 10 >= 0 ? '+' : '') + (cMoistureDeficit - 10)}%</b></td>
           <td><b>Deduction Factor (-${(cMoistureDeficit * 0.12).toFixed(1)} pts)</b></td>
-          <td>Sub-surface moisture buffering prevents acute canopy dehydration.</td>
+          <td>Derived estimate from the scene's NDMI (method in Eq. 4.0a-b); confirm with an in-field soil-moisture check.</td>
         </tr>
         <tr style="background: #f0fdf4; font-weight: bold;">
-          <td><b>NET COMPOSITE HEALTH</b></td>
+          <td><b>NET COMPOSITE HEALTH (estimate)</b></td>
           <td colspan="2"><span style="font-size: 13pt; color: #1b4332;">${compositeScore} / 100</span></td>
           <td><b>Gross: ${grossScore.toFixed(1)} pts</b></td>
           <td><b>Deductions: -${stressDeduction.toFixed(1)} pts</b></td>
-          <td><b>${compositeScore >= 78 ? 'Vibrant & Robust Agro-Ecosystem' : 'Moderate Vitality · Field Action Advised'}</b></td>
+          <td><b>${compositeScore >= 78 ? 'High index - verify in field' : 'Moderate index - field action advised'}</b></td>
         </tr>
       </tbody>
     </table>
 
     <h2 class="section-title">4.0.1 The Parameter Discrepancy &amp; Combination Analysis</h2>
-    <p><b>1. Discrepancy Between Chlorophyll (NDVI) and Hydration (NDMI):</b> A vital journalistic finding of this spatial audit is the differential between greenness and water availability. While the farm registers an impressive NDVI of ${rNdvi.toFixed(2)}, the moisture index displays a lower margin (${rNdmi.toFixed(2)}). Plants frequently retain green chlorophyll pigment during the onset of water deficit before visible wilting occurs. Without this dual-parameter cross-examination, an agronomist relying solely on NDVI would fail to detect impending moisture exhaustion.</p>
+    <p><b>1. Difference Between Greenness (NDVI) and Water Signal (NDMI):</b> A useful diagnostic of this audit is the difference between greenness and moisture. The scene reads an NDVI of ${rNdvi.toFixed(2)} while the moisture index is ${rNdmi.toFixed(2)}. Plants often keep green colour during early water deficit before wilting is visible, so reading both indices together helps spot drying trends that NDVI alone may miss.</p>
 
-    <p><b>2. Additive Vitality Formulation:</b> To establish true agro-ecosystem vitality, parameters cannot be viewed in isolation. SEVA·GIS employs an additive combination model where <b>Gross Vegetative Capital</b> is calculated as:</p>
+    <p><b>2. Additive Combination Model:</b> The three mid-level indices are combined into one gross estimate:</p>
     <div class="equation-box">
-      <div class="equation-code">Gross Capital = (0.45 &times; Chlorophyll) + (0.35 &times; Hydration) + (0.20 &times; Biomass) = ${grossScore.toFixed(1)} pts</div>
+      <div class="equation-code">Gross Index = (0.45 &times; Canopy) + (0.35 &times; Moisture) + (0.20 &times; Biomass) = ${grossScore.toFixed(1)} pts</div>
       <div class="equation-num">(Eq. 4.0a)</div>
     </div>
 
-    <p><b>3. Penalized Net Health Score:</b> Deductions are mathematically computed by assessing the spatial footprint of stressed pixels (${rStress.toFixed(1)}%) alongside the calculated moisture deficit (${cMoistureDeficit}%):</p>
+    <p><b>3. Penalised Net Score:</b> Deductions use the share of low-vigour pixels (${rStress.toFixed(1)}%) and the derived moisture-deficit term (${cMoistureDeficit}%):</p>
     <div class="equation-box">
-      <div class="equation-code">Net Composite Health = Gross Capital - (0.18 &times; Stress Penalty + 0.12 &times; Deficit) = ${compositeScore} / 100</div>
+      <div class="equation-code">Net Composite (estimate) = Gross Index - (0.18 &times; Stress Penalty + 0.12 &times; Deficit) = ${compositeScore} / 100</div>
       <div class="equation-num">(Eq. 4.0b)</div>
     </div>
 
-    <p><b>Reporter Verdict &amp; On-the-Ground Action:</b> The quantitative findings prove that <b>${((100 - rStress)).toFixed(1)}%</b> of ${esc(farm.name)} is operating at superior biological yield potential. The cultivator should maintain scheduled irrigation in the northern and central plots while applying a targeted +20% moisture augmentation and foliar micronutrient spray to the southern ${rStress.toFixed(1)}% pocket to prevent irreversible yield depression.</p>
+    <p><b>Reading &amp; On-the-Ground Action:</b> In this scene, <b>${(100 - rStress).toFixed(1)}%</b> of ${esc(farm.name)} sits above the app's low-cover flag and <b>${rStress.toFixed(1)}%</b> below it. The maps show where the crop differs; they do not tell why. Walk the flagged patches and check crop stage, water, pests, drainage and nutrients before changing irrigation or fertilizer. The composite score above is an estimate from the scene indices (formulas Eq. 4.0a-b), not a yield measurement.</p>
 
     <h2 class="section-title">4.1 Multi-Spectral Crop Canopy Health (NDVI)</h2>
-    <p>Multi-spectral Sentinel-2 Level-2A surface reflectance captured across ${esc(farm.name)} was systematically analyzed. The calculated mean NDVI is <b>${an.ndvi.mean.toFixed(2)}</b> (spatial range: <b>${an.ndvi.min.toFixed(2)}</b> to <b>${an.ndvi.max.toFixed(2)}</b>). Photosynthetically robust canopy (NDVI &gt; 0.60) occupies <b>${(100 - an.stressPct).toFixed(1)}%</b> of the net cultivated area, demonstrating healthy foliar chlorophyll and dense leaf area index.</p>
-    <p>Localized vegetative stress (NDVI &lt; 0.35) is restricted to <b>${an.stressPct.toFixed(1)}%</b> of the parcel, primarily situated along the southern sub-zone. Ground inspection is recommended for localized compaction or nitrogen leached gravel pockets.</p>
+    <p>Multi-spectral Sentinel-2 Level-2A surface reflectance captured across ${esc(farm.name)} was analyzed for this report. The calculated mean NDVI is <b>${an.ndvi.mean.toFixed(2)}</b> (spatial range: <b>${an.ndvi.min.toFixed(2)}</b> to <b>${an.ndvi.max.toFixed(2)}</b>). About <b>${(100 - an.stressPct).toFixed(1)}%</b> of clear field pixels sit at or above the app's low-cover flag and <b>${an.stressPct.toFixed(1)}%</b> below it (NDVI &lt; 0.35).</p>
+    <p>Pixels below the flag form the low-vigour share marked on the NDVI map. One image cannot say why a patch is weak - walk it and check crop stage, water, pests, drainage and nutrients before acting. The share above is the percentage of pixels over a threshold, not an abundance measurement.</p>
   `
   )
 
@@ -1747,7 +1394,7 @@ export async function buildReport(
       'fig4_2',
       `
       <h2 class="section-title">4.2 Canopy Moisture &amp; Leaf Hydration (NDMI)</h2>
-      <p>Figure 4.2 evaluates the Normalized Difference Moisture Index (NDMI). The parcel displays a mean index of <b>${an.ndmi.mean.toFixed(2)}</b> (range: <b>${an.ndmi.min.toFixed(2)}</b> to <b>${an.ndmi.max.toFixed(2)}</b>), confirming adequate turgidity across the primary cropping zone without acute cellular drought stress.</p>
+      <p>Figure 4.2 evaluates the Normalized Difference Moisture Index (NDMI). The parcel reads a mean index of <b>${an.ndmi.mean.toFixed(2)}</b> (range: <b>${an.ndmi.min.toFixed(2)}</b> to <b>${an.ndmi.max.toFixed(2)}</b>) in this scene. Moisture readings are best compared across dates to see a trend, and confirmed with a soil-moisture check before changing irrigation.</p>
       <figure class="academic-figure">
         ${fig4_2_Svg}
         <figcaption class="figure-caption">Fig 4.2: Leaf Moisture &amp; Canopy Hydration Zonation (NDMI)</figcaption>
@@ -1766,9 +1413,16 @@ export async function buildReport(
       const figNum = `Fig 4.${addFigIdx++}`
       const figTitle = `${indObj.name} Analytical Zonation Map`
       const indLegend = `<text x="12" y="20" font-family="'Times New Roman',serif" font-size="11" font-weight="700" fill="#10231b">${indObj.name} Legend</text>
-        <rect x="12" y="32" width="140" height="8" rx="2" fill="linear-gradient(to right, #2d6a4f, #e9c46a, #e76f51)"/>
-        <text x="12" y="54" font-family="'Times New Roman',serif" font-size="9" fill="#10231b">Low: ${indObj.range?.[0] ?? -0.5}</text>
-        <text x="152" y="54" text-anchor="end" font-family="'Times New Roman',serif" font-size="9" fill="#10231b">High: ${indObj.range?.[1] ?? 0.8}</text>`
+        <defs>
+          <linearGradient id="${mId}-ramp" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#2d6a4f"/>
+            <stop offset="50%" stop-color="#e9c46a"/>
+            <stop offset="100%" stop-color="#e76f51"/>
+          </linearGradient>
+        </defs>
+        <rect x="12" y="32" width="140" height="8" rx="2" fill="url(#${mId}-ramp)"/>
+        <text x="12" y="54" font-family="'Times New Roman',serif" font-size="9" fill="#10231b">Low: ${indObj.range?.[0] !== undefined ? indObj.range[0] : '—'}</text>
+        <text x="152" y="54" text-anchor="end" font-family="'Times New Roman',serif" font-size="9" fill="#10231b">High: ${indObj.range?.[1] !== undefined ? indObj.range[1] : '—'}</text>`
       const svgMap = render2dCartographicMap(figNum, figTitle, view, ring, makeLayerContent(mId), indLegend, `Source: SEVA·GIS Native Radiometric Pipeline (${indObj.source})`)
       const pFig = curPageNum
       figEntries.push({ num: figNum, title: figTitle, pageNum: pFig })
@@ -1805,7 +1459,7 @@ export async function buildReport(
           `fig_bs_${bsId}`,
           `
           <h2 class="section-title">${figTitle}</h2>
-          <p>${bsChoice.note}. Generated directly from calibrated Sentinel-2 Level-2A multi-spectral channels (<b>${bsChoice.bands}</b>) with native atmospheric correction.</p>
+          <p>${bsChoice.note}. Generated directly from atmospherically corrected Sentinel-2 Level-2A multi-spectral channels (<b>${bsChoice.bands}</b>).</p>
           <figure class="academic-figure">
             ${svgMap}
             <figcaption class="figure-caption">${figNum}: ${esc(figTitle)}</figcaption>
@@ -1817,48 +1471,42 @@ export async function buildReport(
     }
   }
 
-  // Fig 4.1 & 4.2: Landuse Summary & Water Balance Report (Dynamic to Study Area)
+  // Fig 4.1 & 4.2: Landuse Summary & Water Balance Report
   if (opts.maps.includes('water_balance')) {
-    const annualPrec = Math.round(farm.rain ? Math.max(380, farm.rain * 42) : 1171)
-    const surqVal = (annualPrec * 0.29).toFixed(1)
-    const etVal = (annualPrec * 0.38).toFixed(1)
-    const gwqVal = (annualPrec * 0.21).toFixed(1)
-    const percVal = (annualPrec * 0.32).toFixed(1)
-
-    const fig4_1_Svg = renderLanduseSummaryChartSvg(annualPrec, farm.name)
+    const fig4_1_Svg = renderLanduseSummaryChartSvg(farm.name)
     const pFig4_1 = curPageNum
     figEntries.push({ num: 'Fig 4.1', title: `Water used in different forms by different Landuse in Study Area Catchment (${farm.name})`, pageNum: pFig4_1 })
     pushPage(
       'fig4_1_water_summary',
       `
       <h2 class="section-title">4.3 Landuse Water Utilization Summary</h2>
-      <p>Figure 4.1 summarizes hydrological partition components—precipitation (${annualPrec.toLocaleString()} mm), surface runoff (${surqVal} mm), groundwater return flow (${gwqVal} mm), and actual evapotranspiration (${etVal} mm)—across different agrarian and vegetative landuses for the study area catchment (${esc(farm.name)}).</p>
+      <p>Figure 4.1 would summarize how rainfall splits into surface runoff, groundwater return flow and evapotranspiration by landuse. That split is a modelled result: it needs a calibrated hydrological model (SWAT-class) with observed streamflow records, which SEVA·GIS does not run on the device. The figure therefore stays empty and states the reason, instead of drawing invented proportions.</p>
       <figure class="academic-figure">
         ${fig4_1_Svg}
         <figcaption class="figure-caption">Fig 4.1: Water used in different forms by different Landuse in Study Area Catchment (${esc(farm.name)})</figcaption>
-        <div class="figure-source">Source: SWAT Hydrological Model Landuse Partition Database</div>
+        <div class="figure-source">Source: awaiting a calibrated SWAT-class model run - not produced on device</div>
       </figure>
     `
     )
 
-    const fig4_2_Svg = renderWaterBalanceReportSvg(annualPrec, farm.name)
+    const fig4_2_Svg = renderWaterBalanceReportSvg(farm.name)
     const pFig4_2 = curPageNum
     figEntries.push({ num: 'Fig 4.2', title: `Water Balance Report & Sub-surface Flow Cycle (${farm.name})`, pageNum: pFig4_2 })
     pushPage(
       'fig4_2_water_report',
       `
       <h2 class="section-title">4.4 Continuous Water Balance Cycle &amp; Hydrological Budget</h2>
-      <p>Figure 4.2 presents the complete cross-sectional water balance budget for ${esc(farm.name)}, tracing ${annualPrec.toLocaleString()} mm precipitation into ${etVal} mm evapotranspiration, ${surqVal} mm surface runoff, 9.95 mm lateral subsurface flow, ${percVal} mm percolation to shallow aquifer, and ${gwqVal} mm return flow under an average Curve Number of 75.62.</p>
+      <p>Figure 4.2 would present the continuous water balance budget (precipitation, evapotranspiration, runoff, percolation, return flow and Curve Number). Each of these is a modelled quantity: SEVA·GIS does not run a calibrated hydrological model on the device, so the figure states "Data unavailable" until a real model run or observed streamflow is attached.</p>
       <figure class="academic-figure">
         ${fig4_2_Svg}
         <figcaption class="figure-caption">Fig 4.2: Water Balance Report &amp; Hydrological Budget (${esc(farm.name)})</figcaption>
-        <div class="figure-source">Source: Continuous Soil &amp; Water Assessment Tool (SWAT) Hydrological Cycle</div>
+        <div class="figure-source">Source: awaiting a calibrated SWAT-class model run - not produced on device</div>
       </figure>
     `
     )
   }
 
-  // Fig 4.3: Calibration Output in SWAT-CUP (directly matching 8.jpeg in MAPS REF)
+  // Fig 4.3: Calibration Output in SWAT-CUP
   if (opts.maps.includes('calibration')) {
     const fig4_3_Svg = renderCalibrationHydrographSvg()
     const pFig4_3 = curPageNum
@@ -1867,17 +1515,17 @@ export async function buildReport(
       'fig4_3_calibration',
       `
       <h2 class="section-title">4.5 Hydrological Calibration Output in SWAT-CUP</h2>
-      <p>Figure 4.3 depicts the monthly streamflow calibration hydrograph comparing observed discharge against best simulation estimates alongside the 95% Prediction Uncertainty (95PPU) band, achieving a Nash-Sutcliffe Efficiency (NSE) of 0.74, R² of 0.79, and PBIAS of +4.2%.</p>
+      <p>Figure 4.3 would compare observed and simulated monthly streamflow with the 95% prediction uncertainty band. No SWAT-CUP calibration run has been recorded for this area of interest, so the observed line, the simulated line and the uncertainty band are not drawn and the fit statistics (NSE, R², PBIAS) are withheld. They appear only after a real calibration run on observed discharge.</p>
       <figure class="academic-figure">
         ${fig4_3_Svg}
         <figcaption class="figure-caption">Fig 4.3: Calibration output in SWAT-CUP</figcaption>
-        <div class="figure-source">Source: SUFI-2 Optimization &amp; Uncertainty Fitting Routine (SWAT-CUP)</div>
+        <div class="figure-source">Source: awaiting a real SWAT-CUP calibration run - no numbers are invented</div>
       </figure>
     `
     )
   }
 
-  // Fig 4.7: Global Sensitivity Analysis (directly matching 10.jpeg in MAPS REF)
+  // Fig 4.7: Global Sensitivity Analysis
   if (opts.maps.includes('sensitivity') || opts.includeCharts !== false) {
     const fig4_7_Svg = renderSufi2SensitivitySvg()
     const pFig4_7 = curPageNum
@@ -1886,11 +1534,11 @@ export async function buildReport(
       'fig4_7_sensitivity',
       `
       <h2 class="section-title">4.6 Global Parameter Sensitivity Ranking (SUFI-2)</h2>
-      <p>Figure 4.7 presents the global parameter sensitivity ranking evaluating t-stat magnitudes and p-value statistical significance across Latin Hypercube iterations. Runoff curve number (CN2) is identified as the most sensitive parameter, followed by baseflow alpha factor (ALPHA_BF), plant compensation factor (EPCO), and revap coefficient (REVAPMN).</p>
+      <p>Figure 4.7 lists the SWAT calibration parameters that a SUFI-2 sensitivity analysis would rank, together with their standard literature valid ranges. The t-stat and p-value ranking itself is produced only by a completed SUFI-2 run (SWAT-CUP) against observed streamflow; no such run exists for this area of interest, so every parameter is marked "Not calibrated".</p>
       <figure class="academic-figure">
         ${fig4_7_Svg}
         <figcaption class="figure-caption">Fig 4.7: Sensitivity Analysis showing p-value and t-stat</figcaption>
-        <div class="figure-source">Source: SUFI-2 Global Sensitivity Algorithm (Abbaspour et al., 2008)</div>
+        <div class="figure-source">Ranges: standard SWAT calibration bounds (Abbaspour et al.) - ranking pending a real SUFI-2 run</div>
       </figure>
     `
     )
@@ -1907,7 +1555,7 @@ export async function buildReport(
       'tables_p1',
       `
       <h2 class="section-title">4.4 Hydrological Water Balance &amp; Session Trajectories</h2>
-      <p>The calibrated hydrological budget and statistical indicator summaries are compiled below.</p>
+      <p>Table 4.3 and Table 4.4 contain measured satellite and session data. Modelled hydrological quantities (Tables 4.1 and 4.2) are marked "Data unavailable" because no calibrated model run exists for this area of interest - they are never estimated.</p>
 
       <p class="table-caption">Table 4.1: Hydrological Calibration Performance Metrics (SUFI-2)</p>
       <table class="academic-table">
@@ -1915,13 +1563,13 @@ export async function buildReport(
           <tr><th>Evaluation Metric</th><th>Calculated Value</th><th>Acceptable Criteria</th><th>Calibration Performance Rating</th></tr>
         </thead>
         <tbody>
-          <tr><td>Coefficient of Determination (R²)</td><td><b>0.68</b></td><td>&gt; 0.60</td><td><b>Satisfactory / Strong</b></td></tr>
-          <tr><td>Nash-Sutcliffe Efficiency (NSE)</td><td><b>0.64</b></td><td>&gt; 0.50</td><td><b>Good Model Fit</b></td></tr>
-          <tr><td>Percent Bias (PBIAS)</td><td><b>+8.4%</b></td><td>&lt; &plusmn;15%</td><td><b>Very Good</b> (Slight underestimation)</td></tr>
-          <tr><td>Kling-Gupta Efficiency (KGE)</td><td><b>0.71</b></td><td>&gt; 0.60</td><td><b>Robust Diagnostic</b></td></tr>
+          <tr><td>Coefficient of Determination (R²)</td><td><b>Data unavailable</b></td><td>&gt; 0.60</td><td>Pending a real SWAT-CUP calibration run</td></tr>
+          <tr><td>Nash-Sutcliffe Efficiency (NSE)</td><td><b>Data unavailable</b></td><td>&gt; 0.50</td><td>Pending a real SWAT-CUP calibration run</td></tr>
+          <tr><td>Percent Bias (PBIAS)</td><td><b>Data unavailable</b></td><td>&lt; &plusmn;15%</td><td>Pending a real SWAT-CUP calibration run</td></tr>
+          <tr><td>Kling-Gupta Efficiency (KGE)</td><td><b>Data unavailable</b></td><td>&gt; 0.60</td><td>Pending a real SWAT-CUP calibration run</td></tr>
         </tbody>
       </table>
-      <div class="table-source">Source: SEVA·GIS Calibration Engine</div>
+      <div class="table-source">Criteria: Moriasi et al. (2007) benchmark ranges - values withheld until a calibration run exists</div>
 
       <p class="table-caption">Table 4.2: Annual Continuous Hydrological Water Budget</p>
       <table class="academic-table">
@@ -1929,14 +1577,10 @@ export async function buildReport(
           <tr><th>Water Budget Component</th><th>Annual Depth (mm)</th><th>Monsoon Depth (mm)</th><th>Winter / Rabi (mm)</th><th>Summer / Zaid (mm)</th><th>% of Total Precipitation</th></tr>
         </thead>
         <tbody>
-          <tr><td>Total Precipitation (P)</td><td>1,180.0 mm</td><td>842.0 mm</td><td>214.0 mm</td><td>124.0 mm</td><td>100.0%</td></tr>
-          <tr><td>Surface Runoff (Q_surf)</td><td>248.6 mm</td><td>218.4 mm</td><td>24.2 mm</td><td>6.0 mm</td><td>21.1%</td></tr>
-          <tr><td>Actual Evapotranspiration (ET_a)</td><td>612.4 mm</td><td>384.2 mm</td><td>142.0 mm</td><td>86.2 mm</td><td>51.9%</td></tr>
-          <tr><td>Soil Storage Change (&Delta;S)</td><td>+182.4 mm</td><td>-94.2 mm</td><td>-42.0 mm</td><td>+46.2 mm</td><td>3.9%</td></tr>
-          <tr><td>Groundwater Percolation</td><td>148.8 mm</td><td>98.0 mm</td><td>26.0 mm</td><td>272.8 mm</td><td>23.1%</td></tr>
+          <tr><td colspan="6" style="text-align: center; font-weight: 700; color: #b45309;">Data unavailable - the water budget is a modelled result and no calibrated SWAT-class run exists for this area of interest. SEVA·GIS does not fill this table with estimates.</td></tr>
         </tbody>
       </table>
-      <div class="table-source">Source: SWAT Hydrological Budget Output Model</div>
+      <div class="table-source">Source: awaiting a calibrated SWAT-class model run</div>
 
       <p class="table-caption">Table 4.3: Multi-Spectral Indicator Statistics &amp; Agronomic Verdicts</p>
       <table class="academic-table">
@@ -1944,35 +1588,34 @@ export async function buildReport(
           <tr><th>Spectral Index</th><th>Formula</th><th>Mean Value</th><th>Min – Max Range</th><th>Agronomic Diagnostic Verdict</th></tr>
         </thead>
         <tbody>
-          <tr><td><b>NDVI</b> (Canopy Vigor)</td><td>(B08-B04)/(B08+B04)</td><td><b>${an.ndvi.mean.toFixed(2)}</b></td><td>${an.ndvi.min.toFixed(2)} to ${an.ndvi.max.toFixed(2)}</td><td><b>Healthy &amp; Vigorous</b> (Strong photosynthetic cover)</td></tr>
-          <tr><td><b>NDMI</b> (Leaf Moisture)</td><td>(B08-B11)/(B08+B11)</td><td><b>${an.ndmi.mean.toFixed(2)}</b></td><td>${an.ndmi.min.toFixed(2)} to ${an.ndmi.max.toFixed(2)}</td><td><b>Adequate Hydration</b> (No severe canopy wilt)</td></tr>
-          <tr><td><b>NDWI</b> (Surface Water)</td><td>(B03-B08)/(B03+B08)</td><td><b>${an.ndwi.mean.toFixed(2)}</b></td><td>${an.ndwi.min.toFixed(2)} to ${an.ndwi.max.toFixed(2)}</td><td><b>Well-Drained</b> (No stagnant waterlogging)</td></tr>
-          <tr><td><b>Stress Share</b></td><td>Pixels &lt; 0.35 NDVI</td><td><b>${an.stressPct.toFixed(1)}%</b></td><td>Localized Patch</td><td><b>Needs Attention</b> in South Micro-Zone</td></tr>
+          <tr><td><b>NDVI</b> (Canopy Vigor)</td><td>(B08-B04)/(B08+B04)</td><td><b>${an.ndvi.mean.toFixed(2)}</b></td><td>${an.ndvi.min.toFixed(2)} to ${an.ndvi.max.toFixed(2)}</td><td>Dense green cover in the measured scene (share of pixels above the app's green-cover flags)</td></tr>
+          <tr><td><b>NDMI</b> (Leaf Moisture)</td><td>(B08-B11)/(B08+B11)</td><td><b>${an.ndmi.mean.toFixed(2)}</b></td><td>${an.ndmi.min.toFixed(2)} to ${an.ndmi.max.toFixed(2)}</td><td>Canopy moisture signal from this scene; compare across dates rather than in isolation</td></tr>
+          <tr><td><b>NDWI</b> (Surface Water)</td><td>(B03-B08)/(B03+B08)</td><td><b>${an.ndwi.mean.toFixed(2)}</b></td><td>${an.ndwi.min.toFixed(2)} to ${an.ndwi.max.toFixed(2)}</td><td>Open-water indicator for this scene; negative values are normal for dry land</td></tr>
+          <tr><td><b>Stress Share</b></td><td>Pixels &lt; 0.35 NDVI</td><td><b>${an.stressPct.toFixed(1)}%</b></td><td>Localized patch</td><td>Walk these patches and check crop stage, pests, drainage and soil - one image cannot tell the cause</td></tr>
         </tbody>
       </table>
-      <div class="table-source">Source: SEVA·GIS Spectral Analysis Pipeline</div>
+      <div class="table-source">Source: SEVA·GIS Spectral Analysis Pipeline (scene ${esc(an.scene.id)})</div>
 
-      <p class="table-caption">Table 4.4: 6-Session Comparative Estimation &amp; Historical Trajectory</p>
+      <p class="table-caption">Table 4.4: Session Comparative Estimation &amp; Historical Trajectory</p>
       <table class="academic-table">
         <thead>
-          <tr><th>Session</th><th>Observation Date</th><th>NDVI Mean</th><th>NDMI Mean</th><th>Stress %</th><th>Rainfall (mm)</th><th>Runoff (mm)</th><th>Phenological Stage</th></tr>
+          <tr><th>Session</th><th>Observation Date</th><th>NDVI Mean</th><th>NDMI Mean</th><th>Stress %</th><th>Rainfall (mm)</th><th>Stage / Role</th></tr>
         </thead>
         <tbody>
           ${sessions.map(s => `
             <tr>
               <td><b>#${s.num}</b></td>
-              <td>${s.date}</td>
-              <td><b>${s.ndvi.toFixed(2)}</b></td>
-              <td>${s.ndmi.toFixed(2)}</td>
-              <td>${s.stress.toFixed(1)}%</td>
-              <td>${s.rain.toFixed(1)}</td>
-              <td>${s.runoff.toFixed(1)}</td>
+              <td>${s.date ?? '—'}</td>
+              <td><b>${s.ndvi == null ? '—' : s.ndvi.toFixed(2)}</b></td>
+              <td>${s.ndmi == null ? '—' : s.ndmi.toFixed(2)}</td>
+              <td>${s.stress == null ? '—' : s.stress.toFixed(1) + '%'}</td>
+              <td>${s.rain == null ? '—' : s.rain.toFixed(1)}</td>
               <td>${s.status}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
-      <div class="table-source">Source: SEVA·GIS Multi-Session Historical Tracking Engine</div>
+      <div class="table-source">Source: SEVA·GIS multi-session tracking (measured Sentinel-2 scenes; "—" means no value was recorded)</div>
     `
     )
   }
@@ -2005,35 +1648,37 @@ export async function buildReport(
         : lang === 'hi'
         ? `औसत पत्ती जल सूचकांक (NDMI) <b>${an.ndmi.mean.toFixed(2)}</b> है, जो पर्याप्त नमी और वाष्पोत्सर्जन की पुष्टि करता है।`
         : `Mean leaf water index (NDMI) is <b>${an.ndmi.mean.toFixed(2)}</b>, confirming sufficient cellular turgor and transpiration.`}</li>
-      <li><b>${lang === 'te' ? 'భూభాగ అమరిక:' : lang === 'hi' ? 'स्थलाकृतिक विन्यास:' : 'Topographic Configuration:'}</b> ${lang === 'te'
-        ? `సగటు ఎత్తు <b>${elevMeanVal.toFixed(1)} మీటర్లు</b> మరియు సగటు వాలు <b>${slopePctVal.toFixed(1)}%</b>, నీటి నిల్వ లేకుండా సమానమైన డ్రైనేజీకి అనుకూలంగా ఉంది.`
-        : lang === 'hi'
-        ? `औसत ऊंचाई <b>${elevMeanVal.toFixed(1)} मीटर</b> तथा औसत ढलान <b>${slopePctVal.toFixed(1)}%</b> है, जो गंभीर भू-कटाव के बिना उचित जल निकासी की सुविधा देता है।`
-        : `Mean elevation is <b>${elevMeanVal.toFixed(1)} m</b> with an average slope of <b>${slopePctVal.toFixed(1)}%</b>, facilitating uniform drainage without severe gully erosion risk.`}</li>
+      <li><b>${lang === 'te' ? 'భూభాగ అమరిక:' : lang === 'hi' ? 'स्थलाकृतिक विन्यास:' : 'Topographic Configuration:'}</b> ${elevMeanVal != null || slopePctVal != null
+        ? (lang === 'te'
+          ? `సగటు ఎత్తు <b>${fmtU(elevMeanVal, 'm')}</b> మరియు సగటు వాలు <b>${fmtU(slopePctVal, '%')}</b>. స్థానిక నీటి నిల్వ మరియు కాలువలను క్షేత్ర పరిశీలనలో ధృవీకరించండి.`
+          : lang === 'hi'
+          ? `औसत ऊंचाई <b>${fmtU(elevMeanVal, 'm')}</b> तथा औसत ढलान <b>${fmtU(slopePctVal, '%')}</b> है। स्थानीय जलभराव व नालियों की पुष्टि जमीनी निरीक्षण से करें।`
+          : `Mean elevation is <b>${fmtU(elevMeanVal, 'm')}</b> with an average slope of <b>${fmtU(slopePctVal, '%')}</b>. Confirm local ponding and drainage lines during a field visit.`)
+        : naText}</li>
       <li><b>${lang === 'te' ? 'జల సమతుల్యత:' : lang === 'hi' ? 'जल संतुलन:' : 'Water Balance:'}</b> ${lang === 'te'
-        ? `వార్షిక వర్షపాతం 1,180.0 మి.మీ నుండి ఉపరితల ప్రవాహం <b>248.6 మి.మీ</b> కాగా, భాష్పీభవనం <b>612.4 మి.మీ</b>.`
+        ? 'వార్షిక ప్రవాహం మరియు బాష్పీభవనం కాలిబ్రేటెడ్ జలవిజ్ఞాన నమూనా ఫలితాలు; అటువంటి నమూనా రన్ నమోదు కానందున ఈ నివేదిక వాటిని అంచనా వేయలేదు.'
         : lang === 'hi'
-        ? `1,180.0 मिमी वर्षा में से वार्षिक सतही अपवाह <b>248.6 मिमी</b> तथा वाष्पोत्सर्जन <b>612.4 मिमी</b> दर्ज किया गया।`
-        : `Annual runoff is <b>248.6 mm</b> from 1,180.0 mm rainfall, with evapotranspiration accounting for <b>612.4 mm</b>.`}</li>
+        ? 'वार्षिक अपवाह एवं वाष्पोत्सर्जन एक अंशांकित जल-विज्ञान मॉडल के परिणाम होते हैं; ऐसा कोई मॉडल रन दर्ज न होने के कारण यह रिपोर्ट उनका अनुमान नहीं लगाती।'
+        : 'Annual runoff and evapotranspiration are outputs of a calibrated hydrological model. No such model run is recorded for this area, so this report does not estimate them.'}</li>
     </ul>
 
     <h2 class="section-title">${lang === 'te' ? '5.2 ఆచరణాత్మక సిఫార్సులు' : lang === 'hi' ? '5.2 व्यावहारिक अनुशंसाएं' : '5.2 Actionable Recommendations'}</h2>
     <div style="background: #f7faf5; border-left: 4pt solid #2d6a4f; padding: 12pt 16pt; margin: 14pt 0; font-size: 11pt;">
       <p class="no-indent"><b>${lang === 'te' ? '1. ఖచ్చితమైన నీటిపారుదల షెడ్యూల్:' : lang === 'hi' ? '1. सटीक सिंचाई निर्धारण:' : '1. Precision Irrigation Scheduling:'}</b> ${esc(irrAdvice.title)} — ${esc(irrAdvice.bullets.join('; '))}.</p>
       <p class="no-indent" style="margin-top: 8pt;"><b>${lang === 'te' ? '2. నత్రజని వేరియబుల్ రేట్ అప్లికేషన్ (VRA):' : lang === 'hi' ? '2. नाइट्रोजन का परिवर्तनीय दर अनुप्रयोग (VRA):' : '2. Variable Rate Application (VRA) of Nitrogen:'}</b> ${lang === 'te'
-        ? 'మంచి పచ్చదనమున్న ఉత్తర భాగంలో ప్రామాణిక ఎరువులు (80 కిలోల N/హెక్టారు) వేయండి, కానీ ఒత్తిడి ఉన్న దక్షిణ భాగంలో నత్రజనిని +25% (100 కిలోల N/హెక్టారు) వరకు పెంచి జింక్/పొటాషియం సూక్ష్మపోషకాలను అందించండి.'
+        ? 'NDVI/NDMI పటాలు పొలంలో పంట ఎక్కడ భిన్నంగా ఉందో చూపిస్తాయి. ఎక్కువ పచ్చదనం ఉన్న భాగాల్లో మీ సాధారణ పద్ధతిని అనుసరించండి; తక్కువ పచ్చదనం ఉన్న భాగాల్లో కారణాన్ని ముందుగా క్షేత్రంలో నిర్ధారించండి (నీరు, పురుగులు, డ్రెయినేజ్, పోషకాలు) - ఎరువుల మోతాదులను SEVA·GIS సూచించదు.'
         : lang === 'hi'
-        ? 'उच्च वानस्पतिक विकास वाले उत्तरी क्षेत्र में मानक बेसल ड्रेसिंग (80 किग्रा N/हेक्टेयर) लागू करें, लेकिन दक्षिणी तनावग्रस्त क्षेत्र में नाइट्रोजन को +25% (100 किग्रा N/हेक्टेयर) तक बढ़ाएं और सूक्ष्म पोषक तत्वों का छिड़काव करें।'
-        : 'Apply standard basal dressing (80 kg N/ha) in the high-vigor northern sector, but boost nitrogen by +25% (100 kg N/ha) in the southern stressed sector alongside localized zinc/potassium supplementation.'}</p>
+        ? 'NDVI/NDMI मानचित्र दिखाते हैं कि खेत में फसल कहाँ भिन्न है। अधिक हरियाली वाले भागों में अपनी सामान्य विधि अपनाएं; कम हरियाली वाले भागों में पहले खेत पर कारण जांचें (पानी, कीट, जलनिकासी, पोषक तत्व) - SEVA·GIS उर्वरक मात्राएं निर्धारित नहीं करता।'
+        : 'The NDVI/NDMI maps show where the crop differs across the field. In the higher-vigour zones follow your normal practice for this crop and stage; in the lower-vigour zones verify the cause first (water, pests, drainage, nutrients) before changing any fertilizer dose. SEVA·GIS does not prescribe kg/ha fertilizer rates.'}</p>
       <p class="no-indent" style="margin-top: 8pt;"><b>${lang === 'te' ? '3. నేల &amp; భూసార పరిరక్షణ:' : lang === 'hi' ? '3. भूमि एवं मृदा संरक्षण:' : '3. Land &amp; Soil Conservation:'}</b> ${esc(conAdvice.title)} — ${esc(conAdvice.bullets.join('; '))}.</p>
     </div>
 
     <h2 class="section-title">${lang === 'te' ? '5.4 పరిమితులు మరియు భవిష్యత్ పరిధి' : lang === 'hi' ? '5.4 सीमाएं एवं भावी संभावनाएं' : '5.4 Limitations and Future Scope'}</h2>
     <p>${lang === 'te'
-      ? 'సెంటినెల్-2 10 మీటర్ల ప్రాదేశిక రిజల్యూషన్‌ను అందించినప్పటికీ, భారీ వర్షాకాలంలో మేఘాల ఆటంకం తాత్కాలిక పరిశీలన అంతరాలను కలిగిస్తుంది. దీనిని సేవా జిఐఎస్ సమయ సమ్మేళనం (టెంపోరల్ కాంపోజిట్ స్టిచింగ్) ద్వారా అధిగమిస్తుంది. భవిష్యత్తులో ప్లానెట్‌స్కోప్ 3 మీటర్ల రోజువారీ చిత్రాలు మరియు లోరావాన్ (LoRaWAN) నేల తేమ ప్రోబ్‌లను అనుసంధానించడం ద్వారా మిల్లీమీటర్ స్థాయి ఖచ్చితత్వాన్ని సాధించవచ్చు.'
+      ? 'సెంటినెల్-2 10 మీటర్ల ప్రాదేశిక రిజల్యూషన్‌ను అందిస్తుంది; అయినప్పటికీ భారీ వర్షాకాలంలో మేఘాలు పరిశీలన అంతరాలను కలిగించవచ్చు. అలాంటి సమయాల్లో స్పష్టమైన తేదీలను ఎంచుకోవడం లేదా వేచి ఉండటం మంచిది. భవిష్యత్తు పనిలో ఎక్కువ రిజల్యూషన్ చిత్రాలు మరియు క్షేత్ర నేల-తేమ సెన్సార్ల అనుసంధానం ఉంటాయి.'
       : lang === 'hi'
-      ? 'यद्यपि सेंटिनल-2 10 मीटर स्थानिक रिज़ॉल्यूशन प्रदान करता है, लेकिन मानसून के दौरान बादलों का आवरण कभी-कभी अवलोकन में बाधा उत्पन्न करता है, जिसे सेवा जीआईएस टेम्पोरल कंपोजिट स्टिचिंग के माध्यम से कम करता है। भविष्य के दायरे में दैनिक 3 मीटर प्लैनेटस्कोप इमेजरी और जमीनी LoRaWAN मृदा नमी सेंसर को जोड़कर मिली-मीटर स्तर की सटीकता प्राप्त करना शामिल है।'
-      : 'While Sentinel-2 provides 10 m spatial resolution, cloud obscuration during peak monsoon events occasionally creates observation gaps, which SEVA·GIS mitigates through temporal composite stitching. Future scope involves integrating PlanetScope 3 m daily imagery and ground-installed LoRaWAN soil moisture probes to achieve millimeter-level real-time root zone precision.'}</p>
+      ? 'सेंटिनल-2 10 मीटर स्थानिक रिज़ॉल्यूशन देता है; फिर भी मानसून में बादल अवलोकन में अंतराल ला सकते हैं। ऐसे समय में साफ़ तारीख चुनना या प्रतीक्षा करना बेहतर है। भावी कार्य में उच्च-रिज़ॉल्यूशन इमेजरी तथा खेत के मृदा-नमी सेंसर जोड़ना शामिल है।'
+      : 'Sentinel-2 provides 10 m spatial resolution; during peak monsoon, cloud can still leave gaps between clear observations. Where that happens, pick an earlier clear date or wait for the next pass. Planned future work covers higher-resolution imagery and connecting in-field soil-moisture sensors.'}</p>
   `
   )
 
@@ -2068,23 +1713,25 @@ export async function buildReport(
     'apps_p1',
     `
     <h1 class="chapter-title">${t.appTitle}</h1>
-    <h2 class="section-title">Official Metadata Dossier &amp; Sensor Records</h2>
+    <h2 class="section-title">Metadata Dossier &amp; Sensor Records</h2>
     <table class="academic-table">
       <thead>
         <tr><th>Property</th><th>Ingested Value / Coordinate Specification</th></tr>
       </thead>
       <tbody>
-        <tr><td>Report Verification Checksum</td><td><code>SHA256:${rid}</code></td></tr>
-        <tr><td>Sensor Satellite Mission</td><td>Sentinel-2B Multi-Spectral Instrument (MSI)</td></tr>
+        <tr><td>Report Identifier</td><td><code>${esc(rid)}</code></td></tr>
+        <tr><td>Scene Identifier</td><td><code>${esc(an.scene.id)}</code></td></tr>
+        <tr><td>Scene Date / Cloud Cover</td><td>${an.scene.datetime ? esc(an.scene.datetime.slice(0, 10)) : '—'} · ${typeof an.scene.cloud === 'number' ? `${an.scene.cloud}% reported cloud` : 'cloud % not reported'}</td></tr>
+        <tr><td>Sensor Satellite Mission</td><td>Sentinel-2 Multi-Spectral Instrument (MSI), as per the scene identifier above</td></tr>
         <tr><td>Radiometric Processing Level</td><td>Level-2A Bottom-of-Atmosphere (BOA) Surface Reflectance</td></tr>
         <tr><td>Elevation Surface Grid</td><td>Copernicus DEM GLO-30 (30 m spatial resolution)</td></tr>
-        <tr><td>Geodetic Ellipsoid / Datum</td><td>World Geodetic System 1984 (WGS 84 / EPSG:4326)</td></tr>
-        <tr><td>Map Projection / Grid</td><td>Universal Transverse Mercator (UTM Zone 44N)</td></tr>
-        <tr><td>Cloud Probability Mask (SCL)</td><td>Vegetation &amp; Soil Pixels Retained; Cirrus/Cloud Wiped</td></tr>
-        <tr><td>Generation Microservice Engine</td><td>SEVA·GIS Autonomous Client-Side Geoprocessing Core</td></tr>
+        <tr><td>Geodetic Datum / Coordinates</td><td>World Geodetic System 1984 (WGS 84 / EPSG:4326)</td></tr>
+        <tr><td>Figure Projection</td><td>Web Mercator (EPSG:3857) raster composites over Esri World Imagery; coordinates recorded in WGS 84</td></tr>
+        <tr><td>Cloud Handling</td><td>Scene selected under the app's cloud-cover limit; no other masking claimed</td></tr>
+        <tr><td>Generation Engine</td><td>SEVA·GIS client-side geospatial engine (runs in this browser)</td></tr>
       </tbody>
     </table>
-    <div class="table-source">Verified by SEVA·GIS Autonomous Agro-Geospatial Sentinel Engine</div>
+    <div class="table-source">Generated by the SEVA·GIS browser engine from the inputs listed above</div>
   `
   )
 
@@ -2338,10 +1985,10 @@ export async function buildReport(
   `
 
   const abstractText = lang === 'te'
-    ? `ఈ సమగ్ర నివేదిక ${farm.name} వ్యవసాయ క్షేత్రం (ప్రాంతం: ${farm.location}, అక్షాంశ/రేఖాంశాలు: ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E, విస్తీర్ణం: ${ha.toFixed(2)} హెక్టార్లు / ${acres.toFixed(2)} ఎకరాలు) యొక్క రిమోట్ సెన్సింగ్ మరియు జల సమతుల్యత పరిశీలనను వివరిస్తుంది. యూరోపియన్ స్పేస్ ఏజెన్సీ (ESA) సెంటినెల్-2 L2A ఉపగ్రహం (10 మీటర్ల రిజల్యూషన్), కోపర్నికస్ DEM GLO-30 (30 మీటర్ల రిజల్యూషన్), మరియు ఓపెన్-మీటియో వాతావరణ సమాచారాన్ని సేవా జిఐఎస్ (SEVA·GIS) స్థానిక బ్రౌజర్ ఇంజిన్ ద్వారా నేరుగా విశ్లేషించబడ్డాయి. బహుళ వర్ణపట సూచికలైన NDVI (${an.ndvi.mean.toFixed(2)} సగటు, విస్తృతి: ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) మరియు ఆకుల తేమ సూచిక NDMI (${an.ndmi.mean.toFixed(2)}) విశ్లేషణ ద్వారా పంట పందిరి ఆరోగ్యం మరియు ${an.stressPct.toFixed(1)}% ఒత్తిడికి గురైన భాగాలు గుర్తించబడ్డాయి. SCS-CN నీటి బడ్జెట్ నమూనా ద్వారా వార్షిక ఉపరితల ప్రవాహం 248.6 మి.మీ మరియు ఆవిరి నష్టం 612.4 మి.మీ గా గణించబడ్డాయి. ఈ శాస్త్రీయ ఫలితాలు సూక్ష్మ సేద్యం, ఖచ్చితమైన ఎరువుల యాజమాన్యం మరియు భూసార పరిరక్షణకు మార్గదర్శకంగా నిలుస్తాయి.`
+    ? `ఈ నివేదిక ${farm.name} వ్యవసాయ క్షేత్రం (ప్రాంతం: ${farm.location}, అక్షాంశ/రేఖాంశాలు: ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E, విస్తీర్ణం: ${ha.toFixed(2)} హెక్టార్లు / ${acres.toFixed(2)} ఎకరాలు) యొక్క ఉపగ్రహ పరిశీలనను వివరిస్తుంది. సెంటినెల్-2 L2A (10 మీ) మరియు కోపర్నికస్ DEM GLO-30 (30 మీ) డేటాను సేవా జిఐఎస్ (SEVA·GIS) బ్రౌజర్ ఇంజిన్ నేరుగా విశ్లేషించింది. NDVI సగటు ${an.ndvi.mean.toFixed(2)} (విస్తృతి: ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) మరియు NDMI సగటు ${an.ndmi.mean.toFixed(2)} - పంట ఎక్కడ భిన్నంగా ఉందో ఇవి చూపిస్తాయి; స్పష్టమైన పిక్సెల్‌లలో ${an.stressPct.toFixed(1)}% యాప్ తక్కువ-పచ్చదనం గుర్తు కంటే దిగువన ఉన్నాయి. ఈ గుర్తులు క్షేత్ర పరిశీలన కోసం - నిర్ధారిత కారణాలు కావు. జల సమతుల్యత (ప్రవాహం, బాష్పీభవనం, భూగర్భ జలం) ఒక నమూనా ఫలితం; ఈ ప్రాంతానికి కాలిబ్రేటెడ్ నమూనా రన్ నమోదు కానందున ఈ నివేదిక ఆ సంఖ్యలను అంచనా వేయదు. నీటిపారుదల, ఎరువులు లేదా భూ-పరిరక్షణ నిర్ణయాలకు ముందు క్షేత్ర ధృవీకరణ చేయాలి.`
     : lang === 'hi'
-    ? `यह विस्तृत रिपोर्ट ${farm.name} कृषि क्षेत्र (स्थान: ${farm.location}, निर्देशांक: ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E, कुल क्षेत्रफल: ${ha.toFixed(2)} हेक्टेयर / ${acres.toFixed(2)} एकड़) का सुदूर संवेदन (रिमोट सेंसिंग) और जल संतुलन मूल्यांकन प्रस्तुत करती है। जलवायु परिवर्तन के दौर में स्थायी भूमि एवं जल प्रबंधन हेतु सूक्ष्म-स्तरीय उपग्रह विश्लेषण अनिवार्य है। यूरोपीय अंतरिक्ष एजेंसी के सेंटिनल-2 L2A (10 मीटर रिज़ॉल्यूशन), कॉपरनिकस डीईएम GLO-30 (30 मीटर रिज़ॉल्यूशन) तथा ओपन-मीटियो मौसम डेटा को सेवा जीआईएस (SEVA·GIS) के ब्राउज़र-आधारित देशी इंजन द्वारा संसाधित किया गया। बहु-स्पेक्ट्रमी सूचकांकों जैसे NDVI (${an.ndvi.mean.toFixed(2)} औसत) और NDMI (${an.ndmi.mean.toFixed(2)} पत्ती नमी) द्वारा फसल स्वास्थ्य और ${an.stressPct.toFixed(1)}% तनावग्रस्त क्षेत्रों की पहचान की गई। यह रिपोर्ट सटीक सिंचाई, पोषक तत्व प्रबंधन और भू-संरक्षण के लिए ठोस वैज्ञानिक आधार प्रदान करती है।`
-    : `This report presents a comprehensive remote sensing and hydrological water balance evaluation of ${farm.name}, situated in ${farm.location} (coordinates ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E) encompassing an area of ${ha.toFixed(2)} ha (${acres.toFixed(2)} acres). Sustainable land and water resource management amidst climatic variability necessitates fine-scale spatial observation and hydrological parameterization. Multi-spectral satellite surface reflectance from Sentinel-2 L2A at 10 m resolution, Copernicus DEM GLO-30 at 30 m resolution, FAO DSMW / ISRIC digital soil series, and Open-Meteo meteorological datasets were ingested through SEVA·GIS native client-side pipelines. The computational methodology integrated Horn's 3D topographic relief modeling, multi-spectral band index synthesis (NDVI, NDMI, NDWI, EVI), and the USDA Soil Conservation Service Curve Number (SCS-CN) water balance formulation calibrated via Sequential Uncertainty Fitting (SUFI-2) principles. Empirical results demonstrated a mean canopy NDVI of ${an.ndvi.mean.toFixed(2)} (spatial range ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) and a mean leaf moisture NDMI of ${an.ndmi.mean.toFixed(2)}, indicating a generally healthy crop canopy with ${an.stressPct.toFixed(1)}% localized vegetative stress in the southern zone. Hydrological water balance analysis revealed an annual surface runoff yield of 248.6 mm and actual evapotranspiration of 612.4 mm, with acceptable model calibration performance (R² = 0.68, NSE = 0.64, PBIAS = +8.4%). These quantitative findings establish an empirical foundation for precision irrigation scheduling, variable rate nutrient prescriptions, and land conservation planning.`
+    ? `यह रिपोर्ट ${farm.name} कृषि क्षेत्र (स्थान: ${farm.location}, निर्देशांक: ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E, क्षेत्रफल: ${ha.toFixed(2)} हेक्टेयर / ${acres.toFixed(2)} एकड़) का उपग्रह अवलोकन प्रस्तुत करती है। सेंटिनल-2 L2A (10 मी) और कॉपरनिकस डीईएम GLO-30 (30 मी) डेटा को सेवा जीआईएस (SEVA·GIS) ब्राउज़र इंजन द्वारा सीधे विश्लेषित किया गया। NDVI औसत ${an.ndvi.mean.toFixed(2)} (परास: ${an.ndvi.min.toFixed(2)}–${an.ndvi.max.toFixed(2)}) और NDMI औसत ${an.ndmi.mean.toFixed(2)} - ये दिखाते हैं कि फसल कहाँ भिन्न है; साफ़ पिक्सेलों में से ${an.stressPct.toFixed(1)}% ऐप के कम-हरियाली संकेत से नीचे हैं। ये संकेत खेत पर जांच के लिए हैं - निश्चित कारण नहीं। जल संतुलन (अपवाह, वाष्पोत्सर्जन, भूजल) एक मॉडल परिणाम है; इस क्षेत्र के लिए कोई अंशांकित मॉडल रन दर्ज न होने से यह रिपोर्ट वे संख्याएँ नहीं लगाती। सिंचाई, उर्वरक या भू-संरक्षण निर्णयों से पहले खेत पर सत्यापन करें।`
+    : `This report presents a satellite-based evaluation of ${farm.name}, situated in ${farm.location} (coordinates ${cLat.toFixed(4)}°N, ${cLon.toFixed(4)}°E), covering ${ha.toFixed(2)} ha (${acres.toFixed(2)} acres). Sentinel-2 L2A surface reflectance (10 m) and Copernicus DEM GLO-30 (30 m) were analyzed directly in the browser by SEVA·GIS. Optical indices - NDVI mean ${an.ndvi.mean.toFixed(2)} (range ${an.ndvi.min.toFixed(2)}-${an.ndvi.max.toFixed(2)}) and NDMI mean ${an.ndmi.mean.toFixed(2)} - show where the crop differs; ${an.stressPct.toFixed(1)}% of clear pixels sit below the app's low-cover flag. Those flags mark places to inspect, not confirmed causes. The hydrological water balance (runoff, evapotranspiration, groundwater) is a modelled result; no calibrated model run is recorded for this area, so this report does not estimate those numbers. Verify in the field before irrigation, fertilizer or conservation decisions.`
 
   const html = `<!DOCTYPE html>
 <html lang="${t.docLang}">
@@ -2360,7 +2007,7 @@ export async function buildReport(
       <img src="${logo}" alt="SEVA.GIS Logo" style="width: 82px; height: 82px; object-fit: contain; margin-bottom: 12px;"/>
       <div style="font-size: 26pt; font-weight: 800; letter-spacing: 2px; color: #1b4332; font-family: 'Times New Roman', serif;">SEVA·GIS</div>
       <div style="font-size: 13pt; font-weight: bold; color: #52796f; letter-spacing: 1.5px; text-transform: uppercase;">Spatial Evaluation &amp; Vegetation Analytics</div>
-      <div style="font-size: 11pt; font-style: italic; color: #666; margin-top: 6px;">A Precision Remote Sensing &amp; Hydrological Assessment Report Generated by SEVA·GIS with its Native Geospatial Engine</div>
+      <div style="font-size: 11pt; font-style: italic; color: #666; margin-top: 6px;">A Precision Remote Sensing Assessment Report Generated by SEVA·GIS with its Native Geospatial Engine</div>
     </div>
 
     <div style="margin: 40px 0;">
@@ -2371,11 +2018,11 @@ export async function buildReport(
     </div>
 
     <div style="border-top: 1pt solid #cbd5e1; padding-top: 20px; font-size: 10.5pt; color: #444; line-height: 1.6;">
-      <div><b>Report Generated By:</b> SEVA·GIS Autonomous GeoAI Microservice Platform</div>
+      <div><b>Report Generated By:</b> SEVA·GIS browser-based geospatial engine</div>
       <div><b>Generation Timestamp:</b> ${esc(reportTimestamp)} (${esc(tz)})</div>
       <div><b>Satellite Observation Scene:</b> ${esc(an.scene.id)} (Sentinel-2 L2A BOA Reflectance)</div>
       <div><b>Topographic Surface Model:</b> Copernicus GLO-30 Digital Elevation Model (30 m)</div>
-      <div><b>Report Tracking ID:</b> <code>${rid}</code> · Verification Checksum: <code>SHA256:7B8F9A2C...</code></div>
+      <div><b>Report Tracking ID:</b> <code>${rid}</code></div>
     </div>
   </div>
 
@@ -2384,41 +2031,41 @@ export async function buildReport(
     <div class="watermark-overlay"><img src="${logo}" alt=""/><span class="watermark-text">SEVA.GIS</span></div>
     <div class="page-content">
       <h1 class="chapter-title">${t.declarationTitle}</h1>
-      <p>I hereby confirm that this spatial evaluation report titled <b>"${esc(reportFileName)}"</b> has been systematically generated through the autonomous remote sensing, spectral raster processing, and watershed hydrology algorithms of <b>SEVA·GIS</b> (Spatial Evaluation &amp; Vegetation Analytics).</p>
+      <p>This spatial evaluation report titled <b>"${esc(reportFileName)}"</b> was generated by <b>SEVA·GIS</b> (Spatial Evaluation &amp; Vegetation Analytics), a browser-based geospatial engine, from the datasets listed below.</p>
       
-      <p>The calculations, multi-spectral band indices (NDVI, NDMI, NDWI, EVI), digital elevation derivatives (slope, aspect, flow accumulation), and Soil Conservation Service Curve Number (SCS-CN) water balance estimates presented herein represent direct computational derivations from official European Space Agency (ESA) Copernicus Sentinel-2 Level-2A satellite acquisitions and Copernicus GLO-30 elevation models.</p>
+      <p>The calculations presented herein are direct computational derivations from European Space Agency (ESA) Copernicus Sentinel-2 Level-2A satellite acquisitions (multi-spectral index bands NDVI, NDMI, NDWI, EVI) and Copernicus GLO-30 elevation models (terrain and slope derivatives). Water-balance quantities from the SCS-CN framework are shown only when a calibrated model run is recorded against this farm; otherwise they are marked "Data unavailable" in the relevant sections.</p>
 
       <h2 class="section-title">Credentials &amp; Data Provenance of SEVA·GIS</h2>
-      <p class="no-indent"><b>Platform Authority:</b> SEVA·GIS Open Geospatial Research Engine<br>
+      <p class="no-indent"><b>Platform:</b> SEVA·GIS Open Geospatial Research Engine<br>
       <b>Repository &amp; Core Engine:</b> <a href="https://github.com/virahitvin8/seva-gis">https://github.com/virahitvin8/seva-gis</a><br>
       <b>Live Cloud Deployment:</b> <a href="https://sevagis.dpdns.org">https://sevagis.dpdns.org</a><br>
       <b>Geodetic Reference Frame:</b> World Geodetic System 1984 (WGS 84 / EPSG:4326)<br>
-      <b>Sensor Calibration:</b> Level-2A Bottom-of-Atmosphere (BOA) Surface Reflectance with SCL Cloud Masking</p>
+      <b>Imagery Product:</b> Level-2A Bottom-of-Atmosphere (BOA) Surface Reflectance</p>
 
       <h2 class="section-title">Legal Disclaimer &amp; Non-Misuse Covenant</h2>
       <p>The information, maps, charts, and recommendations in this report are provided in the spirit of selfless service to assist farmers, agricultural officers, hydrologists, researchers, non-technical stakeholders, and enthusiastic community stewards with evidence-based spatial insights. Users are explicitly bound by the following conditions:</p>
       <ul style="line-height: 1.6; font-size: 11pt;">
         <li><b>Non-Misuse Agreement:</b> This report and its geospatial vector outputs shall not be altered, forged, or misrepresented in land disputes, commercial speculation, or unlawful expropriation.</li>
-        <li><b>Ground Validation Requirement:</b> Satellite observations and hydrological modeling provide macroscopic trends. Physical soil checks and agronomic verification should precede capital-intensive civil works.</li>
-        <li><b>Data Sovereignty:</b> The spatial boundaries analyzed were processed with zero-tracking client-side privacy. No farm coordinates are retained on external tracking servers.</li>
+        <li><b>Ground Validation Requirement:</b> Satellite observations provide indicative trends. Physical soil checks and agronomic verification should precede capital-intensive civil works.</li>
+        <li><b>Data Handling:</b> Farm records are stored locally on this device. Coordinates are shared only with the data services required to fetch imagery, elevation, and weather for the analysis.</li>
       </ul>
 
       <div style="margin-top: 36pt; display: flex; justify-content: space-between; align-items: flex-end; font-size: 11pt;">
         <div>
           <b>Place of Generation:</b> ${esc(farm.location)}<br>
           <b>Date:</b> ${esc(now.toISOString().slice(0, 10))}<br>
-          <b>Status:</b> Digitally Certified &amp; Verifiable
+          <b>Status:</b> Generated on this device
         </div>
         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-          <div style="width: 62px; height: 62px; border-radius: 50%; border: 2px solid #1b4332; display: flex; align-items: center; justify-content: center; background: #f0fdf4; margin-bottom: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);" title="SEVA·GIS Official Certified Stamp">
+          <div style="width: 62px; height: 62px; border-radius: 50%; border: 2px solid #1b4332; display: flex; align-items: center; justify-content: center; background: #f0fdf4; margin-bottom: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);" title="SEVA·GIS report seal">
             <img src="${logo}" alt="SEVA-GIS SEAL" style="width: 44px; height: 44px; object-fit: contain;" />
           </div>
-          <div style="font-size: 9.5pt; color: #444; margin-bottom: 2px;">Autonomous Agro-Geospatial Sentinel</div>
-          <div style="font-family: 'Times New Roman', serif; font-size: 13pt; font-weight: bold; color: #1b4332; letter-spacing: 0.5px;">SEVA·GIS CERTIFIED</div>
+          <div style="font-size: 9.5pt; color: #444; margin-bottom: 2px;">Agro-Geospatial Sentinel</div>
+          <div style="font-family: 'Times New Roman', serif; font-size: 13pt; font-weight: bold; color: #1b4332; letter-spacing: 0.5px;">SEVA·GIS REPORT</div>
         </div>
       </div>
     </div>
-    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">i</span><span>Official Report</span></div>
+    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">i</span><span>Report</span></div>
   </div>
 
   <!-- TABLE OF CONTENTS (Page ii) -->
@@ -2435,7 +2082,7 @@ export async function buildReport(
           </tr>
         </thead>
         <tbody>
-          <tr><td><b>—</b></td><td><b>Declaration of Credentials &amp; Data Authenticity</b></td><td style="text-align: right;">i</td></tr>
+          <tr><td><b>—</b></td><td><b>Declaration &amp; Data Sources</b></td><td style="text-align: right;">i</td></tr>
           <tr><td><b>—</b></td><td><b>Table of Contents</b></td><td style="text-align: right;">ii</td></tr>
           <tr><td><b>—</b></td><td><b>List of Figures &amp; Tables</b></td><td style="text-align: right;">iii</td></tr>
           <tr><td><b>—</b></td><td><b>Symbols &amp; Abbreviations</b></td><td style="text-align: right;">iv</td></tr>
@@ -2458,11 +2105,11 @@ export async function buildReport(
           <tr><td>5.2</td><td>Direct Answers to Core Objectives</td><td style="text-align: right;">${sectionMap['5.2'] ?? 5}</td></tr>
           <tr><td>5.3</td><td>Actionable Agronomic &amp; Engineering Recommendations</td><td style="text-align: right;">${sectionMap['5.3'] ?? 5}</td></tr>
           <tr><td><b>REFERENCES</b></td><td><b>Alphabetical Bibliography (APA Format)</b></td><td style="text-align: right;">${sectionMap['refs'] ?? 6}</td></tr>
-          <tr><td><b>APPENDICES</b></td><td><b>Official Metadata Dossier &amp; Sensor Records</b></td><td style="text-align: right;">${sectionMap['apps'] ?? 7}</td></tr>
+          <tr><td><b>APPENDICES</b></td><td><b>Metadata Dossier &amp; Sensor Records</b></td><td style="text-align: right;">${sectionMap['apps'] ?? 7}</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">ii</span><span>Official Report</span></div>
+    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">ii</span><span>Report</span></div>
   </div>
 
   <!-- LIST OF FIGURES & TABLES (Page iii) -->
@@ -2511,7 +2158,7 @@ export async function buildReport(
         </table>
       ` : ''}
     </div>
-    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">iii</span><span>Official Report</span></div>
+    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">iii</span><span>Report</span></div>
   </div>
 
   <!-- SYMBOLS & ABBREVIATIONS (Page iv) -->
@@ -2537,18 +2184,16 @@ export async function buildReport(
           <tr><td class="abbr-sym">NIR</td><td>Near-Infrared Spectrum (842 nm, Band 8)</td></tr>
           <tr><td class="abbr-sym">NSE</td><td>Nash-Sutcliffe Efficiency Coefficient</td></tr>
           <tr><td class="abbr-sym">S2</td><td>Sentinel-2 Earth Observation Constellation</td></tr>
-          <tr><td class="abbr-sym">SCL</td><td>Scene Classification Layer (Cloud Masking)</td></tr>
           <tr><td class="abbr-sym">SCS-CN</td><td>Soil Conservation Service Curve Number</td></tr>
           <tr><td class="abbr-sym">SUFI-2</td><td>Sequential Uncertainty Fitting Version 2</td></tr>
           <tr><td class="abbr-sym">SWAT</td><td>Soil and Water Assessment Tool</td></tr>
           <tr><td class="abbr-sym">SWIR</td><td>Shortwave-Infrared Spectrum (1610 nm, Band 11)</td></tr>
-          <tr><td class="abbr-sym">ULPIN</td><td>Unique Land Parcel Identification Number (Bhu-Aadhaar)</td></tr>
           <tr><td class="abbr-sym">VRA</td><td>Variable Rate Application (Precision Agronomy)</td></tr>
           <tr><td class="abbr-sym">WGS 84</td><td>World Geodetic System 1984</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">iv</span><span>Official Report</span></div>
+    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">iv</span><span>Report</span></div>
   </div>
 
   <!-- ABSTRACT (Page v) -->
@@ -2558,10 +2203,10 @@ export async function buildReport(
       <h1 class="chapter-title">${t.abstractTitle}</h1>
       <p style="font-size: 11pt; line-height: 1.6;">${abstractText}</p>
       <div style="margin-top: 24pt; font-size: 11pt; line-height: 1.6;">
-        <b>Keywords:</b> Sentinel-2 L2A; Copernicus DEM; Multi-Spectral Radiometry; NDVI; NDMI; SCS-CN Water Budget; SWAT; SUFI-2 Uncertainty Calibration; Precision Agriculture; SEVA·GIS.
+        <b>Keywords:</b> Sentinel-2 L2A; Copernicus DEM; Multi-Spectral Radiometry; NDVI; NDMI; Terrain Analysis; Crop Vigor Mapping; Precision Agriculture; SEVA·GIS.
       </div>
     </div>
-    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">v</span><span>Official Report</span></div>
+    <div class="doc-page-footer"><span class="brand-signature">SEVA·<span>GIS</span></span><span class="page-num">v</span><span>Report</span></div>
   </div>
 
   <!-- ALL DYNAMIC BODY PAGES -->
@@ -2574,7 +2219,7 @@ export async function buildReport(
       <div class="doc-page-footer">
         <span class="brand-signature">SEVA·<span>GIS</span></span>
         <span class="page-num">${page.pageNum}</span>
-        <span>Official Report</span>
+        <span>Report</span>
       </div>
     </div>
   `).join('')}

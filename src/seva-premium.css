@@ -1,161 +1,637 @@
-/* SEVA.GIS premium theme — import AFTER index.css.
-   Opt in with className="seva-premium" on AuthGate and App roots.
-   Existing NDVI/NDMI raster palettes and map controls are intentionally untouched. */
-.seva-premium {
-  --seva-canvas: oklch(0.978 0.004 155);
-  --seva-surface: oklch(1 0 0);
-  --seva-ink: oklch(0.25 0.025 155);
-  --seva-muted: oklch(0.48 0.018 155);
-  --seva-line: oklch(0.89 0.012 155);
-  --seva-brand: oklch(0.43 0.085 155);
-  --seva-brand-hover: oklch(0.36 0.075 155);
-  --seva-on-brand: oklch(0.99 0.004 155);
-  --seva-soft: oklch(0.94 0.025 155);
-  --seva-night: oklch(0.23 0.025 155);
-  --seva-night-surface: oklch(0.28 0.025 155);
-  --seva-night-ink: oklch(0.96 0.008 155);
-  --seva-night-muted: oklch(0.78 0.02 155);
-  --seva-night-line: oklch(0.4 0.025 155);
-  --seva-shadow: 0 12px 36px oklch(0.22 0.025 155 / 0.08);
-  --primary: var(--seva-brand);
-  --border: var(--seva-line);
-  --muted: var(--seva-muted);
-  font-family: 'DM Sans', system-ui, sans-serif;
-  color: var(--seva-ink);
-  background: var(--seva-canvas);
-  font-size: 14px;
-  line-height: 1.5;
-  letter-spacing: 0;
-}
-.seva-premium *, .seva-premium *::before, .seva-premium *::after { box-sizing: border-box; }
-.seva-premium :is(h1,h2,h3,h4) { font-family: Manrope, system-ui, sans-serif; letter-spacing: 0; }
-.seva-premium :is(button,input,select,textarea) { font: inherit; }
-.seva-premium button { min-height: 40px; }
-.seva-premium button:hover { filter: none; }
-.seva-premium :is(button,a,input,select,textarea):focus-visible {
-  outline: 3px solid var(--seva-brand); outline-offset: 3px;
-}
-.seva-premium :is(.primary,.au-go) {
-  min-height: 44px; border-radius: 6px; padding: 11px 18px;
-  background: var(--seva-brand); color: var(--seva-on-brand);
-  font-size: 14px; font-weight: 700; box-shadow: none;
-  transform: none; transition: background-color 160ms ease;
-}
-.seva-premium :is(.primary,.au-go):hover { background: var(--seva-brand-hover); transform: none; box-shadow: none; }
-.seva-premium :is(.primary,.au-go):disabled { cursor: not-allowed; opacity: .55; }
+/* ========================================================================= */
+/* SEVA.GIS — 3D CARTOON & ANIMATED GRAPHIC THEME (WHOLE WEBSITE)           */
+/* Inspired by Fredoka typography, glossy 3D pill buttons, lush painted     */
+/* meadow & cosmic sky palettes, spring micro-interactions & Banyan orchard */
+/* ========================================================================= */
 
-/* Sign-in: stable type, restrained surfaces, no moving text or tilted form. */
-.seva-premium.au-wrap { display: flex; padding: 0; background: var(--seva-canvas); }
-.seva-premium .au-main-split {
-  width: 100%; max-width: 1200px; margin: 0 auto;
-  display: grid; grid-template-columns: minmax(0,1fr) minmax(340px,440px);
-  align-items: center; gap: 72px; padding: 80px 48px;
-  min-height: min(780px, 90svh);
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-cartoon: 'Fredoka', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --cartoon-sky-top: #1e90ff;
+  --cartoon-sky-mid: #4facfe;
+  --cartoon-sky-light: #7ee8fa;
+  --cartoon-meadow-lime: #a3e635;
+  --cartoon-meadow-mid: #4ade80;
+  --cartoon-meadow-deep: #16a34a;
+  --cartoon-apple-ruby: #ff3b30;
+  --cartoon-apple-glow: #facc15;
+  --cartoon-trunk-bark: #3b1d0e;
+  
+  --cartoon-dark-bg: #0b1320;
+  --cartoon-card-bg: rgba(15, 23, 42, 0.94);
+  --cartoon-border: #1e293b;
+  --cartoon-border-glow: #38bdf8;
+  --cartoon-text-main: #f8fafc;
+  --cartoon-text-muted: #94a3b8;
+  --cartoon-text-dim: #64748b;
+  
+  --primary: #10b981;
+  --border: #1e293b;
+  --muted: #94a3b8;
 }
-.seva-premium .au-hero { min-height: 0; background: none; overflow: visible; border: 0; }
-.seva-premium .au-hero-copy { width: 100%; max-width: 580px; margin: 0; padding: 0; display: block; }
-.seva-premium .au-logo { margin: 0 0 32px; }
-.seva-premium .au-logo img { width: 44px; height: 44px; object-fit: contain; filter: none; }
-.seva-premium .au-brand-title {
-  margin: 0 0 16px; font-size: 48px; font-weight: 800;
-  line-height: 1.12; color: var(--seva-ink); overflow-wrap: anywhere;
-}
-.seva-premium .au-hero .au-cherish { font-size: 16px; line-height: 1.7; color: var(--seva-muted); max-width: 480px; }
-.seva-premium .au-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; padding: 24px 0; margin: 24px 0; list-style: none; border-block: 1px solid var(--seva-line); }
-.seva-premium .au-stats li { padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
-.seva-premium .au-stats li b { display: block; font-size: 24px; color: var(--seva-ink); }
-.seva-premium .au-stats li span { display: block; font-size: 12px; color: var(--seva-muted); }
-.seva-premium .au-stats li i { color: var(--seva-brand); }
-.seva-premium .au-flow { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
-.seva-premium .au-node { padding: 0; background: none; border: 0; box-shadow: none; animation: none; min-width: 0; color: var(--seva-ink); }
-.seva-premium .au-node::before,.seva-premium .au-node::after { display: none; }
-.seva-premium .au-node i { color: var(--seva-brand); }
-/* index.css sets `.au-node b{color:#eaf6df}` for the old dark node card. The theme
-   removes that card, so the label has to be re-inked or it is near-white on a
-   near-white canvas. Without this rule the four node labels are unreadable. */
-.seva-premium .au-node b { color: var(--seva-ink); font-size: 13px; }
-.seva-premium .au-node span { color: var(--seva-muted); }
-.seva-premium .au-card {
-  width: 100%; max-width: 440px; margin: 0; padding: 32px;
-  display: grid; gap: 16px; align-self: center;
-  background: var(--seva-surface); color: var(--seva-ink);
-  border: 1px solid var(--seva-line); border-radius: 8px;
-  box-shadow: var(--seva-shadow); backdrop-filter: none;
-}
-.seva-premium .au-card::before,.seva-premium .au-card::after { display: none; }
-.seva-premium .au-card h1 { font-size: 26px; line-height: 1.25; color: var(--seva-ink); }
-.seva-premium .au-card p,.seva-premium .au-card small { color: var(--seva-muted); font-size: 13px; line-height: 1.6; }
-.seva-premium .au-card label { display: grid; gap: 7px; font-size: 13px; color: var(--seva-ink); }
-.seva-premium .au-card input:not([type=checkbox]) {
-  width: 100%; min-width: 0; min-height: 46px; padding: 11px 13px;
-  border: 1px solid var(--seva-line); border-radius: 6px;
-  color: var(--seva-ink); background: var(--seva-surface); box-shadow: none;
-}
-.seva-premium .au-card input::placeholder { color: var(--seva-muted); opacity: 1; }
-.seva-premium .au-card .au-remember-box { display: flex; align-items: flex-start; gap: 8px; font-weight: 400; }
-.seva-premium .au-remember-box input { width: 18px; height: 18px; margin: 1px 0 0; padding: 0; accent-color: var(--seva-brand); flex-shrink: 0; }
-.seva-premium .au-tabs { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; padding: 4px; background: var(--seva-canvas); border: 1px solid var(--seva-line); border-radius: 6px; }
-.seva-premium .au-tabs button { padding: 8px; border-radius: 4px; background: none; color: var(--seva-muted); box-shadow: none; }
-.seva-premium .au-tabs button.on { background: var(--seva-surface); color: var(--seva-ink); }
-.seva-premium .au-guest { min-height: 44px; border: 1px solid var(--seva-line); border-radius: 6px; background: var(--seva-surface); color: var(--seva-ink); box-shadow: none; transform: none; padding: 10px; }
-.seva-premium .au-guest:hover { background: var(--seva-soft); border-color: var(--seva-brand); color: var(--seva-ink); box-shadow: none; transform: none; }
-.seva-premium .au-or { color: var(--seva-muted); }
-.seva-premium .au-or::before,.seva-premium .au-or::after { background: var(--seva-line); }
-.seva-premium .au-card-links { display: flex; flex-wrap: wrap; gap: 8px; border-color: var(--seva-line); }
-.seva-premium .au-card-link-item { color: var(--seva-muted); background: none; border: 0; padding: 5px 0; font-size: 12px; }
-.seva-premium .au-card-link-item:hover { color: var(--seva-brand); background: none; }
 
-/* Knowledge section: readable editorial grid, no decorative tilt. */
-.seva-premium .au-hub { width: 100%; background: var(--seva-surface); border-top: 1px solid var(--seva-line); padding: 56px 48px; color: var(--seva-ink); }
-.seva-premium .au-hub-header,.seva-premium .au-hub-grid { max-width: 1104px; margin-inline: auto; }
-.seva-premium .au-hub-title { font-size: 30px; color: var(--seva-ink); }
-.seva-premium .au-hub-desc { color: var(--seva-muted); }
-.seva-premium .au-hub-tag { color: var(--seva-brand); background: var(--seva-soft); border-color: var(--seva-line); }
-.seva-premium .au-hub-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
-.seva-premium .au-hub-card { padding: 24px; background: var(--seva-surface); border: 1px solid var(--seva-line); border-radius: 8px; box-shadow: none; transform: none; }
-.seva-premium .au-hub-card:hover { border-color: var(--seva-brand); transform: none; box-shadow: none; }
-.seva-premium .au-hub-card h3 { color: var(--seva-ink); font-size: 18px; }
-.seva-premium .au-hub-card :is(p,li) { color: var(--seva-muted); }
-.seva-premium .au-hub-card-icon,.seva-premium .au-hub-card-badge { background: var(--seva-soft); color: var(--seva-brand); border-color: var(--seva-line); }
-.seva-premium .au-hub-card-foot { border-color: var(--seva-line); color: var(--seva-muted); }
-.seva-premium .au-hub-card-btn { color: var(--seva-brand); background: var(--seva-soft); border-color: var(--seva-line); }
-
-/* Workspace: keep navigation and scientific colour scales intact. */
-.seva-premium.app-shell { background: var(--seva-canvas); }
-.seva-premium .sidebar { background: var(--seva-night); color: var(--seva-night-muted); border-right: 1px solid var(--seva-night-line); }
-.seva-premium .sidebar .brand { color: var(--seva-night-ink); letter-spacing: 0; }
-.seva-premium .workspace { border-color: var(--seva-night-line); color: var(--seva-night-ink); }
-.seva-premium .workspace-avatar { background: var(--seva-night-surface); }
-.seva-premium .workspace small,.seva-premium .nav-label { color: var(--seva-night-muted); }
-.seva-premium .sidebar nav button { font-size: 13px; border-radius: 6px; min-height: 44px; }
-.seva-premium .sidebar nav button:hover { background: var(--seva-night-surface); color: var(--seva-night-ink); }
-.seva-premium .sidebar nav button.active { background: var(--seva-soft); color: var(--seva-brand); }
-.seva-premium .topbar { min-height: 64px; height: auto; padding-block: 10px; background: var(--seva-surface); border-color: var(--seva-line); font-size: 13px; }
-.seva-premium .page-heading h1 { font-size: 30px; line-height: 1.2; color: var(--seva-ink); }
-.seva-premium .page-heading p { color: var(--seva-muted); font-size: 14px; max-width: 700px; }
-.seva-premium .eyebrow { color: var(--seva-muted); font-size: 11px; letter-spacing: 0; }
-.seva-premium .summary-card { background: var(--seva-surface); border: 1px solid var(--seva-line); border-radius: 8px; box-shadow: none; padding: 20px; }
-.seva-premium .summary-card strong { font-size: 28px; color: var(--seva-ink); font-variant-numeric: tabular-nums; }
-.seva-premium .empty-farms { background: var(--seva-surface); border-color: var(--seva-line); border-radius: 8px; padding: 48px 24px; }
-.seva-premium .empty-farms h2 { font-size: 22px; color: var(--seva-ink); }
-.seva-premium .empty-farms p { color: var(--seva-muted); font-size: 14px; line-height: 1.6; }
-
-@media (max-width: 1000px) {
-  .seva-premium .au-main-split { gap: 32px; padding: 64px 28px; }
-  .seva-premium .au-brand-title { font-size: 40px; }
-  .seva-premium .au-flow { grid-template-columns: repeat(2,minmax(0,1fr)); }
+body {
+  font-family: var(--font-sans);
+  background: var(--cartoon-dark-bg);
+  color: var(--cartoon-text-main);
+  overflow-x: hidden;
+  margin: 0;
 }
-@media (max-width: 760px) {
-  .seva-premium .au-main-split { grid-template-columns: minmax(0,1fr); min-height: auto; padding: 56px 20px 32px; gap: 32px; }
-  .seva-premium .au-hero-copy,.seva-premium .au-card { max-width: 520px; margin-inline: auto; }
-  .seva-premium .au-brand-title { font-size: 36px; }
-  .seva-premium .au-logo { margin-bottom: 20px; }
-  .seva-premium .au-card { padding: 24px; }
-  .seva-premium .au-hub { padding: 40px 20px; }
-  .seva-premium .au-hub-title { font-size: 26px; }
-  .seva-premium .au-hub-grid { grid-template-columns: minmax(0,1fr); }
-  .seva-premium .page-heading h1 { font-size: 26px; }
+
+/* Custom Cartoon Theme Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0b1320; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Global Cartoon Typography */
+h1, h2, h3, h4, h5, h6,
+.font-cartoon,
+.brand,
+.brand strong,
+.page-heading h1,
+.section-top h2,
+.map-header h2,
+.intelligence-heading h2,
+.wk-title,
+.ag-head h3,
+.action-card h3,
+.summary-card strong,
+.intelligence-value,
+.au-brand-title,
+.au-hero h2,
+.au-card h1,
+.au-hub-title,
+.modal h2,
+.modal h3 {
+  font-family: var(--font-cartoon), 'Fredoka', 'Inter', sans-serif !important;
+  letter-spacing: -0.01em;
 }
-@media (prefers-reduced-motion: reduce) {
-  .seva-premium *, .seva-premium *::before, .seva-premium *::after { animation: none; transition: none; scroll-behavior: auto; }
+
+.font-mono-code {
+  font-family: var(--font-mono) !important;
+}
+
+/* ========================================================================= */
+/* GLOSSY 3D CARTOON PILL BUTTONS                                            */
+/* ========================================================================= */
+
+/* Primary Glossy Ruby / Coral 3D Button */
+.primary,
+.au-go,
+.cartoon-btn-primary {
+  background: linear-gradient(180deg, #ff5e62 0%, #ef4444 48%, #b91c1c 100%) !important;
+  border: 3px solid #450a0a !important;
+  box-shadow: 0 5px 0 #450a0a, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
+  color: #ffffff !important;
+  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  padding: 10px 20px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+}
+
+.primary:hover,
+.au-go:hover,
+.cartoon-btn-primary:hover {
+  background: linear-gradient(180deg, #ff7679 0%, #f87171 48%, #dc2626 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 7px 0 #450a0a, inset 0 2px 3px rgba(255, 255, 255, 0.65) !important;
+  filter: brightness(1.08) !important;
+}
+
+.primary:active,
+.au-go:active,
+.cartoon-btn-primary:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 2px 0 #450a0a !important;
+}
+
+/* Secondary Glossy Meadow Green 3D Button */
+.au-guest,
+.cartoon-btn-green {
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 52%, #15803d 100%) !important;
+  border: 3px solid #052e16 !important;
+  box-shadow: 0 5px 0 #052e16, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
+  color: #ffffff !important;
+  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  padding: 10px 20px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+}
+
+.au-guest:hover,
+.cartoon-btn-green:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 7px 0 #052e16, inset 0 2px 3px rgba(255, 255, 255, 0.65) !important;
+}
+
+.au-guest:active,
+.cartoon-btn-green:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 2px 0 #052e16 !important;
+}
+
+/* Amber / Sunshine Yellow 3D Button */
+.cartoon-btn-amber {
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 52%, #b45309 100%) !important;
+  border: 3px solid #451a03 !important;
+  box-shadow: 0 5px 0 #451a03, inset 0 2px 2px rgba(255, 255, 255, 0.65) !important;
+  color: #290f02 !important;
+  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  padding: 10px 20px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+}
+
+.cartoon-btn-amber:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 7px 0 #451a03, inset 0 2px 3px rgba(255, 255, 255, 0.75) !important;
+}
+
+.cartoon-btn-amber:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 2px 0 #451a03 !important;
+}
+
+/* Sky Cyan 3D Button */
+.cartoon-btn-blue {
+  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 52%, #0369a1 100%) !important;
+  border: 3px solid #082f49 !important;
+  box-shadow: 0 5px 0 #082f49, inset 0 2px 2px rgba(255, 255, 255, 0.65) !important;
+  color: #ffffff !important;
+  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  padding: 10px 20px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+}
+
+.cartoon-btn-blue:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 7px 0 #082f49, inset 0 2px 3px rgba(255, 255, 255, 0.75) !important;
+}
+
+.cartoon-btn-blue:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 2px 0 #082f49 !important;
+}
+
+/* Google Sign-In Button with 3D Bevel */
+.au-google-btn {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 3px solid #94a3b8 !important;
+  box-shadow: 0 5px 0 #64748b, inset 0 2px 2px rgba(255, 255, 255, 0.8) !important;
+  border-radius: 14px !important;
+  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
+  font-weight: 700 !important;
+  padding: 10px 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  cursor: pointer !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+}
+
+.au-google-btn:hover {
+  background: #f8fafc !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 7px 0 #64748b !important;
+}
+
+.au-google-btn:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 2px 0 #64748b !important;
+}
+
+/* ========================================================================= */
+/* CARTOON 3D PAINTED CARDS & SURFACES ACROSS THE WHOLE WEBSITE             */
+/* ========================================================================= */
+
+.summary-card,
+.farm-list,
+.map-card,
+.intelligence-card,
+.wk-card,
+.ag-card,
+.sc-guide,
+.advice-card,
+.action-card,
+.service-card,
+.au-card,
+.au-hub-card,
+.modal {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #f8fafc !important;
+  border: 3px solid #1e293b !important;
+  border-radius: 20px !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
+}
+
+.summary-card:hover,
+.intelligence-card:hover,
+.wk-card:hover,
+.ag-card:hover,
+.advice-card:hover,
+.action-card:hover,
+.au-hub-card:hover {
+  transform: translateY(-4px) scale(1.015) !important;
+  border-color: rgba(56, 189, 248, 0.5) !important;
+  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.25) !important;
+}
+
+/* Metric Icon with 3D Glossy Finish */
+.metric-icon {
+  border-radius: 14px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.summary-card:hover .metric-icon {
+  transform: scale(1.15) rotate(4deg) !important;
+}
+
+.metric-icon.healthy {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid #052e16 !important;
+}
+
+.metric-icon.attention {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid #451a03 !important;
+}
+
+/* ========================================================================= */
+/* SHELL, SIDEBAR & TOPBAR ANIMATED THEME                                    */
+/* ========================================================================= */
+
+.app-shell,
+.main-shell {
+  background: #0b1320 !important;
+  color: #f8fafc !important;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #09131e 0%, #0e2030 50%, #063e26 100%) !important;
+  border-right: 3px solid #1e293b !important;
+  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+.sidebar .brand {
+  font-family: var(--font-cartoon) !important;
+  color: #ffffff !important;
+}
+
+.sidebar .workspace {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border: 2px solid #334155 !important;
+  border-radius: 14px !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.sidebar .workspace:hover {
+  transform: scale(1.02) !important;
+  border-color: #38bdf8 !important;
+}
+
+.topbar {
+  background: rgba(11, 19, 32, 0.95) !important;
+  border-bottom: 3px solid #1e293b !important;
+  backdrop-filter: blur(12px) !important;
+  color: #f8fafc !important;
+}
+
+.topbar .breadcrumb strong {
+  color: #38bdf8 !important;
+  font-family: var(--font-cartoon) !important;
+  font-weight: 700 !important;
+}
+
+.sidebar nav button {
+  border-radius: 12px !important;
+  font-family: var(--font-cartoon) !important;
+  font-size: 13px !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  color: #cbd5e1 !important;
+}
+
+.sidebar nav button:hover {
+  transform: translateX(4px) !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38bdf8 !important;
+}
+
+.sidebar nav button.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #041d13 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* ========================================================================= */
+/* LANDING & AUTH SECTION                                                    */
+/* ========================================================================= */
+
+.au-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0;
+  background: #0b1320 !important;
+  color: #f8fafc !important;
+}
+
+.au-hero {
+  background: radial-gradient(1000px 600px at 60% 15%, #193f6e 0%, #0d223a 50%, #0b1320 100%) !important;
+  box-shadow: inset 0 12px 40px rgba(56, 189, 248, 0.15) !important;
+}
+
+.au-stats li {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 2px solid #334155 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+  padding: 14px 18px !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.au-stats li:hover {
+  transform: translateY(-3px) scale(1.03) !important;
+  border-color: #38bdf8 !important;
+}
+.au-stats b {
+  font-family: var(--font-cartoon) !important;
+  font-size: 26px !important;
+  color: #4ade80 !important;
+}
+
+.au-flow .au-node {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 2px solid #334155 !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+}
+.au-flow .au-node b {
+  font-family: var(--font-cartoon) !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+}
+.au-flow .au-node i {
+  color: #38bdf8 !important;
+  font-size: 16px !important;
+}
+
+.au-card {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 3px solid #1e293b !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 24px rgba(56, 189, 248, 0.15) !important;
+  padding: 36px 32px !important;
+}
+
+.au-card input:not([type=checkbox]) {
+  background: #09131e !important;
+  border: 2px solid #334155 !important;
+  border-radius: 14px !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  padding: 12px 14px !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+.au-card input:not([type=checkbox]):focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35) !important;
+  outline: none !important;
+}
+
+.au-tabs {
+  background: #09131e !important;
+  border: 2px solid #334155 !important;
+  border-radius: 14px !important;
+  padding: 4px !important;
+}
+.au-tabs button {
+  font-family: var(--font-cartoon) !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+  color: #94a3b8 !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.au-tabs button.on {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #041d13 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+}
+
+.au-hub {
+  background: #0b1320 !important;
+  border-top: 3px solid #1e293b !important;
+  color: #f8fafc !important;
+  padding: 64px 32px !important;
+}
+
+.au-hub-card {
+  background: rgba(15, 23, 42, 0.94) !important;
+  border: 3px solid #1e293b !important;
+  border-radius: 20px !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+  padding: 24px !important;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, border-color 0.2s !important;
+}
+.au-hub-card:hover {
+  transform: translateY(-4px) scale(1.015) !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.2) !important;
+}
+.au-hub-card h3 {
+  font-family: var(--font-cartoon) !important;
+  color: #ffffff !important;
+}
+.au-hub-card p,
+.au-hub-card li {
+  color: #cbd5e1 !important;
+}
+
+/* ========================================================================= */
+/* FARM WORKSPACE & INTERACTIVE MAP                                          */
+/* ========================================================================= */
+
+.farm-item {
+  border-radius: 14px !important;
+  border: 2px solid transparent !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  color: #f8fafc !important;
+}
+.farm-item:hover {
+  transform: translateX(4px) !important;
+  background: rgba(56, 189, 248, 0.1) !important;
+}
+.farm-item.selected {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.25) !important;
+}
+.farm-thumb {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.search {
+  background: #09131e !important;
+  border: 2px solid #1e293b !important;
+  border-radius: 14px !important;
+  color: #f8fafc !important;
+}
+.search input {
+  color: #f8fafc !important;
+  font-family: var(--font-cartoon) !important;
+}
+.search:focus-within {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3) !important;
+}
+
+.map-header {
+  background: rgba(11, 19, 32, 0.95) !important;
+  border-bottom: 2px solid #1e293b !important;
+  color: #f8fafc !important;
+}
+
+.layer-tabs {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 2px solid #334155 !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+}
+.layer-tabs button {
+  border-radius: 10px !important;
+  font-family: var(--font-cartoon) !important;
+  font-weight: 600 !important;
+  color: #cbd5e1 !important;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.layer-tabs button:hover {
+  background: rgba(56, 189, 248, 0.2) !important;
+  color: #ffffff !important;
+}
+.layer-tabs button.chosen {
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
+  color: #052e16 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4) !important;
+}
+
+.map-legend {
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 2px solid #334155 !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  color: #f8fafc !important;
+}
+
+/* ========================================================================= */
+/* MODALS & OVERLAYS                                                         */
+/* ========================================================================= */
+
+.modal-backdrop {
+  background: rgba(7, 14, 24, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.modal {
+  background: #0f172a !important;
+  border: 4px solid #334155 !important;
+  border-radius: 28px !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2) !important;
+  color: #f8fafc !important;
+}
+
+.modal input,
+.modal select {
+  background: #09131e !important;
+  border: 2px solid #334155 !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+}
+.modal input:focus,
+.modal select:focus {
+  border-color: #38bdf8 !important;
+  outline: none !important;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4) !important;
+}
+
+/* ========================================================================= */
+/* GLOWING BADGES & MICRO-ANIMATIONS                                         */
+/* ========================================================================= */
+
+.open-badge {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.4) !important;
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+  color: #34d399 !important;
+  font-family: var(--font-cartoon) !important;
+  font-weight: 700 !important;
+}
+.open-badge > span {
+  background: #34d399 !important;
+  box-shadow: 0 0 8px #34d399 !important;
+  animation: appleShinePulse 2s infinite !important;
+}
+
+.dot.green {
+  background: #4ade80 !important;
+  box-shadow: 0 0 8px #4ade80 !important;
+}
+.dot.amber {
+  background: #facc15 !important;
+  box-shadow: 0 0 8px #facc15 !important;
+}
+
+@keyframes appleShinePulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px rgba(255, 230, 100, 0.45));
+  }
+  50% {
+    transform: scale(1.07);
+    filter: drop-shadow(0 0 16px rgba(255, 240, 130, 0.85));
+  }
 }

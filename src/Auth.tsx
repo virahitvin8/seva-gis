@@ -348,7 +348,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   )
   if (who) return <Ctx.Provider value={{ who, signOut }}>{children}</Ctx.Provider>
 
-  return <div className="au-wrap seva-premium" style={{ position: 'relative' }}>
+  return <div className="au-wrap seva-premium cartoon-theme" style={{ position: 'relative' }}>
     <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 100 }}>
       <Lang />
     </div>
@@ -507,20 +507,22 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 key={key}
                 type="button"
                 onClick={() => setSelectedDomain(key)}
+                className="font-cartoon"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
                   padding: '10px 18px',
-                  borderRadius: 10,
+                  borderRadius: 14,
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  background: isSel ? dom.color : 'rgba(255, 255, 255, 0.05)',
-                  color: isSel ? '#041d13' : '#e2e8f0',
-                  border: isSel ? `1.5px solid ${dom.color}` : '1px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: isSel ? `0 0 20px ${dom.color}55` : 'none',
+                  transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  background: isSel ? `linear-gradient(180deg, ${dom.color}ee 0%, ${dom.color} 100%)` : 'rgba(15, 23, 42, 0.85)',
+                  color: isSel ? '#041d13' : '#f8fafc',
+                  border: isSel ? '3px solid #041d13' : '2px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: isSel ? `0 4px 0 #041d13, 0 0 16px ${dom.color}66` : '0 4px 10px rgba(0,0,0,0.3)',
+                  transform: isSel ? 'translateY(-2px)' : 'none',
                 }}
               >
                 <Icon size={16} />
@@ -926,16 +928,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               <button
                 type="submit"
                 disabled={busy}
+                className="cartoon-btn-green"
                 style={{
                   flex: 1,
-                  padding: '11px 16px',
-                  borderRadius: 8,
-                  background: '#10b981',
-                  color: '#041d13',
-                  fontWeight: 800,
-                  fontSize: 13,
-                  border: 'none',
-                  cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -957,16 +952,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   setGoogleModalOpen(false)
                   void enterGuest()
                 }}
-                style={{
-                  padding: '11px 16px',
-                  borderRadius: 8,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: '#cbd5e1',
-                  fontWeight: 700,
-                  fontSize: 13,
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  cursor: 'pointer',
-                }}
+                className="cartoon-btn-amber"
               >
                 Guest Mode
               </button>

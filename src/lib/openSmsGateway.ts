@@ -110,11 +110,15 @@ export function generateAdvisoryMessage(
 ): string {
   const farmName = farm.name || 'Field'
   const crop = farm.crop || 'Crop'
-  const areaHa = (farm.area || 1.0).toFixed(1)
-  const ndvi = farm.analysis?.ndvi?.mean?.toFixed(2) ?? '0.74'
-  const ndmi = farm.analysis?.ndmi?.mean?.toFixed(2) ?? '0.24'
-  const stress = farm.analysis?.stressPct?.toFixed(0) ?? '5'
-  const dateStr = farm.analysis?.scene?.datetime?.slice(0, 10) || new Date().toISOString().slice(0, 10)
+  const areaHa = farm.area ? farm.area.toFixed(1) : '—'
+  // Metric slots show an em dash when the analysis has not produced the value.
+  // The previous defaults (0.74 / 0.24 / 5) were invented readings.
+  const ndvi = farm.analysis?.ndvi?.mean?.toFixed(2) ?? '—'
+  const ndmi = farm.analysis?.ndmi?.mean?.toFixed(2) ?? '—'
+  const stress = farm.analysis?.stressPct?.toFixed(0) ?? '—'
+  const dateStr = farm.analysis?.scene?.datetime?.slice(0, 10) || '—'
+  const rain = farm.rain !== undefined ? `${farm.rain.toFixed(0)} mm` : '—'
+  const soil = farm.moisture !== undefined ? `${farm.moisture}%` : '—'
 
   // 1. Telugu (తెలుగు)
   if (lang === 'te') {
@@ -123,9 +127,9 @@ export function generateAdvisoryMessage(
         return `🌾 సేవ GIS రైతు హెల్త్ అలర్ట్:
 పొలం: ${farmName} (${crop}, ${areaHa} హెక్టార్లు)
 తేదీ: ${dateStr}
-ఉపగ్రహ NDVI ఆరోగ్యం: ${ndvi} (సాధారణం: >0.65)
+ఉపగ్రహ NDVI ఆరోగ్యం: ${ndvi} (దట్టమైన పంటకు సూచన: ≥0.65)
 తేమ (NDMI): ${ndmi} | ఒత్తిడి విస్తీర్ణం: ${stress}%
-సూచన: పంట పెరుగుదల బాగుంది. తక్కువ NDVI ఉన్న ప్యాచ్‌లలో అదనపు యూరియా/నీరు అందించండి.
+సూచన: తక్కువ NDVI ఉన్న ప్రాంతాలను గుర్తించి, ఏ నిర్ణయమైనా తీసుకునే ముందు క్షేత్రంలో స్వయంగా పరిశీలించండి.
 పూర్తి వివరాలు: https://sevagis.dpdns.org/`
 
       case 'irrigation':
@@ -133,23 +137,24 @@ export function generateAdvisoryMessage(
 పొలం: ${farmName} (${crop})
 ఆకుల తేమ స్థాయి (NDMI): ${ndmi}
 ప్రస్తుత నీటి ఎద్దడి: ${stress}% విస్తీర్ణం
-సలహా: పంట వేర్లు తగినంత తేమను కలిగి ఉన్నాయి. రాబోయే 3 రోజుల్లో నేల తేమను పరిశీలించి నీరు పెట్టండి.
+సలహా: NDMI ఉపగ్రహ పఠనం మాత్రమే, నేల తేమ కొలత కాదు. నీరు పెట్టే ముందు క్షేత్రంలో నేల తేమను పరిశీలించండి.
 SEVA·GIS: https://sevagis.dpdns.org/`
 
       case 'weather_alert':
-        return `🌦️ సేవ GIS వాతావరణ & పిచికారీ హెచ్చరిక:
+        return `🌦️ సేవ GIS వాతావరణ & పిచికారీ సమాచారం:
 పొలం: ${farmName} | ${dateStr}
-పరిస్థితి: గాలి వేగం & తేమ మధ్యాహ్నం వరకు పిచికారీకి అనుకూలం.
-సూచన: బలమైన ఎండ/వర్షానికి ముందే ఎరువులు మరియు పురుగుమందుల పిచికారీ పూర్తి చేయండి.
+వర్ష సూచన (7-రోజుల నమూనా): ${rain}
+పై నేల తేమ (నమూనా): ${soil}
+సూచన: పిచికారీకి ముందు SEVA·GIS లో ప్రస్తుత గాలి మరియు వర్ష స్థితిని చూడండి.
 ఉచిత ఉపగ్రహ నివేదిక: https://sevagis.dpdns.org/`
 
       case 'pmfby_claim':
-        return `🛡️ సేవ GIS పంట నష్టం నివేదిక (PMFBY క్లెయిమ్):
+        return `🛡️ సేవ GIS పంట స్థితి నివేదిక (PMFBY సమర్పణ):
 రైతు పొలం: ${farmName} (${areaHa} హెక్టార్లు)
 అక్షాంశం/రేఖాంశం: ${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E
-ఉపగ్రహ నిరూపిత నష్టం: ${stress}% పంట విస్తీర్ణం క్షిణించింది.
-NDVI క్షీణత: ${ndvi}
-బ్యాంక్ / బీమా క్లెయిమ్ కోసం SEVA·GIS అథెంటిక్ రిపోర్ట్ చూడండి: https://sevagis.dpdns.org/`
+NDVI ఆధారిత తక్కువ పచ్చదనం: ${stress}% ప్రాంతం (దృశ్య పఠనం; క్షేత్ర తనిఖీతో నిర్ధారించండి).
+NDVI సగటు: ${ndvi}
+బ్యాంక్/బీమా సమర్పణకు ఈ నివేదికను క్షేత్ర తనిఖీ పత్రాలతో కలిపి ఉపయోగించండి: https://sevagis.dpdns.org/`
     }
   }
 
@@ -160,32 +165,33 @@ NDVI క్షీణత: ${ndvi}
         return `🌾 सेवा GIS किसान फसल स्वास्थ्य अलर्ट:
 खेत: ${farmName} (${crop}, ${areaHa} हेक्टेयर)
 दिनांक: ${dateStr}
-उपग्रह NDVI स्वास्थ्य: ${ndvi} (सामान्य: >0.65)
+उपग्रह NDVI स्वास्थ्य: ${ndvi} (घनी फसल संदर्भ: ≥0.65)
 कैनोपी नमी (NDMI): ${ndmi} | तनाव क्षेत्र: ${stress}%
-सलाह: फसल की वृद्धि अच्छी है। कम NDVI वाले क्षेत्रों में अतिरिक्त नाइट्रोजन/पानी दें।
+सलाह: कम NDVI वाले क्षेत्रों की पहचान करें और कोई भी निर्णय लेने से पहले खेत में स्वयं जांच करें।
 विस्तृत रिपोर्ट: https://sevagis.dpdns.org/`
 
       case 'irrigation':
         return `💧 सेवा GIS सिंचाई व जल प्रबंधन अलर्ट:
 खेत: ${farmName} (${crop})
 पत्तियों की नमी (NDMI): ${ndmi} | तनाव: ${stress}%
-सिंचाई सुझाव: जड़ क्षेत्र में नमी पर्याप्त है। अगले 48 घंटों में हल्की सिंचाई की सिफारिश की जाती है।
+सिंचाई सुझाव: NDMI केवल उपग्रह पठन है, मिट्टी की नमी की माप नहीं। सिंचाई से पहले खेत में मिट्टी की नमी जांचें।
 SEVA·GIS: https://sevagis.dpdns.org/`
 
       case 'weather_alert':
-        return `🌦️ सेवा GIS मौसम व छिड़काव एडवाइजरी:
+        return `🌦️ सेवा GIS मौसम व छिड़काव जानकारी:
 खेत: ${farmName} | ${dateStr}
-मौसम स्थिति: सुबह के समय हवा की गति स्प्रे के लिए अनुकूल है।
-सलाह: कीट नियंत्रण एवं सूक्ष्म पोषक तत्वों का छिड़काव दोपहर से पहले करें।
+वर्षा अनुमान (7-दिन मॉडल): ${rain}
+ऊपरी मिट्टी नमी (मॉडल): ${soil}
+सलाह: छिड़काव से पहले SEVA·GIS में प्रचलित हवा और वर्षा की स्थिति देखें।
 नि:शुल्क उपग्रह सेवा: https://sevagis.dpdns.org/`
 
       case 'pmfby_claim':
-        return `🛡️ सेवा GIS फसल नुकसान साक्ष्य (PMFBY क्लेम):
+        return `🛡️ सेवा GIS फसल स्थिति रिपोर्ट (PMFBY):
 खेत का नाम: ${farmName} (${areaHa} हेक्टेयर)
 निर्देशांक: ${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E
-उपग्रह सत्यापित नुकसान: ${stress}% क्षेत्र में फसल तनाव दर्ज।
+NDVI आधारित कम हरियाली: ${stress}% क्षेत्र (उपग्रह पठन; खेत जांच से पुष्टि करें)।
 NDVI स्तर: ${ndvi}
-बीमा व बैंक सत्यापन दस्तावेज: https://sevagis.dpdns.org/`
+बीमा/बैंक जमा हेतु खेत जांच रिकॉर्ड के साथ प्रयोग करें: https://sevagis.dpdns.org/`
     }
   }
 
@@ -195,33 +201,34 @@ NDVI स्तर: ${ndvi}
       return `🌾 SEVA.GIS Kisan Health Alert:
 Field: ${farmName} (${crop}, ${areaHa} ha)
 Date: ${dateStr}
-Sentinel-2 NDVI: ${ndvi} (Optimal: >0.65)
+Sentinel-2 NDVI: ${ndvi} (reference ≥0.65 for dense canopy)
 Canopy Moisture — NDMI: ${ndmi} | Stress Area: ${stress}%
-Advisory: Overall crop vigour is healthy. Provide targeted booster in low NDVI pockets.
+Advisory: Check the map for low NDVI pockets and inspect them in the field before any input decision — NDVI is a greenness reading, not a fertiliser prescription.
 Full Live Dossier: https://sevagis.dpdns.org/`
 
     case 'irrigation':
       return `💧 SEVA.GIS Irrigation Scheduling:
 Field: ${farmName} (${crop})
 Canopy Water Index (NDMI): ${ndmi}
-Soil Water Stress: ${stress}% parcel area
-Recommendation: Root-zone moisture is currently stable. Next light irrigation suggested within 3 days.
+Low-greenness share: ${stress}% of clear pixels
+Recommendation: NDMI is a satellite reading, not a soil-moisture measurement. Check the soil in the field before irrigating.
 Report: https://sevagis.dpdns.org/`
 
     case 'weather_alert':
-      return `🌦️ SEVA.GIS Weather & Spray Advisory:
+      return `🌦️ SEVA.GIS Weather & Spray Information:
 Field: ${farmName} | ${dateStr}
-Conditions: Wind and humidity optimal for foliar spray until 11:00 AM.
-Advisory: Complete scheduled nutrient or bio-fungicide spraying during morning calm window.
-Satellite Verification: https://sevagis.dpdns.org/`
+Rain outlook (7-day model): ${rain}
+Topsoil moisture (model): ${soil}
+Advisory: Check the live wind and rain conditions in SEVA·GIS before spraying.
+Report: https://sevagis.dpdns.org/`
 
     case 'pmfby_claim':
-      return `🛡️ SEVA.GIS Crop Damage Evidence (PMFBY):
+      return `🛡️ SEVA.GIS Crop Condition Report (PMFBY):
 Plot: ${farmName} (~${areaHa} ha)
 Centroid: ${farm.lat.toFixed(5)}°N, ${farm.lon.toFixed(5)}°E
-Satellite Damage Audit: ${stress}% parcel area indicates anomaly attenuation.
+NDVI-based low-greenness share: ${stress}% of clear pixels (scene reading; confirm with a field visit).
 Observed Mean NDVI: ${ndvi}
-Official Claim Dossier Link: https://sevagis.dpdns.org/`
+Report link (use with your field inspection records): https://sevagis.dpdns.org/`
   }
 }
 

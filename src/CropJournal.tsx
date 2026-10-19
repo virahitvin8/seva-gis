@@ -21,7 +21,10 @@ function Growth({ rows }: { rows: Candle[] }) {
   const X = (c: Candle) => L + ((+new Date(c.scene.datetime) - t0) / Math.max(1, t1 - t0)) * (W - L - R)
   const Y = (v: number) => T + (1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (H - T - B)
   const mean = rows.map(c => `${X(c).toFixed(1)},${Y(c.ndvi.mean).toFixed(1)}`)
-  const band = [...rows.map(c => `${X(c).toFixed(1)},${Y(c.ndvi.p90).toFixed(1)}`), ...[...rows].reverse().map(c => `${X(c).toFixed(1)},${Y(c.ndvi.p10).toFixed(1)}`)].join(' ')
+  // The 10–90% band is drawn only when every pass carries real percentiles.
+  // Rows built from weekly records hold a single value each, so they skip it.
+  const hasBand = rows.every(c => c.ndvi.p90 > c.ndvi.p10)
+  const band = hasBand ? [...rows.map(c => `${X(c).toFixed(1)},${Y(c.ndvi.p90).toFixed(1)}`), ...[...rows].reverse().map(c => `${X(c).toFixed(1)},${Y(c.ndvi.p10).toFixed(1)}`)].join(' ') : ''
   const last = rows[rows.length - 1]
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -76,7 +79,7 @@ function Growth({ rows }: { rows: Candle[] }) {
             <text x={L - 8} y={Y(v) + 4} textAnchor="end" fontSize="14" fill="#6b7b6c">{v}</text>
           </g>
         ))}
-        <polygon points={band} fill="#2f8f46" opacity=".16"/>
+        {hasBand && <polygon points={band} fill="#2f8f46" opacity=".16"/>}
         <polyline points={mean.join(' ')} fill="none" stroke="#1f6b3a" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round"/>
         {rows.map(c => {
           const isHov = hovered?.scene.id === c.scene.id
@@ -149,6 +152,8 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
     for (const f of farms) {
       if (cache[f.id]) continue
       if (f.passes && f.passes.length > 0) {
+        // Weekly records hold the pass mean only; percentiles mirror that single
+        // value and the chart's 10–90% band is skipped for rows like these.
         const rows: Candle[] = f.passes.map(p => ({
           scene: { id: p.week, datetime: p.date, cloud: p.cloud },
           ndvi: { mean: p.ndvi, min: p.ndvi, max: p.ndvi, p10: p.ndvi, p50: p.ndvi, p90: p.ndvi, n: 1 },
@@ -164,6 +169,9 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
   }, [farms.map(f => f.id).join()])
   const all = (id: string) => { const v = cache[id]; return Array.isArray(v) ? v : [] }
   const rows = useMemo(() => { const cut = Date.now() - days * 86400000; return all(farm.id).filter(c => +new Date(c.scene.datetime) >= cut) }, [cache, farm.id, days])
+  // Same guard as the chart: the 10–90% band legend shows only when the rows
+  // carry real percentiles (weekly-record rows hold one value each).
+  const hasBand = rows.length > 0 && rows.every(c => c.ndvi.p90 > c.ndvi.p10)
   const a = farm.analysis, now = rows[rows.length - 1]?.ndvi.mean ?? a?.ndvi.mean, before = rows[rows.length - 2]?.ndvi.mean
   const diff = now !== undefined && before !== undefined ? now - before : undefined
   const state = cache[farm.id], cls = classify(now)
@@ -184,7 +192,7 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
         <h3>Crop health over time <small>{farm.name}</small></h3>
         {state === 'loading' ? <div className="cj-empty"><LogoLoader size={80} text="Loading satellite history…"/></div> : state === 'error' ? <div className="cj-empty"><LogoLoader state="error" size={80} text="Could not load satellite history. Check your internet and press Refresh."/></div> : <Growth rows={rows}/>}
         <SourceNote of={['s2']}/>
-        <p className="cj-legend"><i className="ln"/> Area average <i className="bd"/> Lowest to highest 10% canopy vigor <i className="dt"/> Calibrated satellite pass</p>
+        <p className="cj-legend"><i className="ln"/> Area average {hasBand && <><i className="bd"/> Lowest to highest 10% canopy vigor </>}<i className="dt"/> Sentinel-2 pass</p>
         <div className="cj-story"><b>Area of interest telemetry analysis</b><p>{story}</p></div>
       </div>
       <div className="cj-side">{cards.map(({ i: Icon, t, v, s, c, w, why }) => <div className="cj-card cj-stat" key={t}><span className="cj-ico" style={{ background: c + '22', color: c }}><Icon size={18}/></span><div><small>{t}</small><strong>{v}</strong><em>{s}</em><div className="cj-meter"><i style={{ width: `${w * 100}%`, background: c }}/></div><p><b>Scientific reasoning:</b> {why}</p></div></div>)}</div>

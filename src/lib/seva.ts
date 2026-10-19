@@ -2,7 +2,6 @@ import { INDICATORS, byId, makeGrid, terrainBands, type Bands, type Grid } from 
 import { hydroBands } from './hydro'
 import { insideMask, parseNpy, rasterSize, statsOf, type Bbox, type Raster, type Ring, type Stat } from './raster'
 import { statsOfAsync } from './rasterWorker'
-import { getEarthEngineStats, getEarthEngineTimeseries } from './earthEngineClient'
 
 export type { Bbox, Stat }
 export type Scene = { id: string; datetime: string; cloud: number; ids?: string[]; fill?: string[]; filled?: number }
@@ -281,66 +280,13 @@ async function sceneStats(scene: Scene, farm: FarmGeo) {
   return res
 }
 
-function combineSignals(s1: AbortSignal, s2?: AbortSignal): AbortSignal {
-  if (!s2) return s1
-  if (typeof (AbortSignal as any).any === 'function') return (AbortSignal as any).any([s1, s2])
-  const c = new AbortController()
-  const abort = () => c.abort()
-  if (s1.aborted || s2.aborted) { c.abort(); return c.signal }
-  s1.addEventListener('abort', abort, { once: true })
-  s2.addEventListener('abort', abort, { once: true })
-  return c.signal
-}
-
 export type Candle = { scene: Scene; ndvi: Stat; ndmi: number; stressPct: number }
 
 export async function history(farm: FarmGeo, lookback = 180, max = 8, signal?: AbortSignal): Promise<Candle[]> {
-  // 1. PRIMARY: Query Google Earth Engine timeseries directly
-  const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
-  if (ringCoords.length >= 3) {
-    try {
-      const today = new Date().toISOString().slice(0, 10)
-      const startDate = new Date(Date.now() - lookback * 86400000).toISOString().slice(0, 10)
-      const eeData = await getEarthEngineTimeseries(
-        ringCoords,
-        'ndvi',
-        startDate,
-        today,
-        Math.max(12, Math.round(lookback / Math.max(max, 6))),
-        combineSignals(AbortSignal.timeout(15000), signal)
-      )
-      const validPoints = (eeData.points || []).filter(p => typeof p.value === 'number' && Number.isFinite(p.value))
-      if (validPoints.length >= 2) {
-        return validPoints.map(p => {
-          const mean = p.value!
-          const std = p.stdDev ?? 0.03
-          return {
-            scene: {
-              id: `gee-${p.date}`,
-              datetime: `${p.date}T10:30:00Z`,
-              cloud: 5,
-            },
-            ndvi: {
-              mean,
-              min: Math.max(-0.2, Number((mean - std * 1.5).toFixed(3))),
-              max: Math.min(1.0, Number((mean + std * 1.5).toFixed(3))),
-              stdDev: std,
-              p10: Math.max(-0.2, Number((mean - std).toFixed(3))),
-              p50: mean,
-              p90: Math.min(1.0, Number((mean + std).toFixed(3))),
-              n: 100,
-            },
-            ndmi: Number(Math.max(-0.2, Math.min(0.8, (mean - 0.1) * 0.75)).toFixed(3)),
-            stressPct: mean < 0.3 ? 35 : mean < 0.45 ? 12 : 3,
-          } as Candle
-        })
-      }
-    } catch (eeErr) {
-      console.info('Earth Engine timeseries API auto-falling back to Planetary Computer:', eeErr)
-    }
-  }
-
-  // 2. AUTO FALLBACK: Planetary Computer STAC
+  // Per-pass candles are computed from the real Sentinel-2 pixels of each pass
+  // (sceneStats below). The Earth Engine timeseries shortcut that used to sit
+  // here invented NDMI, a stress bucket and a 5% cloud figure for every pass,
+  // so it is gone: an NDVI-only mean may never masquerade as a full reading.
   const end = new Date(), start = new Date(end.getTime() - lookback * 86400000)
   const q = new URLSearchParams({ collections: COLLECTION, bbox: farmBBox(farm).join(','), datetime: `${stamp(start)}/${stamp(end)}`, limit: '100', sortby: '-datetime', query: JSON.stringify({ 'eo:cloud_cover': { lt: 30 } }) })
   const data = await getJson(`${STAC}/search?${q}`, signal)
@@ -377,26 +323,9 @@ export const weekKey = (iso: string) => {
 }
 
 export async function weeklyRecords(farm: FarmGeo, signal?: AbortSignal): Promise<WeekRec[]> {
-  const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
-  if (ringCoords.length >= 3) {
-    try {
-      const eeTs = await getEarthEngineTimeseries(ringCoords, 'ndvi', undefined, undefined, 14, combineSignals(AbortSignal.timeout(12000), signal))
-      if (eeTs?.points?.length) {
-        return eeTs.points
-          .filter(p => p.value !== null && Number.isFinite(p.value))
-          .map(p => ({
-            week: p.date,
-            date: p.date,
-            ndvi: Number((p.value!).toFixed(3)),
-            ndmi: 0.22,
-            stressPct: (p.value!) < 0.3 ? 35 : (p.value!) < 0.45 ? 12 : 3,
-            cloud: 5,
-          }))
-      }
-    } catch (eeErr) {
-      console.info('Earth Engine timeseries auto-falling back to local history:', eeErr)
-    }
-  }
+  // Rows come from the same real per-pass pixel statistics as history(). The
+  // Earth Engine shortcut that filled NDMI (0.22), a stress bucket and a 5%
+  // cloud figure with invented constants is gone.
   const rows = await history(farm, 180, 8, signal)
   return rows.map(c => ({ week: c.scene.datetime.slice(0, 10), date: c.scene.datetime, ndvi: c.ndvi.mean, ndmi: c.ndmi, stressPct: c.stressPct, cloud: c.scene.cloud }))
 }
@@ -408,68 +337,10 @@ export function mergeWeekly(old: WeekRec[] | undefined, fresh: WeekRec[]): WeekR
 }
 
 export async function analyze(farm: FarmGeo, opts: SceneOpts = {}, signal?: AbortSignal): Promise<Analysis> {
-  const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
-
-  // 1. PRIMARY: Query Google Earth Engine Zonal Statistics directly
-  if (ringCoords.length >= 3) {
-    try {
-      const stats = await getEarthEngineStats(
-        ringCoords,
-        ['ndvi', 'evi', 'ndmi', 'ndwi', 'bsi', 'savi', 'gndvi', 'lai'],
-        combineSignals(AbortSignal.timeout(15000), signal)
-      )
-      if (stats?.indicators?.ndvi?.mean !== undefined) {
-        const ind = stats.indicators
-        const ndviVal = ind.ndvi.mean
-        const ndmiVal = ind.ndmi?.mean ?? 0.22
-        const ndwiVal = ind.ndwi?.mean ?? -0.08
-        const statOf = (v: { mean: number; min: number; max: number; stdDev?: number; p25?: number; p75?: number }): Stat => ({
-          mean: v.mean,
-          min: v.min,
-          max: v.max,
-          stdDev: v.stdDev ?? 0.03,
-          p10: v.p25 ?? Number((v.mean - 0.05).toFixed(3)),
-          p50: v.mean,
-          p90: v.p75 ?? Number((v.mean + 0.05).toFixed(3)),
-          n: 100,
-        })
-        const means: Record<string, number> = {}
-        for (const [k, v] of Object.entries(ind)) {
-          if ((v as any)?.mean !== undefined) means[k] = (v as any).mean
-        }
-        let slopeDeg: number | undefined, slopePct: number | undefined, elevMean: number | undefined
-        try {
-          const demGrid = await loadDem(farm, signal).catch(() => null)
-          if (demGrid) {
-            slopeDeg = indexStat(demGrid, 'slope')?.mean
-            elevMean = indexStat(demGrid, 'dem')?.mean
-            if (slopeDeg !== undefined) slopePct = Math.tan((slopeDeg * Math.PI) / 180) * 100
-          }
-        } catch {}
-        const realScene = await findScene(farmBBox(farm), opts, signal).catch(() => null)
-        return {
-          scene: realScene ?? {
-            id: 'GEE_SENTINEL2_L2A',
-            datetime: (stats as any)?.latestSceneDate || new Date().toISOString(),
-            cloud: 2,
-          },
-          ndvi: statOf(ind.ndvi),
-          ndwi: statOf(ind.ndwi ?? { mean: ndwiVal, min: ndwiVal - 0.1, max: ndwiVal + 0.1 }),
-          ndmi: statOf(ind.ndmi ?? { mean: ndmiVal, min: ndmiVal - 0.1, max: ndmiVal + 0.1 }),
-          stressPct: ndviVal < 0.3 ? 35 : ndviVal < 0.45 ? 14 : 3,
-          means,
-          slopePct,
-          slopeDeg,
-          elevMean,
-          analysedAt: new Date().toISOString(),
-        }
-      }
-    } catch (eeErr) {
-      console.info('Earth Engine stats auto-falling back to Planetary Computer:', eeErr)
-    }
-  }
-
-  // 2. AUTO FALLBACK: Planetary Computer STAC + TiTiler + DEM
+  // Every value below is computed from the real Sentinel-2 pixels of the loaded
+  // scene (cloud-masked, with gap filling inside s2Grid). The Earth Engine
+  // first pass that used to fabricate NDMI / NDWI defaults, percentile tables,
+  // a 2% cloud scene and a bucketed stress figure ahead of this has been removed.
   const scene = await findScene(farmBBox(farm), opts, signal)
   const [g, dem] = await Promise.all([loadScene(scene, farm, signal), loadDem(farm, signal).catch(() => null)])
   const ndvi = indexStat(g, 'ndvi'), ndwi = indexStat(g, 'ndwi'), ndmi = indexStat(g, 'ndmi')

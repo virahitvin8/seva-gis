@@ -2,7 +2,6 @@ import { getDistance, getRhumbLineBearing } from 'geolib'
 import { renderLayer, byId, type Grid } from './indicators'
 import { paintClipped, type Ring } from './raster'
 import { farmRing, history, loadFrame, loadScene, type Candle, type FarmGeo, type Scene } from './seva'
-import { getEarthEngineTimeseries } from './earthEngineClient'
 import type { Weather } from './agro'
 
 export type ClassRow = { id: string; name: string; color: string; pct: number; ha: number; note?: string }
@@ -146,34 +145,9 @@ export function phenology(rows: Candle[]): Phenology | null {
 }
 
 export const loadHistory = async (farm: FarmGeo): Promise<Candle[]> => {
-  const ringCoords = farm.polygon && farm.polygon.length >= 3 ? farm.polygon : farmRing(farm)
-  if (ringCoords.length >= 3) {
-    try {
-      const eeTs = await getEarthEngineTimeseries(ringCoords, 'ndvi', undefined, undefined, 16, AbortSignal.timeout(12000))
-      if (eeTs?.points?.length) {
-        return eeTs.points
-          .filter(p => p.value !== null && Number.isFinite(p.value))
-          .map(p => ({
-            scene: { id: `gee-${p.date}`, datetime: p.date, cloud: 3 },
-            ndvi: {
-              mean: p.value!,
-              min: Number(Math.max(0, p.value! - (p.stdDev ?? 0.05)).toFixed(3)),
-              max: Number(Math.min(1, p.value! + (p.stdDev ?? 0.05)).toFixed(3)),
-              stdDev: p.stdDev ?? 0.03,
-              p10: Number(Math.max(0, p.value! - 0.04).toFixed(3)),
-              p50: p.value!,
-              p90: Number(Math.min(1, p.value! + 0.04).toFixed(3)),
-              n: 100,
-            },
-            ndmi: 0.22,
-            stressPct: p.value! < 0.3 ? 35 : p.value! < 0.45 ? 12 : 3,
-            cloudCover: 3,
-          }))
-      }
-    } catch (e) {
-      console.info('Earth Engine history auto-falling back to local history:', e)
-    }
-  }
+  // One honest source: per-pass statistics computed from the real Sentinel-2
+  // pixels of each pass. The Earth Engine shortcut that used to sit here filled
+  // NDMI (0.22), a stress bucket and cloud cover with invented constants.
   return history(farm, 365, 16)
 }
 

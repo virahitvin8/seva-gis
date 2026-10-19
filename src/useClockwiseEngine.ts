@@ -28,6 +28,10 @@ export interface ClockwiseEngine {
   step: number
   /** Cumulative clockwise rotation in degrees for the orbiting indicator. */
   rotation: number
+  /** Monotonic restart counter, bumped on every manual action and domain reset. */
+  tick: number
+  /** True when the visitor prefers reduced motion (auto-cycle disabled). */
+  reducedMotion: boolean
   /** True when the user paused via the transport bar. */
   userPaused: boolean
   /** True when an automatic reason pauses the cycle (or the user paused). */
@@ -141,6 +145,8 @@ export function useClockwiseEngine(
   return {
     step,
     rotation,
+    tick,
+    reducedMotion,
     userPaused,
     paused,
     autoPaused,

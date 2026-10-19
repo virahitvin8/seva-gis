@@ -1,4 +1,5 @@
 import LogoLoader from './LogoLoader'
+import { useClockwiseEngine } from './useClockwiseEngine'
 import { MitraBye } from './Mitra'
 import { clearGreeting } from './lib/greet'
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -20,9 +21,12 @@ import {
   Compass,
   HardDrive,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Activity,
   Zap,
   Play,
+  Pause,
   Check,
   X,
 } from 'lucide-react'
@@ -109,11 +113,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   const [selectedDomain, setSelectedDomain] = useState<'agri' | 'hydro' | 'terrain' | 'geology' | 'hazard' | 'vault'>('agri')
-  const [activeTechniqueIndex, setActiveTechniqueIndex] = useState<number>(0)
-  const [dialRotation, setDialRotation] = useState(0)
-  const [dialTick, setDialTick] = useState(0)
   const [dialEngaged, setDialEngaged] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(false)
   const [googleModalOpen, setGoogleModalOpen] = useState(false)
   const [googleModalEmail, setGoogleModalEmail] = useState('')
   // Google sign-in only works when this deployment configures a real OAuth client ID.
@@ -128,12 +128,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       bg: 'rgba(16, 185, 129, 0.12)',
       border: 'rgba(16, 185, 129, 0.3)',
       techniques: [
-        { angle: '12:00', title: 'Chlorophyll Red-Edge (NDRE / CIre)', sensor: 'Sentinel-2 Band 5 & 7', formula: '(B08 - B05) / (B08 + B05)', desc: 'Detects early canopy nitrogen and chlorophyll breakdown before visible yellowing occurs.' },
-        { angle: '02:00', title: 'Photosynthetic Canopy Biomass (NDVI)', sensor: 'Sentinel-2 Band 4 & 8', formula: '(B08 - B04) / (B08 + B04)', desc: 'Quantifies normalized vegetative vigor and photosynthetic canopy volume at 10m spatial resolution.' },
-        { angle: '04:00', title: 'Soil-Adjusted Stand Index (SAVI / MSAVI)', sensor: 'Sentinel-2 Red & NIR', formula: '[(1 + L)(B08 - B04)] / (B08 + B04 + L)', desc: 'Suppresses background soil reflectance in young, sparse, or emergent crop stands.' },
-        { angle: '06:00', title: 'Machinery Swath Routing (Fields2Cover)', sensor: 'Client Cartesian Engine', formula: 'min θ { Turn_loss(θ) + Overlap(θ) }', desc: 'Computes continuous non-overlapping boustrophedon tractor paths and headland turn optimization.' },
-        { angle: '08:00', title: 'Variable-Rate Nitrogen Prescriptions (VRA)', sensor: 'SEVA Precision Engine', formula: 'N_rate(i) = Base_N × [1 - (NDVI(i) - μ) / σ]', desc: 'Divides parcel into 3 nutrient management zones, cutting wasted urea while boosting underperforming zones.' },
-        { angle: '10:00', title: 'Phenology & Growing Degree Days (GDD)', sensor: 'ERA5-Land + S2 Time-Series', formula: 'GDD = Σ max(0, (T_max + T_min)/2 - T_base)', desc: 'Models vegetative, reproductive, and ripening crop milestones without requiring manual scouting.' },
+        { angle: '12:00', title: 'Multi-Spectral Scene Acquisition', sensor: 'Sentinel-2 L2A · bands B02–B11', formula: 'Align B02 · B03 · B04 · B08 · B11', desc: 'Reads the newest low-cloud Sentinel-2 scenes over your field and aligns the spectral bands every later step uses.' },
+        { angle: '02:00', title: 'SCL Cloud & Shadow Masking', sensor: 'Sentinel-2 Scene Classification Layer', formula: 'Mask = SCL ∈ {cloud, cirrus, shadow}', desc: 'Removes cloud, cirrus and shadow pixels before any index math, so statistics come only from clean ground pixels.' },
+        { angle: '04:00', title: 'Canopy Vigor Indexing (NDVI)', sensor: 'Sentinel-2 Band 4 & 8 · 10 m', formula: '(B08 - B04) / (B08 + B04)', desc: 'Measures canopy greenness and density and compares it across the observation dates you choose.' },
+        { angle: '06:00', title: 'Soil-Adjusted Vigor (SAVI / EVI)', sensor: 'Sentinel-2 Red & NIR', formula: 'SAVI = [(1 + L)(B08 - B04)] / (B08 + B04 + L)', desc: 'Reduces background soil reflectance in young or sparse stands so vigor differences are plant-driven, not soil-driven.' },
+        { angle: '08:00', title: 'Intra-Field Variability Zoning', sensor: 'Real NDVI pixel statistics (in-browser)', formula: 'Zones from quantile split of valid pixels', desc: 'Divides the field into classified vigor zones; flagged patches are candidate stress zones that need a field walk.' },
+        { angle: '10:00', title: 'Agronomic Scouting & GIS Export', sensor: 'GeoTIFF · GeoJSON · PDF report', formula: 'Scout targets + exportable layers', desc: 'Turns the analysis into walkable scouting targets and export files (GeoTIFF, GeoJSON and a printable report).' },
       ]
     },
     hydro: {
@@ -144,12 +144,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       bg: 'rgba(6, 182, 212, 0.12)',
       border: 'rgba(6, 182, 212, 0.3)',
       techniques: [
-        { angle: '12:00', title: 'Topographic Wetness Index (TWI)', sensor: 'Copernicus GLO-30 DEM', formula: 'ln(α / tan β)', desc: 'Calculates soil wetness tendency and saturation waterlogging zones based on upslope contributing area.' },
-        { angle: '02:00', title: 'D8 Flow Direction & Accumulation', sensor: 'Priority-Flood Algorithm', formula: 'Dir = argmax_i [ (Z_0 - Z_i) / d_i ]', desc: 'Determines overland runoff paths and natural convergent drainage lines across the field surface.' },
-        { angle: '04:00', title: 'Strahler Stream Channel Network', sensor: 'Hydrological Hierarchy', formula: 'Order: ω = max(ω_1, ω_2) + (ω_1 == ω_2 ? 1 : 0)', desc: 'Extracts 1st to 4th order drainage gully channels to position farm ponds and check dams.' },
-        { angle: '06:00', title: 'SCS-CN Surface Runoff Yield', sensor: 'USDA NRCS / SUFI-2 Formulation', formula: 'Q = (P - 0.2S)² / (P + 0.8S)', desc: 'Predicts storm runoff volume and rainwater harvesting potential from catchment soil characteristics.' },
-        { angle: '08:00', title: 'Saxton-Rawls Soil Hydraulics Core', sensor: 'ISRIC SoilGrids 2.0 (250m)', formula: 'Pedotransfer Water Retention', desc: 'Calculates Field Capacity, Permanent Wilting Point, and plant-available water storage (AWC).' },
-        { angle: '10:00', title: 'Open Water & Moisture Deficit (NDWI / NDMI)', sensor: 'Sentinel-2 Band 3, 8 & 11', formula: '(B03 - B08) / (B03 + B08)', desc: 'Identifies standing farm pond water, surface inundation, and canopy hydration stress signals.' },
+        { angle: '12:00', title: 'Surface Water & Moisture Indexing (NDWI)', sensor: 'Sentinel-2 Band 3 & 8', formula: '(B03 - B08) / (B03 + B08)', desc: 'Maps standing farm-pond water, surface inundation and canopy hydration stress from the newest clean scene.' },
+        { angle: '02:00', title: 'DEM Terrain Conditioning', sensor: 'Copernicus GLO-30 DEM', formula: 'Pit fill + micro-relief smoothing', desc: 'Fills spurious pits and smooths micro-relief before routing, so runoff paths follow real drainage instead of DEM noise.' },
+        { angle: '04:00', title: 'Slope & Runoff Gradient Vectors', sensor: 'Horn 3×3 gradient kernel', formula: 'Slope = arctan √[(∂z/∂x)² + (∂z/∂y)²]', desc: 'Maps terrain steepness and the direction surface water accelerates, highlighting erosion-prone runoff belts.' },
+        { angle: '06:00', title: 'Flow Direction & Accumulation (D8)', sensor: 'D8 routing engine', formula: 'Dir = argmax_i [(Z_0 - Z_i) / d_i]', desc: 'Traces overland flow pathways and the convergent channels that collect water during storm events.' },
+        { angle: '08:00', title: 'Catchment & Ponding Susceptibility (TWI)', sensor: 'Topographic Wetness Index', formula: 'ln(α / tan β)', desc: 'Highlights low-lying, converging zones where water gathers — the places to watch for ponding or waterlogging.' },
+        { angle: '10:00', title: 'Hydrological Synthesis & Export', sensor: 'Drainage layers · GeoTIFF · QGIS-ready', formula: 'Drainage summary + exportable layers', desc: 'Summarises how the field drains and packages the flow, wetness and inundation layers for QGIS and printable reports.' },
       ]
     },
     terrain: {
@@ -219,35 +219,30 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   const currentDomain = DOMAIN_DATA[selectedDomain]
-  const currentTechnique = currentDomain.techniques[activeTechniqueIndex] || currentDomain.techniques[0]
 
-  // Respect the visitor's reduced-motion preference: no auto-cycle, no orbiting motion.
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const sync = () => setReducedMotion(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
+  // Single authoritative 3-second timer for the Clockwise Parameter Engine
+  // (one interval instance, created and cleaned up inside the hook). It
+  // resets cleanly to Step 1 on every domain change, pauses while the
+  // visitor hovers or focuses the dial, when the tab is hidden, when the
+  // engine is scrolled out of view, and under prefers-reduced-motion.
+  // Ticks only update local UI state — they never call the network.
+  const dial = useClockwiseEngine(selectedDomain, currentDomain.techniques.length, { intervalMs: 3000, externalHold: dialEngaged })
 
-  // Clockwise parameter engine: advance one parameter every 3 seconds, always clockwise.
-  // Pauses while the visitor hovers or focuses the dial, and while the tab is hidden.
-  useEffect(() => {
-    if (reducedMotion || dialEngaged) return
-    const count = DOMAIN_DATA[selectedDomain].techniques.length
-    const id = window.setInterval(() => {
-      if (document.visibilityState !== 'visible') return
-      setActiveTechniqueIndex(prev => (prev + 1) % count)
-      setDialRotation(prev => prev + 360 / count)
-    }, 3000)
-    return () => window.clearInterval(id)
-  }, [reducedMotion, dialEngaged, selectedDomain, dialTick])
+  const currentTechnique = currentDomain.techniques[dial.step] || currentDomain.techniques[0]
 
-  // Selection always travels clockwise: the dial only ever rotates forward.
-  const selectTechnique = (i: number) => {
-    setActiveTechniqueIndex(i)
-    setDialRotation(r => r + ((i * 60 - (r % 360) + 360) % 360))
-    setDialTick(t => t + 1)
+  const transportBtn: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '8px 14px',
+    borderRadius: 9,
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: '#e2e8f0',
+    border: '1px solid rgba(255, 255, 255, 0.14)',
+    transition: 'background 0.2s ease',
   }
 
   async function handleGoogleModalSignIn(e: React.FormEvent) {
@@ -442,8 +437,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         .sevadial-progress { animation: sevadial-progress 3s linear infinite; }
         @keyframes sevadial-fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .sevadial-fade { animation: sevadial-fade 0.5s ease-out; }
+        @keyframes sevadial-wave { 0% { transform: scale(0.22); opacity: 0.65; } 100% { transform: scale(3.5); opacity: 0; } }
+        .sevadial-wave { transform-box: fill-box; transform-origin: center; animation: sevadial-wave 950ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .sevadial-wave-late { animation-delay: 170ms; }
+        .sevadial-node { cursor: pointer; }
+        .sevadial-node:focus-visible { outline: 2.5px solid #f8fafc; outline-offset: 3px; }
         @media (prefers-reduced-motion: reduce) {
-          .sevadial-spin, .sevadial-ripple, .sevadial-progress, .sevadial-fade { animation: none; }
+          .sevadial-spin, .sevadial-ripple, .sevadial-progress, .sevadial-fade, .sevadial-wave { animation: none; }
         }
       `}</style>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -455,7 +455,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             Domain Intelligence &amp; Clockwise Parameter Engine
           </h2>
           <p style={{ fontSize: 15.5, color: '#94a3b8', maxWidth: 740, margin: '0 auto', lineHeight: 1.6 }}>
-            Select any spatial discipline below. The dial auto-cycles clockwise through its six parameters every 3 seconds — hover to pause, or click any node to inspect it.
+            Select any spatial discipline below. The dial auto-cycles clockwise through its six parameters every 3 seconds — pause it, step through it, or click any node to inspect it. The cycle is a local visualization: it only changes what you see on this page.
           </p>
         </div>
 
@@ -469,10 +469,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  setSelectedDomain(key)
-                  selectTechnique(0)
-                }}
+                onClick={() => setSelectedDomain(key)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -498,13 +495,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
         {/* Interactive Clockwise Parameter Diagram Component */}
         <div
+          ref={dial.containerRef}
           onMouseEnter={() => setDialEngaged(true)}
           onMouseLeave={() => setDialEngaged(false)}
           onFocusCapture={() => setDialEngaged(true)}
           onBlurCapture={() => setDialEngaged(false)}
           style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 32, backdropFilter: 'blur(12px)' }}
         >
-          {/* Circular Clockwise Dial SVG */}
+          {/* Circular Clockwise Dial SVG with transport bar below */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'relative', width: '100%', maxWidth: 440, aspectRatio: '1/1', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="0 0 400 400" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
               <defs>
@@ -516,9 +515,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               {/* Outer guide ring */}
               <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
               {/* Per-step progress ring: refills each 3-second cycle while auto-cycling */}
-              {!reducedMotion && !dialEngaged && (
+              {!dial.paused && (
                 <circle
-                  key={`sevadial-progress-${dialTick}-${activeTechniqueIndex}`}
+                  key={`sevadial-progress-${dial.tick}-${dial.step}`}
                   className="sevadial-progress"
                   cx="200"
                   cy="200"
@@ -535,10 +534,17 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               )}
               <circle cx="200" cy="200" r="145" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeDasharray="4 6" />
               {/* Ambient dispersion sweep: a slow continuous orbit for depth */}
-              <g className={reducedMotion ? undefined : 'sevadial-spin'} style={{ transformOrigin: '200px 200px' }}>
+              <g className={dial.reducedMotion ? undefined : 'sevadial-spin'} style={{ transformOrigin: '200px 200px' }}>
                 <circle cx="200" cy="200" r="165" fill="none" stroke={currentDomain.color} strokeWidth="1.25" strokeDasharray="30 900" strokeLinecap="round" opacity="0.45" />
               </g>
               <circle cx="200" cy="200" r="110" fill="url(#dialGlow)" />
+              {/* Radial loading dispersion wave: replayed on every domain switch */}
+              {!dial.reducedMotion && (
+                <g key={`sevadial-wave-${selectedDomain}`} pointerEvents="none">
+                  <circle className="sevadial-wave" cx="200" cy="200" r="90" fill="none" stroke={currentDomain.color} strokeWidth="2.5" opacity="0" />
+                  <circle className="sevadial-wave sevadial-wave-late" cx="200" cy="200" r="90" fill="none" stroke={currentDomain.color} strokeWidth="1.25" opacity="0" />
+                </g>
+              )}
 
               {/* Connecting spokes from center to 6 clockwise nodes */}
               {currentDomain.techniques.map((tech, idx) => {
@@ -548,7 +554,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 const y1 = 200 + 48 * Math.sin(rad)
                 const x2 = 200 + 145 * Math.cos(rad)
                 const y2 = 200 + 145 * Math.sin(rad)
-                const isCurrent = activeTechniqueIndex === idx
+                const isCurrent = dial.step === idx
                 return (
                   <line
                     key={tech.title}
@@ -564,7 +570,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               })}
 
               {/* Synced comet: glides clockwise to land on the active parameter */}
-              <g style={{ transformOrigin: '200px 200px', transform: `rotate(${dialRotation}deg)`, transition: reducedMotion ? 'none' : 'transform 0.9s cubic-bezier(0.22, 1, 0.36, 1)' }}>
+              <g style={{ transformOrigin: '200px 200px', transform: `rotate(${dial.rotation}deg)`, transition: dial.reducedMotion ? 'none' : 'transform 0.9s cubic-bezier(0.22, 1, 0.36, 1)' }}>
                 <circle cx="200" cy="55" r="12" fill="none" stroke={currentDomain.color} strokeWidth="1" opacity="0.35" />
                 <circle cx="200" cy="55" r="5" fill={currentDomain.color} style={{ filter: `drop-shadow(0 0 10px ${currentDomain.color})` }} />
               </g>
@@ -584,17 +590,29 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 const rad = (angleDeg * Math.PI) / 180
                 const cx = 200 + 145 * Math.cos(rad)
                 const cy = 200 + 145 * Math.sin(rad)
-                const isCurrent = activeTechniqueIndex === idx
+                const isCurrent = dial.step === idx
+                const isDone = idx < dial.step
 
                 return (
                   <g
                     key={tech.title}
-                    onClick={() => selectTechnique(idx)}
-                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                    className="sevadial-node"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Step ${idx + 1}: ${tech.title}`}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    onClick={() => dial.selectStep(idx)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        dial.selectStep(idx)
+                      }
+                    }}
+                    style={{ transition: 'all 0.2s' }}
                   >
-                    {isCurrent && !reducedMotion && (
+                    {isCurrent && !dial.reducedMotion && (
                       <circle
-                        key={`sevadial-ripple-${dialTick}-${activeTechniqueIndex}`}
+                        key={`sevadial-ripple-${dial.tick}-${dial.step}`}
                         className="sevadial-ripple"
                         cx={cx}
                         cy={cy}
@@ -602,6 +620,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                         fill="none"
                         stroke={currentDomain.color}
                         strokeWidth="2"
+                      />
+                    )}
+                    {isDone && !dial.reducedMotion && (
+                      <circle
+                        cx={200 + 175 * Math.cos(rad)}
+                        cy={200 + 175 * Math.sin(rad)}
+                        r={3}
+                        fill={currentDomain.color}
+                        opacity="0.5"
                       />
                     )}
                     <circle
@@ -628,20 +655,47 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 )
               })}
             </svg>
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em', color: reducedMotion ? '#94a3b8' : dialEngaged ? '#fbbf24' : '#6ee7b7' }}>
-              {reducedMotion
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em', color: dial.reducedMotion ? '#94a3b8' : dialEngaged || dial.userPaused ? '#fbbf24' : '#6ee7b7' }}>
+              {dial.reducedMotion
                 ? 'Reduced motion · select any parameter to inspect it'
-                : dialEngaged
-                  ? 'Paused · move away to resume the clockwise cycle'
-                  : 'Auto-cycling clockwise · one parameter every 3 seconds'}
+                : dial.userPaused
+                  ? 'Paused · press Resume to continue the clockwise cycle'
+                  : dialEngaged
+                    ? 'Hover pause · move away to resume the clockwise cycle'
+                    : 'Auto-cycling clockwise · one parameter every 3 seconds'}
             </div>
           </div>
 
+          {/* Transport bar: Previous · Pause/Resume · Next (keyboard accessible) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }} role="group" aria-label="Clockwise Parameter Engine transport controls">
+            <button type="button" onClick={dial.prev} aria-label="Previous parameter, counter-clockwise one step" style={transportBtn}>
+              <ChevronLeft size={15} /> Previous Step
+            </button>
+            <button
+              type="button"
+              onClick={dial.toggleUserPause}
+              aria-pressed={dial.userPaused}
+              aria-label={dial.userPaused ? 'Resume the automatic clockwise cycle' : 'Pause the automatic clockwise cycle'}
+              style={{ ...transportBtn, background: dial.userPaused ? currentDomain.color : 'rgba(255, 255, 255, 0.06)', color: dial.userPaused ? '#041d13' : '#e2e8f0', border: dial.userPaused ? `1px solid ${currentDomain.color}` : '1px solid rgba(255, 255, 255, 0.14)' }}
+            >
+              {dial.userPaused ? <Play size={14} /> : <Pause size={14} />} {dial.userPaused ? 'Resume Auto-Cycle' : 'Pause Auto-Cycle'}
+            </button>
+            <button type="button" onClick={dial.next} aria-label="Next parameter, clockwise one step" style={transportBtn}>
+              Next Step <ChevronRight size={15} />
+            </button>
+          </div>
+
+          {/* Screen-reader announcements for every engine state change */}
+          <div aria-live="polite" role="status" style={{ position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }}>
+            {`Step ${dial.step + 1} of ${currentDomain.techniques.length}: ${currentTechnique.title}${dial.userPaused ? ' — paused' : ''}`}
+          </div>
+          </div>
+
           {/* Active Parameter Detail Card */}
-          <div key={`${selectedDomain}-${activeTechniqueIndex}`} className="sevadial-fade" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div key={`${selectedDomain}-${dial.step}`} className="sevadial-fade" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 800, background: currentDomain.bg, color: currentDomain.color, border: `1px solid ${currentDomain.border}`, padding: '3px 10px', borderRadius: 999 }}>
-                Position {currentTechnique.angle} · Parameter #{activeTechniqueIndex + 1} of 6
+                Position {currentTechnique.angle} · Parameter #{dial.step + 1} of {currentDomain.techniques.length}
               </span>
               <span style={{ fontSize: 11, color: '#94a3b8' }}>{currentDomain.tag}</span>
             </div>
@@ -676,15 +730,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 <button
                   key={t.title}
                   type="button"
-                  onClick={() => selectTechnique(i)}
+                  onClick={() => dial.selectStep(i)}
+                  aria-pressed={dial.step === i}
                   style={{
                     padding: '5px 12px',
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 700,
                     cursor: 'pointer',
-                    background: activeTechniqueIndex === i ? currentDomain.color : 'rgba(255,255,255,0.06)',
-                    color: activeTechniqueIndex === i ? '#041d13' : '#94a3b8',
+                    background: dial.step === i ? currentDomain.color : 'rgba(255,255,255,0.06)',
+                    color: dial.step === i ? '#041d13' : '#94a3b8',
                     border: 'none'
                   }}
                 >

@@ -1786,7 +1786,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
             <span>Zoom <b>{mapZoom.toFixed(1)}x</b></span>
             {locked && <span className="zoom-synced-pill">75%</span>}
             <span className="hud-sep">·</span>
-            <span className="hud-coords">{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : `${(farm?.lat ?? 20.5937).toFixed(4)}°N, ${(farm?.lon ?? 78.9629).toFixed(4)}°E`}</span>
+            <span className="hud-coords">{mouseCoords ? `${mouseCoords.lat.toFixed(4)}°N, ${mouseCoords.lon.toFixed(4)}°E` : farm ? `${farm.lat.toFixed(4)}°N, ${farm.lon.toFixed(4)}°E` : '—'}</span>
             <span className="hud-sep">·</span>
             <span
               className="hud-north"
@@ -2993,21 +2993,21 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
                   <div className="ix-legend-title">{t('map.sufi2Legend')}</div>
                   <p style={{ fontSize: 10, color: '#64748b', margin: '0 0 6px', lineHeight: 1.35 }}>{t('map.sufi2Note')}</p>
                   {[
-                    { param: '1:R__CN2.mgt', name: 'Curve Number Relative Delta', opt: '-0.12', nse: '0.68', range: '-0.40 to +0.40' },
-                    { param: '2:A__GWQMN.gw', name: 'Shallow Aquifer Threshold (mm)', opt: '245 mm', nse: '0.67', range: '210 to 300 mm' },
-                    { param: '3:A__GW_REVAP.gw', name: 'Groundwater Revap Coeff', opt: '0.08', nse: '0.66', range: '-0.40 to +0.40' },
-                    { param: '4:R__SOL_AWC.sol', name: 'Soil Available Water Capacity', opt: '+0.15', nse: '0.68', range: '0.40 to 0.60' },
-                    { param: '5:V__ESCO.hru', name: 'Soil Evaporation Compensation', opt: '0.04', nse: '0.65', range: '0.00 to 0.20' },
-                    { param: '6:A__REVAPMN.gw', name: 'Revap Shallow Threshold (mm)', opt: '0.34 mm', nse: '0.67', range: '0.27 to 0.39 mm' },
+                    { param: '1:R__CN2.mgt', name: 'Curve Number Relative Delta', range: '-0.40 to +0.40' },
+                    { param: '2:A__GWQMN.gw', name: 'Shallow Aquifer Threshold', range: '0 to 5000 mm' },
+                    { param: '3:A__GW_REVAP.gw', name: 'Groundwater Revap Coeff', range: '0.02 to 0.20' },
+                    { param: '4:R__SOL_AWC.sol', name: 'Soil Available Water Capacity', range: '0.00 to 1.00' },
+                    { param: '5:V__ESCO.hru', name: 'Soil Evaporation Compensation', range: '0.00 to 1.00' },
+                    { param: '6:A__REVAPMN.gw', name: 'Revap Shallow Threshold', range: '0 to 500 mm' },
                   ].map(dp => (
                     <div key={dp.param} className="ix-legend-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2, padding: '4px 6px', background: '#f8fafc', borderRadius: 4, border: '1px solid #e2e8f0', marginBottom: 4 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 10.5 }}>
                         <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{dp.param}</strong>
-                        <span style={{ color: '#16a34a', fontWeight: 700 }}>NSE: {dp.nse}</span>
+                        <span style={{ color: '#64748b', fontWeight: 700, fontSize: 9.5 }}>Not calibrated</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 9.5, color: '#64748b' }}>
                         <span>{dp.name}</span>
-                        <span>Opt: <b>{dp.opt}</b> ({dp.range})</span>
+                        <span>Valid range: <b>{dp.range}</b></span>
                       </div>
                     </div>
                   ))}

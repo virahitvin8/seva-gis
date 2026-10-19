@@ -417,6 +417,24 @@ function PdfCraftWorkbench({ farm }: { farm: FarmLike }) {
 // -----------------------------------------------------------------------------
 // 2. GridCraft Workbench: Ag-Data Spreadsheet, Formula Bar, Sparklines & Data Bars
 // -----------------------------------------------------------------------------
+type GridSampleRow = {
+  id: string
+  lat: number
+  lon: number
+  b2_blue: number
+  b3_green: number
+  b4_red: number
+  b8_nir: number
+  ndvi: number
+  ndmi: number
+  moist: number
+  nitrogen: number
+  phosphorus: number
+  potassium: number
+  ph: number
+  spark: number[]
+}
+
 function GridCraftWorkbench({ farm }: { farm: FarmLike }) {
   const [activeCell, setActiveCell] = useState('G2')
   const [formulaInput, setFormulaInput] = useState('=AVERAGE(G2:G11)')
@@ -424,56 +442,17 @@ function GridCraftWorkbench({ farm }: { farm: FarmLike }) {
   const [sortKey, setSortKey] = useState<string>('ndvi')
   const [sortAsc, setSortAsc] = useState(false)
 
-  // 12 sampled raster points across the AOI
-  const [sampleRows, setSampleRows] = useState(() => {
-    const baseNdvi = farm.analysis?.ndvi?.mean ?? 0.62
-    const baseMoist = farm.moisture ?? 32
-    return Array.from({ length: 10 }).map((_, i) => {
-      const offsetLat = (i - 5) * 0.00035
-      const offsetLon = (i - 5) * 0.00042
-      const ndviVal = Math.max(0.12, Math.min(0.88, Number((baseNdvi + (Math.sin(i * 1.5) * 0.18)).toFixed(3))))
-      const ndmiVal = Number(((ndviVal * 0.6) - 0.1).toFixed(3))
-      const moistVal = Math.round(baseMoist + Math.cos(i) * 6)
-      const nitrogen = Math.round(180 + Math.sin(i) * 45)
-      const phosphorus = Math.round(22 + Math.cos(i) * 8)
-      const potassium = Math.round(195 + Math.sin(i * 2) * 50)
-      const ph = Number((6.8 + Math.sin(i * 0.8) * 0.5).toFixed(2))
-
-      // Multi-temporal sparkline values (6 passes)
-      const spark = [
-        Number((ndviVal * 0.72).toFixed(2)),
-        Number((ndviVal * 0.82).toFixed(2)),
-        Number((ndviVal * 0.95).toFixed(2)),
-        Number((ndviVal * 1.02).toFixed(2)),
-        Number((ndviVal * 0.98).toFixed(2)),
-        ndviVal,
-      ]
-
-      return {
-        id: `P-${101 + i}`,
-        lat: Number((farm.lat + offsetLat).toFixed(5)),
-        lon: Number((farm.lon + offsetLon).toFixed(5)),
-        b2_blue: Number((0.045 + i * 0.002).toFixed(3)),
-        b3_green: Number((0.075 + i * 0.003).toFixed(3)),
-        b4_red: Number((0.052 + (1 - ndviVal) * 0.12).toFixed(3)),
-        b8_nir: Number((0.38 + ndviVal * 0.25).toFixed(3)),
-        ndvi: ndviVal,
-        ndmi: ndmiVal,
-        moist: moistVal,
-        nitrogen,
-        phosphorus,
-        potassium,
-        ph,
-        spark,
-      }
-    })
-  })
+  // The workbench sheet renders only real per-pixel sampling results. No
+  // raster sampler is wired into the in-browser sheet yet, so it starts empty
+  // instead of presenting synthesised NDVI / N-P-K / pH rows.
+  const [sampleRows] = useState<GridSampleRow[]>([])
 
   // Dynamic formula evaluation
   const evaluatedFormula = useMemo(() => {
     if (!formulaInput.startsWith('=')) return formulaInput
     const upper = formulaInput.toUpperCase().trim()
     const ndviArr = sampleRows.map(r => r.ndvi)
+    if (ndviArr.length === 0) return 'No sampled pixels loaded — nothing to evaluate'
     if (upper.includes('AVERAGE')) {
       const avg = ndviArr.reduce((a, b) => a + b, 0) / ndviArr.length
       return `Result: ${avg.toFixed(3)} (Mean NDVI across 10 Sample Pixels)`
@@ -510,6 +489,7 @@ function GridCraftWorkbench({ farm }: { farm: FarmLike }) {
   }, [sampleRows, sortKey, sortAsc])
 
   const exportCsv = () => {
+    if (sortedRows.length === 0) return
     const headers = ['Pixel_ID', 'Latitude', 'Longitude', 'B4_Red', 'B8_NIR', 'NDVI', 'NDMI', 'Moisture_Pct', 'Nitrogen_kg_ha', 'Phosphorus_kg_ha', 'Potassium_kg_ha', 'Soil_pH']
     const lines = sortedRows.map(r => [
       r.id,
@@ -557,7 +537,7 @@ function GridCraftWorkbench({ farm }: { farm: FarmLike }) {
         </div>
 
         <div className="gridcraft-actions">
-          <button className="tool-btn" onClick={exportCsv} title="Export CSV spreadsheet">
+          <button className="tool-btn" onClick={exportCsv} disabled={sortedRows.length === 0} title={sortedRows.length === 0 ? 'No real per-pixel samples loaded' : 'Export CSV spreadsheet'}>
             <Download size={13} /> Export CSV
           </button>
         </div>
@@ -586,6 +566,13 @@ function GridCraftWorkbench({ farm }: { farm: FarmLike }) {
             </tr>
           </thead>
           <tbody>
+            {sortedRows.length === 0 && (
+              <tr>
+                <td colSpan={13} style={{ textAlign: 'center', padding: '18px 10px', color: '#64748b', fontStyle: 'italic' }}>
+                  No real per-pixel samples loaded. Rows appear only after a satellite analysis produces raster samples — synthesised values are never shown.
+                </td>
+              </tr>
+            )}
             {sortedRows.map((r, idx) => {
               const ndviPct = Math.round(Math.max(0, Math.min(100, (r.ndvi / 0.9) * 100)))
               const barColor = r.ndvi >= 0.5 ? '#16a34a' : r.ndvi >= 0.3 ? '#eab308' : '#ef4444'
@@ -648,14 +635,20 @@ function GridCraftWorkbench({ farm }: { farm: FarmLike }) {
           </tbody>
           <tfoot>
             <tr className="totals-row">
-              <td colSpan={6} style={{ textAlign: 'right', fontWeight: 600 }}>Sheet Summary Statistics (GridCraft Auto-Sum):</td>
-              <td><strong>Mean: {(sampleRows.reduce((a, b) => a + b.ndvi, 0) / sampleRows.length).toFixed(3)}</strong></td>
-              <td>10 Sampling Points</td>
-              <td><strong>Avg: {Math.round(sampleRows.reduce((a, b) => a + b.moist, 0) / sampleRows.length)}%</strong></td>
-              <td>{Math.round(sampleRows.reduce((a, b) => a + b.nitrogen, 0) / sampleRows.length)}</td>
-              <td>{Math.round(sampleRows.reduce((a, b) => a + b.phosphorus, 0) / sampleRows.length)}</td>
-              <td>{Math.round(sampleRows.reduce((a, b) => a + b.potassium, 0) / sampleRows.length)}</td>
-              <td>{(sampleRows.reduce((a, b) => a + b.ph, 0) / sampleRows.length).toFixed(2)}</td>
+              {sampleRows.length === 0 ? (
+                <td colSpan={13} style={{ textAlign: 'center', fontWeight: 600 }}>Sheet summary: no sampled pixels loaded</td>
+              ) : (
+                <>
+                  <td colSpan={6} style={{ textAlign: 'right', fontWeight: 600 }}>Sheet Summary Statistics (GridCraft Auto-Sum):</td>
+                  <td><strong>Mean: {(sampleRows.reduce((a, b) => a + b.ndvi, 0) / sampleRows.length).toFixed(3)}</strong></td>
+                  <td>{sampleRows.length} Sampling Points</td>
+                  <td><strong>Avg: {Math.round(sampleRows.reduce((a, b) => a + b.moist, 0) / sampleRows.length)}%</strong></td>
+                  <td>{Math.round(sampleRows.reduce((a, b) => a + b.nitrogen, 0) / sampleRows.length)}</td>
+                  <td>{Math.round(sampleRows.reduce((a, b) => a + b.phosphorus, 0) / sampleRows.length)}</td>
+                  <td>{Math.round(sampleRows.reduce((a, b) => a + b.potassium, 0) / sampleRows.length)}</td>
+                  <td>{(sampleRows.reduce((a, b) => a + b.ph, 0) / sampleRows.length).toFixed(2)}</td>
+                </>
+              )}
             </tr>
           </tfoot>
         </table>

@@ -532,52 +532,48 @@ export default function NodeWorkflowBuilder({ farm, onClose, onApplyLayer }: Nod
     }
   }
 
-  // Execute Workflow
+  // Execute Workflow — validates the wire graph and generates engine-ready
+  // scripts. Engine-side science (GEE/QGIS/ArcMap/MATLAB) runs in those tools;
+  // this panel never fabricates measured engine outputs.
   const handleExecute = () => {
+    const startedAt = Date.now()
     setIsRunning(true)
-    setExecutionProgress(10)
+    setExecutionProgress(25)
     setExecutionLog([
-      `[Pipeline Start] Initializing SEVA·GIS Multi-Platform Swarm over ${farm.name} (${area.toFixed(2)} ha)...`,
+      `[Pipeline] Validating ${connections.length} wire(s) over ${farm.name} (${area.toFixed(2)} ha, perimeter ${Math.round(perimeter)} m)...`,
       `[Target Bounds] Bounding Box: [${farmBBox(farm).map(n => n.toFixed(4)).join(', ')}]`,
-      `[Validating Wires] Found ${connections.length} active node-to-node data pipes.`
     ])
 
     setTimeout(() => {
-      setExecutionProgress(40)
+      setExecutionProgress(70)
       setExecutionLog(prev => [
         ...prev,
-        `[GEE Ingestion] Streamed Sentinel-2 L2A & Copernicus GLO-30 DEM tiles into client memory.`,
-        `[PyQGIS Runtime] Executed D8 Priority-Flood pit elimination & flow accumulation grid.`,
-        `[ArcPy Subsystem] Evaluated Spatial Analyst Ordinary Kriging surface.`
+        `[Scripts] Generated GEE JavaScript (${generatedCodes.gee.length.toLocaleString()} chars), PyQGIS (${generatedCodes.qgis.length.toLocaleString()}), ArcPy (${generatedCodes.arcmap.length.toLocaleString()}), MATLAB (${generatedCodes.matlab.length.toLocaleString()}).`,
       ])
-    }, 700)
-
-    setTimeout(() => {
-      setExecutionProgress(75)
-      setExecutionLog(prev => [
-        ...prev,
-        `[MATLAB GIS Kernel] Computed bicubic spline continuous polynomial matrix (2.5m GSD).`,
-        `[SEVA·GIS GPU Core] Executed WebGL fragment shader with dynamic DRA color stretching.`
-      ])
-    }, 1300)
+    }, 400)
 
     setTimeout(() => {
       setExecutionProgress(100)
       setIsRunning(false)
       setActiveTab('results')
       setResultsData({
-        maxFlowAcc: Math.round(area * 14.5),
-        streamCount: 4,
-        slopeAvgDeg: 2.8,
-        soilAwcMm: 114,
-        chlorophyllIndex: 0.74,
-        timestamp: new Date().toISOString()
+        wires: connections.length,
+        areaHa: area,
+        perimeterM: perimeter,
+        bbox: farmBBox(farm),
+        scriptChars: {
+          gee: generatedCodes.gee.length,
+          qgis: generatedCodes.qgis.length,
+          arcmap: generatedCodes.arcmap.length,
+          matlab: generatedCodes.matlab.length,
+        },
+        timestamp: new Date().toISOString(),
       })
       setExecutionLog(prev => [
         ...prev,
-        `[Success] Multi-platform execution finished in 1.82s. All results georeferenced and ready for export.`
+        `[Ready] Scripts validated in ${((Date.now() - startedAt) / 1000).toFixed(2)}s. Run them inside GEE / QGIS / ArcMap / MATLAB to obtain real engine outputs, then import the results for cross-engine comparison.`,
       ])
-    }, 1800)
+    }, 800)
   }
 
   // Script Generators
@@ -1011,32 +1007,36 @@ fprintf('[SEVA·GIS] MATLAB spatial interpolation and FFT complete.\\n');
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
               <h2 className="text-base font-bold text-white mb-2 flex items-center gap-2">
                 <CheckCircle2 size={18} className="text-emerald-400" />
-                Cross-Platform Swarm Execution Metrics
+                Workflow Assembly Metrics
               </h2>
               <p className="text-xs text-slate-400 mb-6">
-                Live metrics computed across Google Earth Engine, PyQGIS, ArcPy and MATLAB for {farm.name} ({area.toFixed(2)} ha):
+                Real assembly metrics for {farm.name} ({area.toFixed(2)} ha). Engine-side science runs in GEE, QGIS, ArcMap and MATLAB using the generated scripts — this panel never fabricates measured outputs:
               </p>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
-                  <span className="text-[11px] text-slate-400 block mb-1">D8 Flow Peak</span>
-                  <strong className="text-xl font-bold text-emerald-400">{resultsData?.maxFlowAcc ?? 142}</strong>
-                  <span className="text-[10px] text-slate-400 block mt-1">Accumulation cells</span>
+                  <span className="text-[11px] text-slate-400 block mb-1">AOI Area</span>
+                  <strong className="text-xl font-bold text-emerald-400">{(resultsData?.areaHa ?? area).toFixed(2)}</strong>
+                  <span className="text-[10px] text-slate-400 block mt-1">hectares (geodesic ring)</span>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
-                  <span className="text-[11px] text-slate-400 block mb-1">Stream Hierarchy</span>
-                  <strong className="text-xl font-bold text-sky-400">{resultsData?.streamCount ?? 4}</strong>
-                  <span className="text-[10px] text-slate-400 block mt-1">Strahler channels</span>
+                  <span className="text-[11px] text-slate-400 block mb-1">Perimeter</span>
+                  <strong className="text-xl font-bold text-sky-400">{Math.round(resultsData?.perimeterM ?? perimeter)}</strong>
+                  <span className="text-[10px] text-slate-400 block mt-1">metres (geodesic ring)</span>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
-                  <span className="text-[11px] text-slate-400 block mb-1">Mean Surface Slope</span>
-                  <strong className="text-xl font-bold text-amber-400">{resultsData?.slopeAvgDeg ?? 2.8}°</strong>
-                  <span className="text-[10px] text-slate-400 block mt-1">GLO-30 Dem</span>
+                  <span className="text-[11px] text-slate-400 block mb-1">Validated Wires</span>
+                  <strong className="text-xl font-bold text-amber-400">{resultsData?.wires ?? connections.length}</strong>
+                  <span className="text-[10px] text-slate-400 block mt-1">node-to-node data pipes</span>
                 </div>
                 <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
-                  <span className="text-[11px] text-slate-400 block mb-1">Available Water (AWC)</span>
-                  <strong className="text-xl font-bold text-purple-400">{resultsData?.soilAwcMm ?? 114} mm</strong>
-                  <span className="text-[10px] text-slate-400 block mt-1">Saxton-Rawls Profile</span>
+                  <span className="text-[11px] text-slate-400 block mb-1">Generated Scripts</span>
+                  <strong className="text-xl font-bold text-purple-400">
+                    {resultsData?.scriptChars
+                      ? `${Math.round((resultsData.scriptChars.gee + resultsData.scriptChars.qgis + resultsData.scriptChars.arcmap + resultsData.scriptChars.matlab) / 1024)} KB`
+                      : '—'}
+                  </strong>
+                  <span className="text-[10px] text-slate-400 block mt-1">across 4 engine targets</span>
                 </div>
               </div>
 
@@ -1192,108 +1192,29 @@ fprintf('[SEVA·GIS] MATLAB spatial interpolation and FFT complete.\\n');
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-sans">
-                    {[
-                      {
-                        metric: 'NDVI (Canopy Vigour)',
-                        valA: '0.684',
-                        valB: '0.682',
-                        delta: '0.29%',
-                        status: 'PASS',
-                        note: 'Matching Sentinel-2 L2A BOA B8/B4 ratio within ±0.002 calibration tolerance.'
-                      },
-                      {
-                        metric: 'NDRE (Red-Edge Chlorophyll)',
-                        valA: '0.421',
-                        valB: '0.419',
-                        delta: '0.47%',
-                        status: 'PASS',
-                        note: 'Consistent absorption trough at 705nm across raster pixel matrices.'
-                      },
-                      {
-                        metric: 'NDMI (Canopy Moisture)',
-                        valA: '0.288',
-                        valB: '0.286',
-                        delta: '0.69%',
-                        status: 'PASS',
-                        note: 'SWIR-1 B11 liquid water absorption aligns across both engines.'
-                      },
-                      {
-                        metric: 'Mean Surface Slope',
-                        valA: '2.84°',
-                        valB: '2.85°',
-                        delta: '0.35%',
-                        status: 'PASS',
-                        note: 'Copernicus GLO-30 DEM 3x3 Horn convolution vs GRASS r.slope agreement.'
-                      },
-                      {
-                        metric: 'Hydrological Flow Peak',
-                        valA: `${Math.round(area * 14.5)} cells`,
-                        valB: `${Math.round(area * 14.2)} cells`,
-                        delta: '0.70%',
-                        status: 'PASS',
-                        note: 'D8 Priority-Flood pit filling yields identical stream channel axes.'
-                      },
-                      {
-                        metric: 'Soil AWC Available Moisture',
-                        valA: '114.2 mm',
-                        valB: '113.8 mm',
-                        delta: '0.35%',
-                        status: 'PASS',
-                        note: 'Saxton-Rawls pedotransfer function evaluated on ISRIC SoilGrids 2.0.'
-                      },
-                    ].map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-800/30 transition">
-                        <td className="py-3 px-3 font-semibold text-white">{row.metric}</td>
-                        <td className="py-3 px-3 font-mono text-emerald-300 font-bold">{row.valA}</td>
-                        <td className="py-3 px-3 font-mono text-sky-300 font-bold">{row.valB}</td>
-                        <td className="py-3 px-3 font-mono text-amber-300">{row.delta}</td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
-                            {row.status} (≤1.0%)
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-slate-400 text-[11px] leading-snug">{row.note}</td>
-                      </tr>
-                    ))}
+                    <tr>
+                      <td colSpan={6} className="py-6 px-3 text-center text-slate-400 text-[11px] leading-relaxed">
+                        No cross-engine run recorded yet. This matrix compares measured outputs only after both engines have executed the
+                        same AOI and their results are imported — run the generated scripts in each engine first. No synthetic parity values
+                        are ever displayed here.
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
 
-              {/* Summary Parity Badge */}
-              <div className="mt-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                    <CheckCircle size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-white">Full Cross-Engine Parity Verified (99.7% Agreement)</h4>
-                    <p className="text-[11px] text-slate-300">
-                      All comparative indices and terrain hydrological parameters are well within the mandatory 1.0% scientific threshold.
-                    </p>
-                  </div>
+              {/* Honest status: no cross-engine run has been imported yet */}
+              <div className="mt-6 p-4 rounded-xl bg-slate-900/60 border border-slate-700/60 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-slate-700/40 flex items-center justify-center text-slate-300">
+                  <GitCompareArrows size={20} />
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const csvContent = `Metric,${PLATFORM_HUBS.find(h => h.id === engineA)?.name},${PLATFORM_HUBS.find(h => h.id === engineB)?.name},Variance,Status\n` +
-                      `NDVI,0.684,0.682,0.29%,PASS\n` +
-                      `NDRE,0.421,0.419,0.47%,PASS\n` +
-                      `NDMI,0.288,0.286,0.69%,PASS\n` +
-                      `Slope,2.84°,2.85°,0.35%,PASS\n` +
-                      `Flow Peak,${Math.round(area * 14.5)},${Math.round(area * 14.2)},0.70%,PASS`;
-                    const blob = new Blob([csvContent], { type: 'text/csv' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `cross_engine_parity_${engineA}_vs_${engineB}.csv`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Download size={13} /> Export Parity CSV
-                </button>
+                <div>
+                  <h4 className="text-xs font-bold text-white">No cross-engine run recorded yet</h4>
+                  <p className="text-[11px] text-slate-300">
+                    Full parity statistics appear only after both engines execute the generated scripts on this AOI and their measured
+                    outputs are imported. No synthetic values are displayed.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

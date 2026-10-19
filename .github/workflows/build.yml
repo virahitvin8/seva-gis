@@ -29,8 +29,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: package-lock.json
+          # No cache block: this scaffold tracks pnpm-lock.yaml, but the job
+          # installs with npm. Cache config on a missing lockfile made the
+          # setup-node step fail on branches that have no package-lock.json.
 
       # Use npm ci for reproducible installs.
       # If only pnpm-lock.yaml exists (Figma Make scaffold), fall back to npm install.

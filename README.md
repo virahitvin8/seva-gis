@@ -5,7 +5,7 @@
 > **No money. No keys. No code. No data processing.**  
 > Pick your land on the map. SEVA.GIS tells you how it is, why it is that way, where things are, what to do and what not to do.
 
-Free and open source, for everyone: farmers, students, officers, researchers, builders. Use it on the web, on a computer, on your phone, or as a Windows app.
+Free and open source, for everyone: farmers, students, officers, researchers, builders. Use it on the web — on a computer or on your phone.
 
 ---
 
@@ -13,11 +13,14 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 
 | Where | Link | Status |
 |---|---|---|
-| **Main site** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live Primary Production |
-| **Easebot site** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Deployed & DNS Active |
-| **Subdomain (is-a.dev)** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Registered & CI Verified |
-| **Student mirror** | [https://sevagis.stusite.me](https://sevagis.stusite.me) | Educational Mirror |
-| **Pending request** | `sevagis.is-a.dev` (PR #57108) & `sevagis.is-a.bot` (PR #555) | Under Review by maintainers |
+| **Main site** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live — verified serving over HTTPS |
+| **is-a.dev subdomain** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Registered, DNS active (PR #57108 merged). HTTPS serving pending — see note below |
+| **is-a.bot subdomain** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Registered, DNS active (PR #555 merged). HTTPS serving pending — see note below |
+
+**Note on the extra subdomains.** Both subdomains already point (via DNS CNAME) at the main site. GitHub Pages serves exactly **one** custom domain per repository, and that is `sevagis.dpdns.org`. Until a redirect site is added, a visit to `sevagis.is-a.dev` or `sevagis.is-a.bot` shows GitHub's 404. Two clean ways to finish this:
+
+1. **Switch the primary domain** to `sevagis.is-a.dev` (one line in the `CNAME` file and one field in the repository's Pages settings) if you prefer that address as the main one.
+2. **Keep all three working** by pointing the two extra subdomains at a tiny static redirect page (any host that supports multiple custom domains, e.g. a small GitHub Pages redirect repository, Cloudflare Pages or Netlify), which forwards visitors to `sevagis.dpdns.org`.
 
 ---
 
@@ -31,8 +34,8 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 
 ## Use it in 3 steps
 1. **Draw or upload your land** (AOI = Area of Interest). Draw on the interactive map or import GeoJSON, KML, or zipped Shapefile.
-2. **Wait while satellites do the work.** SEVA.GIS retrieves Sentinel-2, Sentinel-1 radar, Copernicus 30 m elevation, soil data, and local weather via Google Earth Engine and open APIs.
-3. **Read your land report.** Open the map, explore the cards, inspect the high-resolution layers, and download or email the complete dossier.
+2. **Wait while satellites do the work.** SEVA.GIS streams Sentinel-2 L2A and Sentinel-1 radar scenes from the open Microsoft Planetary Computer STAC API, reads the pixels straight from Cloud-Optimized GeoTIFFs in your browser, and adds Copernicus 30 m elevation, ISRIC soil grids and local weather from open services.
+3. **Read your land report.** Open the map, explore the cards, inspect the high-resolution layers, and download the complete dossier (email delivery when the optional email backend is configured).
 
 ---
 
@@ -46,7 +49,7 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 | **Weather** | Live rain, temperature, soil temperature, and water balance, with automatic NASA POWER backup if primary servers are busy. |
 | **Pests and disease** | Early warning spectral anomaly patches to guide on-ground scouting. |
 | **Farm shape** | Width, compactness, autonomous tractor/drone path planning, and nearby farm relationships. |
-| **Reports** | Official PDF, Word (.doc), ZIP dossier, HTML, JSON, and georeferenced cartographic map images delivered directly to screen or email. |
+| **Reports** | Print-ready PDF, Word (.doc), ZIP dossier, HTML, JSON, and georeferenced cartographic map images — saved to your device, or emailed when the optional email backend is configured. |
 | **Languages** | Full native support across **English**, **తెలుగు (Telugu)**, and **हिन्दी (Hindi)**. |
 
 ---
@@ -55,7 +58,7 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 
 ```mermaid
 flowchart LR
-  A[1. You pick your land] --> B[2. Google Earth Engine collects satellite data]
+  A[1. You pick your land] --> B[2. Open STAC services stream satellite data]
   B --> C[3. Clouds removed, data cleaned]
   C --> D[4. Health, water, soil and mineral layers are computed]
   D --> E[5. Layers become maps, points and charts]
@@ -64,33 +67,34 @@ flowchart LR
 
 ### Step by step:
 1. **Your land:** You delineate a polygon in standard EPSG:4326 latitude/longitude coordinates.
-2. **Satellite data:** Sentinel-2 L2A (multispectral surface reflectance), Sentinel-1 (C-band SAR radar), Copernicus 30 m DEM elevation, and ISRIC soil grids are queried.
+2. **Satellite data:** Sentinel-2 L2A (multispectral surface reflectance) and Sentinel-1 (C-band SAR radar) scenes are discovered through the Microsoft Planetary Computer STAC API; pixel values are read directly from each scene's Cloud-Optimized GeoTIFF with HTTP range requests, inside your browser. Copernicus 30 m DEM elevation and ISRIC soil grids come from open services.
 3. **Cleaning:** Cloud pixels, cirrus, and terrain shadows are masked using the Scene Classification Layer (SCL).
 4. **Layers:** Over 30 vegetative, hydrological, soil, and mineral indices are computed specifically for your boundaries.
 5. **Meaning:** Raw pixel statistics are converted into intuitive color maps, cluster points, time-series charts, and agronomic guidance.
-6. **Delivery:** Displayed on screen, exportable to standard GIS formats, or sent directly to your email inbox.
+6. **Delivery:** Displayed on screen, exportable to standard GIS formats, or sent to your inbox when the optional email backend is configured.
 
 ---
 
 ## Behind the scenes
 
-- **Front end (what you see):** React 19, TypeScript, Leaflet map engine, MapLibre GL, Tailwind CSS v4, and smooth motion graphics in English, Telugu, and Hindi. Runs in web browsers, Android mobile app (Capacitor), and Windows desktop app (Tauri).
-- **Back end (the engine room):** A secure Node.js server that communicates with Google Earth Engine using a dedicated service account. It computes regional statistics, fetches agro-weather, formats reports, dispatches emails, and connects with desktop GIS software.
+- **Front end (what you see):** React 19, TypeScript, Leaflet and MapLibre GL map engines, Tailwind CSS v4, Dexie (IndexedDB) local storage, and smooth motion graphics in English, Telugu, and Hindi. Runs in any modern browser and can be added to the home screen as a web app (a web manifest is included; offline caching is not implemented yet, so a connection is required).
+- **Where the computing happens:** Almost everything runs inside your browser — scene discovery (STAC), pixel reads (COG range requests), cloud masking (SCL), index math, statistics and charts. There is no central server for the core pipeline, and your field boundaries stay on your device.
+- **Optional back end:** The repository ships two optional helpers for people who want server-side Earth Engine processing or email dispatch: `backend/` (a FastAPI + Google Earth Engine service; see `backend/README.md`) and `server/geeServer.ts` (a Node.js skeleton for the same). They are used only when a deployment sets `VITE_API_BASE`, which the public site does not.
 
 ### How they connect:
 
 ```mermaid
 sequenceDiagram
-  participant U as You (front end)
-  participant S as SEVA.GIS server
-  participant G as Google Earth Engine
-  participant W as Weather / Soil sources
-  U->>S: Here is my land (GeoJSON)
-  S->>G: Compute layers for this land
-  S->>W: Fetch weather and soil
-  G-->>S: Real values, dates, scene count
-  W-->>S: Weather and soil values
-  S-->>U: Layers, points, charts, advice
+  participant U as You (browser)
+  participant S as STAC + COG services
+  participant W as Weather / Soil services
+  U->>S: Find recent Sentinel scenes for my land
+  S-->>U: Scene list with date, sensor and cloud %
+  U->>S: Read pixel windows from each scene (COG)
+  S-->>U: Raw band values
+  U->>W: Ask for weather and soil values
+  W-->>U: Weather and soil values
+  U->>U: Mask clouds, compute indices and statistics in your browser
 ```
 
 If any remote service is temporarily unreachable, SEVA.GIS displays **"Data unavailable"** along with the specific technical reason and a retry button. It never fills gaps with artificial numbers.
@@ -155,19 +159,18 @@ In the **Workflow** view, you can design spatial analysis pipelines using visual
 
 | Platform | How to run |
 |---|---|
-| **Web Browser** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org). On mobile, tap **Add to Home Screen** to use offline. |
-| **Android Mobile** | Download the latest `.apk` or `.aab` from the **Releases** tab and install directly on your device. |
-| **Windows Desktop** | Download the standalone `.exe` or `.msi` installer from **Releases** and run with zero configuration. |
-| **Developers** | `git clone https://github.com/virahitvin8/seva-gis`, then `cp .env.example .env`, `npm install`, and `npm run dev`. |
+| **Web Browser** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org). On Android or desktop, use the browser's **Install app / Add to Home Screen** option to pin it as an app. |
+| **Android / iOS** | Use the web app today. A native Android package is planned but **not published yet**; when one is built it will appear on the Releases page. |
+| **Windows Desktop** | Use the web app in any browser today. A desktop installer is planned but **not published yet**; when one is built it will appear on the Releases page. |
+| **Developers** | `git clone https://github.com/virahitvin8/seva-gis`, then `npm install`, and `npm run dev`. Copy `.env.example` to `.env` only if you want to point the app at an optional backend (`VITE_API_BASE`). |
 
 ---
 
 ## Releases
-Official tagged releases on GitHub include:
-- Standalone Android APK / AAB packages (Capacitor mobile runtime)
-- Windows desktop installer `.exe` / `.msi` (Tauri desktop runtime)
-- Pre-compiled QGIS Plugin `.zip` and ArcGIS Python Toolbox `.pyt`
-- Complete source code archive with plain-language release summaries
+There are **no tagged releases with installers yet** — the Releases page is currently empty. Until packages are published there:
+- Use the live site, or build the web app from source (see above).
+- The QGIS plugin and ArcGIS toolbox sources live in this repository (see **Plugins**); zipped builds are attached to Releases once released.
+- When the Android package, Windows installer and plugin zips are ready, they will be attached to a tagged GitHub Release with plain-language notes.
 
 ---
 

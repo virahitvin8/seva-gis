@@ -224,16 +224,16 @@ export function isRealGoogleClientId(id: string): boolean {
   if (!id) return false
   const clean = id.trim()
   if (
-    clean.includes('sevagis') ||
     clean.includes('placeholder') ||
     clean.includes('YOUR_CLIENT_ID') ||
-    clean.includes('seva-gis-backend') ||
-    clean.includes('demo')
+    clean.includes('demo') ||
+    clean.includes('example') ||
+    clean === '419602015618-sevagis.apps.googleusercontent.com'
   ) {
     return false
   }
-  // Must match standard Google Cloud Web OAuth client ID format: 12+ digits followed by hyphen and 20+ alphanumeric chars
-  return /^\d{10,}-[a-zA-Z0-9_-]{20,}\.apps\.googleusercontent\.com$/.test(clean)
+  // Must match standard Google Cloud Web OAuth client ID format: 10+ digits followed by hyphen and 15+ alphanumeric/dash chars
+  return /^\d{10,}-[a-zA-Z0-9_-]{15,}\.apps\.googleusercontent\.com$/i.test(clean)
 }
 
 /**

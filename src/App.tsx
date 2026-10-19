@@ -7,7 +7,7 @@ import { AlertTriangle, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, Ch
 
 import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
-import { areaHa, centroid, validateAoiGeometry } from './lib/geo'
+import { areaHa, centroid, orderRing, validateAoiGeometry } from './lib/geo'
 import { loadAnalysisIntent, saveAnalysisIntent, getIntentProfile, ALL_INTENTS, INTENT_ICONS, INTENT_PROFILES, type AnalysisIntent } from './lib/analysisIntent'
 import Contact from './Contact'
 import Reveal from './Reveal'
@@ -547,7 +547,15 @@ export default function App() {
   function addBoundary({ name, crop, ring }: NewFarm) {
     const isPolygon = ring.length >= 3
     if (isPolygon) {
-      const v = validateAoiGeometry(ring)
+      let v = validateAoiGeometry(ring)
+      if (!v.valid && v.isSelfIntersecting) {
+        const ordered = orderRing(ring)
+        const recheck = validateAoiGeometry(ordered)
+        if (recheck.valid) {
+          ring = ordered
+          v = recheck
+        }
+      }
       if (!v.valid) {
         setMessage(v.error || 'Invalid area of interest geometry.')
         return
@@ -555,8 +563,28 @@ export default function App() {
       ring = v.closedRing
     }
     const { lat, lon } = centroid(ring)
-    const next: Farm = { id: crypto.randomUUID(), name, location: `${lat.toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${lon.toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`, crop, area: isPolygon ? areaHa(ring) : 0, lat, lon, polygon: isPolygon ? ring : undefined, status: 'Awaiting satellite data', sample: false }
-    setFarms(current => [...current, next]); setSelected(next.id); setModal(''); refresh(next)
+    const farmName = name?.trim() || `${crop || 'Parcel'} (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`
+    const next: Farm = {
+      id: crypto.randomUUID(),
+      name: farmName,
+      location: `${lat.toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${lon.toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`,
+      crop: crop || 'Paddy',
+      area: isPolygon ? areaHa(ring) : 4.0,
+      lat,
+      lon,
+      polygon: isPolygon ? ring : undefined,
+      status: 'Awaiting satellite data',
+      sample: false
+    }
+    setFarms(current => {
+      const updated = [...current, next]
+      try { localStorage.setItem('seva-farms', JSON.stringify(updated)) } catch {}
+      return updated
+    })
+    setSelected(next.id)
+    setModal('')
+    setMessage(`Added new Area of Interest "${farmName}". Streaming Sentinel-2 satellite data...`)
+    refresh(next)
   }
 
   function go(text: string) {
@@ -983,9 +1011,9 @@ export default function App() {
     </button>
   </div>
 ) : (
-  <div style={{ padding: 12, background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 10, margin: '14px 0' }}>
-    <h3 style={{ margin: '0 0 6px', fontSize: 14, color: '#e2e8f0' }}>Google Drive Cloud Sync</h3>
-    <p style={{ margin: '0 0 10px', fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
+  <div style={{ padding: 12, background: '#f8fafd', border: '1.5px solid #d0d8e8', borderRadius: 10, margin: '14px 0' }}>
+    <h3 style={{ margin: '0 0 6px', fontSize: 14, color: '#0b1f35' }}>Google Drive Cloud Sync</h3>
+    <p style={{ margin: '0 0 10px', fontSize: 12, color: '#5a7a9a', lineHeight: 1.5 }}>
       Connect your Google Account to automatically create a <b>SEVA GIS</b> folder in your Google Drive. All your exported TIFFs, maps, and reports will be organized automatically.
     </p>
     <button

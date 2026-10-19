@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, LocateFixed, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
-import { areaHa, createCircleRing, createRectangleRing, orderRing, parseBoundary, parseCoordinate, validateAoiGeometry, type Ring } from './lib/geo'
+import { areaHa, centroid, createCircleRing, createRectangleRing, orderRing, parseBoundary, parseCoordinate, validateAoiGeometry, type Ring } from './lib/geo'
 import CropSelector, { type CropSelection } from './CropSelector'
 import { matchCropSpec } from './lib/cropstages'
 
@@ -234,25 +234,49 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
 
   function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (!ring.length) { onError(tab === 'draw' ? 'Click the map to place at least 3 boundary points.' : tab === 'walk' ? 'Walk to each corner of your farm and press Add waypoint (at least 3).' : tab === 'corners' ? 'Enter all four corner coordinates.' : 'Upload a boundary file first.'); return }
-    if (ring.length === 2) { onError('A boundary needs at least 3 points (or 1 point for a location only).'); return }
-    if (ring.length >= 3) {
-      const check = validateAoiGeometry(ring)
-      if (!check.valid) {
-        onError(check.error || 'Invalid area of interest geometry.')
-        return
-      }
-      onAdd({ name: name.trim(), crop, ring: check.closedRing })
+    let effectiveRing = ring
+    if (!effectiveRing.length) {
+      // Auto-fallback: If user didn't manually draw points, create a 5-hectare AOI centered on current map view!
+      const center = map.current?.getCenter() || { lat: 20.5, lng: 79.0 }
+      effectiveRing = createRectangleRing(center.lng, center.lat, 224, 224)
+      setDrawn(effectiveRing)
+    }
+
+    if (effectiveRing.length === 2) {
+      onError('A boundary needs at least 3 points (or 1 point for a location pin).')
       return
     }
-    onAdd({ name: name.trim(), crop, ring })
+
+    const { lat, lon } = centroid(effectiveRing)
+    const effectiveName = name.trim() || `${crop} Parcel (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`
+
+    if (effectiveRing.length >= 3) {
+      let check = validateAoiGeometry(effectiveRing)
+      if (!check.valid && check.isSelfIntersecting) {
+        // Auto-heal vertices that were clicked out of order (e.g. Z-pattern or bowtie)
+        const ordered = orderRing(effectiveRing)
+        const recheck = validateAoiGeometry(ordered)
+        if (recheck.valid) {
+          check = recheck
+          effectiveRing = ordered
+        }
+      }
+      if (!check.valid) {
+        onError(check.error || 'Invalid area of interest geometry. Try placing a 1-click box or circle.')
+        return
+      }
+      onAdd({ name: effectiveName, crop, ring: check.closedRing })
+      return
+    }
+
+    onAdd({ name: effectiveName, crop, ring: effectiveRing })
   }
 
   const setCorner = (index: number, key: 'lat' | 'lon', value: string) => setCorners(current => current.map((c, i) => i === index ? { ...c, [key]: value } : c))
   const tabs: [Tab, string, typeof Pencil][] = [['draw', 'Draw outline', Pencil], ['corners', 'Enter coordinates', MapPinned], ['file', 'Upload boundary', FileUp], ['point', 'Use GPS point', LocateFixed], ['walk', 'Optional GPS boundary', Footprints]]
 
   return <form onSubmit={submit} className="add-farm">
-    <label>Field name<input required maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. North paddy field"/></label>
+    <label>Field name<input maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. North paddy field (or leave blank to auto-name)"/></label>
     <p className="add-remote-note">Add a boundary for an area of interest or field you want to review remotely. SEVA·GIS uses public satellite imagery and terrain models to reveal visible geospatial patterns.</p>
     <div className="add-tabs" role="tablist">{tabs.map(([key, text, Icon]) => <button type="button" role="tab" aria-selected={tab === key} key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}><Icon size={14}/>{text}</button>)}</div>
     <div className="add-search"><Search size={14}/><input value={place} onChange={event => setPlace(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findPlace() } }} placeholder="Find village, town or state (e.g. Uttar Pradesh, UP)"/><button type="button" onClick={() => findPlace()}>Go</button></div>
@@ -373,6 +397,30 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
               : `Click any location on map to instantly place a ${drawShape === 'circle' ? 'circle' : 'box'} boundary (${shapeRadius}m radius).`}
           </span>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                const center = map.current?.getCenter() || { lat: 20.5, lng: 79.0 }
+                const box = createRectangleRing(center.lng, center.lat, 224, 224)
+                setTab('draw')
+                setDrawn(box)
+                map.current?.setView([center.lat, center.lng], 16)
+                if (!name) setName(`${crop} Field (${center.lat.toFixed(3)}°N, ${center.lng.toFixed(3)}°E)`)
+              }}
+              style={{
+                padding: '3px 8px',
+                fontSize: 11,
+                borderRadius: 6,
+                background: '#0066b3',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              title="Instantly place a standard 5 hectare AOI bounding box at current map center"
+            >
+              ⚡ 5 ha at Center
+            </button>
             {drawShape === 'polygon' && (
               <button type="button" onClick={() => setDrawn(c => c.slice(0, -1))}>
                 <Undo2 size={13}/>Undo

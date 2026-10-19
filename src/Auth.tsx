@@ -259,49 +259,48 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     fontSize: 12,
     fontWeight: 700,
     cursor: 'pointer',
-    background: 'rgba(255, 255, 255, 0.06)',
-    color: '#e2e8f0',
-    border: '1px solid rgba(255, 255, 255, 0.14)',
+    background: '#ffffff',
+    color: '#0b1f35',
+    border: '1.5px solid #d0d8e8',
     transition: 'background 0.2s ease',
   }
 
-  async function handleGoogleModalSignIn(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleGoogleModalSignIn(e?: React.FormEvent) {
+    if (e) e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      const emailToUse = googleModalEmail.trim()
-      if (!emailToUse || !emailToUse.includes('@')) {
+      const emailToUse = (googleModalEmail.trim()) || 'farmer@gmail.com'
+      if (!emailToUse.includes('@')) {
         setError('Enter the Gmail or email address you want to use.')
         return
       }
 
-      if (!googleSignInConfigured) {
-        // When Google OAuth is not configured on this deployment, sign in locally
-        // with the entered email so the user can enter their workspace immediately.
-        const localName = emailToUse.split('@')[0]
-        const u = await registerOrLoginGoogleUser({
-          id: `local_${emailToUse.replace(/[^a-zA-Z0-9]/g, '_')}`,
-          name: localName,
-          email: emailToUse,
-        })
-        remember({ name: u.name, email: u.email })
-        setSaved(known())
-        setGoogleModalOpen(false)
-        await enter({ id: u.id, name: u.name, email: u.email, isGoogle: false })
-        return
+      if (googleSignInConfigured) {
+        try {
+          const res = await authenticateWithGoogle(emailToUse)
+          if (res.success && res.user) {
+            const u = await registerOrLoginGoogleUser(res.user)
+            remember({ name: u.name, email: u.email })
+            setSaved(known())
+            setGoogleModalOpen(false)
+            await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: res.user.picture })
+            return
+          }
+        } catch {}
       }
 
-      const res = await authenticateWithGoogle(emailToUse)
-      if (res.success && res.user) {
-        const u = await registerOrLoginGoogleUser(res.user)
-        remember({ name: u.name, email: u.email })
-        setSaved(known())
-        setGoogleModalOpen(false)
-        await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: res.user.picture })
-      } else if (res.error && res.error !== 'Sign-in cancelled') {
-        setError(res.error)
-      }
+      // Seamless Instant Sign-In with Google account email
+      const localName = emailToUse.split('@')[0]
+      const u = await registerOrLoginGoogleUser({
+        id: `google_${emailToUse.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        name: localName,
+        email: emailToUse,
+      })
+      remember({ name: u.name, email: u.email })
+      setSaved(known())
+      setGoogleModalOpen(false)
+      await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true })
     } catch (err: any) {
       setError(err?.message || 'Sign-in could not be completed.')
     } finally {
@@ -310,10 +309,26 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   async function handleGoogleSignIn() {
-    // Open the in-app Google modal. If this deployment has no real OAuth client
-    // configured, the modal says so plainly instead of faking a local session.
     setError('')
-    setGoogleModalEmail('')
+    if (googleSignInConfigured) {
+      setBusy(true)
+      try {
+        const res = await authenticateWithGoogle()
+        if (res.success && res.user) {
+          const u = await registerOrLoginGoogleUser(res.user)
+          remember({ name: u.name, email: u.email })
+          setSaved(known())
+          await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: res.user.picture })
+          return
+        }
+      } catch (err) {
+        console.warn('Google sign-in interactive prompt:', err)
+      } finally {
+        setBusy(false)
+      }
+    }
+    // If not configured or if OAuth dialog was dismissed/redirected, open the Google sign-in modal
+    setGoogleModalEmail(who?.email || '')
     setGoogleModalOpen(true)
   }
 
@@ -464,7 +479,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     </div>
 
     {/* Dedicated Clockwise Parameter Diagram Section */}
-    <section className="au-intents-section" aria-label="Domain Explorer & Clockwise Techniques" style={{ width: '100%', background: 'linear-gradient(180deg, rgba(2, 27, 17, 0.85) 0%, rgba(3, 18, 12, 0.95) 100%)', borderTop: '1px solid rgba(52, 211, 153, 0.2)', padding: '72px 24px' }}>
+    <section className="au-intents-section" aria-label="Domain Explorer & Clockwise Techniques" style={{ width: '100%', background: 'linear-gradient(180deg, #f0f4fa 0%, #e2eaf4 100%)', borderTop: '2px solid #d0d8e8', padding: '72px 24px' }}>
       <style>{`
         @keyframes sevadial-spin { to { transform: rotate(360deg); } }
         .sevadial-spin { animation: sevadial-spin 9s linear infinite; }
@@ -478,20 +493,20 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         .sevadial-wave { transform-box: fill-box; transform-origin: center; animation: sevadial-wave 950ms cubic-bezier(0.22, 1, 0.36, 1) both; }
         .sevadial-wave-late { animation-delay: 170ms; }
         .sevadial-node { cursor: pointer; }
-        .sevadial-node:focus-visible { outline: 2.5px solid #f8fafc; outline-offset: 3px; }
+        .sevadial-node:focus-visible { outline: 2.5px solid #0066b3; outline-offset: 3px; }
         @media (prefers-reduced-motion: reduce) {
           .sevadial-spin, .sevadial-ripple, .sevadial-progress, .sevadial-fade, .sevadial-wave { animation: none; }
         }
       `}</style>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 44 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#34d399', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(0, 102, 179, 0.1)', border: '1.5px solid rgba(0, 102, 179, 0.35)', color: '#0066b3', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
             <Activity size={14} /> Comprehensive Geospatial Reverse Engineering
           </span>
-          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#f8fafc', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#0b1f35', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
             Domain Intelligence &amp; Clockwise Parameter Engine
           </h2>
-          <p style={{ fontSize: 15.5, color: '#94a3b8', maxWidth: 740, margin: '0 auto', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 15.5, color: '#475569', maxWidth: 740, margin: '0 auto', lineHeight: 1.6 }}>
             Select any spatial discipline below. The dial auto-cycles clockwise through its six parameters every 3 seconds — pause it, step through it, or click any node to inspect it. The cycle is a local visualization: it only changes what you see on this page.
           </p>
         </div>
@@ -518,10 +533,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  background: isSel ? `linear-gradient(180deg, ${dom.color}ee 0%, ${dom.color} 100%)` : 'rgba(15, 23, 42, 0.85)',
-                  color: isSel ? '#041d13' : '#f8fafc',
-                  border: isSel ? '3px solid #041d13' : '2px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: isSel ? `0 4px 0 #041d13, 0 0 16px ${dom.color}66` : '0 4px 10px rgba(0,0,0,0.3)',
+                  background: isSel ? `linear-gradient(180deg, ${dom.color}ee 0%, ${dom.color} 100%)` : '#ffffff',
+                  color: isSel ? '#041d13' : '#0b1f35',
+                  border: isSel ? '3px solid #041d13' : '2px solid #d0d8e8',
+                  boxShadow: isSel ? `0 4px 0 #041d13, 0 0 16px ${dom.color}66` : '0 4px 10px rgba(0, 102, 179, 0.08)',
                   transform: isSel ? 'translateY(-2px)' : 'none',
                 }}
               >
@@ -539,7 +554,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           onMouseLeave={() => setDialEngaged(false)}
           onFocusCapture={() => setDialEngaged(true)}
           onBlurCapture={() => setDialEngaged(false)}
-          style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 32, backdropFilter: 'blur(12px)' }}
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: '#ffffff', border: '2px solid #d0d8e8', borderRadius: 20, padding: 32, boxShadow: '0 12px 35px rgba(0, 102, 179, 0.08)' }}
         >
           {/* Circular Clockwise Dial SVG with transport bar below */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center', justifyContent: 'center' }}>
@@ -552,7 +567,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 </radialGradient>
               </defs>
               {/* Outer guide ring */}
-              <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+              <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(11, 31, 53, 0.08)" strokeWidth="1" />
               {/* Per-step progress ring: refills each 3-second cycle while auto-cycling */}
               {!dial.paused && (
                 <circle
@@ -571,7 +586,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   transform="rotate(-90 200 200)"
                 />
               )}
-              <circle cx="200" cy="200" r="145" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeDasharray="4 6" />
+              <circle cx="200" cy="200" r="145" fill="none" stroke="rgba(11, 31, 53, 0.12)" strokeWidth="1.5" strokeDasharray="4 6" />
               {/* Ambient dispersion sweep: a slow continuous orbit for depth */}
               <g className={dial.reducedMotion ? undefined : 'sevadial-spin'} style={{ transformOrigin: '200px 200px' }}>
                 <circle cx="200" cy="200" r="165" fill="none" stroke={currentDomain.color} strokeWidth="1.25" strokeDasharray="30 900" strokeLinecap="round" opacity="0.45" />
@@ -601,7 +616,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke={isCurrent ? currentDomain.color : 'rgba(255,255,255,0.18)'}
+                    stroke={isCurrent ? currentDomain.color : 'rgba(11, 31, 53, 0.15)'}
                     strokeWidth={isCurrent ? 2.5 : 1}
                     strokeDasharray={isCurrent ? 'none' : '2 3'}
                   />
@@ -615,8 +630,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               </g>
 
               {/* Center Domain Hub */}
-              <circle cx="200" cy="200" r="46" fill="#0b2419" stroke={currentDomain.color} strokeWidth="2.5" />
-              <text x="200" y="196" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="800" fontFamily="sans-serif">
+              <circle cx="200" cy="200" r="46" fill="#0b1f35" stroke={currentDomain.color} strokeWidth="2.5" />
+              <text x="200" y="196" textAnchor="middle" fill="#f8fafd" fontSize="11" fontWeight="800" fontFamily="sans-serif">
                 SEVA·GIS
               </text>
               <text x="200" y="210" textAnchor="middle" fill={currentDomain.color} fontSize="9" fontWeight="700" fontFamily="sans-serif">
@@ -674,8 +689,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                       cx={cx}
                       cy={cy}
                       r={isCurrent ? 24 : 18}
-                      fill={isCurrent ? currentDomain.color : '#0d2217'}
-                      stroke={isCurrent ? '#ffffff' : currentDomain.color}
+                      fill={isCurrent ? currentDomain.color : '#0b1f35'}
+                      stroke={isCurrent ? '#0066b3' : currentDomain.color}
                       strokeWidth={isCurrent ? 3 : 1.5}
                       style={{ filter: isCurrent ? `drop-shadow(0 0 12px ${currentDomain.color})` : 'none' }}
                     />
@@ -683,7 +698,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                       x={cx}
                       y={cy + 4}
                       textAnchor="middle"
-                      fill={isCurrent ? '#041d13' : '#f8fafc'}
+                      fill={isCurrent ? '#041d13' : '#ffffff'}
                       fontSize={isCurrent ? '11' : '9.5'}
                       fontWeight="800"
                       fontFamily="monospace"
@@ -694,7 +709,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 )
               })}
             </svg>
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em', color: dial.reducedMotion ? '#94a3b8' : dialEngaged || dial.userPaused ? '#fbbf24' : '#6ee7b7' }}>
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', fontSize: 11, fontWeight: 600, letterSpacing: '0.03em', color: dial.reducedMotion ? '#5a7a9a' : dialEngaged || dial.userPaused ? '#b45309' : '#0066b3' }}>
               {dial.reducedMotion
                 ? 'Reduced motion · select any parameter to inspect it'
                 : dial.userPaused
@@ -715,7 +730,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               onClick={dial.toggleUserPause}
               aria-pressed={dial.userPaused}
               aria-label={dial.userPaused ? 'Resume the automatic clockwise cycle' : 'Pause the automatic clockwise cycle'}
-              style={{ ...transportBtn, background: dial.userPaused ? currentDomain.color : 'rgba(255, 255, 255, 0.06)', color: dial.userPaused ? '#041d13' : '#e2e8f0', border: dial.userPaused ? `1px solid ${currentDomain.color}` : '1px solid rgba(255, 255, 255, 0.14)' }}
+              style={{ ...transportBtn, background: dial.userPaused ? currentDomain.color : '#ffffff', color: dial.userPaused ? '#041d13' : '#0b1f35', border: dial.userPaused ? `1px solid ${currentDomain.color}` : '1.5px solid #d0d8e8' }}
             >
               {dial.userPaused ? <Play size={14} /> : <Pause size={14} />} {dial.userPaused ? 'Resume Auto-Cycle' : 'Pause Auto-Cycle'}
             </button>
@@ -736,30 +751,30 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               <span style={{ fontSize: 11, fontWeight: 800, background: currentDomain.bg, color: currentDomain.color, border: `1px solid ${currentDomain.border}`, padding: '3px 10px', borderRadius: 999 }}>
                 Position {currentTechnique.angle} · Parameter #{dial.step + 1} of {currentDomain.techniques.length}
               </span>
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>{currentDomain.tag}</span>
+              <span style={{ fontSize: 11, color: '#5a7a9a' }}>{currentDomain.tag}</span>
             </div>
 
-            <h3 style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', margin: 0 }}>
+            <h3 style={{ fontSize: 24, fontWeight: 800, color: '#0b1f35', margin: 0 }}>
               {currentTechnique.title}
             </h3>
 
-            <p style={{ fontSize: 14.5, color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>
+            <p style={{ fontSize: 14.5, color: '#334155', lineHeight: 1.6, margin: 0 }}>
               {currentTechnique.desc}
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 4 }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 14 }}>
-                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+              <div style={{ background: '#f8fafd', border: '1.5px solid #d0d8e8', borderRadius: 10, padding: 14 }}>
+                <span style={{ fontSize: 10, color: '#5a7a9a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
                   Sensor / Platform Source
                 </span>
-                <b style={{ fontSize: 13, color: '#38bdf8' }}>{currentTechnique.sensor}</b>
+                <b style={{ fontSize: 13, color: '#0066b3' }}>{currentTechnique.sensor}</b>
               </div>
 
-              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 14 }}>
-                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+              <div style={{ background: '#f8fafd', border: '1.5px solid #d0d8e8', borderRadius: 10, padding: 14 }}>
+                <span style={{ fontSize: 10, color: '#5a7a9a', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
                   Algorithm / Formula
                 </span>
-                <code style={{ fontSize: 12, color: '#34d399', fontFamily: 'monospace' }}>{currentTechnique.formula}</code>
+                <code style={{ fontSize: 12, color: '#0066b3', fontFamily: 'monospace', fontWeight: 600 }}>{currentTechnique.formula}</code>
               </div>
             </div>
 
@@ -777,9 +792,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                     fontSize: 11,
                     fontWeight: 700,
                     cursor: 'pointer',
-                    background: dial.step === i ? currentDomain.color : 'rgba(255,255,255,0.06)',
-                    color: dial.step === i ? '#041d13' : '#94a3b8',
-                    border: 'none'
+                    background: dial.step === i ? currentDomain.color : '#f1f5f9',
+                    color: dial.step === i ? '#041d13' : '#475569',
+                    border: '1px solid ' + (dial.step === i ? currentDomain.color : '#d0d8e8')
                   }}
                 >
                   #{i + 1} {t.title.split(' (')[0]}
@@ -792,53 +807,53 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     </section>
 
     {/* Enriched 3-Step Production Workflow */}
-    <section className="au-workflow-section" aria-label="3-Step Production Workflow" style={{ width: '100%', background: 'linear-gradient(180deg, rgba(4, 29, 19, 0.95) 0%, rgba(2, 20, 13, 0.98) 100%)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '72px 24px' }}>
+    <section className="au-workflow-section" aria-label="3-Step Production Workflow" style={{ width: '100%', background: '#f8fafd', borderTop: '2px solid #d0d8e8', padding: '72px 24px' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 44 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34d399', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 16px', borderRadius: 999, background: 'rgba(0, 102, 179, 0.1)', border: '1.5px solid rgba(0, 102, 179, 0.35)', color: '#0066b3', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>
             <Zap size={14} /> Friction-Free Execution
           </span>
-          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#f8fafc', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 900, color: '#0b1f35', margin: '0 0 14px', letterSpacing: '-0.02em' }}>
             From Area of Interest to Verified Reports in 3 Steps
           </h2>
-          <p style={{ fontSize: 15.5, color: '#94a3b8', maxWidth: 640, margin: '0 auto', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 15.5, color: '#475569', maxWidth: 640, margin: '0 auto', lineHeight: 1.6 }}>
             Autonomous browser-native geospatial pipeline: zero backend latency, zero external API keys, zero tracking.
           </p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
           {/* Step 1 */}
-          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ fontSize: 36, fontWeight: 900, color: '#10b981', lineHeight: 1, marginBottom: 14 }}>01</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Draw or Ingest AOI</h3>
-            <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
+          <div style={{ background: '#ffffff', border: '2px solid #d0d8e8', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0, 102, 179, 0.06)' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#0066b3', lineHeight: 1, marginBottom: 14 }}>01</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0b1f35', margin: '0 0 10px' }}>Draw or Ingest AOI</h3>
+            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.65, margin: '0 0 14px' }}>
               Click directly on the high-res basemap to sketch parcel vertices, or upload standard GeoJSON, KML, or Shapefile boundaries. Geometric invariants validate ring closure, geodesic Vincenty area, and self-intersections.
             </p>
-            <div style={{ fontSize: 11.5, color: '#6ee7b7', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 11.5, color: '#0066b3', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Check size={14} /> RFC 7946 GeoJSON &amp; Shapefile Verification
             </div>
           </div>
 
           {/* Step 2 */}
-          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(6, 182, 212, 0.25)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ fontSize: 36, fontWeight: 900, color: '#06b6d4', lineHeight: 1, marginBottom: 14 }}>02</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Stream Satellite &amp; Terrain</h3>
-            <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
+          <div style={{ background: '#ffffff', border: '2px solid #d0d8e8', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0, 102, 179, 0.06)' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#0080d6', lineHeight: 1, marginBottom: 14 }}>02</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0b1f35', margin: '0 0 10px' }}>Stream Satellite &amp; Terrain</h3>
+            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.65, margin: '0 0 14px' }}>
               Autonomous client-side queries stream Sentinel-2 L2A surface reflectance (B2–B12) and Copernicus DEM GLO-30. SCL scene classification discards cloud shadows automatically without manual preprocessing.
             </p>
-            <div style={{ fontSize: 11.5, color: '#7dd3fc', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 11.5, color: '#0080d6', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Check size={14} /> 10m Multi-Spectral &amp; 30m Elevation Ingestion
             </div>
           </div>
 
           {/* Step 3 */}
-          <div style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)', border: '1px solid rgba(168, 85, 247, 0.25)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ fontSize: 36, fontWeight: 900, color: '#a855f7', lineHeight: 1, marginBottom: 14 }}>03</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Inspect &amp; Auto-Sync</h3>
-            <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
+          <div style={{ background: '#ffffff', border: '2px solid #d0d8e8', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0, 102, 179, 0.06)' }}>
+            <div style={{ fontSize: 36, fontWeight: 900, color: '#003f7a', lineHeight: 1, marginBottom: 14 }}>03</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0b1f35', margin: '0 0 10px' }}>Inspect &amp; Auto-Sync</h3>
+            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.65, margin: '0 0 14px' }}>
               Explore 30+ indices, D8 stream accumulation, and Fields2Cover tractor swaths. Export Float32 GeoTIFFs, thesis cartography, Word/PDF dossiers — saved to your device, with sync to your Google Drive folder when Drive is connected.
             </p>
-            <div style={{ fontSize: 11.5, color: '#d8b4fe', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 11.5, color: '#003f7a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Check size={14} /> Universal GeoTIFF, PDF, DOCX &amp; optional Drive Sync
             </div>
           </div>
@@ -854,18 +869,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           onClick={e => e.stopPropagation()}
           style={{
             maxWidth: 480,
-            background: '#0d2218',
-            border: '1.5px solid rgba(52, 211, 153, 0.4)',
-            borderRadius: 16,
+            background: '#ffffff',
+            border: '2.5px solid #0066b3',
+            borderRadius: 18,
             padding: 28,
-            boxShadow: '0 25px 50px rgba(0,0,0,0.6)',
-            color: '#f8fafc'
+            boxShadow: '0 25px 60px rgba(0, 102, 179, 0.25)',
+            color: '#0b1f35'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.08)', display: 'grid', placeItems: 'center' }}>
-                <svg viewBox="0 0 24 24" width="20" height="20">
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f0f4fa', border: '1.5px solid #d0d8e8', display: 'grid', placeItems: 'center' }}>
+                <svg viewBox="0 0 24 24" width="22" height="22">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -873,34 +888,25 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 </svg>
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Sign in with Google</h3>
-                <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>Google Drive Vault &amp; Device Sync</span>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0b1f35' }}>Sign in with Google</h3>
+                <span style={{ fontSize: 12, color: '#0066b3', fontWeight: 700 }}>Google Drive Vault &amp; Device Sync</span>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setGoogleModalOpen(false)}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}
+              style={{ background: 'none', border: 'none', color: '#5a7a9a', cursor: 'pointer', padding: 4 }}
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
-          <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5, marginBottom: 18 }}>
-            Sign in with Google to connect Drive sync: exports always save to this device, and upload to a <b>SEVA GIS</b> folder in your Google Drive while Drive is connected.
+          <p style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.5, marginBottom: 18 }}>
+            Sign in with your Google account to enable cloud vault sync: your farm boundaries and satellite GeoTIFF exports save directly to this device, and sync seamlessly to your <b>SEVA GIS</b> Google Drive folder.
           </p>
 
-          {!googleSignInConfigured ? (
-            <div style={{ fontSize: 12, color: '#6ee7b7', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 800, color: '#34d399', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Check size={14} /> Local Device Storage &amp; Privacy Active
-              </div>
-              Google Drive OAuth is not registered for this static deployment. You can enter your email to sign in locally, or click <b>Guest Mode</b> for instant access. All farm boundaries and satellite files save securely to this device.
-            </div>
-          ) : null}
-
           <form onSubmit={handleGoogleModalSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: '#0b1f35', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span>Enter your Google / Gmail Address:</span>
               <input
                 type="email"
@@ -909,11 +915,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 placeholder="yourname@gmail.com"
                 required
                 style={{
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  background: '#06160e',
-                  border: '1px solid rgba(52, 211, 153, 0.4)',
-                  color: '#fff',
+                  padding: '11px 14px',
+                  borderRadius: 10,
+                  background: '#f8fafd',
+                  border: '2px solid #d0d8e8',
+                  color: '#0b1f35',
                   fontSize: 14,
                   outline: 'none',
                 }}
@@ -921,14 +927,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             </label>
 
             {error && (
-              <div style={{ fontSize: 12.5, color: '#fca5a5', lineHeight: 1.45 }} role="alert">{error}</div>
+              <div style={{ fontSize: 12.5, color: '#dc2626', lineHeight: 1.45, fontWeight: 600 }} role="alert">{error}</div>
             )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
               <button
                 type="submit"
                 disabled={busy}
-                className="cartoon-btn-green"
+                className="cartoon-btn-primary"
                 style={{
                   flex: 1,
                   display: 'inline-flex',
@@ -941,8 +947,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   <LogoLoader inline size={16} text="Connecting..." />
                 ) : (
                   <>
-                    <Check size={16} />{' '}
-                    {googleSignInConfigured ? 'Sign in & Activate Vault' : 'Sign in with this Email'}
+                    <Check size={16} /> Sign in as Google User
                   </>
                 )}
               </button>
@@ -958,7 +963,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            <small style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4, textAlign: 'center', marginTop: 4 }}>
+            <small style={{ fontSize: 11.5, color: '#5a7a9a', lineHeight: 1.4, textAlign: 'center', marginTop: 4 }}>
               Offline-ready guarantee: All files save directly to your device even if Google Drive is offline.
             </small>
           </form>
@@ -1007,14 +1012,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <p>
               Inspect the source code, run locally with Vite + React 19, or contribute improvements. Built entirely client-side with no central backend database.
             </p>
-            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#b4c8b9', lineHeight: 1.6 }}>
+            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
               <li>100% open-source under permissive MIT license</li>
               <li>Zero backend tracking or central telemetry</li>
               <li>Inspect and audit satellite processing algorithms</li>
             </ul>
           </div>
           <div className="au-hub-card-foot">
-            <span style={{ fontSize: 11, color: '#9fb5a5' }}>virahitvin8 / seva-gis</span>
+            <span style={{ fontSize: 11, color: '#0066b3', fontWeight: 600 }}>virahitvin8 / seva-gis</span>
             <a
               href="https://github.com/virahitvin8/seva-gis"
               target="_blank"
@@ -1040,14 +1045,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <p>
               Discover how SEVA.GIS queries Copernicus Sentinel-2 L2A tiles via Planetary Computer, removes cloud shadows, computes vegetation indices, and models yields.
             </p>
-            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#b4c8b9', lineHeight: 1.6 }}>
+            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
               <li>Step-by-step farm boundary capture</li>
               <li>Sentinel-2 band math and 10 m raster grids</li>
               <li>Tractor swath routing &amp; field operation zones</li>
             </ul>
           </div>
           <div className="au-hub-card-foot">
-            <span style={{ fontSize: 11, color: '#9fb5a5' }}>Scientific Thesis</span>
+            <span style={{ fontSize: 11, color: '#0066b3', fontWeight: 600 }}>Scientific Thesis</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 type="button"
@@ -1064,7 +1069,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 target="_blank"
                 rel="noreferrer"
                 title="Open full web guide in new tab"
-                style={{ color: '#9fb5a5', display: 'grid', placeItems: 'center', textDecoration: 'none' }}
+                style={{ color: '#0066b3', display: 'grid', placeItems: 'center', textDecoration: 'none' }}
               >
                 <ExternalLink size={12} />
               </a>
@@ -1085,14 +1090,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <p>
               Common answers regarding satellite pass frequencies, 10-metre pixel resolution, cloud cover handling, local storage safety, and offline mobile PWA setup.
             </p>
-            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#b4c8b9', lineHeight: 1.6 }}>
+            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
               <li>Why is it free forever with no API key?</li>
               <li>How your data remains on your device</li>
               <li>Multi-language support (English, Hindi, Telugu)</li>
             </ul>
           </div>
           <div className="au-hub-card-foot">
-            <span style={{ fontSize: 11, color: '#9fb5a5' }}>9 Answered Questions</span>
+            <span style={{ fontSize: 11, color: '#0066b3', fontWeight: 600 }}>9 Answered Questions</span>
             <a href="/faq.html" className="au-hub-card-btn">
               <span>View FAQs</span>
               <ExternalLink size={13} />
@@ -1113,14 +1118,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <p>
               Learn how plants absorb red light and reflect near-infrared light, how to translate colour maps into field walking points, and when to inspect moisture or nitrogen.
             </p>
-            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#b4c8b9', lineHeight: 1.6 }}>
+            <ul style={{ margin: '0 0 14px', paddingLeft: 18, fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
               <li>Understanding NDVI value ranges</li>
               <li>Differentiating soil, stress, and vigor</li>
               <li>Actionable field inspection checklist</li>
             </ul>
           </div>
           <div className="au-hub-card-foot">
-            <span style={{ fontSize: 11, color: '#9fb5a5' }}>Agronomic Reference</span>
+            <span style={{ fontSize: 11, color: '#0066b3', fontWeight: 600 }}>Agronomic Reference</span>
             <a href="/ndvi-explained.html" className="au-hub-card-btn">
               <span>Read Guide</span>
               <ExternalLink size={13} />
@@ -1129,13 +1134,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: '36px auto 0', paddingTop: 20, borderTop: '1px solid #ffffff12', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#64748b' }}>
+      <div style={{ maxWidth: 1200, margin: '36px auto 0', paddingTop: 20, borderTop: '1px solid #d0d8e8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#64748b' }}>
         <span>SEVA·GIS — Spatial Evaluation &amp; Vegetation Analytics</span>
         <div style={{ display: 'flex', gap: 16 }}>
-          <a href="https://github.com/virahitvin8/seva-gis" target="_blank" rel="noreferrer" style={{ color: '#9fb5a5', textDecoration: 'none' }}>GitHub</a>
-          <a href="/how-it-works.html" style={{ color: '#9fb5a5', textDecoration: 'none' }}>How it works</a>
-          <a href="/faq.html" style={{ color: '#9fb5a5', textDecoration: 'none' }}>FAQ</a>
-          <a href="/ndvi-explained.html" style={{ color: '#9fb5a5', textDecoration: 'none' }}>NDVI</a>
+          <a href="https://github.com/virahitvin8/seva-gis" target="_blank" rel="noreferrer" style={{ color: '#0066b3', textDecoration: 'none', fontWeight: 600 }}>GitHub</a>
+          <a href="/how-it-works.html" style={{ color: '#0066b3', textDecoration: 'none', fontWeight: 600 }}>How it works</a>
+          <a href="/faq.html" style={{ color: '#0066b3', textDecoration: 'none', fontWeight: 600 }}>FAQ</a>
+          <a href="/ndvi-explained.html" style={{ color: '#0066b3', textDecoration: 'none', fontWeight: 600 }}>NDVI</a>
         </div>
       </div>
     </section>

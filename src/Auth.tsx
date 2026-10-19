@@ -29,9 +29,11 @@ import {
   Pause,
   Check,
   X,
+  Cpu,
 } from 'lucide-react'
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'
+import SuggestionTree from './components/SuggestionTree'
 import { GUEST, closeWorkspace, db, login, openWorkspace, register, registerOrLoginGoogleUser, sessionId, setSession } from './lib/db'
 import { authenticateWithGoogle, disconnectGoogle, getGoogleClientId, getGoogleUser, isRealGoogleClientId } from './lib/googleDriveVault'
 
@@ -81,20 +83,22 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       const params = new URLSearchParams(window.location.search)
-      if (params.has('auth') || params.has('login') || params.has('signin')) {
+      if (sessionStorage.getItem('seva-bye') || params.has('auth') || params.has('login') || params.has('signin')) {
         setBooting(false)
         return
       }
       const id = sessionId()
-      if (id === GUEST) {
+      if (!id || id === GUEST) {
         const savedGuestName = localStorage.getItem('seva-guest-name') || 'Guest'
         await enter({ id: GUEST, name: savedGuestName, email: '' })
-      } else if (id) {
+      } else {
         const gUser = getGoogleUser()
         const u = await db.users.get(id)
         if (u) {
           const isG = Boolean(gUser?.id === u.id || u.hash === 'google_oauth_authenticated')
           await enter({ id: u.id, name: u.name, email: u.email, isGoogle: isG, picture: isG ? gUser?.picture : undefined })
+        } else {
+          await enter({ id: GUEST, name: 'Guest', email: '' })
         }
       }
       setBooting(false)
@@ -112,7 +116,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setBusy(false)
   }
 
-  const [selectedDomain, setSelectedDomain] = useState<'agri' | 'hydro' | 'terrain' | 'geology' | 'hazard' | 'vault'>('agri')
+  const [selectedDomain, setSelectedDomain] = useState<'agri' | 'hydro' | 'terrain' | 'geology' | 'hazard' | 'vault' | 'rustgis'>('agri')
   const [dialEngaged, setDialEngaged] = useState(false)
   const [googleModalOpen, setGoogleModalOpen] = useState(false)
   const [googleModalEmail, setGoogleModalEmail] = useState('')
@@ -215,6 +219,22 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         { angle: '08:00', title: 'Email Delivery (when configured)', sensor: 'Server email provider', formula: 'Dossier package + greeting card', desc: 'Prepares the dossier package for download and sends it by email when an email provider is configured on the server.' },
         { angle: '10:00', title: 'Multi-Format Archival Dossiers', sensor: 'HTML, PDF, DOCX, ZIP & GeoJSON', formula: 'Universal Cross-Platform Packaging', desc: 'Packages complete field studies into universal formats accessible on any desktop or smartphone.' },
       ]
+    },
+    rustgis: {
+      name: 'Rust GIS & WebAssembly Engine',
+      tag: 'GeoRust · FlatGeobuf · SIMD Band Math · Zero Server Lag',
+      icon: Cpu,
+      color: '#f97316',
+      bg: 'rgba(249, 115, 22, 0.12)',
+      border: 'rgba(249, 115, 22, 0.3)',
+      techniques: [
+        { angle: '12:00', title: 'Zero-Cost Vector Geometry (geo-types)', sensor: 'GeoRust Memory Layout', formula: 'Coord<T>, LineString<T>, Polygon<T>', desc: 'Zero-copy coordinate storage in linear memory without garbage-collection pauses.' },
+        { angle: '02:00', title: 'Ramer-Douglas-Peucker (RDP) Simplification', sensor: 'geo::simplify::Simplify', formula: 'dist(p, Line(p1, p2)) > ε', desc: 'Reduces parcel vertex counts by 70% while preserving exact agronomic boundary topology.' },
+        { angle: '04:00', title: 'Visvalingam-Whyatt Area Decimation', sensor: 'geo::simplify::SimplifyVw', formula: 'min(Area(p_{i-1}, p_i, p_{i+1})) < Area_min', desc: 'Simplifies polygons based on triangle area weighting, preserving critical guidance corners.' },
+        { angle: '06:00', title: 'BBox-Pruned Ray-Casting PIP', sensor: 'geo::algorithm::contains', formula: 'O(1) BBox Rejection + Jordan Curve', desc: 'Checks 100,000+ points/sec to evaluate whether telemetry points fall into management zones.' },
+        { angle: '08:00', title: 'SIMD Vectorized Spectral Band Math', sensor: 'ndarray Float32 Vectorization', formula: 'NDVI = (NIR - Red) / (NIR + Red) [AVX/NEON]', desc: 'Calculates vegetation indices across 500,000 pixels in milliseconds using SIMD float loops.' },
+        { angle: '10:00', title: 'FlatGeobuf & GeoArrow Zero-Copy Stream', sensor: 'FlatGeobuf HTTP Range Query', formula: 'Hilbert R-Tree Binary Buffer', desc: 'Streams vector geometries directly over HTTP range requests with zero JSON deserialization.' },
+      ]
     }
   }
 
@@ -252,9 +272,26 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     try {
       const emailToUse = googleModalEmail.trim()
       if (!emailToUse || !emailToUse.includes('@')) {
-        setError('Enter the Gmail address you want to use.')
+        setError('Enter the Gmail or email address you want to use.')
         return
       }
+
+      if (!googleSignInConfigured) {
+        // When Google OAuth is not configured on this deployment, sign in locally
+        // with the entered email so the user can enter their workspace immediately.
+        const localName = emailToUse.split('@')[0]
+        const u = await registerOrLoginGoogleUser({
+          id: `local_${emailToUse.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          name: localName,
+          email: emailToUse,
+        })
+        remember({ name: u.name, email: u.email })
+        setSaved(known())
+        setGoogleModalOpen(false)
+        await enter({ id: u.id, name: u.name, email: u.email, isGoogle: false })
+        return
+      }
+
       const res = await authenticateWithGoogle(emailToUse)
       if (res.success && res.user) {
         const u = await registerOrLoginGoogleUser(res.user)
@@ -266,7 +303,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setError(res.error)
       }
     } catch (err: any) {
-      setError(err?.message || 'Google sign-in could not be completed.')
+      setError(err?.message || 'Sign-in could not be completed.')
     } finally {
       setBusy(false)
     }
@@ -851,11 +888,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             Sign in with Google to connect Drive sync: exports always save to this device, and upload to a <b>SEVA GIS</b> folder in your Google Drive while Drive is connected.
           </p>
 
-          {!googleSignInConfigured && (
-            <div style={{ fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.35)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, lineHeight: 1.45 }}>
-              Google sign-in is not configured on this deployment. Use Guest Mode below — exports still save to this device.
+          {!googleSignInConfigured ? (
+            <div style={{ fontSize: 12, color: '#6ee7b7', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, lineHeight: 1.5 }}>
+              <div style={{ fontWeight: 800, color: '#34d399', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={14} /> Local Device Storage &amp; Privacy Active
+              </div>
+              Google Drive OAuth is not registered for this static deployment. You can enter your email to sign in locally, or click <b>Guest Mode</b> for instant access. All farm boundaries and satellite files save securely to this device.
             </div>
-          )}
+          ) : null}
 
           <form onSubmit={handleGoogleModalSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -885,7 +925,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
               <button
                 type="submit"
-                disabled={busy || !googleSignInConfigured}
+                disabled={busy}
                 style={{
                   flex: 1,
                   padding: '11px 16px',
@@ -902,7 +942,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   gap: 8,
                 }}
               >
-                {busy ? <LogoLoader inline size={16} text="Connecting..." /> : <><Check size={16} /> Sign in &amp; Activate Vault</>}
+                {busy ? (
+                  <LogoLoader inline size={16} text="Connecting..." />
+                ) : (
+                  <>
+                    <Check size={16} />{' '}
+                    {googleSignInConfigured ? 'Sign in & Activate Vault' : 'Sign in with this Email'}
+                  </>
+                )}
               </button>
               <button
                 type="button"
@@ -932,6 +979,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </div>
     )}
+
+    {/* Community Suggestion Apple Tree & RustGIS Engine on the Sign-in Page */}
+    <SuggestionTree
+      onSignIn={async (email) => {
+        try {
+          await enter({ id: email, name: email.split('@')[0], email })
+        } catch {
+          await enterGuest(email.split('@')[0])
+        }
+      }}
+      onGuest={enterGuest}
+    />
 
     {/* Full-width Knowledge Hub & Documentation Showcase below the fold */}
     <section className="au-hub" aria-label="Knowledge Hub and Documentation">

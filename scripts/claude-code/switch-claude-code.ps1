@@ -41,6 +41,7 @@ $ProfilesPath = Join-Path $ScriptDir 'profiles.json'
 $KeysPath     = Join-Path $ScriptDir 'keys.local.json'
 $SettingsDir  = Join-Path $env:USERPROFILE '.claude'
 $SettingsPath = Join-Path $SettingsDir 'settings.json'
+$ClaudeJsonPath = Join-Path $env:USERPROFILE '.claude.json'
 
 # Every env key this switcher owns; cleared when switching to a profile that
 # does not define it, so providers can never leak into each other.
@@ -132,14 +133,45 @@ function Save-Key([string]$ProviderId, [string]$Value) {
   Write-Host "  Key saved to $KeysPath (git-ignored)." -ForegroundColor DarkGray
 }
 
+function Clear-ClaudeLoginConflict() {
+  if (Test-Path -LiteralPath $ClaudeJsonPath) {
+    try {
+      $cj = Read-JsonFile $ClaudeJsonPath
+      $changed = $false
+      if ($null -ne $cj -and $null -ne $cj.PSObject.Properties['oauthAccount']) {
+        $cj.PSObject.Properties.Remove('oauthAccount')
+        $changed = $true
+      }
+      if ($null -ne $cj -and $null -ne $cj.PSObject.Properties['primaryApiKey']) {
+        $cj.PSObject.Properties.Remove('primaryApiKey')
+        $changed = $true
+      }
+      if ($changed) {
+        Invoke-Backup $ClaudeJsonPath
+        Write-JsonFile $ClaudeJsonPath $cj 50
+        Write-Host "  Cleared conflicting OAuth session from ~/.claude.json" -ForegroundColor Green
+      }
+    } catch {
+      Write-Host "  Note: Could not inspect ~/.claude.json ($($_.Exception.Message))" -ForegroundColor DarkGray
+    }
+  }
+}
+
 function Test-Endpoint([string]$Url, [string]$Token) {
-  # Non-fatal reachability check. Some Anthropic-style servers do not serve
-  # /models, so a 404 still proves the host answered.
+  # Non-fatal reachability check.
   try {
     $headers = @{}
-    if (-not [string]::IsNullOrWhiteSpace($Token)) { $headers['Authorization'] = "Bearer $Token" }
-    $probe = $Url.TrimEnd('/') + '/models'
-    $resp = Invoke-WebRequest -Uri $probe -Headers $headers -TimeoutSec 6 -UseBasicParsing
+    if (-not [string]::IsNullOrWhiteSpace($Token)) {
+      $headers['Authorization'] = "Bearer $Token"
+      $headers['x-api-key'] = $Token
+    }
+    $probe = $Url.TrimEnd('/') + '/v1/models'
+    try {
+      $resp = Invoke-WebRequest -Uri $probe -Headers $headers -TimeoutSec 6 -UseBasicParsing
+    } catch {
+      $probe = $Url.TrimEnd('/') + '/models'
+      $resp = Invoke-WebRequest -Uri $probe -Headers $headers -TimeoutSec 6 -UseBasicParsing
+    }
     Write-Host "  Endpoint check: reachable (HTTP $($resp.StatusCode))" -ForegroundColor Green
   } catch {
     $status = $null
@@ -260,9 +292,13 @@ foreach ($mk in $ManagedKeys) { Remove-JsonProp $envObj $mk }
 
 if ($Provider -ieq 'anthropic') {
   Write-Host "  Cleared all provider overrides - Claude Code is back to stock Anthropic." -ForegroundColor Green
+  Write-Host "  To log in to Anthropic subscription again, run: claude /login" -ForegroundColor DarkGray
 } else {
   Set-JsonProp $envObj 'ANTHROPIC_BASE_URL' $effBaseUrl
-  if (-not [string]::IsNullOrWhiteSpace($effKey)) { Set-JsonProp $envObj 'ANTHROPIC_AUTH_TOKEN' $effKey }
+  if (-not [string]::IsNullOrWhiteSpace($effKey)) {
+    Set-JsonProp $envObj 'ANTHROPIC_AUTH_TOKEN' $effKey
+    Remove-JsonProp $envObj 'ANTHROPIC_API_KEY'
+  }
 
   if ($null -ne $def -and $null -ne $def.PSObject.Properties['settings'] -and $null -ne $def.settings) {
     foreach ($s in $def.settings.PSObject.Properties) { Set-JsonProp $envObj $s.Name ([string]$s.Value) }
@@ -273,11 +309,14 @@ if ($Provider -ieq 'anthropic') {
     Set-JsonProp $envObj 'ANTHROPIC_DEFAULT_OPUS_MODEL' $Model
     Set-JsonProp $envObj 'ANTHROPIC_DEFAULT_SONNET_MODEL' $Model
     Set-JsonProp $envObj 'ANTHROPIC_DEFAULT_HAIKU_MODEL' $Model
+    Set-JsonProp $envObj 'CLAUDE_CODE_SUBAGENT_MODEL' $Model
     Write-Host "  Model override applied to all slots: $Model" -ForegroundColor Green
   }
 
   Write-Host ("  Base URL : {0}" -f $effBaseUrl)
   Write-Host ("  Token    : {0}" -f (Mask-Secret $effKey))
+
+  Clear-ClaudeLoginConflict
 }
 
 if (-not $NoBackup) { Invoke-Backup $SettingsPath }

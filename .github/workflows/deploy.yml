@@ -32,9 +32,15 @@ jobs:
         continue-on-error: true
 
       - name: Build
-        run: npm run build
+        run: |
+          if [ -z "$VITE_EE_API_URL" ]; then
+            export VITE_EE_API_URL="https://seva-gis-backend-419602015618.us-central1.run.app"
+          fi
+          npm run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets['VITE_GOOGLE_CLIENT_ID'] || vars['VITE_GOOGLE_CLIENT_ID'] || '' }}
+          VITE_EE_API_URL: ${{ secrets['VITE_EE_API_URL'] || vars['VITE_EE_API_URL'] || '' }}
 
       - name: SPA fallback + CNAME
         run: |

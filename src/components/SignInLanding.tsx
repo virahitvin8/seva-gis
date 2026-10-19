@@ -34,6 +34,7 @@ import { TRANSLATIONS } from '../i18n/translations';
 import SevaLogo from './brand/SevaLogo';
 import ClockwiseParameterEngine from './auth/ClockwiseParameterEngine';
 import DispersionLoader from './feedback/DispersionLoader';
+import { authenticateWithGoogle, getGoogleClientId, isRealGoogleClientId } from '../lib/googleDriveVault';
 
 interface SignInLandingProps {
   language: SupportedLanguage;
@@ -166,19 +167,36 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({
     setCheckingOAuth(true);
     setOauthDiagnostic(null);
     try {
-      const res = await fetch('/api/auth/google/url');
-      const data = await res.json();
-      if (res.ok && data.authUrl) {
-        window.location.href = data.authUrl;
-        return;
+      if (isRealGoogleClientId(getGoogleClientId())) {
+        const res = await authenticateWithGoogle();
+        if (res.success && res.user) {
+          onEnterWorkspace('google', res.user.email);
+          return;
+        }
+        if (res.error && res.error !== 'Sign-in cancelled') {
+          setOauthDiagnostic(res.error);
+          return;
+        }
       }
+
+      // Check if backend OAuth proxy is available
+      try {
+        const res = await fetch('/api/auth/google/url');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authUrl) {
+            window.location.href = data.authUrl;
+            return;
+          }
+        }
+      } catch {}
+
       setOauthDiagnostic(
-        data.message ||
-          'Google OAuth Client ID is not yet set in .env. Protected you from hitting the raw Google 401: invalid_client error page. You can configure GOOGLE_CLIENT_ID in .env or enter immediately via Guest Mode below.'
+        'Google OAuth requires VITE_GOOGLE_CLIENT_ID configured for this domain in Google Cloud Console. Click "Continue as Guest" below for instant, full-featured access.'
       );
     } catch {
       setOauthDiagnostic(
-        'Pre-flight OAuth check prevented a 401: invalid_client redirect because the local OAuth endpoint or GOOGLE_CLIENT_ID in .env is not active. Click "Enter Local-Privacy Guest Workspace" below for full functionality.'
+        'Google Sign-In is not active on this deployment. Click "Continue as Guest" below for 100% full-featured access.'
       );
     } finally {
       setCheckingOAuth(false);
@@ -207,17 +225,34 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({
             </div>
             {/* Merged Active Subdomains Status Strip */}
             <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600 font-medium">
-              <span className="font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+              <a
+                href="https://sevagis.dpdns.org"
+                className="font-mono text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2 py-0.5 rounded border border-emerald-300 font-bold flex items-center gap-1 transition"
+                title="Official Live Production Domain with Verified SSL"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                sevagis.dpdns.org (Live SSL)
+              </a>
+              <span>•</span>
+              <a
+                href="https://sevagis.is-a.dev"
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-2 py-0.5 rounded border border-cyan-300 font-semibold transition"
+                title="Developer & OpenDesign Methodology Portal"
+              >
                 sevagis.is-a.dev
-              </span>
+              </a>
               <span>•</span>
-              <span className="font-mono text-cyan-700 bg-cyan-50 px-1.5 py-0.2 rounded border border-cyan-200">
+              <a
+                href="https://sevagis.is-a.bot"
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-purple-800 bg-purple-100 hover:bg-purple-200 px-2 py-0.5 rounded border border-purple-300 font-semibold transition"
+                title="GeoAI Agent & Mitra Assistant Hub"
+              >
                 sevagis.is-a.bot
-              </span>
-              <span>•</span>
-              <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
-                sevagis.dpdns.org
-              </span>
+              </a>
             </div>
           </div>
         </div>

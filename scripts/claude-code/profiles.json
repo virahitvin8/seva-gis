@@ -22,18 +22,26 @@
       "notes": "From the promo screenshot: sign up at radoxai.com, create an API key, Base URL radoxai.com/v1. Third-party aggregator — free offers can end anytime and the Anthropic surface may differ; if Claude Code returns 404 on /v1/messages, route it through ShellShock as a custom endpoint instead (see README)."
     },
     "beatapi": {
-      "label": "BeatAPI (Free GLM 5.3, GLM 5.3 Flash, DeepSeek v4.1, JEV 1.13)",
-      "baseUrl": "https://api.beatapi.io/v1",
+      "label": "BeatAPI (Free DeepSeek v4.1, GLM 5.3, Gemini 3.8)",
+      "baseUrl": "https://api.beatapi.io",
       "keyEnv": "BEATAPI_API_KEY",
       "settings": {
-        "ANTHROPIC_MODEL": "deepseek-v4.1",
-        "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.3",
-        "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4.1",
-        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5.3-flash",
+        "ANTHROPIC_MODEL": "deepseek-v4.1-flash-free",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4.1-flash-free",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.3-free",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5.3-flash-free",
+        "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-v4.1-flash-free",
         "API_TIMEOUT_MS": "3000000",
         "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
       },
-      "notes": "From the screenshot promo: BeatAPI (api.beatapi.io/v1) provides free community endpoints for GLM 5.3, GLM 5.3 Flash, DeepSeek v4.1, and JEV 1.13. If Claude Code returns 404 on /v1/messages, proxy it through ShellShock as a custom OpenAI endpoint (see README)."
+      "freeModels": [
+        "deepseek-v4.1-flash-free",
+        "deepseek-v4-flash-0731-free",
+        "gemini-3.8-flash-free",
+        "glm-5.3-flash-free",
+        "glm-5.3-free"
+      ],
+      "notes": "Verified free models on BeatAPI (api.beatapi.io): deepseek-v4.1-flash-free (Sonnet/default), glm-5.3-free (Opus/reasoning), glm-5.3-flash-free (Haiku/fast), gemini-3.8-flash-free, deepseek-v4-flash-0731-free. Zero token cost."
     },
     "deepseek": {
       "label": "DeepSeek official (Anthropic-compatible endpoint)",

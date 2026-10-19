@@ -20,6 +20,9 @@ logs/
 # Never commit API keys or machine-local Claude settings.
 scripts/claude-code/keys.local.json
 .claude/settings.local.json
+.claude/settings.json
+.claude/
+.mcp.json
 
 # This scaffold uses pnpm (pnpm-lock.yaml is the tracked lockfile).
 # A locally generated npm lockfile stays out of the repository.

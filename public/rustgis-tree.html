@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seva GIS — RustGIS Engine &amp; 3D Cartoon Banyan Apple Suggestion Tree</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-cartoon: 'Fredoka', 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: #0b1320;
+      color: #f8fafc;
+      overflow-x: hidden;
+      margin: 0;
+    }
+    .font-cartoon {
+      font-family: var(--font-cartoon);
+    }
+    .font-mono-code {
+      font-family: var(--font-mono);
+    }
+
+    /* Cartoon 3D Painted Sky & Meadow Scene */
+    .cartoon-scene-wrapper {
+      background: linear-gradient(180deg,
+        #1e90ff 0%,
+        #4facfe 28%,
+        #7ee8fa 58%,
+        #b8f2e6 75%,
+        #a3e635 76%,
+        #4ade80 86%,
+        #16a34a 100%);
+      box-shadow:
+        inset 0 12px 40px rgba(255, 255, 255, 0.35),
+        0 20px 60px rgba(0, 0, 0, 0.65);
+      border: 4px solid #3f2314;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Cartoon painted cloud float */
+    @keyframes floatCloudSlow {
+      0%, 100% { transform: translateX(0px) translateY(0px); }
+      50% { transform: translateX(18px) translateY(-4px); }
+    }
+    @keyframes swayCanopy {
+      0%, 100% { transform: rotate(-0.6deg) scale(1); }
+      50% { transform: rotate(0.6deg) scale(1.008); }
+    }
+    @keyframes swayRoot {
+      0%, 100% { transform: rotate(-1.5deg); }
+      50% { transform: rotate(1.5deg); }
+    }
+    @keyframes appleShinePulse {
+      0%, 100% {
+        transform: scale(1) rotate(-2deg);
+        filter: drop-shadow(0 5px 8px rgba(0,0,0,0.45)) drop-shadow(0 0 8px rgba(255, 230, 100, 0.45));
+      }
+      50% {
+        transform: scale(1.07) rotate(2deg);
+        filter: drop-shadow(0 7px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 16px rgba(255, 240, 130, 0.85));
+      }
+    }
+    @keyframes appleSpawnPop {
+      0% { transform: scale(0) rotate(-35deg); opacity: 0; }
+      65% { transform: scale(1.28) rotate(8deg); opacity: 1; }
+      85% { transform: scale(0.92) rotate(-4deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes appleVanishSparkle {
+      0% { transform: scale(1); filter: brightness(1); opacity: 1; }
+      40% { transform: scale(1.35) rotate(12deg); filter: brightness(2.2) drop-shadow(0 0 24px #fde047); opacity: 1; }
+      100% { transform: scale(0) translateY(-45px); filter: brightness(3); opacity: 0; }
+    }
+
+    .cloud-anim-1 { animation: floatCloudSlow 11s ease-in-out infinite; }
+    .cloud-anim-2 { animation: floatCloudSlow 15s ease-in-out infinite reverse; }
+    .canopy-sway {
+      transform-origin: 50% 65%;
+      animation: swayCanopy 6.5s ease-in-out infinite;
+    }
+    .aerial-root-sway {
+      transform-origin: top center;
+      animation: swayRoot 5s ease-in-out infinite;
+    }
+
+    /* Interactive 3D-Painted Apple Button on Tree */
+    .cartoon-apple-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      user-select: none;
+      transition: left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  top 0.65s cubic-bezier(0.45, 0, 0.55, 1),
+                  transform 0.2s ease;
+      z-index: 25;
+    }
+    .cartoon-apple-node:hover {
+      z-index: 45 !important;
+    }
+    .cartoon-apple-node:hover .apple-inner-svg {
+      transform: scale(1.22) !important;
+      filter: drop-shadow(0 8px 14px rgba(0,0,0,0.6)) drop-shadow(0 0 20px rgba(255, 255, 160, 0.95)) !important;
+    }
+    .apple-inner-svg {
+      animation: appleShinePulse 3.4s ease-in-out infinite;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
+    }
+    .apple-spawn-entry {
+      animation: appleSpawnPop 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    .apple-vanishing {
+      animation: appleVanishSparkle 0.75s ease-in-out forwards !important;
+      pointer-events: none;
+    }
+
+    /* Falling physics animation when rejected */
+    @keyframes fallToGrassBounce {
+      0% { transform: translate(-50%, -50%) rotate(0deg) scale(1.1); }
+      55% { transform: translate(-50%, -50%) rotate(145deg) scale(1); }
+      72% { transform: translate(-50%, calc(-50% - 22px)) rotate(195deg) scale(1.08, 0.9); }
+      86% { transform: translate(-50%, -50%) rotate(215deg) scale(0.95, 1.05); }
+      94% { transform: translate(-50%, calc(-50% - 7px)) rotate(205deg) scale(1.02); }
+      100% { transform: translate(-50%, -50%) rotate(210deg) scale(1); }
+    }
+    .apple-falling-anim {
+      transition: top 0.78s cubic-bezier(0.55, 0.08, 0.68, 0.53), left 0.78s ease-out !important;
+    }
+
+    /* Half-eaten apple on ground */
+    .half-eaten-apple-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      user-select: none;
+      z-index: 22;
+      transition: transform 0.2s ease, filter 0.2s ease;
+      filter: drop-shadow(0 5px 6px rgba(20, 45, 10, 0.55));
+    }
+    .half-eaten-apple-node:hover {
+      transform: translate(-50%, -55%) scale(1.18);
+      z-index: 45;
+      filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 12px rgba(254, 240, 138, 0.8));
+    }
+
+    /* Cartoon glossy pill buttons */
+    .cartoon-btn-primary {
+      background: linear-gradient(180deg, #ff5e62 0%, #ef4444 48%, #b91c1c 100%);
+      border: 3px solid #450a0a;
+      box-shadow: 0 5px 0 #450a0a, inset 0 2px 2px rgba(255, 255, 255, 0.55);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .cartoon-btn-primary:hover {
+      background: linear-gradient(180deg, #ff7679 0%, #f87171 48%, #dc2626 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 0 #450a0a, inset 0 2px 3px rgba(255, 255, 255, 0.65);
+    }
+    .cartoon-btn-primary:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #450a0a;
+    }
+
+    .cartoon-btn-green {
+      background: linear-gradient(180deg, #4ade80 0%, #16a34a 52%, #15803d 100%);
+      border: 3px solid #052e16;
+      box-shadow: 0 5px 0 #052e16, inset 0 2px 2px rgba(255, 255, 255, 0.55);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .cartoon-btn-green:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 0 #052e16, inset 0 2px 3px rgba(255, 255, 255, 0.65);
+    }
+    .cartoon-btn-green:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #052e16;
+    }
+
+    .cartoon-btn-amber {
+      background: linear-gradient(180deg, #fde047 0%, #f59e0b 52%, #b45309 100%);
+      border: 3px solid #451a03;
+      box-shadow: 0 5px 0 #451a03, inset 0 2px 2px rgba(255, 255, 255, 0.65);
+      color: #290f02;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .cartoon-btn-amber:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+    .cartoon-btn-amber:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #451a03;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 via-red-500 to-amber-500 p-0.5 shadow-lg shadow-orange-500/20 flex items-center justify-center">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+            <svg class="w-6 h-6 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3.6 9h16.8M3.6 15h16.8" />
+              <path d="M11.5 3a17 17 0 0 0 0 18M12.5 3a17 17 0 0 1 0 18" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-lg tracking-tight text-white">Seva GIS</span>
+            <span class="text-[11px] font-mono-code uppercase px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30 font-semibold">
+              RustGIS L0–L6 Core
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Pure-Rust WebAssembly Geospatial Engine &amp; Community Suggestion Orchard</p>
+        </div>
+      </div>
+
+      <!-- Main View Switcher Tabs -->
+      <nav class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+        <button id="tabBtnSignIn" type="button" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-gradient-to-r from-emerald-500 to-green-600 text-slate-950 shadow">
+          🍎 Sign-In &amp; Banyan Apple Tree
+        </button>
+        <button id="tabBtnRustEngine" type="button" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800/70">
+          🦀 Live RustGIS Sandbox
+        </button>
+        <button id="tabBtnBlueprint" type="button" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800/70">
+          ⚙️ Reverse-Engineered Code
+        </button>
+      </nav>
+
+      <!-- Right Controls: Role Switcher & Audio Mute -->
+      <div class="flex items-center gap-2">
+        <button id="toggleAdminModeBtn" type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all bg-amber-500/15 border-amber-400/50 text-amber-200 hover:bg-amber-500/25">
+          <span id="adminStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="adminModeLabel">Role: Admin &amp; Agentic AI (Active)</span>
+        </button>
+        <button id="toggleSoundBtn" type="button" title="Toggle Cartoon Sound Effects" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium flex items-center gap-1">
+          <span id="soundIcon">🔊</span>
+          <span id="soundText" class="hidden md:inline">SFX On</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- VIEW 1: SEVA GIS SIGN-IN PAGE + 3D CARTOON BANYAN APPLE SUGGESTION TREE -->
+  <main id="viewSignIn" class="flex-1 flex flex-col">
+    <!-- Top Section: Seva GIS Sign-In Card + Anonymous User Suggestion Input -->
+    <section class="max-w-7xl w-full mx-auto px-4 pt-6 pb-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+
+        <!-- LEFT: SEVA GIS SIGN-IN CARD (5 Cols) -->
+        <div class="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute -right-12 -top-12 w-36 h-36 bg-orange-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                wasm32-unknown-unknown Ready
+              </span>
+              <span class="text-xs font-mono-code text-slate-400">v2.4.0-rustgis</span>
+            </div>
+
+            <h1 class="text-2xl font-bold text-white tracking-tight mb-1">
+              Sign in to Seva GIS Portal
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-400 mb-5">
+              Powered by our reverse-engineered <strong class="text-orange-300">RustGIS L0–L6</strong> architecture: zero-copy GeoParquet/COG loading, 1,000+ Whitebox/GeoLibre tools, and GPU rendering.
+            </p>
+
+            <form id="sevaSignInForm" class="space-y-3.5">
+              <div>
+                <label for="loginIdentity" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                  Seva GIS ID / Official Email
+                </label>
+                <input id="loginIdentity" type="text" value="admin@sevagis.org" required
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-orange-500"
+                  placeholder="name@sevagis.org" />
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="loginPassword" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                    Passkey / Token
+                  </label>
+                  <input id="loginPassword" type="password" value="••••••••••••" required
+                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                  <label for="loginEngineTarget" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+                    Compute Runtime
+                  </label>
+                  <select id="loginEngineTarget" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-orange-500">
+                    <option value="wasm-wgpu">RustGIS WebAssembly + wgpu</option>
+                    <option value="mcp-relay">RustGIS MCP Local Relay (:8767)</option>
+                    <option value="python-session">PyO3 rustgis.Session Bridge</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                  <input id="loginRemember" type="checkbox" checked class="rounded border-slate-700 bg-slate-950 text-orange-500 focus:ring-0" />
+                  Keep local DuckDB Spatial &amp; PMTiles cache offline
+                </label>
+              </div>
+
+              <button type="submit" class="w-full py-2.5 px-4 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-orange-500 via-amber-500 to-red-500 hover:from-orange-400 hover:to-red-400 shadow-lg shadow-orange-500/20 transition-all flex items-center justify-center gap-2">
+                <span>🚀 Launch Seva GIS × RustGIS Workspace</span>
+              </button>
+            </form>
+          </div>
+
+          <div id="signInFeedbackBanner" class="hidden mt-3 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-xs text-emerald-200 flex items-center justify-between">
+            <span id="signInFeedbackText">Authenticated! Opening RustGIS Sandbox...</span>
+            <button id="goSandboxQuickBtn" type="button" class="underline font-bold ml-2">Open Map →</button>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <span>🔒 Memory-Safe: <code class="text-orange-300">#[deny(unsafe_code)]</code></span>
+            <span>Scroll down for the 3D Apple Suggestion Tree ↓</span>
+          </div>
+        </div>
+
+        <!-- RIGHT: ANONYMOUS SUGGESTION SEEDER FOR THE BANYAN APPLE TREE (7 Cols) -->
+        <div class="lg:col-span-7 bg-gradient-to-br from-emerald-950/90 via-slate-900 to-slate-900 border-2 border-emerald-500/40 rounded-2xl p-6 shadow-xl flex flex-col justify-between relative">
+          <div>
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-300 border border-red-400/40">
+                🍎 Anonymous Community Suggestion Orchard
+              </span>
+              <span class="text-xs font-semibold text-emerald-300">
+                100% Anonymous • No Login or Name Needed • Unlimited Apples!
+              </span>
+            </div>
+
+            <h2 class="font-cartoon text-2xl sm:text-3xl font-bold text-white tracking-wide mb-1">
+              Type Any Idea to Grow a Shining Apple on Our Banyan Tree!
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-300 mb-4">
+              Every query or feature request you type below automatically turns into a <strong class="text-red-300">3D-painted shining apple</strong> hanging on the giant Banyan tree below. Anyone on the Sign-In page can click an apple to read it!
+            </p>
+
+            <!-- Anonymous Suggestion Form -->
+            <form id="appleSuggestionForm" class="space-y-3">
+              <div class="flex flex-col sm:flex-row gap-2.5">
+                <div class="flex-1">
+                  <label for="suggestionInput" class="sr-only">Your Suggestion for Seva GIS</label>
+                  <input id="suggestionInput" type="text" required maxlength="220"
+                    placeholder="Type any suggestion or query for Seva GIS (no name needed)... e.g., Add offline LiDAR watershed tool in RustGIS!"
+                    class="w-full px-4 py-3 rounded-xl bg-slate-950/90 border-2 border-emerald-500/50 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-yellow-400 shadow-inner" />
+                </div>
+                <select id="suggestionCategory" aria-label="Suggestion Category"
+                  class="px-3 py-3 rounded-xl bg-slate-950/90 border-2 border-emerald-500/40 text-xs sm:text-sm font-semibold text-emerald-200 focus:outline-none focus:border-yellow-400">
+                  <option value="RustGIS Core">🦀 RustGIS Core</option>
+                  <option value="3D Terrain &amp; LiDAR">🏔️ 3D Terrain &amp; LiDAR</option>
+                  <option value="Village Cadastre">🗺️ Village Cadastre</option>
+                  <option value="AI MCP Agent">🤖 AI MCP Agent</option>
+                  <option value="General / Other">✨ General / Other</option>
+                </select>
+                <button type="submit" class="cartoon-btn-primary px-5 py-3 rounded-xl font-cartoon font-bold text-base text-white whitespace-nowrap flex items-center justify-center gap-2">
+                  <span>🍎 Grow Shining Apple!</span>
+                </button>
+              </div>
+            </form>
+
+            <!-- Instant Preset Test Buttons -->
+            <div class="mt-4 pt-3 border-t border-emerald-500/20">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <span class="text-xs font-semibold text-emerald-200">⚡ Quick-Test Presets (Click to spawn apples immediately):</span>
+                <span class="text-[11px] text-slate-400">No limit on apples — click as many times as you like!</span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" id="presetGoodBtn1" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 transition">
+                  + Good Idea: Zero-Copy GeoParquet Cadastral Parcels
+                </button>
+                <button type="button" id="presetGoodBtn2" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40 transition">
+                  + Good Idea: WASI Whitebox Flood Inundation Sim
+                </button>
+                <button type="button" id="presetBadBtn1" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 transition">
+                  + Unworthy Idea: Add Candy Crush mini-game to map
+                </button>
+                <button type="button" id="presetBadBtn2" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 transition">
+                  + Unworthy Idea: Make map spin 360° every 3 seconds
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Orchard Counters & Admin / Agentic Batch Bar -->
+          <div class="mt-4 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3 text-xs">
+              <span class="px-2.5 py-1 rounded-lg bg-red-500/20 border border-red-500/40 text-red-200 font-semibold">
+                🍎 Shining on Tree: <strong id="countOnTree" class="text-white">0</strong>
+              </span>
+              <span class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-200 font-semibold">
+                🥀 Half-Eaten on Grass (Not Worth It): <strong id="countFallen" class="text-white">0</strong>
+              </span>
+              <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 font-semibold">
+                ✨ Implemented &amp; Vanished: <strong id="countCompleted" class="text-white">0</strong>
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" id="runAgenticTriageBtn" class="cartoon-btn-amber px-3.5 py-1.5 rounded-xl font-cartoon font-bold text-xs flex items-center gap-1.5">
+                <span>🤖 Agentic AI Auto-Judge Apples</span>
+              </button>
+              <button type="button" id="spawnBurstApplesBtn" class="cartoon-btn-green px-3 py-1.5 rounded-xl font-cartoon font-bold text-xs text-white flex items-center gap-1">
+                <span>🌳 +5 Random Apples</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3D-PAINTED CARTOON BANYAN APPLE SUGGESTION TREE -->
+    <section class="max-w-7xl w-full mx-auto px-4 pb-8 flex-1 flex flex-col">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2 px-2">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🌳</span>
+          <h3 class="font-cartoon text-lg sm:text-xl font-bold text-amber-300 tracking-wide">
+            Seva GIS Banyan Suggestion Tree (Click Any Shining Apple or Fallen Half-Eaten Apple!)
+          </h3>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-red-500 border border-white"></span> Shining Apple = Active User Suggestion</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-emerald-400 border border-white"></span> Admin Done = Sparkles &amp; Disappears</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-full bg-amber-300 border border-amber-900"></span> Not Worth It = Falls &amp; Half-Eaten on Grass</span>
+        </div>
+      </div>
+
+      <!-- THE 3D PAINTED CARTOON WORLD CONTAINER -->
+      <div id="banyanTreeStage" class="cartoon-scene-wrapper rounded-3xl w-full min-h-[600px] sm:min-h-[660px] select-none">
+
+        <!-- Ambient Floating Sunbeams & Fireflies Canvas -->
+        <canvas id="cartoonAtmosphereCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+
+        <!-- 3D-PAINTED CARTOON SVG BACKGROUND -->
+        <svg id="banyanSvgArt" viewBox="0 0 1400 760" preserveAspectRatio="xMidYMid slice" class="w-full h-[600px] sm:h-[660px] block pointer-events-none">
+          <defs>
+            <radialGradient id="sunGlowGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fffbeb" stop-opacity="1" />
+              <stop offset="35%" stop-color="#fde047" stop-opacity="0.9" />
+              <stop offset="70%" stop-color="#f59e0b" stop-opacity="0.35" />
+              <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+            </radialGradient>
+
+            <linearGradient id="banyanBark3D" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#3b1d0e" />
+              <stop offset="22%" stop-color="#6b3416" />
+              <stop offset="48%" stop-color="#9a4e24" />
+              <stop offset="68%" stop-color="#7c3a19" />
+              <stop offset="88%" stop-color="#4e230d" />
+              <stop offset="100%" stop-color="#2b1206" />
+            </linearGradient>
+
+            <linearGradient id="banyanBarkHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#d97706" stop-opacity="0.55" />
+              <stop offset="50%" stop-color="#92400e" stop-opacity="0.2" />
+              <stop offset="100%" stop-color="#451a03" stop-opacity="0" />
+            </linearGradient>
+
+            <linearGradient id="aerialRootGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#3f1d0b" />
+              <stop offset="45%" stop-color="#85421e" />
+              <stop offset="100%" stop-color="#2e1508" />
+            </linearGradient>
+
+            <radialGradient id="canopyDeepGrad" cx="50%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#16a34a" />
+              <stop offset="60%" stop-color="#15803d" />
+              <stop offset="100%" stop-color="#052e16" />
+            </radialGradient>
+
+            <radialGradient id="canopyMidGrad" cx="45%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="#4ade80" />
+              <stop offset="45%" stop-color="#22c55e" />
+              <stop offset="85%" stop-color="#15803d" />
+              <stop offset="100%" stop-color="#064e3b" />
+            </radialGradient>
+
+            <radialGradient id="canopySunlitGrad" cx="40%" cy="25%" r="60%">
+              <stop offset="0%" stop-color="#d9f99d" />
+              <stop offset="30%" stop-color="#86efac" />
+              <stop offset="70%" stop-color="#22c55e" />
+              <stop offset="100%" stop-color="#166534" />
+            </radialGradient>
+
+            <linearGradient id="meadowBackHill" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#84cc16" />
+              <stop offset="100%" stop-color="#15803d" />
+            </linearGradient>
+
+            <linearGradient id="meadowFrontHill" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#a3e635" />
+              <stop offset="35%" stop-color="#4ade80" />
+              <stop offset="80%" stop-color="#16a34a" />
+              <stop offset="100%" stop-color="#065f46" />
+            </linearGradient>
+
+            <filter id="paintedShadow" x="-15%" y="-15%" width="130%" height="135%">
+              <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#052e16" flood-opacity="0.55" />
+            </filter>
+            <filter id="trunkShadow" x="-15%" y="-10%" width="130%" height="125%">
+              <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#1a0c04" flood-opacity="0.65" />
+            </filter>
+          </defs>
+
+          <!-- 1. SUN -->
+          <g>
+            <circle cx="160" cy="110" r="145" fill="url(#sunGlowGrad)" />
+            <circle cx="160" cy="110" r="56" fill="#fef08a" stroke="#f59e0b" stroke-width="5" />
+            <ellipse cx="144" cy="92" rx="18" ry="10" transform="rotate(-25 144 92)" fill="#ffffff" opacity="0.75" />
+          </g>
+
+          <!-- 2. CLOUDS -->
+          <g class="cloud-anim-1" opacity="0.92">
+            <path d="M90 190 Q90 160 120 160 Q135 135 168 140 Q198 130 215 158 Q245 160 245 186 Q245 210 215 210 L115 210 Q90 210 90 190 Z"
+              fill="#ffffff" stroke="#bae6fd" stroke-width="4" />
+            <ellipse cx="155" cy="160" rx="35" ry="12" fill="#f0f9ff" />
+          </g>
+          <g class="cloud-anim-2" opacity="0.9">
+            <path d="M1080 135 Q1080 105 1112 105 Q1132 78 1170 84 Q1205 74 1225 104 Q1258 106 1258 134 Q1258 158 1222 158 L1108 158 Q1080 158 1080 135 Z"
+              fill="#ffffff" stroke="#bae6fd" stroke-width="4" />
+          </g>
+
+          <!-- 3. DISTANT HILLS -->
+          <path d="M-40 560 Q220 455 540 520 T1120 495 Q1290 475 1440 535 L1440 760 L-40 760 Z"
+            fill="url(#meadowBackHill)" stroke="#14532d" stroke-width="4" />
+
+          <!-- 4. AERIAL ROOTS -->
+          <g class="aerial-root-sway">
+            <path d="M310 310 C295 410, 280 510, 260 615 L286 620 C298 515, 312 415, 330 315 Z" fill="url(#aerialRootGrad)" stroke="#2b1206" stroke-width="3.5" />
+            <path d="M365 330 C358 430, 345 520, 335 605 L354 608 C362 520, 372 430, 382 332 Z" fill="url(#aerialRootGrad)" stroke="#2b1206" stroke-width="3" />
+            <path d="M235 340 C225 430, 210 515, 192 605 L210 608 C225 520, 238 432, 248 342 Z" fill="url(#aerialRootGrad)" stroke="#2b1206" stroke-width="3" />
+
+            <path d="M1065 315 C1080 415, 1095 510, 1118 615 L1092 620 C1075 515, 1060 415, 1045 320 Z" fill="url(#aerialRootGrad)" stroke="#2b1206" stroke-width="3.5" />
+            <path d="M1005 330 C1015 430, 1025 520, 1038 605 L1018 608 C1008 520, 998 430, 988 332 Z" fill="url(#aerialRootGrad)" stroke="#2b1206" stroke-width="3" />
+            <path d="M1145 340 C1155 430, 1170 515, 1188 605 L1170 608 C1155 520, 1142 432, 1132 342 Z" fill="url(#aerialRootGrad)" stroke="#2b1206" stroke-width="3" />
+
+            <path d="M450 320 Q442 410 448 485" stroke="#5c2d16" stroke-width="6" stroke-linecap="round" fill="none" />
+            <path d="M468 335 Q462 400 465 455" stroke="#7c3a19" stroke-width="4" stroke-linecap="round" fill="none" />
+            <path d="M930 320 Q938 410 932 490" stroke="#5c2d16" stroke-width="6" stroke-linecap="round" fill="none" />
+            <path d="M910 335 Q916 405 912 460" stroke="#7c3a19" stroke-width="4" stroke-linecap="round" fill="none" />
+          </g>
+
+          <!-- 5. DEEP BACK CANOPY -->
+          <g class="canopy-sway" filter="url(#paintedShadow)">
+            <ellipse cx="300" cy="275" rx="220" ry="125" fill="url(#canopyDeepGrad)" stroke="#052e16" stroke-width="5" />
+            <ellipse cx="1100" cy="275" rx="220" ry="125" fill="url(#canopyDeepGrad)" stroke="#052e16" stroke-width="5" />
+            <ellipse cx="700" cy="210" rx="460" ry="165" fill="url(#canopyDeepGrad)" stroke="#052e16" stroke-width="5" />
+            <ellipse cx="460" cy="295" rx="270" ry="120" fill="url(#canopyDeepGrad)" />
+            <ellipse cx="940" cy="295" rx="270" ry="120" fill="url(#canopyDeepGrad)" />
+          </g>
+
+          <!-- 6. BANYAN TRUNK, BOUGHS & ROOTS -->
+          <g filter="url(#trunkShadow)">
+            <path d="M650 380 C530 340, 360 315, 210 285 L230 245 C390 275, 550 295, 675 330 Z"
+              fill="url(#banyanBark3D)" stroke="#2b1206" stroke-width="4.5" />
+            <path d="M750 380 C870 340, 1040 315, 1190 285 L1170 245 C1010 275, 850 295, 725 330 Z"
+              fill="url(#banyanBark3D)" stroke="#2b1206" stroke-width="4.5" />
+            <path d="M675 350 C600 265, 490 215, 390 185 L415 150 C525 182, 635 235, 705 320 Z"
+              fill="url(#banyanBark3D)" stroke="#2b1206" stroke-width="4.5" />
+            <path d="M725 350 C800 265, 910 215, 1010 185 L985 150 C875 182, 765 235, 695 320 Z"
+              fill="url(#banyanBark3D)" stroke="#2b1206" stroke-width="4.5" />
+
+            <!-- Main Trunk -->
+            <path d="M585 290
+                     C605 390, 580 495, 445 615
+                     Q535 605, 595 632
+                     Q655 595, 700 640
+                     Q755 595, 815 632
+                     Q875 605, 955 615
+                     C820 495, 795 390, 815 290
+                     Z"
+              fill="url(#banyanBark3D)" stroke="#2b1206" stroke-width="5" stroke-linejoin="round" />
+
+            <path d="M645 315 C640 420, 610 515, 520 605" stroke="url(#banyanBarkHighlight)" stroke-width="14" stroke-linecap="round" fill="none" />
+            <path d="M695 305 C692 425, 688 520, 680 618" stroke="url(#banyanBarkHighlight)" stroke-width="18" stroke-linecap="round" fill="none" />
+            <path d="M745 315 C755 420, 785 515, 865 605" stroke="#3b1d0e" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.7" />
+            <!-- Owl Knot -->
+            <ellipse cx="705" cy="445" rx="24" ry="32" fill="#1e0b03" stroke="#5c2d16" stroke-width="5" />
+            <ellipse cx="700" cy="442" rx="16" ry="22" fill="#0f0501" />
+          </g>
+
+          <!-- 7. CANOPY VOLUMES -->
+          <g class="canopy-sway" filter="url(#paintedShadow)">
+            <ellipse cx="265" cy="240" rx="195" ry="110" fill="url(#canopyMidGrad)" stroke="#064e3b" stroke-width="4" />
+            <ellipse cx="1135" cy="240" rx="195" ry="110" fill="url(#canopyMidGrad)" stroke="#064e3b" stroke-width="4" />
+            <ellipse cx="475" cy="190" rx="245" ry="135" fill="url(#canopyMidGrad)" stroke="#064e3b" stroke-width="4" />
+            <ellipse cx="925" cy="190" rx="245" ry="135" fill="url(#canopyMidGrad)" stroke="#064e3b" stroke-width="4" />
+            <ellipse cx="700" cy="155" rx="310" ry="140" fill="url(#canopyMidGrad)" stroke="#064e3b" stroke-width="4" />
+
+            <!-- Sunlit Top Puffs -->
+            <ellipse cx="250" cy="215" rx="145" ry="78" fill="url(#canopySunlitGrad)" />
+            <ellipse cx="465" cy="155" rx="185" ry="92" fill="url(#canopySunlitGrad)" />
+            <ellipse cx="700" cy="122" rx="235" ry="98" fill="url(#canopySunlitGrad)" />
+            <ellipse cx="935" cy="155" rx="185" ry="92" fill="url(#canopySunlitGrad)" />
+            <ellipse cx="1150" cy="215" rx="145" ry="78" fill="url(#canopySunlitGrad)" />
+            <ellipse cx="365" cy="260" rx="150" ry="72" fill="url(#canopyMidGrad)" />
+            <ellipse cx="600" cy="248" rx="175" ry="82" fill="url(#canopyMidGrad)" />
+            <ellipse cx="810" cy="248" rx="175" ry="82" fill="url(#canopyMidGrad)" />
+            <ellipse cx="1035" cy="260" rx="150" ry="72" fill="url(#canopyMidGrad)" />
+
+            <ellipse cx="640" cy="78" rx="68" ry="20" fill="#ecfccb" opacity="0.55" />
+            <ellipse cx="425" cy="112" rx="52" ry="16" fill="#ecfccb" opacity="0.5" />
+            <ellipse cx="905" cy="112" rx="52" ry="16" fill="#ecfccb" opacity="0.45" />
+            <ellipse cx="215" cy="175" rx="42" ry="14" fill="#ecfccb" opacity="0.5" />
+            <ellipse cx="1120" cy="175" rx="42" ry="14" fill="#ecfccb" opacity="0.45" />
+          </g>
+
+          <!-- 8. FOREGROUND MEADOW GRASS -->
+          <g>
+            <path d="M-40 615 Q320 555 700 590 T1440 600 L1440 760 L-40 760 Z"
+              fill="url(#meadowFrontHill)" stroke="#064e3b" stroke-width="5" />
+
+            <path d="M-20 622 Q320 564 700 598 T1420 608"
+              stroke="#d9f99d" stroke-width="6" fill="none" opacity="0.65" stroke-linecap="round" />
+
+            <g fill="#15803d" stroke="#052e16" stroke-width="2.5" stroke-linejoin="round">
+              <path d="M120 655 Q112 630 102 622 Q118 632 126 652 Q132 626 144 618 Q138 638 134 656 Z" fill="#4ade80" />
+              <path d="M280 675 Q272 650 262 642 Q278 652 286 672 Q292 646 304 638 Q298 658 294 676 Z" fill="#86efac" />
+              <path d="M430 648 Q422 623 412 615 Q428 625 436 645 Q442 619 454 611 Q448 631 444 649 Z" fill="#4ade80" />
+              <path d="M575 685 Q567 660 557 652 Q573 662 581 682 Q587 656 599 648 Q593 668 589 686 Z" fill="#86efac" />
+              <path d="M825 680 Q817 655 807 647 Q823 657 831 677 Q837 651 849 643 Q843 663 839 681 Z" fill="#4ade80" />
+              <path d="M985 650 Q977 625 967 617 Q983 627 991 647 Q997 621 1009 613 Q1003 633 999 651 Z" fill="#86efac" />
+              <path d="M1190 672 Q1182 647 1172 639 Q1188 649 1196 669 Q1202 643 1214 635 Q1208 655 1204 673 Z" fill="#4ade80" />
+            </g>
+
+            <!-- Signpost -->
+            <g transform="translate(652, 545)" filter="url(#paintedShadow)">
+              <rect x="42" y="38" width="14" height="52" rx="4" fill="#5c2d16" stroke="#2b1206" stroke-width="3" />
+              <rect x="0" y="0" width="98" height="44" rx="10" fill="#fef3c7" stroke="#451a03" stroke-width="4" />
+              <text x="49" y="19" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="12" font-weight="700" fill="#78350f">SEVA GIS</text>
+              <text x="49" y="34" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="11" font-weight="700" fill="#b91c1c">IDEA TREE</text>
+            </g>
+          </g>
+        </svg>
+
+        <!-- INTERACTIVE APPLES LAYER -->
+        <div id="applesInteractiveLayer" class="absolute inset-0 w-full h-full z-30 pointer-events-auto"></div>
+
+        <!-- HUD OVERLAY -->
+        <div class="absolute top-3 left-3 z-40 flex flex-wrap items-center gap-2 pointer-events-auto">
+          <div class="bg-slate-950/85 backdrop-blur-md border-2 border-amber-400/60 rounded-2xl px-3.5 py-2 shadow-lg flex items-center gap-2.5">
+            <span class="text-xl">🍎</span>
+            <div>
+              <div class="font-cartoon text-xs sm:text-sm font-bold text-white leading-tight">
+                Interactive 3D Banyan Suggestion Tree
+              </div>
+              <div class="text-[11px] text-amber-200">
+                Click any shining apple on the branches (or half-eaten apple on the grass) to inspect &amp; moderate!
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Pills -->
+        <div class="absolute top-3 right-3 z-40 flex flex-wrap items-center gap-1.5 bg-slate-950/85 backdrop-blur-md p-1.5 rounded-2xl border-2 border-slate-700 pointer-events-auto">
+          <button type="button" data-filter="all" class="tree-filter-btn px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 transition">
+            All Visible
+          </button>
+          <button type="button" data-filter="RustGIS Core" class="tree-filter-btn px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 transition">
+            🦀 RustGIS
+          </button>
+          <button type="button" data-filter="3D Terrain & LiDAR" class="tree-filter-btn px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 transition">
+            🏔️ LiDAR
+          </button>
+          <button type="button" data-filter="Village Cadastre" class="tree-filter-btn px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 transition">
+            🗺️ Cadastre
+          </button>
+        </div>
+
+        <!-- SELECTED APPLE INSPECTOR MODAL -->
+        <div id="appleInspectorModal" class="hidden absolute bottom-4 right-4 left-4 sm:left-auto sm:w-[430px] z-50 bg-slate-950/95 backdrop-blur-xl border-4 border-amber-400 rounded-3xl p-5 shadow-2xl pointer-events-auto">
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div class="flex items-center gap-2.5">
+              <div id="inspectorAppleBadgeIcon" class="w-11 h-11 rounded-2xl bg-red-500/20 border-2 border-red-400 flex items-center justify-center text-2xl">
+                🍎
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span id="inspectorAppleId" class="font-cartoon font-bold text-base text-amber-300">Apple #1</span>
+                  <span id="inspectorAppleStatusPill" class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-400/40">
+                    Shining on Tree
+                  </span>
+                </div>
+                <p id="inspectorAppleMeta" class="text-xs text-slate-400">Anonymous Visitor • Category: RustGIS Core</p>
+              </div>
+            </div>
+            <button type="button" id="closeInspectorBtn" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm flex items-center justify-center">
+              ✕
+            </button>
+          </div>
+
+          <div class="my-3 p-3.5 rounded-2xl bg-slate-900 border border-slate-700/80">
+            <p id="inspectorSuggestionText" class="text-sm sm:text-base font-medium text-white leading-relaxed">
+              "Integrate GeoRust and WhiteboxTools via WebAssembly for zero-install village watershed delineation."
+            </p>
+          </div>
+
+          <div id="inspectorAiVerdictBox" class="mb-3 px-3 py-2 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-xs text-indigo-200 flex items-center justify-between">
+            <span id="inspectorAiVerdictText">🤖 Agentic Score: 96/100 (High-Impact RustGIS Feature)</span>
+            <button type="button" id="upvoteAppleBtn" class="px-2.5 py-1 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 text-white font-bold transition">
+              👍 <span id="inspectorUpvotes">14</span>
+            </button>
+          </div>
+
+          <div id="inspectorAdminControls" class="pt-2 border-t border-slate-800">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-amber-300 mb-2 flex items-center justify-between">
+              <span>👑 Admin / Agentic Decision Controls</span>
+              <span class="text-slate-400 font-normal">Live State Change</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button type="button" id="markAppleDoneBtn" class="cartoon-btn-green py-2 px-3 rounded-xl font-cartoon font-bold text-xs text-white flex items-center justify-center gap-1.5">
+                <span>✨ Done / Implemented (Vanish Apple)</span>
+              </button>
+              <button type="button" id="markAppleNotWorthBtn" class="cartoon-btn-primary py-2 px-3 rounded-xl font-cartoon font-bold text-xs text-white flex items-center justify-center gap-1.5">
+                <span>🥀 Not Worth It (Fall &amp; Half-Eaten)</span>
+              </button>
+            </div>
+            <button type="button" id="restoreAppleToTreeBtn" class="hidden mt-2 w-full py-2 px-3 rounded-xl font-cartoon font-bold text-xs bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40">
+              🌱 Re-Hang as Fresh Shining Apple on Tree
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Completed / Harvested Suggestions Log Strip -->
+      <div class="mt-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <span class="text-lg">🏆</span>
+          <div>
+            <h4 class="text-xs sm:text-sm font-bold text-white">Recently Implemented &amp; Vanished Apples (Adopted by Seva GIS Admin)</h4>
+            <p class="text-xs text-slate-400">When an admin completes a user suggestion, its apple sparkles and disappears from the Banyan tree into this release log.</p>
+          </div>
+        </div>
+        <div id="harvestedLogList" class="flex flex-wrap gap-2"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- VIEW 2: LIVE SEVA GIS × RUSTGIS ENGINE SANDBOX -->
+  <section id="viewRustEngine" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <span class="text-xs font-mono-code uppercase px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30 font-semibold">
+          Reverse-Engineered opengeos/RustGIS Engine (L0–L6)
+        </span>
+        <h2 class="text-2xl font-bold text-white mt-1">Seva GIS × RustGIS Interactive Command &amp; Map Sandbox</h2>
+        <p class="text-xs sm:text-sm text-slate-400">
+          In <code class="text-orange-300">opengeos/RustGIS</code>, every UI button is a deterministic command ID (<code class="text-emerald-300">CommandSpec</code>) backed by pure-Rust crates (<code class="text-orange-300">#[deny(unsafe_code)]</code>). Test live geoprocessing commands below!
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" id="undoRustCommandBtn" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700">
+          ↩ Undo Last Command (<span id="undoCountLabel">0</span>)
+        </button>
+        <button type="button" id="resetRustMapBtn" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-rose-300 border border-slate-700">
+          🔄 Reset Session
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
+        <div class="p-3 bg-slate-950 border-b border-slate-800 flex flex-wrap items-center gap-2">
+          <button type="button" data-rustcmd="buffer" class="rust-cmd-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/20 hover:bg-orange-500/30 text-orange-200 border border-orange-500/40">
+            📐 gp.run: Buffer (250m)
+          </button>
+          <button type="button" data-rustcmd="voronoi" class="rust-cmd-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-500/40">
+            🕸️ gp.run: Service Voronoi
+          </button>
+          <button type="button" data-rustcmd="watershed" class="rust-cmd-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-500/40">
+            🌊 whitebox: Flow &amp; Watershed
+          </button>
+          <button type="button" data-rustcmd="graduated" class="rust-cmd-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40">
+            🎨 layer.symbology: Graduated
+          </button>
+          <button type="button" data-rustcmd="geoparquet" class="rust-cmd-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40">
+            📦 data.load: Zero-Copy GeoParquet
+          </button>
+        </div>
+
+        <div class="relative h-[400px] bg-slate-950">
+          <canvas id="rustGisMapCanvas" class="w-full h-full block"></canvas>
+          <div class="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-700 text-[11px] font-mono-code text-slate-300">
+            CRS: EPSG:3857 (Web Mercator) • Renderer: rustgis-render (wgpu/tiny-skia) • Frame: <span id="renderTimeLabel" class="text-emerald-400">0.8 ms</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-4 flex flex-col gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <h3 class="text-sm font-bold text-white mb-2">🦀 RustGIS 7-Layer Crate Pipeline (Active in Seva GIS)</h3>
+          <div class="space-y-1.5 text-xs">
+            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 flex justify-between">
+              <span class="font-mono-code text-orange-300">L0 rustgis-geom</span>
+              <span class="text-slate-400">Geodesic area, BBox, projections</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 flex justify-between">
+              <span class="font-mono-code text-amber-300">L1 rustgis-data</span>
+              <span class="text-slate-400">GeoParquet, COG, FlatGeobuf, SQL</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 flex justify-between">
+              <span class="font-mono-code text-emerald-300">L2 map &amp; analysis</span>
+              <span class="text-slate-400">GeoRust algorithms, MVT tiles</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 flex justify-between">
+              <span class="font-mono-code text-cyan-300">L3 render &amp; geolibre</span>
+              <span class="text-slate-400">1,000+ Whitebox WASI + wgpu</span>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800 flex justify-between">
+              <span class="font-mono-code text-indigo-300">L4–L5 engine &amp; mcp</span>
+              <span class="text-slate-400">Session undo + AI MCP (:8767)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-bold text-white">Terminal Command Log (<code class="text-orange-300">rustgis-cli</code>)</h3>
+            <span class="text-[11px] text-emerald-400 font-mono-code">stdio MCP active</span>
+          </div>
+          <div id="rustCommandTerminal" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono-code text-xs text-emerald-300 space-y-2 overflow-y-auto max-h-52"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 3: REVERSE-ENGINEERED RUSTGIS + SEVA GIS SOURCE CODE BLUEPRINT -->
+  <section id="viewBlueprint" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <span class="text-xs font-mono-code uppercase px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+          Production Integration Code
+        </span>
+        <h2 class="text-2xl font-bold text-white mt-1">Seva GIS × RustGIS Integration &amp; Banyan Tree Engine Code</h2>
+        <p class="text-xs sm:text-sm text-slate-400">
+          Copy-ready Rust (<code class="text-orange-300">crates/seva-rustgis-wasm/src/lib.rs</code>) and Python/JS bridge code to embed <code class="text-orange-300">opengeos/RustGIS</code> into your Seva GIS repository.
+        </p>
+      </div>
+      <button type="button" id="copyCodeSnippetBtn" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition shadow">
+        📋 Copy Active Code File
+      </button>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button type="button" data-codefile="rust_wasm" class="code-tab-btn px-3.5 py-2 rounded-xl text-xs font-mono-code font-bold bg-orange-500 text-slate-950">
+        1. crates/seva-rustgis/src/lib.rs (Rust + WASM)
+      </button>
+      <button type="button" data-codefile="cargo_toml" class="code-tab-btn px-3.5 py-2 rounded-xl text-xs font-mono-code font-semibold bg-slate-900 text-slate-300 border border-slate-800">
+        2. Cargo.toml (Layered Crates)
+      </button>
+      <button type="button" data-codefile="python_mcp" class="code-tab-btn px-3.5 py-2 rounded-xl text-xs font-mono-code font-semibold bg-slate-900 text-slate-300 border border-slate-800">
+        3. seva_backend.py (RustGIS Python &amp; Apple Tree API)
+      </button>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto">
+      <pre id="codeBlueprintDisplay" class="font-mono-code text-xs sm:text-sm text-slate-200 leading-relaxed"></pre>
+    </div>
+  </section>
+
+  <!-- APPLICATION LOGIC -->
+  <script>
+    (function () {
+      let soundEnabled = true;
+      let audioCtx = null;
+
+      function ensureAudio() {
+        if (!soundEnabled) return null;
+        try {
+          if (!audioCtx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) audioCtx = new Ctx();
+          }
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          return audioCtx;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function playSound(type) {
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+
+        if (type === 'spawn') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(360, now);
+          osc.frequency.exponentialRampToValueAtTime(780, now + 0.14);
+          osc.frequency.exponentialRampToValueAtTime(1040, now + 0.28);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.33);
+        } else if (type === 'click') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(680, now + 0.08);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.11);
+        } else if (type === 'vanish') {
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach(function (freq, idx) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+            gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.24);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.06);
+            osc.stop(now + idx * 0.06 + 0.25);
+          });
+        } else if (type === 'fall_crunch') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(620, now);
+          osc.frequency.exponentialRampToValueAtTime(135, now + 0.45);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        }
+      }
+
+      let isAdminMode = true;
+      let activeFilter = 'all';
+      let selectedAppleId = null;
+      let nextAppleNumber = 109;
+
+      const initialApples = [
+        {
+          id: 101,
+          text: 'Embed RustGIS L1 zero-copy GeoParquet reader so Seva GIS opens 2GB village parcel files in under 40ms in the browser.',
+          category: 'RustGIS Core',
+          status: 'on_tree',
+          upvotes: 29,
+          aiScore: 98,
+          aiReason: 'High-impact memory-safe RustGIS L1 data provider enhancement.',
+          treeX: 28,
+          treeY: 26,
+          groundX: 24,
+          groundY: 84
+        },
+        {
+          id: 102,
+          text: 'Compile WhiteboxTools watershed & D8 flow accumulation to WebAssembly (WASI) for offline monsoon flood mapping.',
+          category: '3D Terrain & LiDAR',
+          status: 'on_tree',
+          upvotes: 24,
+          aiScore: 96,
+          aiReason: 'Leverages geolibre-rust WASI runner directly in Seva GIS.',
+          treeX: 46,
+          treeY: 19,
+          groundX: 35,
+          groundY: 86
+        },
+        {
+          id: 103,
+          text: 'Add a natural-language MCP relay (rustgis-cli mcp) so panchayat officers can ask "Highlight drought-prone plots within 500m of canals".',
+          category: 'AI MCP Agent',
+          status: 'on_tree',
+          upvotes: 37,
+          aiScore: 97,
+          aiReason: 'Directly maps to RustGIS L5 rustgis-assistant CommandSpec architecture.',
+          treeX: 64,
+          treeY: 17,
+          groundX: 48,
+          groundY: 85
+        },
+        {
+          id: 104,
+          text: 'Support instant Shapefile (.zip) and Cloud-Optimized GeoTIFF (COG) drag-and-drop on the Seva GIS Sign-In preview map.',
+          category: 'Village Cadastre',
+          status: 'on_tree',
+          upvotes: 19,
+          aiScore: 92,
+          aiReason: 'Core L1 raster/vector zero-upload privacy feature.',
+          treeX: 81,
+          treeY: 24,
+          groundX: 62,
+          groundY: 86
+        },
+        {
+          id: 105,
+          text: 'Use wgpu hardware acceleration for smooth 3D terrain extrusion of rural elevation models on low-end laptops.',
+          category: '3D Terrain & LiDAR',
+          status: 'on_tree',
+          upvotes: 21,
+          aiScore: 94,
+          aiReason: 'Uses RustGIS L3 tiny-skia / wgpu rendering backend.',
+          treeX: 37,
+          treeY: 33,
+          groundX: 42,
+          groundY: 88
+        },
+        {
+          id: 106,
+          text: 'Enable offline PMTiles basemaps with Indian regional language labels using RustGIS i18n catalog.',
+          category: 'Village Cadastre',
+          status: 'on_tree',
+          upvotes: 31,
+          aiScore: 95,
+          aiReason: 'Matches RustGIS L2 rustgis-tiles + 16-language i18n system.',
+          treeX: 73,
+          treeY: 32,
+          groundX: 74,
+          groundY: 85
+        },
+        {
+          id: 107,
+          text: 'Replace all GIS map layers with a 3D racing car game and loud disco horns.',
+          category: 'General / Other',
+          status: 'fallen_half_eaten',
+          upvotes: 1,
+          aiScore: 12,
+          aiReason: 'Flagged by Agentic AI as off-topic / not worth implementing for Seva GIS.',
+          treeX: 54,
+          treeY: 28,
+          groundX: 29,
+          groundY: 86
+        },
+        {
+          id: 108,
+          text: 'Delete all coordinate systems and make every polygon spin randomly when clicked.',
+          category: 'General / Other',
+          status: 'fallen_half_eaten',
+          upvotes: 0,
+          aiScore: 8,
+          aiReason: 'Flagged by Admin & Agentic AI as unhelpful / not worth implementing.',
+          treeX: 21,
+          treeY: 31,
+          groundX: 79,
+          groundY: 87
+        }
+      ];
+
+      const completedHistory = [
+        { id: 99, text: 'Strict #[deny(unsafe_code)] memory safety in Seva GIS core', category: 'RustGIS Core' },
+        { id: 100, text: 'CommandSpec undo/redo stack for every map edit', category: 'RustGIS Core' }
+      ];
+
+      let apples = initialApples.slice();
+
+      function generateCanopyPosition(index) {
+        const goldenAngle = 2.399963229728653;
+        const theta = index * goldenAngle;
+        const normR = Math.sqrt((index % 64) + 1) / 8.2;
+        const clampedR = Math.min(0.95, 0.18 + (normR * 0.77));
+        const cx = 50 + Math.cos(theta) * (35 * clampedR);
+        const cy = 25 + Math.sin(theta) * (13.5 * clampedR);
+        return {
+          treeX: Math.max(13, Math.min(87, Number(cx.toFixed(2)))),
+          treeY: Math.max(10, Math.min(41, Number(cy.toFixed(2)))),
+          groundX: Number((15 + ((index * 19) % 70)).toFixed(2)),
+          groundY: Number((82 + ((index * 7) % 10)).toFixed(2))
+        };
+      }
+
+      function evaluateSuggestionWorth(text) {
+        const lower = text.toLowerCase();
+        const lowValueKeywords = [
+          'candy crush', 'disco', 'spin 360', 'spinning', 'racing car', 'flappy bird',
+          'useless', 'spam', 'meme', 'delete all', 'crash', 'joke', 'nothing', 'blah', 'asdf'
+        ];
+        const highValueKeywords = [
+          'rust', 'wasm', 'webassembly', 'lidar', 'geoparquet', 'shapefile', 'cog',
+          'geotiff', 'watershed', 'buffer', 'voronoi', 'cadastre', 'village', 'offline',
+          'duckdb', 'postgis', 'tile', '3d', 'globe', 'mcp', 'agent', 'symbology', 'layer', 'map'
+        ];
+
+        for (let i = 0; i < lowValueKeywords.length; i++) {
+          if (lower.indexOf(lowValueKeywords[i]) !== -1 || lower.trim().length < 8) {
+            return {
+              score: 14,
+              worthy: false,
+              reason: 'Agentic Triage: Off-topic or counterproductive for Seva GIS geospatial workflows.'
+            };
+          }
+        }
+
+        let bonus = 0;
+        highValueKeywords.forEach(function (kw) {
+          if (lower.indexOf(kw) !== -1) bonus += 6;
+        });
+        const finalScore = Math.min(99, 76 + bonus);
+        return {
+          score: finalScore,
+          worthy: true,
+          reason: 'Agentic Triage: Valuable geospatial improvement aligned with Seva GIS & RustGIS.'
+        };
+      }
+
+      function getFullShiningAppleSvg(appleId, isSelected) {
+        const ringStroke = isSelected ? '#fde047' : '#3f0d0d';
+        const ringWidth = isSelected ? '3.5' : '2.2';
+        return (
+          '<svg class="apple-inner-svg w-11 h-11 sm:w-12 sm:h-12" viewBox="0 0 64 64" fill="none">' +
+            '<defs>' +
+              '<radialGradient id="appleBodyGrad_' + appleId + '" cx="35%" cy="30%" r="65%">' +
+                '<stop offset="0%" stop-color="#ff9a8b" />' +
+                '<stop offset="28%" stop-color="#ff3b30" />' +
+                '<stop offset="72%" stop-color="#c81e1e" />' +
+                '<stop offset="100%" stop-color="#690808" />' +
+              '</radialGradient>' +
+              '<linearGradient id="appleLeafGrad_' + appleId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+                '<stop offset="0%" stop-color="#bef264" />' +
+                '<stop offset="100%" stop-color="#15803d" />' +
+              '</linearGradient>' +
+            '</defs>' +
+            '<path d="M32 16 C32 10, 35 6, 39 5" stroke="#5c2d16" stroke-width="4" stroke-linecap="round" />' +
+            '<path d="M33 13 C24 5, 14 8, 16 16 C22 19, 28 17, 33 13 Z" fill="url(#appleLeafGrad_' + appleId + ')" stroke="#052e16" stroke-width="2" />' +
+            '<path d="M32 17 C21 14, 10 22, 11 36 C12 50, 22 58, 29 57 C31 56.5, 33 56.5, 35 57 C42 58, 52 50, 53 36 C54 22, 43 14, 32 17 Z" ' +
+              'fill="url(#appleBodyGrad_' + appleId + ')" stroke="' + ringStroke + '" stroke-width="' + ringWidth + '" />' +
+            '<ellipse cx="42" cy="42" rx="6" ry="8" fill="#facc15" opacity="0.32" transform="rotate(15 42 42)" />' +
+            '<ellipse cx="22" cy="27" rx="5.5" ry="9.5" transform="rotate(-22 22 27)" fill="#ffffff" opacity="0.82" />' +
+            '<circle cx="19" cy="40" r="2.3" fill="#ffffff" opacity="0.65" />' +
+          '</svg>'
+        );
+      }
+
+      function getHalfEatenAppleSvg(appleId, isSelected) {
+        const ringStroke = isSelected ? '#fde047' : '#451a03';
+        return (
+          '<svg class="w-12 h-12 sm:w-14 sm:h-14" viewBox="0 0 68 68" fill="none">' +
+            '<ellipse cx="34" cy="56" rx="22" ry="6" fill="#052e16" opacity="0.45" />' +
+            '<g transform="rotate(24 34 36)">' +
+              '<path d="M34 11 C34 6, 38 4, 41 3" stroke="#5c2d16" stroke-width="3.5" stroke-linecap="round" />' +
+              '<path d="M34 10 C26 6, 19 10, 21 16 C26 17, 30 14, 34 10 Z" fill="#65a30d" stroke="#1a2e05" stroke-width="1.8" />' +
+              '<path d="M20 20 L48 20 C42 26, 41 42, 48 49 L20 49 C27 42, 26 26, 20 20 Z" fill="#fef3c7" stroke="#d97706" stroke-width="2" />' +
+              '<circle cx="21" cy="28" r="4" fill="#fef08a" />' +
+              '<circle cx="22" cy="36" r="4.5" fill="#fef3c7" />' +
+              '<circle cx="46" cy="30" r="4" fill="#fef08a" />' +
+              '<circle cx="45" cy="39" r="4.5" fill="#fef3c7" />' +
+              '<path d="M34 13 C23 11, 14 16, 16 23 C23 25, 45 25, 52 23 C54 16, 45 11, 34 13 Z" fill="#dc2626" stroke="' + ringStroke + '" stroke-width="2.2" />' +
+              '<ellipse cx="26" cy="17" rx="5" ry="2.2" fill="#ffffff" opacity="0.75" />' +
+              '<path d="M17 47 C24 45, 44 45, 51 47 C49 55, 41 58, 34 57 C27 58, 19 55, 17 47 Z" fill="#b91c1c" stroke="' + ringStroke + '" stroke-width="2.2" />' +
+              '<ellipse cx="31" cy="35" rx="2.1" ry="3.4" transform="rotate(-12 31 35)" fill="#451a03" />' +
+              '<ellipse cx="37" cy="36" rx="2.1" ry="3.4" transform="rotate(14 37 36)" fill="#451a03" />' +
+            '</g>' +
+          '</svg>'
+        );
+      }
+
+      const applesLayer = document.getElementById('applesInteractiveLayer');
+      const countOnTreeEl = document.getElementById('countOnTree');
+      const countFallenEl = document.getElementById('countFallen');
+      const countCompletedEl = document.getElementById('countCompleted');
+      const harvestedLogListEl = document.getElementById('harvestedLogList');
+
+      function renderOrchard(newlySpawnedId) {
+        const onTreeApples = apples.filter(function (a) { return a.status === 'on_tree'; });
+        const fallenApples = apples.filter(function (a) { return a.status === 'fallen_half_eaten'; });
+
+        countOnTreeEl.textContent = String(onTreeApples.length);
+        countFallenEl.textContent = String(fallenApples.length);
+        countCompletedEl.textContent = String(completedHistory.length);
+
+        const scaleFactor = onTreeApples.length > 45 ? Math.max(0.68, 1 - (onTreeApples.length - 45) * 0.005) : 1;
+
+        applesLayer.innerHTML = '';
+
+        apples.forEach(function (apple) {
+          if (apple.status === 'completed_vanished') return;
+          if (activeFilter !== 'all' && apple.category !== activeFilter) return;
+
+          const isSelected = apple.id === selectedAppleId;
+          const node = document.createElement('button');
+          node.type = 'button';
+          node.dataset.appleId = String(apple.id);
+          node.setAttribute('aria-label', 'Suggestion Apple #' + apple.id + ': ' + apple.text);
+
+          if (apple.status === 'on_tree') {
+            node.className = 'cartoon-apple-node group focus:outline-none ' + (apple.id === newlySpawnedId ? 'apple-spawn-entry' : '');
+            node.style.left = apple.treeX + '%';
+            node.style.top = apple.treeY + '%';
+            if (scaleFactor < 1) {
+              node.style.transform = 'translate(-50%, -50%) scale(' + scaleFactor + ')';
+            }
+            node.innerHTML =
+              '<div class="relative flex flex-col items-center">' +
+                getFullShiningAppleSvg(apple.id, isSelected) +
+                '<span class="mt-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-cartoon font-bold bg-slate-950/85 text-amber-200 border border-amber-400/50 shadow whitespace-nowrap">' +
+                  '#' + apple.id +
+                '</span>' +
+              '</div>';
+          } else if (apple.status === 'fallen_half_eaten') {
+            node.className = 'half-eaten-apple-node group focus:outline-none';
+            node.style.left = apple.groundX + '%';
+            node.style.top = apple.groundY + '%';
+            node.innerHTML =
+              '<div class="relative flex flex-col items-center">' +
+                getHalfEatenAppleSvg(apple.id, isSelected) +
+                '<span class="-mt-1 px-1.5 py-0.2 rounded-full text-[10px] font-cartoon font-bold bg-amber-950/90 text-amber-300 border border-amber-500/50 shadow whitespace-nowrap">' +
+                  '#' + apple.id + ' (Half-Eaten)' +
+                '</span>' +
+              '</div>';
+          }
+
+          node.addEventListener('click', function (e) {
+            e.stopPropagation();
+            playSound('click');
+            openAppleInspector(apple.id);
+          });
+
+          applesLayer.appendChild(node);
+        });
+
+        harvestedLogListEl.innerHTML = '';
+        completedHistory.slice(-5).reverse().forEach(function (item) {
+          const pill = document.createElement('span');
+          pill.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-emerald-500/15 border border-emerald-500/30 text-emerald-200';
+          const shortText = item.text.length > 48 ? item.text.slice(0, 48) + '…' : item.text;
+          pill.innerHTML = '<span>✨ #' + item.id + ':</span> <strong class="text-white">' + escapeHtml(shortText) + '</strong>';
+          harvestedLogListEl.appendChild(pill);
+        });
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      const inspectorModal = document.getElementById('appleInspectorModal');
+      const inspectorAppleId = document.getElementById('inspectorAppleId');
+      const inspectorAppleStatusPill = document.getElementById('inspectorAppleStatusPill');
+      const inspectorAppleMeta = document.getElementById('inspectorAppleMeta');
+      const inspectorSuggestionText = document.getElementById('inspectorSuggestionText');
+      const inspectorAiVerdictText = document.getElementById('inspectorAiVerdictText');
+      const inspectorUpvotes = document.getElementById('inspectorUpvotes');
+      const inspectorAdminControls = document.getElementById('inspectorAdminControls');
+      const inspectorAppleBadgeIcon = document.getElementById('inspectorAppleBadgeIcon');
+      const markAppleDoneBtn = document.getElementById('markAppleDoneBtn');
+      const markAppleNotWorthBtn = document.getElementById('markAppleNotWorthBtn');
+      const restoreAppleToTreeBtn = document.getElementById('restoreAppleToTreeBtn');
+
+      function openAppleInspector(appleId) {
+        const apple = apples.find(function (a) { return a.id === appleId; });
+        if (!apple) return;
+        selectedAppleId = appleId;
+        inspectorModal.classList.remove('hidden');
+
+        inspectorAppleId.textContent = 'Apple #' + apple.id;
+        inspectorAppleMeta.textContent = 'Anonymous User • Category: ' + apple.category;
+        inspectorSuggestionText.textContent = '"' + apple.text + '"';
+        inspectorUpvotes.textContent = String(apple.upvotes);
+        inspectorAiVerdictText.textContent = '🤖 Agentic Score: ' + apple.aiScore + '/100 — ' + apple.aiReason;
+
+        if (apple.status === 'on_tree') {
+          inspectorAppleBadgeIcon.textContent = '🍎';
+          inspectorAppleBadgeIcon.className = 'w-11 h-11 rounded-2xl bg-red-500/20 border-2 border-red-400 flex items-center justify-center text-2xl';
+          inspectorAppleStatusPill.textContent = 'Shining on Banyan Tree';
+          inspectorAppleStatusPill.className = 'text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-400/40';
+          markAppleNotWorthBtn.classList.remove('hidden');
+          restoreAppleToTreeBtn.classList.add('hidden');
+        } else {
+          inspectorAppleBadgeIcon.textContent = '🥀';
+          inspectorAppleBadgeIcon.className = 'w-11 h-11 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-2xl';
+          inspectorAppleStatusPill.textContent = 'Fallen & Half-Eaten on Grass';
+          inspectorAppleStatusPill.className = 'text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40';
+          markAppleNotWorthBtn.classList.add('hidden');
+          restoreAppleToTreeBtn.classList.remove('hidden');
+        }
+
+        inspectorAdminControls.style.display = isAdminMode ? 'block' : 'none';
+        renderOrchard(null);
+      }
+
+      document.getElementById('closeInspectorBtn').addEventListener('click', function () {
+        selectedAppleId = null;
+        inspectorModal.classList.add('hidden');
+        renderOrchard(null);
+      });
+
+      document.getElementById('upvoteAppleBtn').addEventListener('click', function () {
+        if (!selectedAppleId) return;
+        const apple = apples.find(function (a) { return a.id === selectedAppleId; });
+        if (!apple) return;
+        apple.upvotes += 1;
+        inspectorUpvotes.textContent = String(apple.upvotes);
+        playSound('click');
+      });
+
+      markAppleDoneBtn.addEventListener('click', function () {
+        if (!selectedAppleId) return;
+        const apple = apples.find(function (a) { return a.id === selectedAppleId; });
+        if (!apple) return;
+
+        playSound('vanish');
+        const domNode = applesLayer.querySelector('[data-apple-id="' + apple.id + '"]');
+        if (domNode) {
+          domNode.classList.add('apple-vanishing');
+        }
+
+        setTimeout(function () {
+          apple.status = 'completed_vanished';
+          completedHistory.push({
+            id: apple.id,
+            text: apple.text,
+            category: apple.category
+          });
+          selectedAppleId = null;
+          inspectorModal.classList.add('hidden');
+          renderOrchard(null);
+        }, 680);
+      });
+
+      function triggerAppleFallToGround(apple) {
+        if (!apple || apple.status !== 'on_tree') return;
+        playSound('fall_crunch');
+
+        const domNode = applesLayer.querySelector('[data-apple-id="' + apple.id + '"]');
+        if (domNode) {
+          domNode.classList.add('apple-falling-anim');
+          domNode.style.left = apple.groundX + '%';
+          domNode.style.top = apple.groundY + '%';
+        }
+
+        setTimeout(function () {
+          apple.status = 'fallen_half_eaten';
+          renderOrchard(null);
+          if (selectedAppleId === apple.id) {
+            openAppleInspector(apple.id);
+          }
+        }, 760);
+      }
+
+      markAppleNotWorthBtn.addEventListener('click', function () {
+        if (!selectedAppleId) return;
+        const apple = apples.find(function (a) { return a.id === selectedAppleId; });
+        triggerAppleFallToGround(apple);
+      });
+
+      restoreAppleToTreeBtn.addEventListener('click', function () {
+        if (!selectedAppleId) return;
+        const apple = apples.find(function (a) { return a.id === selectedAppleId; });
+        if (!apple) return;
+        apple.status = 'on_tree';
+        playSound('spawn');
+        renderOrchard(apple.id);
+        openAppleInspector(apple.id);
+      });
+
+      function addNewSuggestionApple(text, category) {
+        const cleanText = String(text || '').trim();
+        if (!cleanText) return;
+
+        const id = nextAppleNumber++;
+        const coords = generateCanopyPosition(apples.length + 3);
+        const evaluation = evaluateSuggestionWorth(cleanText);
+
+        const newApple = {
+          id: id,
+          text: cleanText,
+          category: category || 'RustGIS Core',
+          status: 'on_tree',
+          upvotes: 1,
+          aiScore: evaluation.score,
+          aiReason: evaluation.reason,
+          treeX: coords.treeX,
+          treeY: coords.treeY,
+          groundX: coords.groundX,
+          groundY: coords.groundY
+        };
+
+        apples.push(newApple);
+        playSound('spawn');
+        renderOrchard(id);
+        openAppleInspector(id);
+      }
+
+      document.getElementById('appleSuggestionForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const inputEl = document.getElementById('suggestionInput');
+        const catEl = document.getElementById('suggestionCategory');
+        if (!inputEl.value.trim()) return;
+        addNewSuggestionApple(inputEl.value, catEl.value);
+        inputEl.value = '';
+      });
+
+      document.getElementById('presetGoodBtn1').addEventListener('click', function () {
+        addNewSuggestionApple(
+          'Stream rural cadastral parcels in zero-copy GeoParquet format using RustGIS L1 provider.',
+          'Village Cadastre'
+        );
+      });
+      document.getElementById('presetGoodBtn2').addEventListener('click', function () {
+        addNewSuggestionApple(
+          'Run WhiteboxTools D-Infinity flow accumulation in WebAssembly for check-dam site selection.',
+          '3D Terrain & LiDAR'
+        );
+      });
+      document.getElementById('presetBadBtn1').addEventListener('click', function () {
+        addNewSuggestionApple(
+          'Add a Candy Crush mini-game popup every time a surveyor clicks a village boundary.',
+          'General / Other'
+        );
+      });
+      document.getElementById('presetBadBtn2').addEventListener('click', function () {
+        addNewSuggestionApple(
+          'Make the map spin 360 degrees continuously with disco lights.',
+          'General / Other'
+        );
+      });
+
+      const sampleExtraSuggestions = [
+        { t: 'Add COPC LiDAR point-cloud elevation slicing in browser via WebGPU.', c: '3D Terrain & LiDAR' },
+        { t: 'Expose rustgis-cli MCP server so field engineers can script map exports.', c: 'AI MCP Agent' },
+        { t: 'Support live PostGIS & DuckDB Spatial SQL queries for district water tables.', c: 'RustGIS Core' },
+        { t: 'Add Telugu, Hindi, and Tamil ribbon translations in RustGIS i18n TSV catalog.', c: 'Village Cadastre' },
+        { t: 'Include FlatGeobuf spatial bounding-box streaming over 3G rural networks.', c: 'RustGIS Core' }
+      ];
+      let burstIdx = 0;
+
+      document.getElementById('spawnBurstApplesBtn').addEventListener('click', function () {
+        for (let i = 0; i < 5; i++) {
+          const item = sampleExtraSuggestions[(burstIdx + i) % sampleExtraSuggestions.length];
+          const id = nextAppleNumber++;
+          const coords = generateCanopyPosition(apples.length + 5 + i);
+          const evaluation = evaluateSuggestionWorth(item.t);
+          apples.push({
+            id: id,
+            text: item.t + ' (Batch #' + id + ')',
+            category: item.c,
+            status: 'on_tree',
+            upvotes: Math.floor(Math.random() * 15) + 2,
+            aiScore: evaluation.score,
+            aiReason: evaluation.reason,
+            treeX: coords.treeX,
+            treeY: coords.treeY,
+            groundX: coords.groundX,
+            groundY: coords.groundY
+          });
+        }
+        burstIdx += 5;
+        playSound('spawn');
+        renderOrchard(nextAppleNumber - 1);
+      });
+
+      document.getElementById('runAgenticTriageBtn').addEventListener('click', function () {
+        const unworthyOnTree = apples.filter(function (a) {
+          return a.status === 'on_tree' && a.aiScore < 50;
+        });
+
+        if (unworthyOnTree.length === 0) {
+          addNewSuggestionApple(
+            'Spam suggestion: replace village water table map with a meme generator.',
+            'General / Other'
+          );
+          setTimeout(function () {
+            const target = apples[apples.length - 1];
+            triggerAppleFallToGround(target);
+          }, 550);
+          return;
+        }
+
+        unworthyOnTree.forEach(function (apple, idx) {
+          setTimeout(function () {
+            triggerAppleFallToGround(apple);
+          }, idx * 280);
+        });
+      });
+
+      document.querySelectorAll('.tree-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          activeFilter = btn.dataset.filter || 'all';
+          document.querySelectorAll('.tree-filter-btn').forEach(function (b) {
+            b.className = 'tree-filter-btn px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800 transition';
+          });
+          btn.className = 'tree-filter-btn px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500 text-slate-950 transition';
+          renderOrchard(null);
+        });
+      });
+
+      document.getElementById('toggleAdminModeBtn').addEventListener('click', function () {
+        isAdminMode = !isAdminMode;
+        const label = document.getElementById('adminModeLabel');
+        const dot = document.getElementById('adminStatusDot');
+        if (isAdminMode) {
+          label.textContent = 'Role: Admin & Agentic AI (Active)';
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+        } else {
+          label.textContent = 'Role: Random Visitor (View & Plant Only)';
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+        }
+        if (selectedAppleId) {
+          openAppleInspector(selectedAppleId);
+        }
+      });
+
+      document.getElementById('toggleSoundBtn').addEventListener('click', function () {
+        soundEnabled = !soundEnabled;
+        document.getElementById('soundIcon').textContent = soundEnabled ? '🔊' : '🔇';
+        document.getElementById('soundText').textContent = soundEnabled ? 'SFX On' : 'Muted';
+      });
+
+      const atmoCanvas = document.getElementById('cartoonAtmosphereCanvas');
+      const atmoCtx = atmoCanvas.getContext('2d');
+      const sparkles = [];
+      for (let i = 0; i < 36; i++) {
+        sparkles.push({
+          x: Math.random() * 1400,
+          y: Math.random() * 640,
+          r: 1.8 + Math.random() * 2.8,
+          vx: -0.25 + Math.random() * 0.5,
+          vy: -0.35 + Math.random() * 0.7,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+
+      function resizeAtmoCanvas() {
+        const rect = atmoCanvas.parentElement.getBoundingClientRect();
+        atmoCanvas.width = Math.max(320, rect.width);
+        atmoCanvas.height = Math.max(480, rect.height);
+      }
+
+      function animateAtmo(ts) {
+        if (atmoCtx && atmoCanvas.width > 0) {
+          atmoCtx.clearRect(0, 0, atmoCanvas.width, atmoCanvas.height);
+          for (let i = 0; i < sparkles.length; i++) {
+            const p = sparkles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x < 0) p.x = atmoCanvas.width;
+            if (p.x > atmoCanvas.width) p.x = 0;
+            if (p.y < 0) p.y = atmoCanvas.height;
+            if (p.y > atmoCanvas.height) p.y = 0;
+
+            const alpha = 0.35 + 0.55 * Math.sin(ts * 0.003 + p.phase);
+            atmoCtx.beginPath();
+            atmoCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            atmoCtx.fillStyle = 'rgba(254, 249, 195, ' + alpha.toFixed(2) + ')';
+            atmoCtx.fill();
+          }
+        }
+        requestAnimationFrame(animateAtmo);
+      }
+
+      const viewSignIn = document.getElementById('viewSignIn');
+      const viewRustEngine = document.getElementById('viewRustEngine');
+      const viewBlueprint = document.getElementById('viewBlueprint');
+      const tabBtnSignIn = document.getElementById('tabBtnSignIn');
+      const tabBtnRustEngine = document.getElementById('tabBtnRustEngine');
+      const tabBtnBlueprint = document.getElementById('tabBtnBlueprint');
+
+      function switchView(target) {
+        viewSignIn.classList.add('hidden');
+        viewRustEngine.classList.add('hidden');
+        viewBlueprint.classList.add('hidden');
+
+        const inactiveClass = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-300 hover:text-white hover:bg-slate-800/70';
+        const activeClass = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-gradient-to-r from-emerald-500 to-green-600 text-slate-950 shadow';
+
+        tabBtnSignIn.className = inactiveClass;
+        tabBtnRustEngine.className = inactiveClass;
+        tabBtnBlueprint.className = inactiveClass;
+
+        if (target === 'signin') {
+          viewSignIn.classList.remove('hidden');
+          tabBtnSignIn.className = activeClass;
+          resizeAtmoCanvas();
+        } else if (target === 'engine') {
+          viewRustEngine.classList.remove('hidden');
+          tabBtnRustEngine.className = activeClass;
+          drawRustGisSandbox();
+        } else if (target === 'blueprint') {
+          viewBlueprint.classList.remove('hidden');
+          tabBtnBlueprint.className = activeClass;
+        }
+      }
+
+      tabBtnSignIn.addEventListener('click', function () { switchView('signin'); });
+      tabBtnRustEngine.addEventListener('click', function () { switchView('engine'); });
+      tabBtnBlueprint.addEventListener('click', function () { switchView('blueprint'); });
+
+      document.getElementById('sevaSignInForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.getElementById('loginIdentity').value;
+        const runtime = document.getElementById('loginEngineTarget').value;
+        const banner = document.getElementById('signInFeedbackBanner');
+        const text = document.getElementById('signInFeedbackText');
+        banner.classList.remove('hidden');
+        text.textContent = 'Signed in as ' + email + ' (' + runtime + ')! Click "Open Map →" or explore the Banyan Tree below.';
+        playSound('spawn');
+      });
+
+      document.getElementById('goSandboxQuickBtn').addEventListener('click', function () {
+        switchView('engine');
+      });
+
+      const mapCanvas = document.getElementById('rustGisMapCanvas');
+      const mapCtx = mapCanvas.getContext('2d');
+      const terminalEl = document.getElementById('rustCommandTerminal');
+      const undoCountLabel = document.getElementById('undoCountLabel');
+      const renderTimeLabel = document.getElementById('renderTimeLabel');
+
+      let mapCommandStack = ['init'];
+
+      const villages = [
+        { name: 'Nellore North Hub', x: 0.25, y: 0.35, pop: 8400 },
+        { name: 'Penna River Basin', x: 0.52, y: 0.48, pop: 14200 },
+        { name: 'Kovur Canal Sector', x: 0.38, y: 0.68, pop: 6300 },
+        { name: 'Coastal Cyclone Shelter', x: 0.76, y: 0.32, pop: 11900 },
+        { name: 'South Tank Watershed', x: 0.68, y: 0.72, pop: 9100 }
+      ];
+
+      function appendTerminalLine(cmdText) {
+        const row = document.createElement('div');
+        row.textContent = '$ ' + cmdText;
+        terminalEl.appendChild(row);
+        terminalEl.scrollTop = terminalEl.scrollHeight;
+      }
+
+      function drawRustGisSandbox() {
+        const rect = mapCanvas.parentElement.getBoundingClientRect();
+        mapCanvas.width = Math.max(300, rect.width);
+        mapCanvas.height = Math.max(320, rect.height);
+        const w = mapCanvas.width;
+        const h = mapCanvas.height;
+
+        mapCtx.fillStyle = '#091526';
+        mapCtx.fillRect(0, 0, w, h);
+        mapCtx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+        mapCtx.lineWidth = 1;
+        for (let gx = 0; gx < w; gx += 44) {
+          mapCtx.beginPath(); mapCtx.moveTo(gx, 0); mapCtx.lineTo(gx, h); mapCtx.stroke();
+        }
+        for (let gy = 0; gy < h; gy += 44) {
+          mapCtx.beginPath(); mapCtx.moveTo(0, gy); mapCtx.lineTo(w, gy); mapCtx.stroke();
+        }
+
+        const hasWatershed = mapCommandStack.indexOf('watershed') !== -1;
+        const hasVoronoi = mapCommandStack.indexOf('voronoi') !== -1;
+        const hasBuffer = mapCommandStack.indexOf('buffer') !== -1;
+        const hasGraduated = mapCommandStack.indexOf('graduated') !== -1;
+        const hasGeoParquet = mapCommandStack.indexOf('geoparquet') !== -1;
+
+        if (hasWatershed) {
+          mapCtx.strokeStyle = 'rgba(34, 211, 238, 0.65)';
+          mapCtx.lineWidth = 3.5;
+          mapCtx.beginPath();
+          mapCtx.moveTo(w * 0.08, h * 0.22);
+          mapCtx.bezierCurveTo(w * 0.35, h * 0.38, w * 0.52, h * 0.52, w * 0.92, h * 0.58);
+          mapCtx.stroke();
+        }
+
+        if (hasGeoParquet) {
+          mapCtx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+          mapCtx.fillStyle = 'rgba(251, 191, 36, 0.12)';
+          for (let px = 0; px < 5; px++) {
+            for (let py = 0; py < 3; py++) {
+              const rx = w * 0.18 + px * (w * 0.13);
+              const ry = h * 0.2 + py * (h * 0.2);
+              mapCtx.fillRect(rx, ry, w * 0.11, h * 0.16);
+              mapCtx.strokeRect(rx, ry, w * 0.11, h * 0.16);
+            }
+          }
+        }
+
+        if (hasVoronoi) {
+          mapCtx.strokeStyle = 'rgba(74, 222, 128, 0.5)';
+          mapCtx.lineWidth = 1.8;
+          for (let i = 0; i < villages.length; i++) {
+            for (let j = i + 1; j < villages.length; j++) {
+              mapCtx.beginPath();
+              mapCtx.moveTo(villages[i].x * w, villages[i].y * h);
+              mapCtx.lineTo(villages[j].x * w, villages[j].y * h);
+              mapCtx.stroke();
+            }
+          }
+        }
+
+        villages.forEach(function (v) {
+          const vx = v.x * w;
+          const vy = v.y * h;
+
+          if (hasBuffer) {
+            mapCtx.beginPath();
+            mapCtx.arc(vx, vy, 46, 0, Math.PI * 2);
+            mapCtx.fillStyle = 'rgba(249, 115, 22, 0.22)';
+            mapCtx.fill();
+            mapCtx.strokeStyle = '#fb923c';
+            mapCtx.lineWidth = 2;
+            mapCtx.stroke();
+          }
+
+          const radius = hasGraduated ? Math.max(8, v.pop / 750) : 9;
+          mapCtx.beginPath();
+          mapCtx.arc(vx, vy, radius, 0, Math.PI * 2);
+          mapCtx.fillStyle = hasGraduated ? '#c084fc' : '#38bdf8';
+          mapCtx.fill();
+          mapCtx.strokeStyle = '#ffffff';
+          mapCtx.lineWidth = 2;
+          mapCtx.stroke();
+
+          mapCtx.fillStyle = '#f8fafc';
+          mapCtx.font = '600 12px Inter, sans-serif';
+          mapCtx.fillText(v.name + ' (' + v.pop.toLocaleString() + ')', vx + 14, vy + 4);
+        });
+
+        undoCountLabel.textContent = String(Math.max(0, mapCommandStack.length - 1));
+        renderTimeLabel.textContent = (0.4 + Math.random() * 0.5).toFixed(2) + ' ms';
+      }
+
+      document.querySelectorAll('.rust-cmd-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const cmd = btn.dataset.rustcmd;
+          mapCommandStack.push(cmd);
+          playSound('click');
+
+          if (cmd === 'buffer') {
+            appendTerminalLine('rustgis-cli run --cmd \'gp.run={"tool":"buffer","params":{"input":"Seva_Villages","distance":250}}\'');
+          } else if (cmd === 'voronoi') {
+            appendTerminalLine('rustgis-cli run --cmd \'gp.run={"tool":"delaunayTriangulation","params":{"input":"Seva_Villages"}}\'');
+          } else if (cmd === 'watershed') {
+            appendTerminalLine('rustgis-cli run --cmd \'gp.run={"tool":"whitebox.d8_flow","params":{"dem":"Nellore_SRTM.tif"}}\'');
+          } else if (cmd === 'graduated') {
+            appendTerminalLine('rustgis-cli run --cmd \'layer.symbology={"layer":"Seva_Villages","type":"graduated","field":"pop"}\'');
+          } else if (cmd === 'geoparquet') {
+            appendTerminalLine('rustgis-cli run --cmd \'data.open={"path":"seva_cadastre.parquet","zeroCopy":true}\'');
+          }
+          drawRustGisSandbox();
+        });
+      });
+
+      document.getElementById('undoRustCommandBtn').addEventListener('click', function () {
+        if (mapCommandStack.length > 1) {
+          mapCommandStack.pop();
+          appendTerminalLine('rustgis-cli run --cmd \'edit.undo={}\'');
+          drawRustGisSandbox();
+        }
+      });
+
+      document.getElementById('resetRustMapBtn').addEventListener('click', function () {
+        mapCommandStack = ['init'];
+        appendTerminalLine('rustgis-cli session --reset');
+        drawRustGisSandbox();
+      });
+
+      const codeSnippets = {
+        rust_wasm: [
+          '//! crates/seva-rustgis-wasm/src/lib.rs',
+          '//! Pure-Rust Geospatial Engine for Seva GIS (following opengeos/RustGIS L0-L5 architecture)',
+          '#![deny(unsafe_code)]',
+          '#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]',
+          '',
+          'use geo::{Area, BooleanOps, Buffer, EuclideanDistance, MultiPolygon, Point, Polygon};',
+          'use serde::{Deserialize, Serialize};',
+          'use wasm_bindgen::prelude::*;',
+          '',
+          '#[derive(Debug, Clone, Serialize, Deserialize)]',
+          'pub enum AppleStatus {',
+          '    ShiningOnTree,',
+          '    ImplementedAndVanished,',
+          '    RejectedHalfEatenOnGrass,',
+          '}',
+          '',
+          '#[derive(Debug, Clone, Serialize, Deserialize)]',
+          'pub struct SuggestionApple {',
+          '    pub id: u64,',
+          '    pub anonymous_query: String,',
+          '    pub category: String,',
+          '    pub status: AppleStatus,',
+          '    pub agentic_worth_score: u8,',
+          '    pub canopy_xy: (f64, f64),',
+          '    pub ground_xy: (f64, f64),',
+          '}',
+          '',
+          '#[wasm_bindgen]',
+          'pub struct SevaRustGisSession {',
+          '    apples: Vec<SuggestionApple>,',
+          '    command_history: Vec<String>,',
+          '}',
+          '',
+          '#[wasm_bindgen]',
+          'impl SevaRustGisSession {',
+          '    #[wasm_bindgen(constructor)]',
+          '    pub fn new() -> Self {',
+          '        Self { apples: Vec::new(), command_history: Vec::new() }',
+          '    }',
+          '',
+          '    /// Anonymous user plants a new shining apple on the Banyan Tree (no limit)',
+          '    pub fn plant_suggestion_apple(&mut self, query: &str, category: &str) -> u64 {',
+          '        let id = (self.apples.len() as u64) + 1;',
+          '        let score = Self::agentic_score_query(query);',
+          '        self.apples.push(SuggestionApple {',
+          '            id,',
+          '            anonymous_query: query.trim().to_string(),',
+          '            category: category.to_string(),',
+          '            status: AppleStatus::ShiningOnTree,',
+          '            agentic_worth_score: score,',
+          '            canopy_xy: (50.0, 24.0),',
+          '            ground_xy: (35.0, 86.0),',
+          '        });',
+          '        id',
+          '    }',
+          '',
+          '    /// Admin marks suggestion as Done -> Apple vanishes from tree',
+          '    pub fn admin_mark_implemented(&mut self, apple_id: u64) -> bool {',
+          '        if let Some(apple) = self.apples.iter_mut().find(|a| a.id == apple_id) {',
+          '            apple.status = AppleStatus::ImplementedAndVanished;',
+          '            return true;',
+          '        }',
+          '        false',
+          '    }',
+          '',
+          '    /// Admin or Agentic AI marks suggestion as Not Worth It -> Falls & becomes Half-Eaten',
+          '    pub fn admin_or_agent_reject(&mut self, apple_id: u64) -> bool {',
+          '        if let Some(apple) = self.apples.iter_mut().find(|a| a.id == apple_id) {',
+          '            apple.status = AppleStatus::RejectedHalfEatenOnGrass;',
+          '            return true;',
+          '        }',
+          '        false',
+          '    }',
+          '',
+          '    fn agentic_score_query(q: &str) -> u8 {',
+          '        if q.len() < 8 || q.to_lowercase().contains("spam") { 15 } else { 94 }',
+          '    }',
+          '}'
+        ].join('\n'),
+
+        cargo_toml: [
+          '# Cargo.toml — Seva GIS Workspace integrating opengeos/RustGIS & GeoRust Crates',
+          '[workspace]',
+          'members = ["crates/seva-geom", "crates/seva-data", "crates/seva-analysis", "crates/seva-rustgis-wasm"]',
+          'resolver = "2"',
+          '',
+          '[workspace.dependencies]',
+          'geo = "0.29"',
+          'geo-types = "0.7"',
+          'geojson = "0.24"',
+          'geoarrow = "0.3"',
+          'parquet = { version = "53.0", default-features = false }',
+          'proj4rs = "0.1"',
+          'tiny-skia = "0.11"',
+          'wgpu = "22.0"',
+          'wasmi = "0.40"',
+          'wasm-bindgen = "0.2"',
+          'serde = { version = "1.0", features = ["derive"] }',
+          'serde_json = "1.0"',
+          '',
+          '[workspace.lints.rust]',
+          'unsafe_code = "forbid"',
+          '',
+          '[workspace.lints.clippy]',
+          'unwrap_used = "deny"',
+          'expect_used = "deny"',
+          'panic = "deny"'
+        ].join('\n'),
+
+        python_mcp: [
+          '# seva_backend.py — Python FastAPI + rustgis in-process session & Banyan Apple Tree API',
+          'from fastapi import FastAPI',
+          'from pydantic import BaseModel',
+          'import rustgis',
+          '',
+          'app = FastAPI(title="Seva GIS Portal & Banyan Suggestion Tree API")',
+          'gis_session = rustgis.Session(sample=False)',
+          '',
+          'class AnonymousSuggestion(BaseModel):',
+          '    query: str',
+          '    category: str = "RustGIS Core"',
+          '',
+          '@app.post("/api/banyan-tree/apples")',
+          'def plant_anonymous_apple(payload: AnonymousSuggestion):',
+          '    return {',
+          '        "status": "on_tree",',
+          '        "anonymous": True,',
+          '        "query": payload.query,',
+          '        "category": payload.category,',
+          '    }',
+          '',
+          '@app.post("/api/rustgis/command")',
+          'def execute_rustgis_command(tool: str, input_layer: str, distance: float = 100.0):',
+          '    gis_session.run("gp.run", tool=tool, params={"input": input_layer, "distance": distance})',
+          '    gdf = gis_session.layer(f"{input_layer}_Buffer").to_geopandas()',
+          '    return {"features_count": len(gdf), "crs": str(gdf.crs)}'
+        ].join('\n')
+      };
+
+      let currentCodeKey = 'rust_wasm';
+      const codeDisplayEl = document.getElementById('codeBlueprintDisplay');
+
+      function renderCodeTab(key) {
+        currentCodeKey = key;
+        codeDisplayEl.textContent = codeSnippets[key] || '';
+        document.querySelectorAll('.code-tab-btn').forEach(function (btn) {
+          if (btn.dataset.codefile === key) {
+            btn.className = 'code-tab-btn px-3.5 py-2 rounded-xl text-xs font-mono-code font-bold bg-orange-500 text-slate-950';
+          } else {
+            btn.className = 'code-tab-btn px-3.5 py-2 rounded-xl text-xs font-mono-code font-semibold bg-slate-900 text-slate-300 border border-slate-800';
+          }
+        });
+      }
+
+      document.querySelectorAll('.code-tab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          renderCodeTab(btn.dataset.codefile);
+        });
+      });
+
+      document.getElementById('copyCodeSnippetBtn').addEventListener('click', function () {
+        const text = codeSnippets[currentCodeKey] || '';
+        const btn = document.getElementById('copyCodeSnippetBtn');
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+          }
+          btn.textContent = '✅ Copied to Clipboard!';
+          setTimeout(function () {
+            btn.textContent = '📋 Copy Active Code File';
+          }, 1800);
+        } catch (err) {
+          btn.textContent = '✅ Ready to Copy';
+        }
+      });
+
+      window.addEventListener('resize', function () {
+        resizeAtmoCanvas();
+        if (!viewRustEngine.classList.contains('hidden')) {
+          drawRustGisSandbox();
+        }
+      });
+
+      window.addEventListener('load', function () {
+        renderOrchard(null);
+        resizeAtmoCanvas();
+        requestAnimationFrame(animateAtmo);
+        appendTerminalLine('rustgis-cli mcp --attach 127.0.0.1:8767 # Ready');
+        appendTerminalLine('Loaded Seva_Villages.geojson (5 features, EPSG:3857)');
+        renderCodeTab('rust_wasm');
+      });
+    })();
+  </script>
+</body>
+</html>

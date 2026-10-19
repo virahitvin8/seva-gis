@@ -39,6 +39,7 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 ## What you get
 | Section | In plain words |
 |---|---|
+| **Autonomous Clockwise Parameter Dispersion Engine (Sign-In)** | Interactive orbital clockwise radar dial (`12:00 → 02:00 → 04:00 → 06:00 → 08:00 → 10:00`) that automatically cycles `1 → 2 → 3 → 4 → 5 → 6 → 1` every `1s`, `3s`, or `5s` across **Precision Agriculture**, **Hydrology & Catchment Drainage**, **Terrain & Topography**, **Geology & Mineral Exploration**, **Catastrophe & Soil Health**, and **Google Drive Cloud Vault & Cartography** with expanding loading-dispersion waves. |
 | **Crop health** | How green, dense, and vigorous the crops are, and how that changed over time (hover the chart for exact date and value). |
 | **Water and drainage** | Where water collects, where it runs off, slope steepness, flow paths, and which terrain factors matter most. |
 | **Soil** | Clay, sand, silt, organic carbon, pH acidity, and cation exchange capacity of your soil. |
@@ -46,7 +47,9 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 | **Weather** | Live rain, temperature, soil temperature, and water balance, with automatic NASA POWER backup if primary servers are busy. |
 | **Pests and disease** | Early warning spectral anomaly patches to guide on-ground scouting. |
 | **Farm shape** | Width, compactness, autonomous tractor/drone path planning, and nearby farm relationships. |
-| **Reports** | Official PDF, Word (.doc), ZIP dossier, HTML, JSON, and georeferenced cartographic map images delivered directly to screen or email. |
+| **Training Academy & 40-Screenshot Field Guide** | 5-tab interactive academy featuring QGIS 3.x, Google Earth Engine, ArcGIS Pro, MATLAB R2026a & UAV 10-Rotor Swath labs, 16 Free GIS Vector Data catalogs, real Open-Meteo Elevation 3D Hypsometric & Bathymetric Contour Lab, IoT Soil/Weather/Drone Simulator, and Gatsbi AI / BRIC-NIPGR Manuscript Generator. |
+| **AI Agent Hub & 8-Agent Specialist Roster (`AGENT_ROSTER.md`)** | Project Constitution (`Tier 1` non-negotiable data & security laws), 8 Specialist Agents (`01 Chief Architect` to `08 Docs & Release Steward`), Routing Matrix, Conflict Resolution Protocol, Claude Code `settings.json` multi-model configurator, and live **SEVA·GIS ⇄ DYOP·GIS** brand switcher. |
+| **Reports** | Official PDF, Word (.doc), ZIP dossier, HTML, JSON, and georeferenced cartographic map images delivered directly to screen, local device, or Google Drive (`SEVA GIS`). |
 | **Languages** | Full native support across **English**, **తెలుగు (Telugu)**, and **हिन्दी (Hindi)**. |
 
 ---

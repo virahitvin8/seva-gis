@@ -109,6 +109,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   const [selectedDomain, setSelectedDomain] = useState<'agri' | 'hydro' | 'terrain' | 'geology' | 'hazard' | 'vault'>('agri')
   const [activeTechniqueIndex, setActiveTechniqueIndex] = useState<number>(0)
+  const [autoClockwise, setAutoClockwise] = useState<boolean>(true)
+  const [clockwiseCadenceSec, setClockwiseCadenceSec] = useState<1 | 3 | 5>(3)
+  const [dispersionProgress, setDispersionProgress] = useState<number>(0)
   const [googleModalOpen, setGoogleModalOpen] = useState(false)
   const [googleModalEmail, setGoogleModalEmail] = useState('')
 
@@ -213,6 +216,28 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   const currentDomain = DOMAIN_DATA[selectedDomain]
   const currentTechnique = currentDomain.techniques[activeTechniqueIndex] || currentDomain.techniques[0]
+
+  // Reset dispersion progress when domain, step, or cadence changes
+  useEffect(() => {
+    setDispersionProgress(0)
+  }, [selectedDomain, activeTechniqueIndex, clockwiseCadenceSec])
+
+  // Continuous automatic clockwise parameter advancement (1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 1)
+  useEffect(() => {
+    if (!autoClockwise) return
+    const tickMs = 50
+    const totalMs = clockwiseCadenceSec * 1000
+    let elapsed = 0
+    const timer = window.setInterval(() => {
+      elapsed += tickMs
+      setDispersionProgress(Math.min(1, elapsed / totalMs))
+      if (elapsed >= totalMs) {
+        elapsed = 0
+        setActiveTechniqueIndex(prev => (prev + 1) % 6)
+      }
+    }, tickMs)
+    return () => window.clearInterval(timer)
+  }, [autoClockwise, clockwiseCadenceSec, selectedDomain, activeTechniqueIndex])
 
   async function handleGoogleModalSignIn(e: React.FormEvent) {
     e.preventDefault()
@@ -406,7 +431,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
 
         {/* Domain Navigation Tabs */}
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 36 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 20 }}>
           {(Object.keys(DOMAIN_DATA) as (keyof typeof DOMAIN_DATA)[]).map(key => {
             const dom = DOMAIN_DATA[key]
             const isSel = selectedDomain === key
@@ -418,6 +443,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                 onClick={() => {
                   setSelectedDomain(key)
                   setActiveTechniqueIndex(0)
+                  setDispersionProgress(0)
+                  setAutoClockwise(true)
                 }}
                 style={{
                   display: 'inline-flex',
@@ -432,7 +459,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                   background: isSel ? dom.color : 'rgba(255, 255, 255, 0.05)',
                   color: isSel ? '#041d13' : '#e2e8f0',
                   border: isSel ? `1.5px solid ${dom.color}` : '1px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: isSel ? `0 0 20px ${dom.color}55` : 'none',
+                  boxShadow: isSel ? `0 0 22px ${dom.color}66` : 'none',
                 }}
               >
                 <Icon size={16} />
@@ -442,31 +469,182 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           })}
         </div>
 
-        {/* Interactive Clockwise Parameter Diagram Component */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 460px) minmax(320px, 1fr)', gap: 32, alignItems: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 20, padding: 32, backdropFilter: 'blur(12px)' }}>
-          {/* Circular Clockwise Dial SVG */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: 440, aspectRatio: '1/1', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg viewBox="0 0 400 400" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+        {/* Clockwise Cadence & Dispersion Control Strip */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24, padding: '12px 18px', borderRadius: 14, background: 'rgba(6, 22, 16, 0.82)', border: `1px solid ${currentDomain.color}44`, boxShadow: `0 8px 28px rgba(0,0,0,0.45), inset 0 0 20px ${currentDomain.color}14` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 999, background: `${currentDomain.color}24`, border: `1px solid ${currentDomain.color}77`, color: currentDomain.color, fontSize: 11, fontWeight: 800, letterSpacing: '0.06em' }}>
+              <Sparkles size={12} /> CLOCKWISE DISPERSION: 1 → 2 → 3 → 4 → 5 → 6 → 1
+            </span>
+            <span style={{ fontSize: 12.5, color: '#cbd5e1' }}>
+              Active Discipline: <strong style={{ color: '#f8fafc' }}>{currentDomain.name}</strong> · Step <strong style={{ color: currentDomain.color }}>#{activeTechniqueIndex + 1} → #{((activeTechniqueIndex + 1) % 6) + 1}</strong> ({Math.round(dispersionProgress * 100)}%)
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700 }}>Clockwise Speed:</span>
+            {([1, 3, 5] as const).map(sec => {
+              const activeSec = clockwiseCadenceSec === sec
+              return (
+                <button
+                  key={sec}
+                  type="button"
+                  onClick={() => {
+                    setClockwiseCadenceSec(sec)
+                    setAutoClockwise(true)
+                  }}
+                  style={{
+                    padding: '5px 11px',
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    background: activeSec ? currentDomain.color : 'rgba(255,255,255,0.06)',
+                    color: activeSec ? '#041d13' : '#cbd5e1',
+                    border: activeSec ? `1px solid ${currentDomain.color}` : '1px solid rgba(255,255,255,0.14)',
+                    boxShadow: activeSec ? `0 0 14px ${currentDomain.color}55` : 'none',
+                    transition: 'all 0.18s ease'
+                  }}
+                >
+                  {sec}s / step
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              onClick={() => setAutoClockwise(v => !v)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 12px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 800,
+                cursor: 'pointer',
+                background: autoClockwise ? `${currentDomain.color}28` : 'rgba(239, 68, 68, 0.18)',
+                color: autoClockwise ? currentDomain.color : '#fca5a5',
+                border: `1px solid ${autoClockwise ? currentDomain.color : 'rgba(239, 68, 68, 0.45)'}`
+              }}
+            >
+              <Play size={11} />
+              {autoClockwise ? `Auto-Rotating (${clockwiseCadenceSec}s)` : 'Paused (Click to Resume)'}
+            </button>
+          </div>
+        </div>
+
+        {/* Interactive Clockwise Parameter Dispersion Engine */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 32, alignItems: 'center', background: 'radial-gradient(circle at 24% 45%, rgba(16, 185, 129, 0.09), rgba(4, 18, 13, 0.92) 72%)', border: `1px solid ${currentDomain.color}44`, borderRadius: 22, padding: '30px 28px', backdropFilter: 'blur(14px)', boxShadow: `0 22px 54px -16px rgba(0,0,0,0.7), inset 0 0 36px ${currentDomain.color}14` }}>
+          {/* Circular Clockwise Dispersion Dial SVG */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: 450, aspectRatio: '1/1', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 420 420" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
               <defs>
                 <radialGradient id="dialGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor={currentDomain.color} stopOpacity="0.25" />
+                  <stop offset="0%" stopColor={currentDomain.color} stopOpacity="0.42" />
+                  <stop offset="55%" stopColor={currentDomain.color} stopOpacity="0.12" />
                   <stop offset="100%" stopColor={currentDomain.color} stopOpacity="0" />
                 </radialGradient>
+                <linearGradient id="clockwiseBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+                  <stop offset="45%" stopColor={currentDomain.color} stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.25" />
+                </linearGradient>
               </defs>
-              {/* Outer guide ring */}
-              <circle cx="200" cy="200" r="185" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-              <circle cx="200" cy="200" r="145" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeDasharray="4 6" />
-              <circle cx="200" cy="200" r="110" fill="url(#dialGlow)" />
 
-              {/* Connecting spokes from center to 6 clockwise nodes */}
+              {/* Ambient Core Nebula */}
+              <circle cx="210" cy="210" r="175" fill="url(#dialGlow)" />
+
+              {/* Multi-Wave Loading Dispersion Ripples Expanding from Center */}
+              {[0, 0.33, 0.66].map((offset, rippleIdx) => {
+                const wavePhase = (dispersionProgress + offset) % 1
+                const waveRadius = 46 + wavePhase * 130
+                const waveAlpha = Math.max(0, (1 - wavePhase) * 0.55)
+                return (
+                  <circle
+                    key={`dispersion-wave-${rippleIdx}`}
+                    cx="210"
+                    cy="210"
+                    r={waveRadius}
+                    fill="none"
+                    stroke={currentDomain.color}
+                    strokeOpacity={waveAlpha}
+                    strokeWidth={2 - wavePhase * 1.2}
+                    strokeDasharray={rippleIdx === 1 ? '6 6' : 'none'}
+                  />
+                )
+              })}
+
+              {/* Outer Degree & Clock-Face Ring */}
+              <circle cx="210" cy="210" r="192" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="1.2" />
+              {Array.from({ length: 36 }).map((_, tick) => {
+                const a = ((tick * 10 - 90) * Math.PI) / 180
+                const isMajor = tick % 6 === 0
+                const rInner = isMajor ? 182 : 186
+                const rOuter = 192
+                return (
+                  <line
+                    key={`tick-${tick}`}
+                    x1={210 + rInner * Math.cos(a)}
+                    y1={210 + rInner * Math.sin(a)}
+                    x2={210 + rOuter * Math.cos(a)}
+                    y2={210 + rOuter * Math.sin(a)}
+                    stroke={isMajor ? currentDomain.color : 'rgba(255,255,255,0.16)'}
+                    strokeWidth={isMajor ? 2.2 : 1}
+                  />
+                )
+              })}
+
+              {/* Orbit Track (Radius 148) */}
+              <circle cx="210" cy="210" r="148" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="2" strokeDasharray="5 7" />
+
+              {/* Clockwise Progress Arc Sweeping from 12:00 through Current Step + Live Sub-Step */}
+              {(() => {
+                const totalDeg = (activeTechniqueIndex + dispersionProgress) * 60
+                const startRad = (-90 * Math.PI) / 180
+                const endRad = ((totalDeg - 90) * Math.PI) / 180
+                const r = 148
+                const xStart = 210 + r * Math.cos(startRad)
+                const yStart = 210 + r * Math.sin(startRad)
+                const xEnd = 210 + r * Math.cos(endRad)
+                const yEnd = 210 + r * Math.sin(endRad)
+                const largeArc = totalDeg > 180 ? 1 : 0
+                const d =
+                  totalDeg >= 359.5
+                    ? `M 210 ${210 - r} A ${r} ${r} 0 1 1 209.9 ${210 - r}`
+                    : `M ${xStart} ${yStart} A ${r} ${r} 0 ${largeArc} 1 ${xEnd} ${yEnd}`
+                return (
+                  <>
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="url(#clockwiseBeam)"
+                      strokeWidth="4.5"
+                      strokeLinecap="round"
+                      style={{ filter: `drop-shadow(0 0 10px ${currentDomain.color})` }}
+                    />
+                    {/* Traveling Dispersion Particle on Orbit Head */}
+                    <circle
+                      cx={xEnd}
+                      cy={yEnd}
+                      r={6.5}
+                      fill="#ffffff"
+                      stroke={currentDomain.color}
+                      strokeWidth={3}
+                      style={{ filter: `drop-shadow(0 0 12px ${currentDomain.color})` }}
+                    />
+                  </>
+                )
+              })()}
+
+              {/* Connecting Spokes & Sweeping Clockwise Radar Beam */}
               {currentDomain.techniques.map((tech, idx) => {
-                const angleDeg = idx * 60 - 90 // 12:00 = -90°, 02:00 = -30°, 04:00 = 30°, 06:00 = 90°, etc.
+                const angleDeg = idx * 60 - 90
                 const rad = (angleDeg * Math.PI) / 180
-                const x1 = 200 + 48 * Math.cos(rad)
-                const y1 = 200 + 48 * Math.sin(rad)
-                const x2 = 200 + 145 * Math.cos(rad)
-                const y2 = 200 + 145 * Math.sin(rad)
+                const x1 = 210 + 52 * Math.cos(rad)
+                const y1 = 210 + 52 * Math.sin(rad)
+                const x2 = 210 + 148 * Math.cos(rad)
+                const y2 = 210 + 148 * Math.sin(rad)
                 const isCurrent = activeTechniqueIndex === idx
+                const isPassed = idx < activeTechniqueIndex
                 return (
                   <line
                     key={tech.title}
@@ -474,116 +652,243 @@ export default function AuthGate({ children }: { children: ReactNode }) {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke={isCurrent ? currentDomain.color : 'rgba(255,255,255,0.18)'}
-                    strokeWidth={isCurrent ? 2.5 : 1}
-                    strokeDasharray={isCurrent ? 'none' : '2 3'}
+                    stroke={isCurrent ? currentDomain.color : isPassed ? `${currentDomain.color}66` : 'rgba(255,255,255,0.15)'}
+                    strokeWidth={isCurrent ? 3 : 1.2}
+                    strokeDasharray={isCurrent ? 'none' : '3 4'}
                   />
                 )
               })}
 
+              {/* Continuous Sweeping Clockwise Hand */}
+              {(() => {
+                const beamDeg = (activeTechniqueIndex + dispersionProgress * 0.92) * 60 - 90
+                const beamRad = (beamDeg * Math.PI) / 180
+                const bx = 210 + 122 * Math.cos(beamRad)
+                const by = 210 + 122 * Math.sin(beamRad)
+                return (
+                  <line
+                    x1="210"
+                    y1="210"
+                    x2={bx}
+                    y2={by}
+                    stroke="url(#clockwiseBeam)"
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                  />
+                )
+              })()}
+
               {/* Center Domain Hub */}
-              <circle cx="200" cy="200" r="46" fill="#0b2419" stroke={currentDomain.color} strokeWidth="2.5" />
-              <text x="200" y="196" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="800" fontFamily="sans-serif">
+              <circle cx="210" cy="210" r="50" fill="#061912" stroke={currentDomain.color} strokeWidth="2.8" style={{ filter: `drop-shadow(0 0 18px ${currentDomain.color}66)` }} />
+              <text x="210" y="198" textAnchor="middle" fill="#f8fafc" fontSize="11" fontWeight="900" fontFamily="sans-serif">
                 SEVA·GIS
               </text>
-              <text x="200" y="210" textAnchor="middle" fill={currentDomain.color} fontSize="9" fontWeight="700" fontFamily="sans-serif">
-                CLOCKWISE
+              <text x="210" y="213" textAnchor="middle" fill={currentDomain.color} fontSize="10" fontWeight="800" fontFamily="monospace">
+                STEP #{activeTechniqueIndex + 1} / 6
+              </text>
+              <text x="210" y="226" textAnchor="middle" fill="#94a3b8" fontSize="8.5" fontWeight="700" fontFamily="sans-serif">
+                ↻ {clockwiseCadenceSec}s CLOCKWISE
               </text>
 
-              {/* 6 Clockwise Parameter Nodes */}
+              {/* 6 Clockwise Parameter Nodes (1 -> 2 -> 3 -> 4 -> 5 -> 6) */}
               {currentDomain.techniques.map((tech, idx) => {
                 const angleDeg = idx * 60 - 90
                 const rad = (angleDeg * Math.PI) / 180
-                const cx = 200 + 145 * Math.cos(rad)
-                const cy = 200 + 145 * Math.sin(rad)
+                const cx = 210 + 148 * Math.cos(rad)
+                const cy = 210 + 148 * Math.sin(rad)
                 const isCurrent = activeTechniqueIndex === idx
+                const isNext = (activeTechniqueIndex + 1) % 6 === idx
+                const shortLabel = tech.title.split(' (')[0].slice(0, 16)
 
                 return (
                   <g
                     key={tech.title}
-                    onClick={() => setActiveTechniqueIndex(idx)}
-                    style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                    onClick={() => {
+                      setActiveTechniqueIndex(idx)
+                      setDispersionProgress(0)
+                    }}
+                    style={{ cursor: 'pointer' }}
                   >
+                    {/* Active Node Expanding Dispersion Halo */}
+                    {isCurrent && (
+                      <>
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={26 + dispersionProgress * 22}
+                          fill="none"
+                          stroke={currentDomain.color}
+                          strokeOpacity={Math.max(0, 1 - dispersionProgress)}
+                          strokeWidth={2.5}
+                        />
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={26 + ((dispersionProgress + 0.5) % 1) * 22}
+                          fill="none"
+                          stroke="#ffffff"
+                          strokeOpacity={Math.max(0, 0.7 - ((dispersionProgress + 0.5) % 1) * 0.7)}
+                          strokeWidth={1.5}
+                        />
+                      </>
+                    )}
+
                     <circle
                       cx={cx}
                       cy={cy}
-                      r={isCurrent ? 24 : 18}
-                      fill={isCurrent ? currentDomain.color : '#0d2217'}
-                      stroke={isCurrent ? '#ffffff' : currentDomain.color}
-                      strokeWidth={isCurrent ? 3 : 1.5}
-                      style={{ filter: isCurrent ? `drop-shadow(0 0 12px ${currentDomain.color})` : 'none' }}
+                      r={isCurrent ? 27 : isNext ? 22 : 19}
+                      fill={isCurrent ? currentDomain.color : '#091e15'}
+                      stroke={isCurrent ? '#ffffff' : isNext ? currentDomain.color : 'rgba(255,255,255,0.35)'}
+                      strokeWidth={isCurrent ? 3 : isNext ? 2 : 1.5}
+                      style={{ filter: isCurrent ? `drop-shadow(0 0 16px ${currentDomain.color})` : 'none', transition: 'r 0.25s ease' }}
                     />
                     <text
                       x={cx}
-                      y={cy + 4}
+                      y={cy - 2}
                       textAnchor="middle"
                       fill={isCurrent ? '#041d13' : '#f8fafc'}
-                      fontSize={isCurrent ? '11' : '9.5'}
-                      fontWeight="800"
+                      fontSize={isCurrent ? '13' : '11'}
+                      fontWeight="900"
                       fontFamily="monospace"
                     >
                       {idx + 1}
                     </text>
+                    <text
+                      x={cx}
+                      y={cy + 10}
+                      textAnchor="middle"
+                      fill={isCurrent ? '#06281b' : '#94a3b8'}
+                      fontSize="7.5"
+                      fontWeight="800"
+                      fontFamily="monospace"
+                    >
+                      {tech.angle}
+                    </text>
+
+                    {/* Floating Pill Label Next to Node */}
+                    <g transform={`translate(${cx}, ${cy + (cy >= 210 ? 38 : -34)})`}>
+                      <rect
+                        x="-58"
+                        y="-10"
+                        width="116"
+                        height="19"
+                        rx="9.5"
+                        fill={isCurrent ? currentDomain.color : 'rgba(4, 18, 13, 0.9)'}
+                        stroke={isCurrent ? '#ffffff' : `${currentDomain.color}66`}
+                        strokeWidth={isCurrent ? 1.4 : 1}
+                      />
+                      <text
+                        x="0"
+                        y="3"
+                        textAnchor="middle"
+                        fill={isCurrent ? '#041d13' : '#e2e8f0'}
+                        fontSize="8.5"
+                        fontWeight={isCurrent ? '900' : '700'}
+                      >
+                        {shortLabel}
+                      </text>
+                    </g>
                   </g>
                 )
               })}
             </svg>
+
+            {/* Live Linear Dispersion Wave Bar under Circular Dial */}
+            <div style={{ width: '100%', maxWidth: 340, marginTop: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 5, fontWeight: 700 }}>
+                <span>Clockwise Wave: Parameter #{activeTechniqueIndex + 1} → #{((activeTechniqueIndex + 1) % 6) + 1}</span>
+                <span style={{ color: currentDomain.color }}>{Math.round(dispersionProgress * 100)}%</span>
+              </div>
+              <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${dispersionProgress * 100}%`,
+                    height: '100%',
+                    background: `linear-gradient(90deg, ${currentDomain.color}, #38bdf8, #ffffff)`,
+                    boxShadow: `0 0 12px ${currentDomain.color}`
+                  }}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Active Parameter Detail Card */}
+          {/* Active Parameter Detail Card + 6-Step Clockwise Pipeline */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, background: currentDomain.bg, color: currentDomain.color, border: `1px solid ${currentDomain.border}`, padding: '3px 10px', borderRadius: 999 }}>
-                Position {currentTechnique.angle} · Parameter #{activeTechniqueIndex + 1} of 6
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11.5, fontWeight: 800, background: currentDomain.bg, color: currentDomain.color, border: `1px solid ${currentDomain.border}`, padding: '4px 12px', borderRadius: 999 }}>
+                ↻ Clockwise Position {currentTechnique.angle} · Parameter #{activeTechniqueIndex + 1} of 6
               </span>
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>{currentDomain.tag}</span>
+              <span style={{ fontSize: 11.5, color: '#94a3b8', fontWeight: 700 }}>{currentDomain.tag}</span>
             </div>
 
-            <h3 style={{ fontSize: 24, fontWeight: 800, color: '#f8fafc', margin: 0 }}>
-              {currentTechnique.title}
+            <h3 style={{ fontSize: 25, fontWeight: 900, color: '#f8fafc', margin: 0, letterSpacing: '-0.01em' }}>
+              #{activeTechniqueIndex + 1}. {currentTechnique.title}
             </h3>
 
-            <p style={{ fontSize: 14.5, color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>
+            <p style={{ fontSize: 14.5, color: '#cbd5e1', lineHeight: 1.65, margin: 0 }}>
               {currentTechnique.desc}
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 4 }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 14 }}>
-                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 2 }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: `1px solid ${currentDomain.color}33`, borderRadius: 12, padding: 14 }}>
+                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 4, fontWeight: 700 }}>
                   Sensor / Platform Source
                 </span>
-                <b style={{ fontSize: 13, color: '#38bdf8' }}>{currentTechnique.sensor}</b>
+                <b style={{ fontSize: 13.5, color: '#38bdf8' }}>{currentTechnique.sensor}</b>
               </div>
 
-              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 10, padding: 14 }}>
-                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: `1px solid ${currentDomain.color}33`, borderRadius: 12, padding: 14 }}>
+                <span style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 4, fontWeight: 700 }}>
                   Algorithm / Formula
                 </span>
-                <code style={{ fontSize: 12, color: '#34d399', fontFamily: 'monospace' }}>{currentTechnique.formula}</code>
+                <code style={{ fontSize: 12.5, color: currentDomain.color, fontFamily: 'monospace', fontWeight: 700 }}>{currentTechnique.formula}</code>
               </div>
             </div>
 
-            {/* Quick-Cycle Parameter Buttons */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
-              {currentDomain.techniques.map((t, i) => (
-                <button
-                  key={t.title}
-                  type="button"
-                  onClick={() => setActiveTechniqueIndex(i)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    background: activeTechniqueIndex === i ? currentDomain.color : 'rgba(255,255,255,0.06)',
-                    color: activeTechniqueIndex === i ? '#041d13' : '#94a3b8',
-                    border: 'none'
-                  }}
-                >
-                  #{i + 1} {t.title.split(' (')[0]}
-                </button>
-              ))}
+            {/* 6-Step Synchronized Clockwise Sequence Grid (1 -> 2 -> 3 -> 4 -> 5 -> 6) */}
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                Live Clockwise Progression Sequence (1 → 2 → 3 → 4 → 5 → 6)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 8 }}>
+                {currentDomain.techniques.map((t, i) => {
+                  const isAct = activeTechniqueIndex === i
+                  return (
+                    <button
+                      key={t.title}
+                      type="button"
+                      onClick={() => {
+                        setActiveTechniqueIndex(i)
+                        setDispersionProgress(0)
+                      }}
+                      style={{
+                        textAlign: 'left',
+                        padding: '9px 11px',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        background: isAct ? `${currentDomain.color}24` : 'rgba(255,255,255,0.03)',
+                        color: isAct ? '#f8fafc' : '#94a3b8',
+                        border: isAct ? `1.5px solid ${currentDomain.color}` : '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: isAct ? `0 0 16px ${currentDomain.color}33` : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, fontWeight: 800, color: isAct ? currentDomain.color : '#64748b', marginBottom: 2 }}>
+                        <span>STEP 0{i + 1} · {t.angle}</span>
+                        <span>{isAct ? '● ACTIVE' : '↻'}</span>
+                      </div>
+                      <div style={{ fontSize: 11.5, fontWeight: 800, color: isAct ? '#ffffff' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {t.title.split(' (')[0]}
+                      </div>
+                      {isAct && (
+                        <div style={{ position: 'absolute', left: 0, bottom: 0, height: 3, width: `${dispersionProgress * 100}%`, background: currentDomain.color }} />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>

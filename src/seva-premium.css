@@ -1,52 +1,54 @@
 /* ========================================================================= */
-/* SEVA.GIS — 3D CARTOON & ANIMATED GRAPHIC THEME (WHOLE WEBSITE)           */
-/* Inspired by Fredoka typography, glossy 3D pill buttons, lush painted     */
-/* meadow & cosmic sky palettes, spring micro-interactions & Banyan orchard */
+/* SEVA.GIS — BMW EXECUTIVE THEME (ANIMATED CARTOON INTERACTIONS)            */
+/* Crisp white canvas · BMW M-sport navy · Electric blue accents · Silver    */
+/* Cartoon 3D buttons & spring micro-animations preserved                    */
 /* ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-cartoon: 'Fredoka', 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  
-  --cartoon-sky-top: #1e90ff;
-  --cartoon-sky-mid: #4facfe;
-  --cartoon-sky-light: #7ee8fa;
-  --cartoon-meadow-lime: #a3e635;
-  --cartoon-meadow-mid: #4ade80;
-  --cartoon-meadow-deep: #16a34a;
-  --cartoon-apple-ruby: #ff3b30;
-  --cartoon-apple-glow: #facc15;
-  --cartoon-trunk-bark: #3b1d0e;
-  
-  --cartoon-dark-bg: #0b1320;
-  --cartoon-card-bg: rgba(15, 23, 42, 0.94);
-  --cartoon-border: #1e293b;
-  --cartoon-border-glow: #38bdf8;
-  --cartoon-text-main: #f8fafc;
-  --cartoon-text-muted: #94a3b8;
-  --cartoon-text-dim: #64748b;
-  
-  --primary: #10b981;
-  --border: #1e293b;
-  --muted: #94a3b8;
+
+  /* BMW Executive Palette */
+  --bmw-white:       #f8fafd;
+  --bmw-silver:      #e8edf4;
+  --bmw-silver-mid:  #d0d8e8;
+  --bmw-silver-deep: #b0bcd4;
+  --bmw-navy:        #0b1f35;
+  --bmw-navy-mid:    #0f2942;
+  --bmw-navy-light:  #183553;
+  --bmw-blue:        #0066b3;
+  --bmw-blue-bright: #0080d6;
+  --bmw-blue-light:  #4fa8e8;
+  --bmw-blue-pale:   #dceef8;
+  --bmw-chrome:      #c8d0dc;
+  --bmw-text:        #0d1f2d;
+  --bmw-text-mid:    #2c4260;
+  --bmw-text-muted:  #5a7a9a;
+
+  /* Kept for compatibility */
+  --primary: #0066b3;
+  --border:  #d0d8e8;
+  --muted:   #5a7a9a;
 }
 
 body {
   font-family: var(--font-sans);
-  background: var(--cartoon-dark-bg);
-  color: var(--cartoon-text-main);
+  background: var(--bmw-white);
+  color: var(--bmw-text);
   overflow-x: hidden;
   margin: 0;
 }
 
-/* Custom Cartoon Theme Scrollbar */
+/* BMW Executive Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0b1320; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-track { background: var(--bmw-silver); }
+::-webkit-scrollbar-thumb { background: var(--bmw-silver-deep); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bmw-blue); }
 
-/* Global Cartoon Typography */
+/* Global Cartoon Typography — BMW brand headings */
 h1, h2, h3, h4, h5, h6,
 .font-cartoon,
 .brand,
@@ -75,16 +77,15 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ========================================================================= */
-/* GLOSSY 3D CARTOON PILL BUTTONS                                            */
+/* GLOSSY 3D CARTOON BMW BLUE — PRIMARY BUTTON                               */
 /* ========================================================================= */
 
-/* Primary Glossy Ruby / Coral 3D Button */
 .primary,
 .au-go,
 .cartoon-btn-primary {
-  background: linear-gradient(180deg, #ff5e62 0%, #ef4444 48%, #b91c1c 100%) !important;
-  border: 3px solid #450a0a !important;
-  box-shadow: 0 5px 0 #450a0a, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
+  background: linear-gradient(180deg, #2196f3 0%, #0066b3 48%, #003f7a 100%) !important;
+  border: 3px solid #001e3c !important;
+  box-shadow: 0 5px 0 #001e3c, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
   color: #ffffff !important;
   font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
   font-weight: 700 !important;
@@ -95,16 +96,16 @@ h1, h2, h3, h4, h5, h6,
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
 }
 
 .primary:hover,
 .au-go:hover,
 .cartoon-btn-primary:hover {
-  background: linear-gradient(180deg, #ff7679 0%, #f87171 48%, #dc2626 100%) !important;
+  background: linear-gradient(180deg, #42a5f5 0%, #0080d6 48%, #0055a0 100%) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #450a0a, inset 0 2px 3px rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 7px 0 #001e3c, inset 0 2px 3px rgba(255, 255, 255, 0.65) !important;
   filter: brightness(1.08) !important;
 }
 
@@ -112,15 +113,15 @@ h1, h2, h3, h4, h5, h6,
 .au-go:active,
 .cartoon-btn-primary:active {
   transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #450a0a !important;
+  box-shadow: 0 2px 0 #001e3c !important;
 }
 
-/* Secondary Glossy Meadow Green 3D Button */
+/* Secondary — BMW Navy 3D Button */
 .au-guest,
 .cartoon-btn-green {
-  background: linear-gradient(180deg, #4ade80 0%, #16a34a 52%, #15803d 100%) !important;
-  border: 3px solid #052e16 !important;
-  box-shadow: 0 5px 0 #052e16, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
+  background: linear-gradient(180deg, #224b7a 0%, #0b1f35 52%, #050d18 100%) !important;
+  border: 3px solid #020710 !important;
+  box-shadow: 0 5px 0 #020710, inset 0 2px 2px rgba(255, 255, 255, 0.25) !important;
   color: #ffffff !important;
   font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
   font-weight: 700 !important;
@@ -131,29 +132,29 @@ h1, h2, h3, h4, h5, h6,
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
 }
 
 .au-guest:hover,
 .cartoon-btn-green:hover {
-  filter: brightness(1.08) !important;
+  filter: brightness(1.18) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #052e16, inset 0 2px 3px rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 7px 0 #020710, inset 0 2px 3px rgba(255, 255, 255, 0.35) !important;
 }
 
 .au-guest:active,
 .cartoon-btn-green:active {
   transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #052e16 !important;
+  box-shadow: 0 2px 0 #020710 !important;
 }
 
-/* Amber / Sunshine Yellow 3D Button */
+/* Silver Chrome 3D Button */
 .cartoon-btn-amber {
-  background: linear-gradient(180deg, #fde047 0%, #f59e0b 52%, #b45309 100%) !important;
-  border: 3px solid #451a03 !important;
-  box-shadow: 0 5px 0 #451a03, inset 0 2px 2px rgba(255, 255, 255, 0.65) !important;
-  color: #290f02 !important;
+  background: linear-gradient(180deg, #e8edf4 0%, #c8d0dc 52%, #a8b4c8 100%) !important;
+  border: 3px solid #6e7e94 !important;
+  box-shadow: 0 5px 0 #6e7e94, inset 0 2px 2px rgba(255, 255, 255, 0.85) !important;
+  color: var(--bmw-navy) !important;
   font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
   font-weight: 700 !important;
   border-radius: 14px !important;
@@ -167,21 +168,21 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .cartoon-btn-amber:hover {
-  filter: brightness(1.08) !important;
+  filter: brightness(1.06) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #451a03, inset 0 2px 3px rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 7px 0 #6e7e94, inset 0 2px 3px rgba(255, 255, 255, 0.95) !important;
 }
 
 .cartoon-btn-amber:active {
   transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #451a03 !important;
+  box-shadow: 0 2px 0 #6e7e94 !important;
 }
 
-/* Sky Cyan 3D Button */
+/* Bright Sky BMW Blue 3D Button */
 .cartoon-btn-blue {
-  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 52%, #0369a1 100%) !important;
-  border: 3px solid #082f49 !important;
-  box-shadow: 0 5px 0 #082f49, inset 0 2px 2px rgba(255, 255, 255, 0.65) !important;
+  background: linear-gradient(180deg, #4fa8e8 0%, #0080d6 52%, #0055a0 100%) !important;
+  border: 3px solid #001e3c !important;
+  box-shadow: 0 5px 0 #001e3c, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
   color: #ffffff !important;
   font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
   font-weight: 700 !important;
@@ -192,27 +193,27 @@ h1, h2, h3, h4, h5, h6,
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
 }
 
 .cartoon-btn-blue:hover {
-  filter: brightness(1.08) !important;
+  filter: brightness(1.1) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #082f49, inset 0 2px 3px rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 7px 0 #001e3c, inset 0 2px 3px rgba(255, 255, 255, 0.75) !important;
 }
 
 .cartoon-btn-blue:active {
   transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #082f49 !important;
+  box-shadow: 0 2px 0 #001e3c !important;
 }
 
-/* Google Sign-In Button with 3D Bevel */
+/* Google Sign-In Button — white chrome on BMW silver */
 .au-google-btn {
   background: #ffffff !important;
-  color: #0f172a !important;
-  border: 3px solid #94a3b8 !important;
-  box-shadow: 0 5px 0 #64748b, inset 0 2px 2px rgba(255, 255, 255, 0.8) !important;
+  color: var(--bmw-navy) !important;
+  border: 3px solid var(--bmw-silver-deep) !important;
+  box-shadow: 0 5px 0 var(--bmw-silver-deep), inset 0 2px 2px rgba(255, 255, 255, 0.9) !important;
   border-radius: 14px !important;
   font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
   font-weight: 700 !important;
@@ -226,18 +227,18 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .au-google-btn:hover {
-  background: #f8fafc !important;
+  background: var(--bmw-silver) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #64748b !important;
+  box-shadow: 0 7px 0 var(--bmw-silver-deep) !important;
 }
 
 .au-google-btn:active {
   transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #64748b !important;
+  box-shadow: 0 2px 0 var(--bmw-silver-deep) !important;
 }
 
 /* ========================================================================= */
-/* CARTOON 3D PAINTED CARDS & SURFACES ACROSS THE WHOLE WEBSITE             */
+/* CARTOON 3D PAINTED CARDS — BMW EXECUTIVE WHITE                             */
 /* ========================================================================= */
 
 .summary-card,
@@ -253,11 +254,11 @@ h1, h2, h3, h4, h5, h6,
 .au-card,
 .au-hub-card,
 .modal {
-  background: rgba(15, 23, 42, 0.94) !important;
-  color: #f8fafc !important;
-  border: 3px solid #1e293b !important;
+  background: #ffffff !important;
+  color: var(--bmw-text) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 20px !important;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 24px rgba(11, 31, 53, 0.10), 0 1px 4px rgba(11, 31, 53, 0.06) !important;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
 }
 
@@ -269,14 +270,14 @@ h1, h2, h3, h4, h5, h6,
 .action-card:hover,
 .au-hub-card:hover {
   transform: translateY(-4px) scale(1.015) !important;
-  border-color: rgba(56, 189, 248, 0.5) !important;
-  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.25) !important;
+  border-color: var(--bmw-blue-light) !important;
+  box-shadow: 0 16px 48px rgba(0, 102, 179, 0.18), 0 0 0 3px rgba(0, 128, 214, 0.12) !important;
 }
 
-/* Metric Icon with 3D Glossy Finish */
+/* Metric Icon — BMW Blue Glossy */
 .metric-icon {
   border-radius: 14px !important;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 4px 10px rgba(0, 102, 179, 0.18) !important;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 .summary-card:hover .metric-icon {
@@ -284,32 +285,32 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .metric-icon.healthy {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  background: linear-gradient(135deg, #0080d6 0%, #0066b3 100%) !important;
   color: #ffffff !important;
-  border: 2px solid #052e16 !important;
+  border: 2px solid #003f7a !important;
 }
 
 .metric-icon.attention {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  background: linear-gradient(135deg, #e8a020 0%, #c07a00 100%) !important;
   color: #ffffff !important;
-  border: 2px solid #451a03 !important;
+  border: 2px solid #7a4c00 !important;
 }
 
 /* ========================================================================= */
-/* SHELL, SIDEBAR & TOPBAR ANIMATED THEME                                    */
+/* SHELL, SIDEBAR & TOPBAR — BMW NAVY                                         */
 /* ========================================================================= */
 
 .app-shell,
 .main-shell {
-  background: #0b1320 !important;
-  color: #f8fafc !important;
+  background: var(--bmw-silver) !important;
+  color: var(--bmw-text) !important;
   min-height: 100vh;
 }
 
 .sidebar {
-  background: linear-gradient(180deg, #09131e 0%, #0e2030 50%, #063e26 100%) !important;
-  border-right: 3px solid #1e293b !important;
-  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.45) !important;
+  background: linear-gradient(180deg, #0b1f35 0%, #0f2942 55%, #183553 100%) !important;
+  border-right: 3px solid #1e3a5a !important;
+  box-shadow: 6px 0 32px rgba(0, 0, 0, 0.35) !important;
 }
 
 .sidebar .brand {
@@ -318,25 +319,27 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .sidebar .workspace {
-  background: rgba(15, 23, 42, 0.8) !important;
-  border: 2px solid #334155 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 2px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 14px !important;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  color: #e8edf4 !important;
 }
 .sidebar .workspace:hover {
   transform: scale(1.02) !important;
-  border-color: #38bdf8 !important;
+  border-color: var(--bmw-blue-light) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
 }
 
 .topbar {
-  background: rgba(11, 19, 32, 0.95) !important;
-  border-bottom: 3px solid #1e293b !important;
-  backdrop-filter: blur(12px) !important;
-  color: #f8fafc !important;
+  background: #ffffff !important;
+  border-bottom: 2px solid var(--bmw-silver-mid) !important;
+  box-shadow: 0 2px 12px rgba(11, 31, 53, 0.07) !important;
+  color: var(--bmw-text) !important;
 }
 
 .topbar .breadcrumb strong {
-  color: #38bdf8 !important;
+  color: var(--bmw-blue) !important;
   font-family: var(--font-cartoon) !important;
   font-weight: 700 !important;
 }
@@ -346,24 +349,24 @@ h1, h2, h3, h4, h5, h6,
   font-family: var(--font-cartoon) !important;
   font-size: 13px !important;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  color: #cbd5e1 !important;
+  color: rgba(255, 255, 255, 0.72) !important;
 }
 
 .sidebar nav button:hover {
   transform: translateX(4px) !important;
-  background: rgba(56, 189, 248, 0.15) !important;
-  color: #38bdf8 !important;
+  background: rgba(79, 168, 232, 0.2) !important;
+  color: #a8d4f5 !important;
 }
 
 .sidebar nav button.active {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  color: #041d13 !important;
+  background: linear-gradient(135deg, #0080d6 0%, #0055a0 100%) !important;
+  color: #ffffff !important;
   font-weight: 800 !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 4px 14px rgba(0, 102, 179, 0.45) !important;
 }
 
 /* ========================================================================= */
-/* LANDING & AUTH SECTION                                                    */
+/* LANDING & AUTH SECTION — BMW WHITE                                         */
 /* ========================================================================= */
 
 .au-wrap {
@@ -371,76 +374,76 @@ h1, h2, h3, h4, h5, h6,
   flex-direction: column;
   min-height: 100vh;
   padding: 0;
-  background: #0b1320 !important;
-  color: #f8fafc !important;
+  background: var(--bmw-white) !important;
+  color: var(--bmw-text) !important;
 }
 
 .au-hero {
-  background: radial-gradient(1000px 600px at 60% 15%, #193f6e 0%, #0d223a 50%, #0b1320 100%) !important;
-  box-shadow: inset 0 12px 40px rgba(56, 189, 248, 0.15) !important;
+  background: linear-gradient(135deg, #0b1f35 0%, #0f2942 45%, #183553 80%, #0066b3 100%) !important;
+  box-shadow: inset 0 -12px 40px rgba(0, 128, 214, 0.18) !important;
 }
 
 .au-stats li {
-  background: rgba(15, 23, 42, 0.85) !important;
-  border: 2px solid #334155 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 16px !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2) !important;
   padding: 14px 18px !important;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 .au-stats li:hover {
   transform: translateY(-3px) scale(1.03) !important;
-  border-color: #38bdf8 !important;
+  border-color: var(--bmw-blue-light) !important;
 }
 .au-stats b {
   font-family: var(--font-cartoon) !important;
   font-size: 26px !important;
-  color: #4ade80 !important;
+  color: #7dd3fc !important;
 }
 
 .au-flow .au-node {
-  background: rgba(15, 23, 42, 0.85) !important;
-  border: 2px solid #334155 !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  border: 2px solid rgba(255, 255, 255, 0.18) !important;
   border-radius: 14px !important;
   padding: 12px 14px !important;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
 }
 .au-flow .au-node b {
   font-family: var(--font-cartoon) !important;
-  color: #f8fafc !important;
+  color: #ffffff !important;
   font-size: 13px !important;
 }
 .au-flow .au-node i {
-  color: #38bdf8 !important;
+  color: var(--bmw-blue-light) !important;
   font-size: 16px !important;
 }
 
 .au-card {
-  background: rgba(15, 23, 42, 0.95) !important;
-  border: 3px solid #1e293b !important;
+  background: #ffffff !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 24px !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 24px rgba(56, 189, 248, 0.15) !important;
+  box-shadow: 0 20px 60px rgba(11, 31, 53, 0.18), 0 0 0 1px rgba(0, 102, 179, 0.08) !important;
   padding: 36px 32px !important;
 }
 
 .au-card input:not([type=checkbox]) {
-  background: #09131e !important;
-  border: 2px solid #334155 !important;
+  background: var(--bmw-silver) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 14px !important;
-  color: #ffffff !important;
+  color: var(--bmw-text) !important;
   font-size: 14px !important;
   padding: 12px 14px !important;
   transition: border-color 0.2s, box-shadow 0.2s !important;
 }
 .au-card input:not([type=checkbox]):focus {
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35) !important;
+  border-color: var(--bmw-blue) !important;
+  box-shadow: 0 0 14px rgba(0, 102, 179, 0.22) !important;
   outline: none !important;
 }
 
 .au-tabs {
-  background: #09131e !important;
-  border: 2px solid #334155 !important;
+  background: var(--bmw-silver) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 14px !important;
   padding: 4px !important;
 }
@@ -448,190 +451,201 @@ h1, h2, h3, h4, h5, h6,
   font-family: var(--font-cartoon) !important;
   font-weight: 700 !important;
   border-radius: 10px !important;
-  color: #94a3b8 !important;
+  color: var(--bmw-text-muted) !important;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 .au-tabs button.on {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-  color: #041d13 !important;
+  background: linear-gradient(135deg, #0080d6 0%, #0066b3 100%) !important;
+  color: #ffffff !important;
   font-weight: 800 !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 102, 179, 0.35) !important;
 }
 
 .au-hub {
-  background: #0b1320 !important;
-  border-top: 3px solid #1e293b !important;
-  color: #f8fafc !important;
+  background: var(--bmw-silver) !important;
+  border-top: 2px solid var(--bmw-silver-mid) !important;
+  color: var(--bmw-text) !important;
   padding: 64px 32px !important;
 }
 
 .au-hub-card {
-  background: rgba(15, 23, 42, 0.94) !important;
-  border: 3px solid #1e293b !important;
+  background: #ffffff !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 20px !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 6px 24px rgba(11, 31, 53, 0.10) !important;
   padding: 24px !important;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, border-color 0.2s !important;
 }
 .au-hub-card:hover {
   transform: translateY(-4px) scale(1.015) !important;
-  border-color: #38bdf8 !important;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.2) !important;
+  border-color: var(--bmw-blue-light) !important;
+  box-shadow: 0 18px 40px rgba(0, 102, 179, 0.18), 0 0 0 3px rgba(0, 128, 214, 0.1) !important;
 }
 .au-hub-card h3 {
   font-family: var(--font-cartoon) !important;
-  color: #ffffff !important;
+  color: var(--bmw-navy) !important;
 }
 .au-hub-card p,
 .au-hub-card li {
-  color: #cbd5e1 !important;
+  color: var(--bmw-text-mid) !important;
 }
 
 /* ========================================================================= */
-/* FARM WORKSPACE & INTERACTIVE MAP                                          */
+/* FARM WORKSPACE & INTERACTIVE MAP                                           */
 /* ========================================================================= */
 
 .farm-item {
   border-radius: 14px !important;
   border: 2px solid transparent !important;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  color: #f8fafc !important;
+  color: var(--bmw-text) !important;
 }
 .farm-item:hover {
   transform: translateX(4px) !important;
-  background: rgba(56, 189, 248, 0.1) !important;
+  background: var(--bmw-blue-pale) !important;
 }
 .farm-item.selected {
-  background: rgba(16, 185, 129, 0.15) !important;
-  border: 2px solid #10b981 !important;
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.25) !important;
+  background: #dceef8 !important;
+  border: 2px solid var(--bmw-blue) !important;
+  box-shadow: 0 0 16px rgba(0, 102, 179, 0.18) !important;
 }
 .farm-thumb {
   border-radius: 12px !important;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 4px 8px rgba(11, 31, 53, 0.18) !important;
 }
 
 .search {
-  background: #09131e !important;
-  border: 2px solid #1e293b !important;
+  background: var(--bmw-silver) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 14px !important;
-  color: #f8fafc !important;
+  color: var(--bmw-text) !important;
 }
 .search input {
-  color: #f8fafc !important;
+  color: var(--bmw-text) !important;
   font-family: var(--font-cartoon) !important;
 }
 .search:focus-within {
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3) !important;
+  border-color: var(--bmw-blue) !important;
+  box-shadow: 0 0 12px rgba(0, 102, 179, 0.18) !important;
 }
 
 .map-header {
-  background: rgba(11, 19, 32, 0.95) !important;
-  border-bottom: 2px solid #1e293b !important;
-  color: #f8fafc !important;
+  background: #ffffff !important;
+  border-bottom: 2px solid var(--bmw-silver-mid) !important;
+  color: var(--bmw-text) !important;
 }
 
 .layer-tabs {
-  background: rgba(15, 23, 42, 0.9) !important;
-  border: 2px solid #334155 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 14px !important;
   backdrop-filter: blur(8px) !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 6px 20px rgba(11, 31, 53, 0.12) !important;
 }
 .layer-tabs button {
   border-radius: 10px !important;
   font-family: var(--font-cartoon) !important;
   font-weight: 600 !important;
-  color: #cbd5e1 !important;
+  color: var(--bmw-text-mid) !important;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 .layer-tabs button:hover {
-  background: rgba(56, 189, 248, 0.2) !important;
-  color: #ffffff !important;
+  background: var(--bmw-blue-pale) !important;
+  color: var(--bmw-blue) !important;
 }
 .layer-tabs button.chosen {
-  background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%) !important;
-  color: #052e16 !important;
+  background: linear-gradient(180deg, #0080d6 0%, #0066b3 100%) !important;
+  color: #ffffff !important;
   font-weight: 800 !important;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4) !important;
+  box-shadow: 0 2px 8px rgba(0, 102, 179, 0.4) !important;
 }
 
 .map-legend {
-  background: rgba(15, 23, 42, 0.92) !important;
-  border: 2px solid #334155 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 14px !important;
   backdrop-filter: blur(8px) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
-  color: #f8fafc !important;
+  box-shadow: 0 8px 24px rgba(11, 31, 53, 0.14) !important;
+  color: var(--bmw-text) !important;
 }
 
 /* ========================================================================= */
-/* MODALS & OVERLAYS                                                         */
+/* MODALS & OVERLAYS                                                          */
 /* ========================================================================= */
 
 .modal-backdrop {
-  background: rgba(7, 14, 24, 0.85) !important;
+  background: rgba(11, 31, 53, 0.55) !important;
   backdrop-filter: blur(8px) !important;
 }
 
 .modal {
-  background: #0f172a !important;
-  border: 4px solid #334155 !important;
+  background: #ffffff !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 28px !important;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.2) !important;
-  color: #f8fafc !important;
+  box-shadow: 0 30px 80px rgba(11, 31, 53, 0.28), 0 0 0 1px rgba(0, 102, 179, 0.08) !important;
+  color: var(--bmw-text) !important;
 }
 
 .modal input,
 .modal select {
-  background: #09131e !important;
-  border: 2px solid #334155 !important;
+  background: var(--bmw-silver) !important;
+  border: 2px solid var(--bmw-silver-mid) !important;
   border-radius: 12px !important;
-  color: #ffffff !important;
+  color: var(--bmw-text) !important;
 }
 .modal input:focus,
 .modal select:focus {
-  border-color: #38bdf8 !important;
+  border-color: var(--bmw-blue) !important;
   outline: none !important;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4) !important;
+  box-shadow: 0 0 12px rgba(0, 102, 179, 0.22) !important;
 }
 
 /* ========================================================================= */
-/* GLOWING BADGES & MICRO-ANIMATIONS                                         */
+/* GLOWING BADGES & MICRO-ANIMATIONS — BMW BLUE                               */
 /* ========================================================================= */
 
 .open-badge {
-  background: rgba(16, 185, 129, 0.15) !important;
-  border: 1.5px solid rgba(16, 185, 129, 0.4) !important;
+  background: rgba(0, 102, 179, 0.10) !important;
+  border: 1.5px solid rgba(0, 102, 179, 0.3) !important;
   border-radius: 999px !important;
   padding: 4px 10px !important;
-  color: #34d399 !important;
+  color: var(--bmw-blue) !important;
   font-family: var(--font-cartoon) !important;
   font-weight: 700 !important;
 }
 .open-badge > span {
-  background: #34d399 !important;
-  box-shadow: 0 0 8px #34d399 !important;
-  animation: appleShinePulse 2s infinite !important;
+  background: var(--bmw-blue) !important;
+  box-shadow: 0 0 8px var(--bmw-blue) !important;
+  animation: bmwPulse 2s infinite !important;
 }
 
 .dot.green {
-  background: #4ade80 !important;
-  box-shadow: 0 0 8px #4ade80 !important;
+  background: #0080d6 !important;
+  box-shadow: 0 0 8px #0080d6 !important;
 }
 .dot.amber {
-  background: #facc15 !important;
-  box-shadow: 0 0 8px #facc15 !important;
+  background: #e8a020 !important;
+  box-shadow: 0 0 8px #e8a020 !important;
+}
+
+@keyframes bmwPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px rgba(0, 102, 179, 0.45));
+  }
+  50% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 14px rgba(0, 128, 214, 0.8));
+  }
 }
 
 @keyframes appleShinePulse {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 0 8px rgba(255, 230, 100, 0.45));
+    filter: drop-shadow(0 0 8px rgba(0, 128, 214, 0.45));
   }
   50% {
     transform: scale(1.07);
-    filter: drop-shadow(0 0 16px rgba(255, 240, 130, 0.85));
+    filter: drop-shadow(0 0 16px rgba(79, 168, 232, 0.85));
   }
 }

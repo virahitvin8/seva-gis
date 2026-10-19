@@ -3925,8 +3925,8 @@ canvas.seva-raster-canvas,
 }
 
 .craft-sidebar {
-  background: #0b1320;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0b1f35;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -4420,12 +4420,12 @@ canvas.seva-raster-canvas,
 }
 
 .gridcraft-sheet-table tr.row-active {
-  background: #132742;
+  background: #dceef8;
 }
 
 .col-idx {
-  background: #0b1320 !important;
-  color: #64748b !important;
+  background: #e8edf4 !important;
+  color: #5a7a9a !important;
   text-align: center;
   width: 36px;
 }
@@ -5216,13 +5216,13 @@ canvas.seva-raster-canvas,
   --cartoon-meadow-deep: #16a34a;
   --cartoon-apple-ruby: #ff3b30;
   --cartoon-apple-glow: #facc15;
-  --cartoon-dark-bg: #0b1320;
+  --cartoon-dark-bg: #f8fafd;
 }
 
 body {
   font-family: var(--font-sans);
-  background: #0b1320;
-  color: #f8fafc;
+  background: #f8fafd;
+  color: #0d1f2d;
   overflow-x: hidden;
   margin: 0;
 }
@@ -5234,11 +5234,11 @@ body {
   font-family: var(--font-mono) !important;
 }
 
-/* Custom Cartoon Theme Scrollbar */
+/* BMW Executive Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0b1320; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-track { background: #e8edf4; }
+::-webkit-scrollbar-thumb { background: #b0bcd4; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #0066b3; }
 
 /* Cartoon 3D Painted Sky & Meadow Scene Wrapper */
 .cartoon-scene-wrapper {
@@ -5549,28 +5549,28 @@ body {
 }
 
 .topbar {
-  background: rgba(11, 19, 32, 0.95) !important;
-  border-bottom: 3px solid #1e293b !important;
-  backdrop-filter: blur(12px) !important;
-  color: #f8fafc !important;
+  background: #ffffff !important;
+  border-bottom: 2px solid #d0d8e8 !important;
+  box-shadow: 0 2px 12px rgba(11, 31, 53, 0.07) !important;
+  color: #0d1f2d !important;
 }
 .topbar .breadcrumb strong {
-  color: #38bdf8 !important;
+  color: #0066b3 !important;
   font-family: var(--font-cartoon), sans-serif !important;
 }
 
-/* Landing Page Shell in Dark Theme with vibrant glow */
+/* Landing Page Shell — BMW Executive White */
 .au-wrap {
-  background: #0b1320 !important;
-  color: #f8fafc !important;
+  background: #f8fafd !important;
+  color: #0d1f2d !important;
 }
 .au-hero {
-  background: radial-gradient(1000px 600px at 50% 10%, #1e3a5f 0%, #0b1320 80%) !important;
+  background: linear-gradient(135deg, #0b1f35 0%, #0f2942 45%, #183553 80%, #0066b3 100%) !important;
 }
 .au-card {
-  background: rgba(15, 23, 42, 0.95) !important;
-  border: 3px solid #1e293b !important;
+  background: #ffffff !important;
+  border: 2px solid #d0d8e8 !important;
   border-radius: 24px !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 20px 60px rgba(11, 31, 53, 0.18), 0 0 0 1px rgba(0, 102, 179, 0.08) !important;
 }
 

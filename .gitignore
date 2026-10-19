@@ -16,6 +16,15 @@ logs/
 .tmp-*
 /.figma/design-context/
 
+# Claude Code local provider switcher (see scripts/claude-code/README.md)
+# Never commit API keys or machine-local Claude settings.
+scripts/claude-code/keys.local.json
+.claude/settings.local.json
+
+# This scaffold uses pnpm (pnpm-lock.yaml is the tracked lockfile).
+# A locally generated npm lockfile stays out of the repository.
+package-lock.json
+
 # Platform-managed agentplat state, not project source. In the
 # client-initiated single-repo workspace layout (make's `Path: "."` spec) the
 # repo root IS the workspace root, so these land inside this repo rather than

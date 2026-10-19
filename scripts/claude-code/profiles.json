@@ -1,0 +1,85 @@
+{
+  "_comment": "Claude Code provider profiles for scripts/claude-code/switch-claude-code.ps1. No secrets live here — keys come from -Key, an environment variable, or scripts/claude-code/keys.local.json (git-ignored). Verified endpoints researched 2026-10-19.",
+  "profiles": {
+    "shellshock": {
+      "label": "ShellShock local free-model gateway",
+      "baseUrl": "http://localhost:20128/v1",
+      "keyEnv": "SHELLSHOCK_API_KEY",
+      "settings": {
+        "API_TIMEOUT_MS": "600000",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+      },
+      "notes": "Free models only (Kiro, OpenCode Free, OpenRouter free models, NVIDIA NIM, Groq, Cloudflare Workers AI, Ollama). Start ShellShock first: cd ShellShock && npm run launch. Create a key in the dashboard (Endpoint & Key). Models appear as shellshock/<model> or cc/<model>."
+    },
+    "radox": {
+      "label": "Radox AI (free Claude / GPT / Kimi / Mythos promo)",
+      "baseUrl": "https://radoxai.com/v1",
+      "keyEnv": "RADOX_API_KEY",
+      "settings": {
+        "API_TIMEOUT_MS": "3000000",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+      },
+      "notes": "From the promo screenshot: sign up at radoxai.com, create an API key, Base URL radoxai.com/v1. Third-party aggregator — free offers can end anytime and the Anthropic surface may differ; if Claude Code returns 404 on /v1/messages, route it through ShellShock as a custom endpoint instead (see README)."
+    },
+    "beatapi": {
+      "label": "BeatAPI (Free GLM 5.3, GLM 5.3 Flash, DeepSeek v4.1, JEV 1.13)",
+      "baseUrl": "https://api.beatapi.io/v1",
+      "keyEnv": "BEATAPI_API_KEY",
+      "settings": {
+        "ANTHROPIC_MODEL": "deepseek-v4.1",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.3",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4.1",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-5.3-flash",
+        "API_TIMEOUT_MS": "3000000",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+      },
+      "notes": "From the screenshot promo: BeatAPI (api.beatapi.io/v1) provides free community endpoints for GLM 5.3, GLM 5.3 Flash, DeepSeek v4.1, and JEV 1.13. If Claude Code returns 404 on /v1/messages, proxy it through ShellShock as a custom OpenAI endpoint (see README)."
+    },
+    "deepseek": {
+      "label": "DeepSeek official (Anthropic-compatible endpoint)",
+      "baseUrl": "https://api.deepseek.com/anthropic",
+      "keyEnv": "DEEPSEEK_API_KEY",
+      "settings": {
+        "ANTHROPIC_MODEL": "deepseek-flash[1m]",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-flash[1m]",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-flash[1m]",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-flash",
+        "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-flash",
+        "CLAUDE_CODE_EFFORT_LEVEL": "max",
+        "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "786432",
+        "API_TIMEOUT_MS": "3000000"
+      },
+      "notes": "Official DeepSeek Claude Code integration (api-docs.deepseek.com). Very low cost per token. Update model ids if DeepSeek renames them — override with -Model."
+    },
+    "zai": {
+      "label": "Z.AI GLM coding plan",
+      "baseUrl": "https://api.z.ai/api/anthropic",
+      "keyEnv": "Z_AI_API_KEY",
+      "settings": {
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+        "API_TIMEOUT_MS": "3000000"
+      },
+      "notes": "Z.AI explicitly supports Claude Code over the Anthropic-native endpoint. Keep the route /api/anthropic — do NOT use /api/paas/v4 (that bills the pay-as-you-go balance instead of the coding plan)."
+    },
+    "kimi": {
+      "label": "Kimi / Moonshot (pay-as-you-go API keys)",
+      "baseUrl": "https://api.moonshot.ai/anthropic",
+      "keyEnv": "KIMI_API_KEY",
+      "settings": {
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "kimi-k2.6",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.6",
+        "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+      },
+      "notes": "Works with standard Moonshot platform keys on the Anthropic endpoint. Coding-plan keys (api.kimi.com/coding/v1) are OpenAI-only — for those, use the ShellShock profile and add Kimi there as a custom endpoint. Model id may change; override with -Model."
+    },
+    "anthropic": {
+      "label": "Official Anthropic (subscription or console key)",
+      "baseUrl": "",
+      "keyEnv": "ANTHROPIC_API_KEY",
+      "settings": {},
+      "notes": "Clears every ANTHROPIC_* base-url/token/model override that this switcher manages, returning Claude Code to its stock behaviour."
+    }
+  }
+}

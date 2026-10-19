@@ -1,0 +1,18 @@
+[project]
+name = "tinker-seva-gis"
+version = "0.1.0"
+description = "Tinker Thinking Machine GeoAI fine-tuning and inference engine for SEVA.GIS"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "tinker",
+    "tinker-cookbook",
+    "transformers",
+    "torch",
+    "datasets",
+    "pydantic>=2.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

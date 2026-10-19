@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import { SupportedLanguage } from '../types/seva';
 import { TRANSLATIONS } from '../i18n/translations';
+import SevaLogo from './brand/SevaLogo';
+import ClockwiseParameterEngine from './auth/ClockwiseParameterEngine';
+import DispersionLoader from './feedback/DispersionLoader';
 
 interface SignInLandingProps {
   language: SupportedLanguage;
@@ -157,6 +160,7 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({
   const [activeMethodologyStep, setActiveMethodologyStep] = useState<number>(0);
   const [oauthDiagnostic, setOauthDiagnostic] = useState<string | null>(null);
   const [checkingOAuth, setCheckingOAuth] = useState(false);
+  const [showDispersion, setShowDispersion] = useState<boolean>(false);
 
   const handleGoogleSignIn = async () => {
     setCheckingOAuth(true);
@@ -183,12 +187,15 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-emerald-50/70 to-sky-100 text-slate-900">
+      {/* Optional Loading Dispersion Shockwave Modal */}
+      {showDispersion && (
+        <DispersionLoader onComplete={() => setShowDispersion(false)} autoDismissMs={2200} />
+      )}
+
       {/* Top Bar */}
-      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/85 border-b border-emerald-200/80 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-white/90 border-b border-emerald-200/80 px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center shadow-md shadow-emerald-600/25">
-            <Satellite className="w-6 h-6 text-white animate-pulse" />
-          </div>
+          <SevaLogo size={44} className="w-11 h-11" />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-xl tracking-tight text-emerald-950">
@@ -198,13 +205,33 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({
                 Where Satellites Meet Soil
               </span>
             </div>
-            <p className="text-xs text-slate-600 font-medium">
-              sevagis.dpdns.org · Easebot GeoAI · Open-Source v2.4
-            </p>
+            {/* Merged Active Subdomains Status Strip */}
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600 font-medium">
+              <span className="font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                sevagis.is-a.dev
+              </span>
+              <span>•</span>
+              <span className="font-mono text-cyan-700 bg-cyan-50 px-1.5 py-0.2 rounded border border-cyan-200">
+                sevagis.is-a.bot
+              </span>
+              <span>•</span>
+              <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                sevagis.dpdns.org
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowDispersion(true)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/15 text-cyan-800 border border-cyan-500/30 hover:bg-cyan-500/25 transition active:scale-95 flex items-center gap-1.5"
+            title="Trigger Radial Dispersion Shockwave Effect"
+          >
+            <span>✦ Dispersion FX</span>
+          </button>
+
           <div className="flex rounded-lg bg-slate-100 p-1 border border-slate-200">
             {(['en', 'te', 'hi'] as SupportedLanguage[]).map((lang) => (
               <button
@@ -381,6 +408,20 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Dynamic Clockwise Parameter Engine Section */}
+        <section className="space-y-4">
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+              Clockwise Parameter Engine &amp; Domain Intelligence
+            </h2>
+            <p className="text-sm text-slate-600 font-medium">
+              Autonomous orbital sweep stepping clockwise (1 → 2 → 3 → 4 → 5 → 6 → 1) with live spectral formulas, quality masks, and scientific restraint.
+            </p>
+          </div>
+
+          <ClockwiseParameterEngine />
         </section>
 
         {/* Clickable Domain Cards opening parameters modal */}

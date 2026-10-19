@@ -455,3 +455,307 @@ export const ACTIVE_TASK_CARDS: TaskCardItem[] = [
     evidencePath: '/qa-evidence/T-0004/'
   }
 ]
+
+export interface SpecialistAgentRole {
+  id: string
+  number: string
+  name: string
+  shortTitle: string
+  mandate: string
+  triggers: string[]
+  checklist: string[]
+  forbidden: string[]
+  escalatesTo: string
+  badgeColor: string
+}
+
+export interface RoutingRow {
+  taskType: string
+  leadAgent: string
+  supportingAgents: string
+  reviewer: string
+}
+
+export interface AgentPerformanceLogEntry {
+  date: string
+  taskSummary: string
+  leadAgent: string
+  supportingAgents: string
+  reviewVerdict: 'APPROVED' | 'REQUEST_CHANGES'
+  outcome: string
+  notes: string
+}
+
+export const CONSTITUTION_LAWS = [
+  {
+    id: 'LAW-01',
+    tier: 'TIER 1 — CONSTITUTION',
+    title: 'Zero Fake / Synthetic Data',
+    rule: 'Every numeric value, spectral index, terrain metric, or recommendation must come from a real computation or upstream source. Show "Data unavailable" + Retry if unavailable.'
+  },
+  {
+    id: 'LAW-02',
+    tier: 'TIER 1 — CONSTITUTION',
+    title: 'Zero Hardcoded Secrets',
+    rule: 'API keys, tokens, and credentials must never be committed or exposed in client-side bundles.'
+  },
+  {
+    id: 'LAW-03',
+    tier: 'TIER 1 — CONSTITUTION',
+    title: 'No Unreviewed Destructive Actions',
+    rule: 'Database drops, force pushes, and bulk deletions require explicit human confirmation.'
+  },
+  {
+    id: 'LAW-04',
+    tier: 'TIER 1 — CONSTITUTION',
+    title: 'Verification Before Completion',
+    rule: 'No task is marked complete without running build/test/lint checks and verifying affected paths.'
+  }
+]
+
+export const SPECIALIST_8_AGENT_ROSTER: SpecialistAgentRole[] = [
+  {
+    id: 'agent-01-architect',
+    number: '01',
+    name: 'Chief Architect & Tech Lead Agent',
+    shortTitle: 'Chief Architect',
+    mandate: 'System design, module boundaries, API contracts, data modeling, and architectural coherence.',
+    triggers: [
+      'New features spanning 3+ modules or layers',
+      'Database schema migrations or state management changes',
+      'External API/SDK integrations or new third-party dependencies',
+      'Cross-agent conflicts or architectural trade-off decisions'
+    ],
+    checklist: [
+      'Fits existing architecture without circular dependencies',
+      'Clear TypeScript interfaces and runtime validation at boundaries',
+      'Backwards compatibility preserved or migration path documented',
+      'Failure modes (network timeout, quota exceeded, malformed payload) handled'
+    ],
+    forbidden: [
+      'Introducing new dependencies when existing libraries or native APIs suffice',
+      'Using any types at public module boundaries',
+      'Coupling UI components directly to raw external API shapes'
+    ],
+    escalatesTo: 'Human User (when product scope or breaking changes are required)',
+    badgeColor: '#38bdf8'
+  },
+  {
+    id: 'agent-02-frontend',
+    number: '02',
+    name: 'Frontend & UX Specialist Agent',
+    shortTitle: 'Frontend & UX',
+    mandate: 'Component architecture, visual polish, accessibility (WCAG 2.2 AA), responsive layouts, and state synchronization.',
+    triggers: [
+      'Any creation or modification of UI components, pages, modals, or charts',
+      'Styling, layout, theme, or responsive breakpoint adjustments',
+      'User interaction flows, forms, keyboard navigation, or loading/error states'
+    ],
+    checklist: [
+      'Semantic HTML elements and ARIA attributes present',
+      'Keyboard navigation works; CJK IME Enter-to-submit guarded',
+      'All four states handled: loading, empty, error (with Retry), and populated',
+      'Responsive across mobile, tablet, and desktop viewports'
+    ],
+    forbidden: [
+      'Fetching data inside useEffect when RSC or SWR/clean state handlers should be used',
+      'Monolithic page files instead of focused subcomponents',
+      'Swallowing errors silently without user-visible feedback'
+    ],
+    escalatesTo: 'Chief Architect (01) for state flow changes; Security & Compliance (05) for auth/input sanitization',
+    badgeColor: '#a78bfa'
+  },
+  {
+    id: 'agent-03-backend',
+    number: '03',
+    name: 'Backend, Data & API Engineer Agent',
+    shortTitle: 'Backend & Data',
+    mandate: 'Server routes, database queries, caching, external API integrations, and data pipeline integrity.',
+    triggers: [
+      'Route handlers, server actions, webhooks, or proxy endpoints',
+      'Database schema updates, SQL/ORM queries, or storage integrations',
+      'Third-party API fetching, rate limiting, retries, or data transformation'
+    ],
+    checklist: [
+      'All external inputs validated and sanitized server-side',
+      'Database queries parameterized and scoped to authenticated user/tenant',
+      'Idempotency keys or deduplication applied to state-mutating operations',
+      'Timeouts and structured error responses returned on upstream failure'
+    ],
+    forbidden: [
+      'Returning mock/random numbers when an upstream API or DB call fails',
+      'N+1 query patterns or unbounded table scans',
+      'Exposing internal stack traces or raw credentials in API responses'
+    ],
+    escalatesTo: 'Security & Compliance (05) for auth/permissions; Domain Science (04) for scientific payload validation',
+    badgeColor: '#34d399'
+  },
+  {
+    id: 'agent-04-science',
+    number: '04',
+    name: 'Domain Science & Algorithm Specialist Agent',
+    shortTitle: 'Domain Science',
+    mandate: 'Mathematical accuracy, geospatial/raster processing, physical models, statistical validity, and unit consistency.',
+    triggers: [
+      'Geospatial calculations (projections, bounding boxes, area/distance, GeoTIFF, STAC/COG)',
+      'Spectral indices (NDVI, NDWI, EVI, SAVI, NDMI,NBR), band math, or raster kernels',
+      'Agronomic, hydrological, meteorological, or financial formulas',
+      'Charting, histograms, contour generation, or data aggregation logic'
+    ],
+    checklist: [
+      'Formulas match published scientific or industry standards with units documented',
+      'Division-by-zero, NaN, NoData, and cloud/shadow mask pixels explicitly guarded',
+      'Coordinate reference systems (WGS84 lon/lat vs. Web Mercator vs. UTM) consistent',
+      'Edge cases (antimeridian, degenerate polygons, zero-variance rasters) tested'
+    ],
+    forbidden: [
+      'Fabricating data using Math.sin/Math.cos of coordinates or Math.random()',
+      'Mixing coordinate order ([lat, lon] vs. [lon, lat]) without explicit typed adapters',
+      'Silently clamping invalid NaN outputs to 0 instead of marking NoData'
+    ],
+    escalatesTo: 'Chief Architect (01) when computation should move to Web Workers or server pipelines',
+    badgeColor: '#10b981'
+  },
+  {
+    id: 'agent-05-security',
+    number: '05',
+    name: 'Security, Privacy & Compliance Auditor Agent',
+    shortTitle: 'Security Auditor',
+    mandate: 'Threat modeling, authentication/authorization, secret protection, CSP/headers, and vulnerability prevention.',
+    triggers: [
+      'Authentication, session management, OAuth, or role/permission checks',
+      'File uploads, URL fetching (SSRF risk), HTML rendering (XSS risk), or SQL queries',
+      'Environment variable handling, build configs, or response headers',
+      'Pre-release security review of any multi-file change'
+    ],
+    checklist: [
+      'No secrets, API keys, or tokens in source files, logs, or client bundles',
+      'Every user-data query enforces session/user scoping or RLS',
+      'Response headers (X-Content-Type-Options, Referrer-Policy, HSTS) intact',
+      'External URLs and file inputs validated against allowlists and size limits'
+    ],
+    forbidden: [
+      'Client-only authentication or trusting client-supplied userId / price / role',
+      'dangerouslySetInnerHTML with unsanitized input',
+      'Committing .env files or logging sensitive credentials'
+    ],
+    escalatesTo: 'Blocks merge immediately and escalates to Human User if critical vulnerability or secret leak detected',
+    badgeColor: '#f43f5e'
+  },
+  {
+    id: 'agent-06-qa',
+    number: '06',
+    name: 'QA, Verification & Test Engineer Agent',
+    shortTitle: 'QA & Verification',
+    mandate: 'Unit/integration/E2E testing, regression prevention, browser verification, and edge-case discovery.',
+    triggers: [
+      'Every code change before task completion',
+      'Bug fixes (must write or verify a reproduction test first)',
+      'Complex algorithmic or state-machine changes'
+    ],
+    checklist: [
+      'Typecheck (tsc --noEmit) and build pass with zero errors',
+      'Unit/integration tests cover happy path, boundary values, and failure/error states',
+      'User-visible changes verified in preview/browser at relevant viewport',
+      'No regressions in existing test suites'
+    ],
+    forbidden: [
+      'Marking a task done based solely on "the code looks right" without running checks',
+      'Writing tautological tests that only test mocks rather than real implementation',
+      'Deleting or skipping failing tests to make the suite green'
+    ],
+    escalatesTo: 'Originating Lead Agent when a test or runtime check fails',
+    badgeColor: '#f59e0b'
+  },
+  {
+    id: 'agent-07-perf',
+    number: '07',
+    name: 'Performance & Reliability Engineer Agent',
+    shortTitle: 'Perf & Reliability',
+    mandate: 'Bundle size, rendering speed, memory safety, caching, concurrency, and graceful degradation.',
+    triggers: [
+      'Large datasets, high-resolution canvases/maps, WebGL, or GeoTIFF/raster loops',
+      'Polling, streaming, WebSockets, or multi-request waterfall flows',
+      'Core Web Vitals (LCP, INP, CLS) optimization or memory leak investigations'
+    ],
+    checklist: [
+      'Heavy CPU work uses typed arrays (Float32Array, Uint8ClampedArray) or Web Workers',
+      'In-flight requests use AbortController to cancel stale calls on rapid user input',
+      'Heavy third-party libraries (maps, 3D, PDF/export) lazy-loaded via dynamic import',
+      'Object URLs, event listeners, timers, and WebGL contexts cleaned up on unmount'
+    ],
+    forbidden: [
+      'Allocating millions of short-lived objects inside tight per-pixel loops',
+      'Unbounded in-memory caches without eviction or TTL',
+      'Blocking the main thread for >50ms during interactive gestures'
+    ],
+    escalatesTo: 'Chief Architect (01) for caching/CDN architecture changes',
+    badgeColor: '#ec4899'
+  },
+  {
+    id: 'agent-08-docs',
+    number: '08',
+    name: 'Documentation, DX & Release Steward Agent',
+    shortTitle: 'Docs & Release',
+    mandate: 'Codebase navigability, clean Git history, accurate documentation, and release readiness.',
+    triggers: [
+      'Public API, CLI, environment variable, or workflow changes',
+      'Branch synchronization, PR preparation, and release checklists',
+      'Updates to AGENT_ROSTER.md, AGENTS.md, or architecture docs'
+    ],
+    checklist: [
+      'git status and git diff reviewed; no stray temp files or debug logs left behind',
+      'Commit messages are concise, imperative, and accurately describe the "why"',
+      'Code comments explain non-obvious invariants rather than restating syntax',
+      'Final user summary is concise (2–4 sentences) and highlights verification results'
+    ],
+    forbidden: [
+      'Creating unsolicited markdown bloat when not requested',
+      'Leaving console.log("[v0] ...") debug statements in production code',
+      'Pushing directly to protected base branches when a feature branch is required'
+    ],
+    escalatesTo: 'Chief Architect (01) and Human User for final release sign-off',
+    badgeColor: '#8b5cf6'
+  }
+]
+
+export const ROUTING_MATRIX: RoutingRow[] = [
+  { taskType: 'New UI Feature / Page / Modal', leadAgent: '02 Frontend & UX', supportingAgents: '01 Architect, 07 Perf', reviewer: '06 QA & Verification' },
+  { taskType: 'API Route / Database / Storage', leadAgent: '03 Backend & Data', supportingAgents: '01 Architect, 05 Security', reviewer: '05 Security + 06 QA' },
+  { taskType: 'Geospatial / Spectral / Math / Charts', leadAgent: '04 Domain Science', supportingAgents: '07 Perf, 02 Frontend', reviewer: '06 QA & Verification' },
+  { taskType: 'Auth / Permissions / Headers / Secrets', leadAgent: '05 Security Auditor', supportingAgents: '03 Backend, 01 Architect', reviewer: '01 Chief Architect' },
+  { taskType: 'Bug Fix / Runtime Error / Regression', leadAgent: '06 QA & Verification', supportingAgents: 'Domain owner (02/03/04)', reviewer: '01 Chief Architect' },
+  { taskType: 'Slow Render / Memory / Bundle Size', leadAgent: '07 Perf & Reliability', supportingAgents: '02 Frontend, 04 Science', reviewer: '06 QA & Verification' },
+  { taskType: 'Multi-System Refactor / Architecture', leadAgent: '01 Chief Architect', supportingAgents: '02, 03, 04, 05, 07', reviewer: '05 Security + 06 QA' },
+  { taskType: 'Git Sync / Release / Docs Update', leadAgent: '08 Docs & Release', supportingAgents: '01 Architect, 06 QA', reviewer: '06 QA & Verification' }
+]
+
+export const DEBATE_STEPS = [
+  { step: 1, title: 'State the Contention Clearly', detail: 'Formulate the exact trade-off in one sentence (e.g., "Agent 07 wants client-side caching vs. Agent 05 requiring zero persistence of sensitive data").' },
+  { step: 2, title: 'Apply the Precedence Hierarchy', detail: 'Tier 1 Constitution > Tier 2 Security (05) > Tier 3 Scientific Correctness (04) > Tier 4 Architecture (01) > Tier 5 UX & Perf (02, 07) > Tier 6 Style (08).' },
+  { step: 3, title: 'Seek a Synthesis First', detail: 'Find a design that satisfies both constraints (e.g., short-lived in-memory cache cleared on logout).' },
+  { step: 4, title: 'Chief Architect Ruling', detail: 'If both options are safe and accurate, Chief Architect (01) chooses the smallest, most reversible change.' },
+  { step: 5, title: 'Human Escalation', detail: 'Escalate to the user via AskUserQuestions only when the trade-off materially changes product behavior.' }
+]
+
+export const SAMPLE_PERFORMANCE_LOGS: AgentPerformanceLogEntry[] = [
+  {
+    date: '2026-10-19',
+    taskSummary: 'Enforce AGENT_ROSTER.md Constitution + 40-Screenshot Training Academy & Claude Code Model Hub',
+    leadAgent: '01 Chief Architect',
+    supportingAgents: '02 Frontend, 04 Domain Science, 05 Security, 08 Docs',
+    reviewVerdict: 'APPROVED',
+    outcome: 'PASS (First Try)',
+    notes: 'Wired 8-Agent Roster, real Open-Meteo Elevation contour engine, 16 free GIS vector catalogs, and DYOP/SEVA brand switcher.'
+  },
+  {
+    date: '2026-10-19',
+    taskSummary: 'Sentinel-2 L2A & Copernicus DEM Real-Data Integrity Audit',
+    leadAgent: '04 Domain Science',
+    supportingAgents: '05 Security, 06 QA, 07 Perf',
+    reviewVerdict: 'APPROVED',
+    outcome: 'PASS (First Try)',
+    notes: 'Verified zero synthetic sin/cos fallbacks; AbortController per-parcel cancellation active.'
+  }
+]
+

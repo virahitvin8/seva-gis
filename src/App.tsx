@@ -63,6 +63,8 @@ const DronePrecisionStudio = lazyWithRetry(() => import('./DronePrecisionStudio'
 const DroneReportDossier = lazyWithRetry(() => import('./DroneReportDossier'))
 const ResponsivelyStudio = lazyWithRetry(() => import('./components/ResponsivelyStudio'))
 const AppStoreScreenshotStudio = lazyWithRetry(() => import('./components/AppStoreScreenshotStudio'))
+const ClaudeCodeAgentHub = lazyWithRetry(() => import('./components/ClaudeCodeAgentHub'))
+const SevaGisTrainingAcademy = lazyWithRetry(() => import('./components/SevaGisTrainingAcademy'))
 
 function AoiShape({ farm }: { farm: Parameters<typeof farmRing>[0]; good?: boolean }) {
   const ring = farmRing(farm), k = Math.cos((ring[0][1] * Math.PI) / 180)
@@ -176,6 +178,8 @@ export default function App() {
   const [showDroneDossier, setShowDroneDossier] = useState(false)
   const [showResponsively, setShowResponsively] = useState(false)
   const [showMarketingStudio, setShowMarketingStudio] = useState(false)
+  const [showAgentHub, setShowAgentHub] = useState(false)
+  const [showTrainingAcademy, setShowTrainingAcademy] = useState(false)
   const [sectionOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('seva-dashboard-layout')
@@ -568,6 +572,8 @@ export default function App() {
     if (text === 'DroneStudio' || text.includes('Drone')) return setShowDroneStudio(true)
     if (text === 'Responsively' || text.includes('MultiDevice') || text.includes('Viewport')) return setShowResponsively(true)
     if (text === 'ShowcaseStudio' || text.includes('Marketing') || text.includes('Screenshot')) return setShowMarketingStudio(true)
+    if (text === 'AgentHub' || text.includes('Roster') || text.includes('Claude')) return setShowAgentHub(true)
+    if (text === 'TrainingAcademy' || text.includes('Academy')) return setShowTrainingAcademy(true)
     const id = text === 'Overview' ? 'top' : text === 'My farms' ? 'my-farms' : 'crop-journal'
     requestAnimationFrame(() => (id === 'top' ? window.scrollTo({ top: 0, behavior: 'smooth' }) : document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })))
   }
@@ -612,7 +618,7 @@ export default function App() {
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
       <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>{t('shell.planBadge')}</small></div><ChevronDown size={16}/></div>
       <div className="nav-label">WORKSPACE</div>
-      <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'DroneStudio', label: 'Drone Studio (1m GSD)', icon: Plane }, { id: 'NodeStudio', label: 'GEE ⟷ QGIS Studio', icon: Cpu }, { id: 'Responsively', label: 'Multi-Device Studio', icon: Smartphone }, { id: 'ShowcaseStudio', label: 'Showcase Studio', icon: Camera }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
+      <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'DroneStudio', label: 'Drone Studio (1m GSD)', icon: Plane }, { id: 'NodeStudio', label: 'GEE ⟷ QGIS Studio', icon: Cpu }, { id: 'AgentHub', label: 'AI Agent Hub & 8-Agent Roster', icon: Wand2 }, { id: 'TrainingAcademy', label: 'Training Academy (40+ Guides)', icon: BookOpen }, { id: 'Responsively', label: 'Multi-Device Studio', icon: Smartphone }, { id: 'ShowcaseStudio', label: 'Showcase Studio', icon: Camera }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
       <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>{t('shell.dataSources')}<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Guide tutorial - NAVI</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>{t('shell.fieldGuide')}</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>{t('shell.dataManager')}</button></nav>
       <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>{t('hero.line1')}<br/>Open to everyone.</h4><p>{t('hero.line2')}</p><span>{t('hero.eyebrow')} <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>{t('shell.popTeamAlt')}</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who?.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who?.name || 'Guest'}<small>{who?.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title={t('shell.logout')} onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
@@ -958,6 +964,20 @@ export default function App() {
         )
       })}
       </>}
+      <SectionBoundary name="AI Agent Hub & 8-Agent Roster">
+        <Suspense fallback={<div className="reveal-loading">Loading AI Agent Hub &amp; 8-Agent Roster...</div>}>
+          <div id="agent-hub-section" style={{ margin: '18px 0' }}>
+            <ClaudeCodeAgentHub />
+          </div>
+        </Suspense>
+      </SectionBoundary>
+      <SectionBoundary name="Training Academy & Field Guide">
+        <Suspense fallback={<div className="reveal-loading">Loading SEVA·GIS / DYOP·GIS Training Academy...</div>}>
+          <div id="training-academy-section" style={{ margin: '18px 0' }}>
+            <SevaGisTrainingAcademy farm={farm || DEFAULT_FARM} />
+          </div>
+        </Suspense>
+      </SectionBoundary>
       <Contact/>
       <MitraGuide name={who?.name || 'Guest'} guest={who?.name === 'Guest' || !who}/>
       <Credits/>
@@ -1069,6 +1089,24 @@ export default function App() {
                 onClose={() => setShowMarketingStudio(false)}
               />
             </Suspense>
+          )}
+          {showAgentHub && (
+            <div className="modal-backdrop" onClick={() => setShowAgentHub(false)} style={{ zIndex: 9998 }}>
+              <div onClick={e => e.stopPropagation()} style={{ width: 'min(1220px, 96vw)', maxHeight: '92vh', overflowY: 'auto' }}>
+                <Suspense fallback={<LogoLoader text="Loading AI Agent Hub & 8-Agent Roster..." />}>
+                  <ClaudeCodeAgentHub isModal onClose={() => setShowAgentHub(false)} />
+                </Suspense>
+              </div>
+            </div>
+          )}
+          {showTrainingAcademy && (
+            <div className="modal-backdrop" onClick={() => setShowTrainingAcademy(false)} style={{ zIndex: 9998 }}>
+              <div onClick={e => e.stopPropagation()} style={{ width: 'min(1260px, 96vw)', maxHeight: '92vh', overflowY: 'auto' }}>
+                <Suspense fallback={<LogoLoader text="Loading Training Academy..." />}>
+                  <SevaGisTrainingAcademy farm={activeStudioFarm} isModal onClose={() => setShowTrainingAcademy(false)} />
+                </Suspense>
+              </div>
+            </div>
           )}
         </>
       )

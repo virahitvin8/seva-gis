@@ -5,13 +5,20 @@ import {
 } from 'lucide-react'
 import { BRAND_PROFILES, type BrandMode, loadBrandMode, saveBrandMode } from '../lib/brandIdentity'
 import { dispatchExport } from '../lib/googleDriveVault'
+import {
+  SPECIALIST_8_AGENT_ROSTER,
+  ROUTING_MATRIX,
+  CONSTITUTION_LAWS,
+  DEBATE_STEPS,
+  SAMPLE_PERFORMANCE_LOGS
+} from '../lib/agentRoster'
 
 interface Props {
   onClose?: () => void
   isModal?: boolean
 }
 
-type HubTab = 'claude-settings' | 'rea-harness' | 'brand-domain' | 'security-198'
+type HubTab = 'claude-settings' | 'rea-harness' | 'brand-domain' | 'security-198' | 'agent-roster'
 
 interface ModelProviderPreset {
   id: string
@@ -281,7 +288,8 @@ Write-Host "Successfully configured Claude Code settings.json for ${customPrimar
           { id: 'claude-settings' as HubTab, label: '1. Claude Code settings.json (Use Any Model / API)', icon: Key },
           { id: 'rea-harness' as HubTab, label: '2. REA v6.7.0 + Google Harness² + .agents/skills', icon: Cpu },
           { id: 'brand-domain' as HubTab, label: '3. DYOP·GIS vs SEVA·GIS Brand Switcher & Free .TECH Domain', icon: Globe },
-          { id: 'security-198' as HubTab, label: '4. 198 Production Security Gates & 6-Repo Containment', icon: ShieldCheck }
+          { id: 'security-198' as HubTab, label: '4. 198 Production Security Gates & 6-Repo Containment', icon: ShieldCheck },
+          { id: 'agent-roster' as HubTab, label: '5. Project Constitution & 8-Agent Roster (AGENT_ROSTER.md)', icon: Boxes }
         ].map(t => {
           const Icon = t.icon
           const active = activeTab === t.id
@@ -740,6 +748,129 @@ Write-Host "Successfully configured Claude Code settings.json for ${customPrimar
               <li><b>02–03 Argo CD &amp; Rollouts:</b> GitOps state sync &amp; progressive canary containment.</li>
               <li><b>04–06 Prometheus, Sentry &amp; OpenTelemetry:</b> `SectionBoundary` isolation + `PopTheTeamModal` real-time incident telemetry.</li>
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: PROJECT CONSTITUTION & 8-AGENT ROSTER (AGENT_ROSTER.md) */}
+      {activeTab === 'agent-roster' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Constitution Banner */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.88)', borderRadius: 14, border: '1px solid rgba(167, 139, 250, 0.4)', padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#c4b5fd', letterSpacing: '0.06em' }}>
+                  PROJECT CONSTITUTION · TIER 1 LAWS (NON-NEGOTIABLE)
+                </div>
+                <h3 style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 800, color: '#f8fafc' }}>
+                  8-Agent Specialist Roster, Routing Matrix &amp; Conflict Resolution Protocol
+                </h3>
+              </div>
+              <span style={{ background: 'rgba(16, 185, 129, 0.16)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#6ee7b7', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999 }}>
+                ✓ AGENT_ROSTER.md + AGENTS.md + CLAUDE.md Active
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+              {CONSTITUTION_LAWS.map(law => (
+                <div key={law.id} style={{ background: 'rgba(2, 6, 23, 0.7)', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 10, padding: 10 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 800, color: '#38bdf8' }}>{law.id} · {law.tier}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#f8fafc', margin: '3px 0' }}>{law.title}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>{law.rule}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 8 Agent Cards */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+              Specialist Agent Roster (Agents 01 – 08)
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 12 }}>
+              {SPECIALIST_8_AGENT_ROSTER.map(agent => (
+                <div key={agent.id} style={{ background: 'rgba(15, 23, 42, 0.85)', border: `1px solid ${agent.badgeColor}55`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 800, color: agent.badgeColor, background: `${agent.badgeColor}1f`, padding: '2px 8px', borderRadius: 999, border: `1px solid ${agent.badgeColor}55` }}>
+                      AGENT #{agent.number} · {agent.shortTitle}
+                    </span>
+                    <span style={{ fontSize: 10.5, color: '#94a3b8' }}>Escalates → {agent.escalatesTo.split(' ')[0]}</span>
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#f8fafc' }}>{agent.name}</h4>
+                  <p style={{ margin: 0, fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.45 }}>{agent.mandate}</p>
+                  <div style={{ fontSize: 10.5, color: '#94a3b8', background: 'rgba(2, 6, 23, 0.65)', padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                    <b style={{ color: '#e2e8f0' }}>Activation Triggers:</b> {agent.triggers.slice(0, 3).join(' · ')}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: '#6ee7b7' }}>
+                    <b>Checklist Gates:</b> {agent.checklist.length} enforced · <b>Forbids:</b> {agent.forbidden[0]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Routing Matrix + Debate Protocol */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+            <div style={{ background: 'rgba(15, 23, 42, 0.85)', borderRadius: 12, border: '1px solid rgba(148, 163, 184, 0.25)', padding: 14 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 13.5, fontWeight: 800, color: '#f8fafc' }}>
+                Routing Matrix (Lead → Supporting → Reviewer)
+              </h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, color: '#cbd5e1' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.25)', textAlign: 'left', color: '#94a3b8' }}>
+                      <th style={{ padding: '6px 4px' }}>Task Type</th>
+                      <th style={{ padding: '6px 4px' }}>Lead</th>
+                      <th style={{ padding: '6px 4px' }}>Support</th>
+                      <th style={{ padding: '6px 4px' }}>Reviewer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROUTING_MATRIX.map(row => (
+                      <tr key={row.taskType} style={{ borderBottom: '1px solid rgba(148, 163, 184, 0.12)' }}>
+                        <td style={{ padding: '5px 4px', fontWeight: 600, color: '#f8fafc' }}>{row.taskType}</td>
+                        <td style={{ padding: '5px 4px', color: '#38bdf8' }}>{row.leadAgent}</td>
+                        <td style={{ padding: '5px 4px' }}>{row.supportingAgents}</td>
+                        <td style={{ padding: '5px 4px', color: '#34d399' }}>{row.reviewer}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ background: 'rgba(15, 23, 42, 0.85)', borderRadius: 12, border: '1px solid rgba(249, 115, 22, 0.35)', padding: 14 }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: 13.5, fontWeight: 800, color: '#f8fafc' }}>
+                  Agent Debate &amp; Conflict Resolution Protocol
+                </h4>
+                <ol style={{ margin: 0, paddingLeft: 18, fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.55 }}>
+                  {DEBATE_STEPS.map(s => (
+                    <li key={s.step} style={{ marginBottom: 4 }}>
+                      <b style={{ color: '#fdba74' }}>{s.title}:</b> {s.detail}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
+              <div style={{ background: 'rgba(15, 23, 42, 0.85)', borderRadius: 12, border: '1px solid rgba(16, 185, 129, 0.35)', padding: 14 }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: 13.5, fontWeight: 800, color: '#f8fafc' }}>
+                  Recent Agent Performance Log (`AGENT_ROSTER.md` Format)
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {SAMPLE_PERFORMANCE_LOGS.map((log, i) => (
+                    <div key={i} style={{ background: 'rgba(2, 6, 23, 0.7)', padding: 8, borderRadius: 8, fontSize: 11, color: '#cbd5e1', border: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                      <div style={{ fontWeight: 700, color: '#6ee7b7' }}>
+                        [{log.date}] — [{log.taskSummary}] · Verdict: {log.reviewVerdict}
+                      </div>
+                      <div style={{ color: '#94a3b8', marginTop: 2 }}>
+                        Lead: <b style={{ color: '#e2e8f0' }}>{log.leadAgent}</b> · Support: {log.supportingAgents} · Outcome: {log.outcome}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

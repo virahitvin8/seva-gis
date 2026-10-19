@@ -1255,7 +1255,7 @@ Satellite indices show where surface reflectance differs, not always why. Minera
                     canvas.toBlob(blob => {
                       if (!blob) return
                       void dispatchExport({
-                        category: 'image',
+                        category: 'images',
                         fileName: `${farm.name.replace(/\W+/g, '_')}_Real_DEM_Contours_${contourStepM}m.png`,
                         blob,
                         mimeType: 'image/png',
@@ -1586,7 +1586,7 @@ Satellite indices show where surface reflectance differs, not always why. Minera
                   type="button"
                   onClick={() => {
                     void dispatchExport({
-                      category: 'report',
+                      category: 'reports',
                       fileName: `${farm.name.replace(/\W+/g, '_')}_Research_Manuscript.doc`,
                       blob: generatedResearchPaper,
                       mimeType: 'application/msword',

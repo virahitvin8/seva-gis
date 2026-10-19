@@ -36,9 +36,9 @@ export default function EmailOctopusGreetingModal({
   reportId,
   filename,
   htmlContent,
-  areaHa = 2.0,
-  ndvi = 0.65,
-  ndmi = 0.32,
+  areaHa,
+  ndvi,
+  ndmi,
   contactId,
 }: EmailOctopusGreetingModalProps) {
   if (!isOpen) return null
@@ -190,10 +190,10 @@ export default function EmailOctopusGreetingModal({
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 800, letterSpacing: '-0.3px' }}>
-                EmailOctopus Dispatch Greeting
+                Report Greeting Card
               </h3>
               <p style={{ margin: '2px 0 0', fontSize: '12px', opacity: 0.95 }}>
-                Official SEVA·GIS Multi-Spectral Agro-Geospatial Delivery
+                SEVA·GIS Multi-Spectral Agro-Geospatial Report
               </p>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function EmailOctopusGreetingModal({
             }}
           >
             <CheckCircle2 size={13} color="#a7f3d0" />
-            <span>Dispatched successfully to {recipientEmail}</span>
+            <span>Package ready for {recipientEmail}</span>
           </div>
         </div>
 
@@ -246,27 +246,27 @@ export default function EmailOctopusGreetingModal({
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               }}
             >
-              EmailOctopus Verified
+              EmailOctopus List
             </div>
 
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#064e3b', marginBottom: '6px' }}>
               Dear {nameDisplay},
             </div>
             <p style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.55, color: '#334155' }}>
-              Warm greetings from <b>SEVA·GIS</b>! Your official spatial evaluation dossier for study area <b>{farmName}</b> has been generated with selfless service. Our automated cloud dispatch has synchronized your profile with our EmailOctopus list and delivered the calibrated Sentinel-2 BOA satellite and hydrological telemetry.
+              Warm greetings from <b>SEVA·GIS</b>! Your spatial evaluation dossier for study area <b>{farmName}</b> has been generated. Use the options below to download the report package or send it to yourself. Satellite readings come from the Sentinel-2 scene loaded in the app.
             </p>
 
             {/* Quick Metrics Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
               <div style={{ background: '#ffffff', border: '1px solid #d1fae5', borderRadius: '8px', padding: '8px 10px' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Canopy Vigor (NDVI)</span>
-                <strong style={{ fontSize: '15px', color: '#047857' }}>{ndvi.toFixed(2)}</strong>
-                <span style={{ fontSize: '10.5px', color: '#10b981', display: 'block' }}>Robust Foliar Health</span>
+                <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Canopy Greenness (NDVI)</span>
+                <strong style={{ fontSize: '15px', color: '#047857' }}>{ndvi !== undefined ? ndvi.toFixed(2) : '—'}</strong>
+                <span style={{ fontSize: '10.5px', color: '#10b981', display: 'block' }}>Scene reading</span>
               </div>
               <div style={{ background: '#ffffff', border: '1px solid #d1fae5', borderRadius: '8px', padding: '8px 10px' }}>
-                <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Canopy Water (NDMI)</span>
-                <strong style={{ fontSize: '15px', color: '#0284c7' }}>{ndmi.toFixed(2)}</strong>
-                <span style={{ fontSize: '10.5px', color: '#0ea5e9', display: 'block' }}>Adequate Cell Turgor</span>
+                <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Moisture Reading (NDMI)</span>
+                <strong style={{ fontSize: '15px', color: '#0284c7' }}>{ndmi !== undefined ? ndmi.toFixed(2) : '—'}</strong>
+                <span style={{ fontSize: '10.5px', color: '#0ea5e9', display: 'block' }}>From bands B08 &amp; B11</span>
               </div>
             </div>
 
@@ -359,7 +359,7 @@ export default function EmailOctopusGreetingModal({
               onMouseLeave={e => (e.currentTarget.style.background = '#0284c7')}
             >
               <Download size={15} />
-              <span>Download Dispatched Dossier Attachment</span>
+              <span>Download Dossier Attachment</span>
             </button>
           </div>
 
@@ -370,8 +370,8 @@ export default function EmailOctopusGreetingModal({
               <span>EmailOctopus Subscriber List: {EMAIL_OCTOPUS_CONFIG.listId}</span>
             </div>
             <span>
-              Contact ID: <code>{contactId || 'Registered & Active'}</code> · Tag: <code>SEVA-GIS-Report-Download</code>.
-              Your official copy is in transit. If your inbox filters marketing communications, check your Updates folder or save the attached file directly above.
+              Contact ID: <code>{contactId || '—'}</code> · Tag: <code>SEVA-GIS-Report-Download</code>.
+              Use the download options above to save your copy; if you send the package by email and your provider filters marketing mail, check your Updates folder.
             </span>
           </div>
 

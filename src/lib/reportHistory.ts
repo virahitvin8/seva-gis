@@ -19,11 +19,11 @@ export type ReportHistoryEntry = {
   format: 'HTML' | 'PDF' | 'JSON'
   htmlContent: string
   summary: {
-    ndviMean: number
-    stressPct: number
-    areaHa: number
+    ndviMean: number | null
+    stressPct: number | null
+    areaHa: number | null
     location: string
-    sceneDate: string
+    sceneDate: string | null
   }
   devicePath: string
 }

@@ -101,8 +101,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
     filename: '',
     htmlContent: '',
     areaHa: farm.area,
-    ndvi: farm.analysis?.ndvi?.mean ?? 0.65,
-    ndmi: farm.analysis?.ndmi?.mean ?? 0.32,
+    ndvi: farm.analysis?.ndvi?.mean,
+    ndmi: farm.analysis?.ndmi?.mean,
     contactId: '',
   })
   const [emailInput, setEmailInput] = useState(() => {
@@ -190,6 +190,16 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const farmUpper = farm.name.toUpperCase().trim()
   const baseFilename = `(${farmUpper}_SEVA GIS)`
 
+  // Display values come from the loaded analysis or show an em dash. The old
+  // invented fallbacks (0.65 / 0.32 / 7.5) are gone.
+  const aNdvi = farm.analysis?.ndvi?.mean
+  const aNdmi = farm.analysis?.ndmi?.mean
+  const aStress = farm.analysis?.stressPct
+  const num2 = (v: number | undefined) => (v !== undefined && Number.isFinite(v) ? v.toFixed(2) : '—')
+  const num1 = (v: number | undefined) => (v !== undefined && Number.isFinite(v) ? v.toFixed(1) : '—')
+  const deltaOf = (v: number | undefined, ref: number, digits = 2) =>
+    v !== undefined && Number.isFinite(v) ? `${v - ref >= 0 ? '+' : ''}${(v - ref).toFixed(digits)}` : '—'
+
   async function make() {
     if (!selectedLangs.length) {
       setErr('Please select at least one language.')
@@ -214,6 +224,11 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         const r = await buildReport(farm, setBusy, { ...runOpts, lang: l })
         res[l] = r
 
+        const rd = r.data as {
+          metrics?: { ndvi?: { mean?: number | null }; stressPct?: number | null }
+          areaHa?: number | null
+          scene?: { datetime?: string | null }
+        }
         await saveReportToHistory({
           id: r.id + '-' + l,
           farmId: farm.id,
@@ -225,11 +240,11 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
           format: 'HTML',
           htmlContent: r.html,
           summary: {
-            ndviMean: farm.analysis?.ndvi?.mean ?? 0.58,
-            stressPct: farm.analysis?.stressPct ?? 14.5,
-            areaHa: farm.area ?? 2.4,
+            ndviMean: rd.metrics?.ndvi?.mean ?? null,
+            stressPct: rd.metrics?.stressPct ?? null,
+            areaHa: rd.areaHa ?? null,
             location: farm.location,
-            sceneDate: farm.analysis?.scene?.datetime?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+            sceneDate: typeof rd.scene?.datetime === 'string' ? rd.scene.datetime.slice(0, 10) : null,
           },
           devicePath: `/seva-gis/reports/${baseFilename}_${l.toUpperCase()}.html`,
         })
@@ -359,12 +374,12 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         ndmi: farm.analysis?.ndmi?.mean,
         filename: `${baseFilename}.${ext}`,
         htmlContent: current.html,
-        senderName: who.name || 'SEVA·GIS Autonomous Sentinel',
+        senderName: who.name || 'SEVA·GIS',
         downloadEml: false, // NO FORCED DOWNLOAD
       })
 
       setEmailPackage(deliveryRes.packageData)
-      setEmailSuccess(`Report (${ext.toUpperCase()}) prepared for ${emailInput}! Dispatched via EmailOctopus & Drive Vault.`)
+      setEmailSuccess(`Report (${ext.toUpperCase()}) package ready for ${emailInput}! Use the options below to download or send it.`)
 
       // 2. Background audience sync (non-blocking)
       syncAndSendViaEmailOctopus({
@@ -387,8 +402,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         filename: `${baseFilename}.${ext}`,
         htmlContent: current.html,
         areaHa: farm.area,
-        ndvi: farm.analysis?.ndvi?.mean ?? 0.65,
-        ndmi: farm.analysis?.ndmi?.mean ?? 0.32,
+        ndvi: farm.analysis?.ndvi?.mean,
+        ndmi: farm.analysis?.ndmi?.mean,
         contactId: 'Direct-Delivery',
       })
     } catch (err: any) {
@@ -416,11 +431,11 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
             ndvi: farm.analysis?.ndvi?.mean,
             filename: `${baseFilename}.html`,
             htmlContent: curReport.html,
-            senderName: who.name || 'SEVA·GIS Autonomous Sentinel',
+            senderName: who.name || 'SEVA·GIS',
             downloadEml: false, // NO FORCED DOWNLOAD
           })
           setEmailPackage(deliveryRes.packageData)
-          setEmailSuccess(`Report downloaded! Email package prepared for ${targetEmail} & organized in Google Drive.`)
+          setEmailSuccess(`Report downloaded! Email package prepared for ${targetEmail}.`)
           setTimeout(() => setEmailSuccess(''), 10000)
         } catch (e) {
           console.warn('Auto-email on download failed:', e)
@@ -439,7 +454,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const generateMarkdownDossier = () => {
     const cur = reports[previewLang]
     return `# SEVA·GIS Earth Intelligence Dossier: ${farm.name}
-**Report ID**: ${cur?.id || 'SEVA-OFFICIAL'}  
+**Report ID**: ${cur?.id ?? 'not yet generated'}  
 **Location**: ${farm.location} (${farm.lat.toFixed(5)}°N, ${farm.lon.toFixed(5)}°E)  
 **Surface Area**: ${farm.area.toFixed(2)} ha (${(farm.area * 2.47105).toFixed(2)} acres)  
 **Crop / Ground Cover**: ${farm.crop || 'Agricultural Parcel'}  
@@ -450,25 +465,24 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 ## Remote Sensing & Canopy Vigor Indices
 - **NDVI (Normalized Difference Vegetation Index)**: ${farm.analysis?.ndvi?.mean?.toFixed(2) ?? 'N/A'} (Range: ${farm.analysis?.ndvi?.min?.toFixed(2) ?? '-'} to ${farm.analysis?.ndvi?.max?.toFixed(2) ?? '-'})
 - **NDMI (Normalized Difference Moisture Index)**: ${farm.analysis?.ndmi?.mean?.toFixed(2) ?? 'N/A'}
-- **Vegetative Canopy Stress**: ${farm.analysis?.stressPct?.toFixed(1) ?? '0'}% of field parcel
-- **Topographical Slope**: ${(farm.analysis?.slopePct ?? 2.1).toFixed(1)}% gradient (Elevation: ${farm.elevation?.toFixed(1) ?? '245'} m)
+- **Vegetative Canopy Stress**: ${farm.analysis?.stressPct !== undefined ? `${farm.analysis.stressPct.toFixed(1)}% of clear pixels below the 0.30 NDVI flag` : 'Not available - run an analysis first'}
+- **Topographical Slope**: ${farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}% gradient` : 'Not available'} (Elevation: ${farm.elevation !== undefined ? `${farm.elevation.toFixed(1)} m` : 'Not available'})
 
 ---
 
-## Quantitative Water Balance & Hydrology
-- **Hydrological Soil Formulation**: USDA SCS-CN (Curve Number Model)
-- **Calibrated Surface Runoff**: 248.6 mm / annum
-- **Actual Evapotranspiration (AET)**: 612.4 mm / annum
+## Hydrological Water Balance
+- **Status**: Not computed here. A continuous water balance needs a calibrated SWAT-class model run with observed streamflow or gauge records for this area of interest; this dossier never estimates those numbers.
+- **Framework** (used only when such a run is attached): USDA SCS-CN runoff (Q = (P - Ia)^2 / (P - Ia + S)) and Hargreaves reference ET.
 
 ---
 
 ## Direct Actionable Agronomic Recommendations
-1. **Precision Irrigation Scheduling**: Maintain optimal root-zone capillary suction. If leaf hydration NDMI < 0.20, schedule drip irrigation cycle.
-2. **Variable Rate Nitrogen Prescription (VRA)**: Apply standard basal rate (80 kg N/ha) in vigorous zones; apply targeted boost (+25%) in southern localized stress zones.
-3. **Soil Conservation**: Contour bunding along natural ${(farm.analysis?.slopePct ?? 2.1).toFixed(1)}% topographical gradient.
+1. **Irrigation check**: The moisture index (NDMI) is a scene reading, not a soil probe. If NDMI looks low, confirm with a soil-moisture check before scheduling irrigation.
+2. **Variable Rate Application (VRA)**: The NDVI/NDMI maps show where the crop differs. Follow your normal method in vigorous zones; inspect low-vigour zones in person first (water, pests, drainage, nutrients). SEVA·GIS does not prescribe fertiliser doses.
+3. **Soil Conservation**: Contour bunding is a common option on sloping fields. Confirm the gradient with the terrain layer and a field visit before earthworks.
 
 ---
-*Generated by SEVA·GIS Autonomous Planetary Observatory — Zero backend, zero API keys, complete client-side device privacy.*
+*Generated by SEVA·GIS in the browser from the loaded satellite scene, elevation grid and farm records.*
 `
   }
 
@@ -1243,40 +1257,38 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 <tbody>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowNdvi')}</td>
-                    <td style={{ padding: '8px 10px', color: '#047857', fontWeight: 700 }}>{(farm.analysis?.ndvi?.mean ?? 0.65).toFixed(2)}</td>
+                    <td style={{ padding: '8px 10px', color: aNdvi === undefined ? '#64748b' : aNdvi >= 0.60 ? '#047857' : '#dc2626', fontWeight: 700 }}>{num2(aNdvi)}</td>
                     <td style={{ padding: '8px 10px' }}>0.60</td>
-                    <td style={{ padding: '8px 10px', fontWeight: 700, color: (farm.analysis?.ndvi?.mean ?? 0.65) >= 0.60 ? '#047857' : '#dc2626' }}>
-                      {((farm.analysis?.ndvi?.mean ?? 0.65) - 0.60 >= 0 ? '+' : '') + ((farm.analysis?.ndvi?.mean ?? 0.65) - 0.60).toFixed(2)}
+                    <td style={{ padding: '8px 10px', fontWeight: 700, color: aNdvi === undefined ? '#64748b' : aNdvi >= 0.60 ? '#047857' : '#dc2626' }}>
+                      {deltaOf(aNdvi, 0.60)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>Additive (+45% Weight)</td>
                     <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowNdviNote')}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowNdmi')}</td>
-                    <td style={{ padding: '8px 10px', color: '#0284c7', fontWeight: 700 }}>{(farm.analysis?.ndmi?.mean ?? 0.32).toFixed(2)}</td>
+                    <td style={{ padding: '8px 10px', color: aNdmi === undefined ? '#64748b' : aNdmi >= 0.30 ? '#0284c7' : '#dc2626', fontWeight: 700 }}>{num2(aNdmi)}</td>
                     <td style={{ padding: '8px 10px' }}>0.30</td>
-                    <td style={{ padding: '8px 10px', fontWeight: 700, color: (farm.analysis?.ndmi?.mean ?? 0.32) >= 0.30 ? '#0284c7' : '#dc2626' }}>
-                      {((farm.analysis?.ndmi?.mean ?? 0.32) - 0.30 >= 0 ? '+' : '') + ((farm.analysis?.ndmi?.mean ?? 0.32) - 0.30).toFixed(2)}
+                    <td style={{ padding: '8px 10px', fontWeight: 700, color: aNdmi === undefined ? '#64748b' : aNdmi >= 0.30 ? '#0284c7' : '#dc2626' }}>
+                      {deltaOf(aNdmi, 0.30)}
                     </td>
                     <td style={{ padding: '8px 10px' }}>Additive (+35% Weight)</td>
                     <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowNdmiNote')}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowSavi')}</td>
-                    <td style={{ padding: '8px 10px', color: '#65a30d', fontWeight: 700 }}>{((farm.analysis?.ndvi?.mean ?? 0.65) * 0.9).toFixed(2)}</td>
+                    <td style={{ padding: '8px 10px', color: '#64748b', fontWeight: 700 }}>—</td>
                     <td style={{ padding: '8px 10px' }}>0.50</td>
-                    <td style={{ padding: '8px 10px', fontWeight: 700, color: '#047857' }}>
-                      +{(((farm.analysis?.ndvi?.mean ?? 0.65) * 0.9) - 0.50).toFixed(2)}
-                    </td>
-                    <td style={{ padding: '8px 10px' }}>Additive (+20% Weight)</td>
+                    <td style={{ padding: '8px 10px', fontWeight: 700, color: '#64748b' }}>—</td>
+                    <td style={{ padding: '8px 10px' }}>{t('rp.saviNotComputed')}</td>
                     <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowSaviNote')}</td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '8px 10px', fontWeight: 600 }}>{t('rp.rowStress')}</td>
-                    <td style={{ padding: '8px 10px', color: '#dc2626', fontWeight: 700 }}>{(farm.analysis?.stressPct ?? 7.5).toFixed(1)}%</td>
+                    <td style={{ padding: '8px 10px', color: aStress === undefined ? '#64748b' : '#dc2626', fontWeight: 700 }}>{num1(aStress)}%</td>
                     <td style={{ padding: '8px 10px' }}>&lt; 5.0%</td>
-                    <td style={{ padding: '8px 10px', fontWeight: 700, color: '#dc2626' }}>
-                      +{((farm.analysis?.stressPct ?? 7.5) - 5.0).toFixed(1)}%
+                    <td style={{ padding: '8px 10px', fontWeight: 700, color: aStress === undefined ? '#64748b' : '#dc2626' }}>
+                      {deltaOf(aStress, 5.0, 1)}%
                     </td>
                     <td style={{ padding: '8px 10px', color: '#dc2626' }}>{t('rp.colDeduction')}</td>
                     <td style={{ padding: '8px 10px', color: '#475569' }}>{t('rp.rowStressNote')}</td>

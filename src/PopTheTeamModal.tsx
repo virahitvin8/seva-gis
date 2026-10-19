@@ -138,13 +138,13 @@ export default function PopTheTeamModal({
 
       const res = await sendPopTeamAlert(payload)
       setResult({
-        success: true,
+        success: res.success,
         incidentId: res.incidentId,
         message: res.message,
       })
     } catch (err) {
       console.error('[PopTheTeamModal] Alert failure:', err)
-      setErrorMsg('Network warning, but alert was queued to local telemetry queue.')
+      setErrorMsg(`Could not reach the alert channels. Please email the team directly at ${CHAT_HELP_BOT_GMAIL}.`)
     } finally {
       setSending(false)
     }
@@ -383,13 +383,13 @@ ${stack || 'None'}`
             }}
           >
             <div style={{ width: 44, height: 44, margin: '0 auto 8px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center' }}>
-              <CheckCircle2 size={26} color="#ffffff" />
+              {result.success ? <CheckCircle2 size={26} color="#ffffff" /> : <AlertTriangle size={26} color="#ffffff" />}
             </div>
             <h3 style={{ margin: '0 0 6px', color: '#ffffff', fontSize: '16px', fontWeight: 700 }}>
-              SEVA Team Alert Dispatched!
+              {result.success ? 'SEVA Team Alert Submitted' : 'Alert Could Not Be Confirmed'}
             </h3>
             <p style={{ margin: '0 0 12px', color: '#d1fae5', fontSize: '12.5px', lineHeight: 1.45 }}>
-              Automated telemetry report <strong style={{ color: '#fff' }}>#{result.incidentId}</strong> dispatched. To ensure 100% receipt or if you use personal email, choose an instant delivery option below:
+              {result.message} You can also use a direct option below:
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '14px' }}>
               <a

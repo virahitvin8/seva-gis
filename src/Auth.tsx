@@ -29,7 +29,7 @@ import {
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'
 import { GUEST, closeWorkspace, db, login, openWorkspace, register, registerOrLoginGoogleUser, sessionId, setSession } from './lib/db'
-import { authenticateWithGoogle, disconnectGoogle, getGoogleUser } from './lib/googleDriveVault'
+import { authenticateWithGoogle, disconnectGoogle, getGoogleClientId, getGoogleUser, isRealGoogleClientId } from './lib/googleDriveVault'
 
 import Wordmark from './Wordmark'
 import { logoMark as logo } from './assets/brand'
@@ -112,6 +112,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [activeTechniqueIndex, setActiveTechniqueIndex] = useState<number>(0)
   const [googleModalOpen, setGoogleModalOpen] = useState(false)
   const [googleModalEmail, setGoogleModalEmail] = useState('')
+  // Google sign-in only works when this deployment configures a real OAuth client ID.
+  const googleSignInConfigured = isRealGoogleClientId(getGoogleClientId())
 
   const DOMAIN_DATA = {
     agri: {
@@ -196,17 +198,17 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     },
     vault: {
       name: 'Google Drive Cloud Vault & Cartography',
-      tag: 'Automated Cloud Sync · Zero Fees · 19X Cartography',
+      tag: 'Optional Google Drive Sync · Zero Fees · 19X Cartography',
       icon: HardDrive,
       color: '#3b82f6',
       bg: 'rgba(59, 130, 246, 0.12)',
       border: 'rgba(59, 130, 246, 0.3)',
       techniques: [
-        { angle: '12:00', title: 'Hierarchical Drive Folders (SEVA GIS)', sensor: 'Google Drive REST API', formula: 'Root: SEVA GIS / [TIFF, Images, Reports, Cache]', desc: 'Auto-creates and organizes analytical outputs into pristine Google Drive subfolders.' },
+        { angle: '12:00', title: 'Hierarchical Drive Folders (SEVA GIS)', sensor: 'Google Drive REST API', formula: 'Root: SEVA GIS / [TIFF, Images, Reports, Cache]', desc: 'When Google Drive is connected, creates the SEVA GIS folder tree and uploads exports into it.' },
         { angle: '02:00', title: '19X High-DPI Cartographic Print Layout', sensor: 'QGIS Composer Replica', formula: 'Neatline + Dual-Scale Bar + Compass Rose + Legends', desc: 'Renders thesis-grade publication cartography with collision-free neatline frames.' },
         { angle: '04:00', title: 'Float32 GeoTIFF EPSG:4326 Export', sensor: 'Native Client GeoTIFF Writer', formula: 'Float32 Analytical Pixel Values in WGS84', desc: 'Exports authentic uncompressed raster grids for direct import into QGIS, ArcMap, or rasterio.' },
         { angle: '06:00', title: 'Zero-Error Local Device Fallback', sensor: 'IndexedDB & Direct Blob Dispatch', formula: 'Offline First Local Vault Guarantee', desc: 'Guarantees exports always save to your device even if offline or Google Drive is disconnected.' },
-        { angle: '08:00', title: 'Verified Email Delivery', sensor: 'EmailOctopus List Dispatch', formula: 'Instant Executive Dossier Delivery', desc: 'Synchronizes field records and dispatches reports without requiring external mail applications.' },
+        { angle: '08:00', title: 'Email Delivery (when configured)', sensor: 'Server email provider', formula: 'Dossier package + greeting card', desc: 'Prepares the dossier package for download and sends it by email when an email provider is configured on the server.' },
         { angle: '10:00', title: 'Multi-Format Archival Dossiers', sensor: 'HTML, PDF, DOCX, ZIP & GeoJSON', formula: 'Universal Cross-Platform Packaging', desc: 'Packages complete field studies into universal formats accessible on any desktop or smartphone.' },
       ]
     }
@@ -220,7 +222,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setError('')
     setBusy(true)
     try {
-      const emailToUse = googleModalEmail.trim() || 'farmer@gmail.com'
+      const emailToUse = googleModalEmail.trim()
+      if (!emailToUse || !emailToUse.includes('@')) {
+        setError('Enter the Gmail address you want to use.')
+        return
+      }
       const res = await authenticateWithGoogle(emailToUse)
       if (res.success && res.user) {
         const u = await registerOrLoginGoogleUser(res.user)
@@ -239,8 +245,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   async function handleGoogleSignIn() {
-    // Open in-app Google modal to give instant choice of Gmail or 1-click Google Profile mode,
-    // avoiding the Google 401: invalid_client error entirely!
+    // Open the in-app Google modal. If this deployment has no real OAuth client
+    // configured, the modal says so plainly instead of faking a local session.
+    setError('')
     setGoogleModalEmail('')
     setGoogleModalOpen(true)
   }
@@ -298,7 +305,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             Where Satellites Meet Soil: Open-Source Multi-Sensor Earth Observation &amp; Agronomic Intelligence
           </div>
           <p className="au-cherish" style={{ fontSize: 15.5, lineHeight: 1.65, color: '#cbd5e1', marginBottom: 24, maxWidth: 660 }}>
-            Autonomous browser-first spatial analysis. Pick any area of interest, compute 30+ spectral insights, export 19+ cartography and analysis outputs to your Google Drive. Zero subscription fee, zero API keys, complete privacy on your device.
+            Autonomous browser-first spatial analysis. Pick any area of interest, compute 30+ spectral insights, and export cartography and analysis outputs — saved to your device, with optional Google Drive sync when connected. Zero subscription fee, zero API keys, exports stay on your device.
           </p>
 
           <ul className="au-stats">
@@ -344,7 +351,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           className="au-google-btn"
           disabled={busy}
           onClick={handleGoogleSignIn}
-          title="Sign in with Google Account and auto-organize outputs in Google Drive (SEVA GIS)"
+          title="Sign in with Google where configured; exports save to your device and sync to Google Drive when connected (SEVA GIS)"
         >
           <svg viewBox="0 0 24 24" width="18" height="18" style={{ minWidth: 18 }}>
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -353,7 +360,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
           </svg>
           <span>Continue with Google</span>
-          <span className="au-google-badge">Auto Drive Sync</span>
+          <span className="au-google-badge">Optional Drive Sync</span>
         </button>
         <button type="button" className="au-guest" onClick={() => enterGuest()}><UserIcon size={15}/>Continue as Guest · Instant access</button>
         <small>Your account is saved on this device. Passwords are hashed locally and never transmitted. Back up or restore anytime from Data manager.</small>
@@ -636,10 +643,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             <div style={{ fontSize: 36, fontWeight: 900, color: '#a855f7', lineHeight: 1, marginBottom: 14 }}>03</div>
             <h3 style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', margin: '0 0 10px' }}>Inspect &amp; Auto-Sync</h3>
             <p style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.65, margin: '0 0 14px' }}>
-              Explore 30+ indices, D8 stream accumulation, and Fields2Cover tractor swaths. Export Float32 GeoTIFFs, 19X thesis cartography, Word/PDF dossiers, and auto-sync to your Google Drive Vault folder.
+              Explore 30+ indices, D8 stream accumulation, and Fields2Cover tractor swaths. Export Float32 GeoTIFFs, thesis cartography, Word/PDF dossiers — saved to your device, with sync to your Google Drive folder when Drive is connected.
             </p>
             <div style={{ fontSize: 11.5, color: '#d8b4fe', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Check size={14} /> Universal GeoTIFF, PDF, DOCX &amp; Cloud Drive Sync
+              <Check size={14} /> Universal GeoTIFF, PDF, DOCX &amp; optional Drive Sync
             </div>
           </div>
         </div>
@@ -687,8 +694,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           </div>
 
           <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5, marginBottom: 18 }}>
-            Connect your Google profile to automatically organize all exported GeoTIFFs, CartoMap PNGs, and dossiers into your Google Drive folder: <b>SEVA GIS</b>.
+            Sign in with Google to connect Drive sync: exports always save to this device, and upload to a <b>SEVA GIS</b> folder in your Google Drive while Drive is connected.
           </p>
+
+          {!googleSignInConfigured && (
+            <div style={{ fontSize: 12, color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', border: '1px solid rgba(251, 191, 36, 0.35)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, lineHeight: 1.45 }}>
+              Google sign-in is not configured on this deployment. Use Guest Mode below — exports still save to this device.
+            </div>
+          )}
 
           <form onSubmit={handleGoogleModalSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -711,10 +724,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               />
             </label>
 
+            {error && (
+              <div style={{ fontSize: 12.5, color: '#fca5a5', lineHeight: 1.45 }} role="alert">{error}</div>
+            )}
+
             <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || !googleSignInConfigured}
                 style={{
                   flex: 1,
                   padding: '11px 16px',

@@ -274,7 +274,7 @@ export default function App() {
       const res = await authenticateWithGoogle()
       if (res.success && res.user) {
         setDriveConnected(true)
-        setMessage(`Google Drive connected (${res.user.email}). All outputs will organize into SEVA GIS.`)
+        setMessage(`Google Drive connected (${res.user.email}). New exports will sync to the "SEVA GIS" Drive folder.`)
       } else if (res.error && res.error !== 'Sign-in cancelled') {
         setMessage(res.error)
       }

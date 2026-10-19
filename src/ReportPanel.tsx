@@ -404,7 +404,9 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         areaHa: farm.area,
         ndvi: farm.analysis?.ndvi?.mean,
         ndmi: farm.analysis?.ndmi?.mean,
-        contactId: 'Direct-Delivery',
+        // No subscriber ID exists unless an EmailOctopus sync confirmed one;
+        // the modal shows a dash rather than a made-up identifier.
+        contactId: '',
       })
     } catch (err: any) {
       setErr(err?.message || 'Could not compile email package. Please check network.')

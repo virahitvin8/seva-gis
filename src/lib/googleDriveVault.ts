@@ -127,6 +127,11 @@ export function getGoogleUser(): GoogleUser | null {
       // Token is stale; clear token but keep identity
       user.accessToken = undefined
     }
+    // Tokens invented by earlier builds (token_vault_ / token_local_ / demo)
+    // are not live Google sessions and must never light up Drive features.
+    if (user.accessToken && !isRealGoogleAccessToken(user.accessToken)) {
+      user.accessToken = undefined
+    }
     return user
   } catch {
     return null
@@ -153,11 +158,21 @@ export function saveGoogleUser(user: GoogleUser | null): void {
 }
 
 /**
+ * True only while a live Google OAuth token is present. Google issues access
+ * tokens prefixed "ya29."; anything else (stale demo tokens from earlier
+ * builds, expired sessions) is not a connected Drive and must never be
+ * reported as one.
+ */
+export function isRealGoogleAccessToken(token?: string): boolean {
+  return Boolean(token && token.startsWith('ya29.'))
+}
+
+/**
  * Checks if Google Drive cloud sync is active and authenticated.
  */
 export function isGoogleDriveConnected(): boolean {
   const user = getGoogleUser()
-  return Boolean(user && user.accessToken && user.isGoogleUser)
+  return Boolean(user && user.isGoogleUser && isRealGoogleAccessToken(user.accessToken))
 }
 
 /**
@@ -190,19 +205,15 @@ export function loadGsiScript(): Promise<boolean> {
 }
 
 /**
- * Resolves the Google OAuth Client ID from Vite environment or Firebase configuration.
+ * Resolves the Google OAuth Client ID from the deployment environment.
+ *
+ * Only a client ID configured via VITE_GOOGLE_CLIENT_ID is used. The previous
+ * placeholder fallbacks pretended to be a Google OAuth client, which let the
+ * app "sign in" with a fabricated local token instead of failing honestly.
  */
 export function getGoogleClientId(): string {
   const envId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID
-  if (envId && envId.trim()) return envId.trim()
-
-  // Standard public web client ID for SEVA.GIS project if configured
-  const firebaseProjectId = (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID
-  if (firebaseProjectId) {
-    // Return environment or standard fallback
-    return `${firebaseProjectId}.apps.googleusercontent.com`
-  }
-  return '419602015618-sevagis.apps.googleusercontent.com'
+  return envId && envId.trim() ? envId.trim() : ''
 }
 
 /**
@@ -229,124 +240,90 @@ export function isRealGoogleClientId(id: string): boolean {
  * Triggers interactive Google OAuth 2.0 Sign-In requesting Google Drive file access.
  * Scope https://www.googleapis.com/auth/drive.file ensures access ONLY to files
  * created by SEVA.GIS, preserving complete user privacy.
+ *
+ * If Google sign-in is not configured for this deployment, the call fails with a
+ * clear message — it never invents a user or a token. Guest mode stays available.
  */
 export async function authenticateWithGoogle(customEmail?: string): Promise<{ success: boolean; user?: GoogleUser; error?: string }> {
+  const clientId = getGoogleClientId()
+
+  if (!isRealGoogleClientId(clientId)) {
+    console.info('[Google Vault] Google sign-in is not configured on this deployment (VITE_GOOGLE_CLIENT_ID is missing or a placeholder).')
+    return {
+      success: false,
+      error: 'Google sign-in is not configured on this deployment. Continue with Guest Mode or email sign-up — exports still save to this device.',
+    }
+  }
+
   try {
-    const clientId = getGoogleClientId()
-    const isRealClient = isRealGoogleClientId(clientId)
+    const gsiLoaded = await loadGsiScript()
+    const google = (window as any).google
 
-    if (isRealClient) {
-      const gsiLoaded = await loadGsiScript()
-      const google = (window as any).google
+    if (!gsiLoaded || !google?.accounts?.oauth2) {
+      return {
+        success: false,
+        error: 'Google sign-in could not start because the Google script did not load. Check your connection, or continue as guest.',
+      }
+    }
 
-      if (gsiLoaded && google?.accounts?.oauth2) {
-        return new Promise((resolve) => {
-          try {
-            const client = google.accounts.oauth2.initTokenClient({
-              client_id: clientId,
-              scope: 'https://www.googleapis.com/auth/drive.file email profile openid',
-              callback: async (tokenResponse: any) => {
-                if (tokenResponse.error) {
-                  console.warn('[Google Vault] Token error from Google OAuth:', tokenResponse.error)
-                  // Fall back seamlessly to local Google profile mode without blocking the user
-                  const cleanEmail = customEmail || 'user@gmail.com'
-                  const namePart = cleanEmail.split('@')[0]
-                  const cleanName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
-                  const fallbackUser: GoogleUser = {
-                    id: `google_${cleanEmail}`,
-                    email: cleanEmail,
-                    name: cleanName,
-                    accessToken: `token_local_${Date.now()}`,
-                    tokenExpiry: Date.now() + 86400 * 1000,
-                    isGoogleUser: true,
-                  }
-                  saveGoogleUser(fallbackUser)
-                  resolve({ success: true, user: fallbackUser })
-                  return
-                }
+    return await new Promise((resolve) => {
+      try {
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file email profile openid',
+          hint: customEmail && customEmail.includes('@') ? customEmail : undefined,
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              console.warn('[Google Vault] Token error from Google OAuth:', tokenResponse.error)
+              resolve({ success: false, error: 'Google sign-in was cancelled or refused for this app. Continue as guest or try again.' })
+              return
+            }
 
-                const accessToken = tokenResponse.access_token
-                const expiresIn = Number(tokenResponse.expires_in) || 3600
-                const tokenExpiry = Date.now() + (expiresIn - 60) * 1000
+            const accessToken = tokenResponse.access_token
+            if (!accessToken) {
+              resolve({ success: false, error: 'Google sign-in did not return an access token. Please try again.' })
+              return
+            }
 
-                // Fetch Google Profile information
-                try {
-                  const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                  })
-                  if (res.ok) {
-                    const info = await res.json()
-                    const googleUser: GoogleUser = {
-                      id: `google_${info.sub || info.email}`,
-                      email: info.email || '',
-                      name: info.name || info.given_name || 'Google User',
-                      picture: info.picture,
-                      accessToken,
-                      tokenExpiry,
-                      isGoogleUser: true,
-                    }
-                    saveGoogleUser(googleUser)
-                    void initGoogleDriveFolders(accessToken)
-                    resolve({ success: true, user: googleUser })
-                    return
-                  }
-                } catch (fetchErr) {
-                  console.warn('[Google Vault] Userinfo fetch error:', fetchErr)
-                }
+            const expiresIn = Number(tokenResponse.expires_in) || 3600
+            const tokenExpiry = Date.now() + (expiresIn - 60) * 1000
 
-                // Fallback if userinfo endpoint fails
-                const fallbackUser: GoogleUser = {
-                  id: `google_${Date.now()}`,
-                  email: customEmail || 'user@gmail.com',
-                  name: 'Google User',
+            // Read the account behind the token so no identity is ever invented.
+            try {
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` },
+              })
+              if (res.ok) {
+                const info = await res.json()
+                const googleUser: GoogleUser = {
+                  id: `google_${info.sub || info.email}`,
+                  email: info.email || '',
+                  name: info.name || info.given_name || 'Google user',
+                  picture: info.picture,
                   accessToken,
                   tokenExpiry,
                   isGoogleUser: true,
                 }
-                saveGoogleUser(fallbackUser)
+                saveGoogleUser(googleUser)
                 void initGoogleDriveFolders(accessToken)
-                resolve({ success: true, user: fallbackUser })
-              },
-            })
-
-            client.requestAccessToken({ prompt: 'consent' })
-          } catch (initErr: any) {
-            console.warn('[Google Vault] GIS Client Init error:', initErr)
-            // Fall back seamlessly to local profile mode
-            const cleanEmail = customEmail || 'user@gmail.com'
-            const fallbackUser: GoogleUser = {
-              id: `google_${cleanEmail}`,
-              email: cleanEmail,
-              name: 'Google User',
-              accessToken: `token_local_${Date.now()}`,
-              tokenExpiry: Date.now() + 86400 * 1000,
-              isGoogleUser: true,
+                resolve({ success: true, user: googleUser })
+                return
+              }
+              console.warn('[Google Vault] Userinfo endpoint responded with', res.status)
+            } catch (fetchErr) {
+              console.warn('[Google Vault] Userinfo fetch error:', fetchErr)
             }
-            saveGoogleUser(fallbackUser)
-            resolve({ success: true, user: fallbackUser })
-          }
+
+            resolve({ success: false, error: 'Signed in with Google, but the profile could not be read. Please try again.' })
+          },
         })
+
+        client.requestAccessToken({ prompt: 'consent' })
+      } catch (initErr: any) {
+        console.warn('[Google Vault] GIS Client Init error:', initErr)
+        resolve({ success: false, error: 'Google sign-in could not start. Continue as guest or try again later.' })
       }
-    }
-
-    // Graceful offline, local dev, or placeholder client ID fallback:
-    // Avoids Google's Error 401: invalid_client and signs in immediately with local Google profile
-    const chosenEmail = customEmail || (typeof window !== 'undefined' ? localStorage.getItem('seva-user-email') || 'farmer@gmail.com' : 'farmer@gmail.com')
-    const cleanEmail = chosenEmail.trim().toLowerCase()
-    const namePart = cleanEmail.split('@')[0] || 'Member'
-    const cleanName = namePart.charAt(0).toUpperCase() + namePart.slice(1)
-
-    const mockGoogleUser: GoogleUser = {
-      id: `google_${cleanEmail}`,
-      email: cleanEmail,
-      name: cleanName,
-      accessToken: `token_vault_${Date.now()}`,
-      tokenExpiry: Date.now() + 86400 * 1000,
-      isGoogleUser: true,
-    }
-    saveGoogleUser(mockGoogleUser)
-    resolveLocalDriveNotice('Google account linked. Storage will organize into SEVA GIS.')
-    return { success: true, user: mockGoogleUser }
+    })
   } catch (err: any) {
     console.warn('[Google Vault] Authentication exception:', err)
     return { success: false, error: err.message || 'Authentication could not be completed' }
@@ -433,8 +410,8 @@ export async function initGoogleDriveFolders(token?: string): Promise<DriveFolde
   const user = getGoogleUser()
   const accessToken = token || user?.accessToken
 
-  if (!accessToken || accessToken.startsWith('token_demo_')) {
-    // Stored mock or offline token
+  if (!accessToken || !isRealGoogleAccessToken(accessToken)) {
+    // No live Google OAuth token: never pretend to manage Drive folders.
     return null
   }
 
@@ -514,13 +491,8 @@ export async function uploadToGoogleDrive(
   mimeType?: string
 ): Promise<{ success: boolean; fileId?: string; error?: string }> {
   const user = getGoogleUser()
-  if (!user || !user.accessToken) {
-    return { success: false, error: 'User is not authenticated with Google' }
-  }
-
-  if (user.accessToken.startsWith('token_demo_')) {
-    // Simulated Google Drive sync for local demonstration
-    return { success: true, fileId: `demo_drive_${Date.now()}` }
+  if (!user || !isRealGoogleAccessToken(user.accessToken)) {
+    return { success: false, error: 'Google Drive is not connected with a live Google token' }
   }
 
   try {
@@ -636,9 +608,9 @@ export async function dispatchExport(options: DispatchOptions): Promise<Dispatch
     console.warn('[Storage Dispatcher] Device save exception:', deviceErr)
   }
 
-  // 2. Parallel upload to Google Drive if connected
+  // 2. Parallel upload to Google Drive if a live Google session is connected
   const user = getGoogleUser()
-  if (user && user.isGoogleUser) {
+  if (user && user.isGoogleUser && isRealGoogleAccessToken(user.accessToken)) {
     try {
       const uploadRes = await uploadToGoogleDrive(category, fileName, blob, mimeType)
       if (uploadRes.success) {

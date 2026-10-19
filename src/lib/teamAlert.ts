@@ -117,7 +117,7 @@ export async function sendPopTeamAlert(payload: PopTeamPayload): Promise<PopTeam
     `• User Agent: ${snapshot.userAgent}`,
     ``,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `Dispatched automatically by SEVA·GIS Bot via Web3Forms & EmailOctopus.`,
+    `Sent by the SEVA·GIS in-app incident reporter.`,
   ].filter(Boolean).join('\n')
 
   const results = {
@@ -235,35 +235,37 @@ export async function sendPopTeamAlert(payload: PopTeamPayload): Promise<PopTeam
     console.warn('[PopTheTeam] Hidden form submit note:', domErr)
   }
 
-  // 3. Dispatch & Sync with EmailOctopus ("eight octopus")
-  try {
-    const eoTargetEmail = senderEmail.includes('@') ? senderEmail : CHAT_HELP_BOT_GMAIL
-    const eoRes = await fetch(
-      `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_CONFIG.listId}/contacts`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          api_key: EMAIL_OCTOPUS_CONFIG.apiKey,
-          email_address: eoTargetEmail,
-          fields: {
-            FirstName: senderName.slice(0, 30),
-            LastName: `PopTeam-${incidentId}`,
-          },
-          tags: ['SEVA-INCIDENT-POP-TEAM', 'PAGE-NOT-WORKING'],
-          status: 'SUBSCRIBED',
-        }),
-      }
-    ).catch(() => null)
+  // 3. Dispatch & Sync with EmailOctopus ("eight octopus") — only when configured
+  if (EMAIL_OCTOPUS_CONFIG.apiKey && EMAIL_OCTOPUS_CONFIG.listId) {
+    try {
+      const eoTargetEmail = senderEmail.includes('@') ? senderEmail : CHAT_HELP_BOT_GMAIL
+      const eoRes = await fetch(
+        `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_CONFIG.listId}/contacts`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: EMAIL_OCTOPUS_CONFIG.apiKey,
+            email_address: eoTargetEmail,
+            fields: {
+              FirstName: senderName.slice(0, 30),
+              LastName: `PopTeam-${incidentId}`,
+            },
+            tags: ['SEVA-INCIDENT-POP-TEAM', 'PAGE-NOT-WORKING'],
+            status: 'SUBSCRIBED',
+          }),
+        }
+      ).catch(() => null)
 
-    if (eoRes) {
-      const eoJson = await eoRes.json().catch(() => null)
-      if (eoRes.ok || eoJson?.error?.code === 'MEMBER_EXISTS_WITH_EMAIL_ADDRESS') {
-        results.emailOctopus = true
+      if (eoRes) {
+        const eoJson = await eoRes.json().catch(() => null)
+        if (eoRes.ok || eoJson?.error?.code === 'MEMBER_EXISTS_WITH_EMAIL_ADDRESS') {
+          results.emailOctopus = true
+        }
       }
+    } catch (eoErr) {
+      console.warn('[PopTheTeam] EmailOctopus sync warning:', eoErr)
     }
-  } catch (eoErr) {
-    console.warn('[PopTheTeam] EmailOctopus sync warning:', eoErr)
   }
 
   // 4. Try local server route /api/send-report or /api/pop-team if available
@@ -280,13 +282,18 @@ export async function sendPopTeamAlert(payload: PopTeamPayload): Promise<PopTeam
     }).catch(() => null)
   } catch {}
 
-  const anyDispatched = results.web3forms || results.formSubmit || results.emailOctopus
+  const confirmed = results.web3forms
+  const attempted = confirmed || results.formSubmit || results.emailOctopus
 
   return {
-    success: anyDispatched || true, // Treat as accepted telemetry
+    success: attempted,
     incidentId,
     dispatchedAt: nowIso,
     services: results,
-    message: `SEVA team notified! Incident report #${incidentId} dispatched from bot Gmail service.`,
+    message: confirmed
+      ? `SEVA team notified. Incident report #${incidentId} was delivered to the team inbox.`
+      : attempted
+        ? `Incident report #${incidentId} was submitted, but delivery could not be confirmed from the browser. If the problem continues, email ${CHAT_HELP_BOT_GMAIL} directly.`
+        : `Incident report #${incidentId} could not be submitted from this browser. Please email ${CHAT_HELP_BOT_GMAIL} directly.`,
   }
 }

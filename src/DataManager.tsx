@@ -179,7 +179,7 @@ export default function DataManager() {
         </div>
 
         <p style={{ margin: 0, fontSize: 12, color: '#93c5fd', lineHeight: 1.5 }}>
-          When logged in with Gmail, a folder named <b>SEVA GIS</b> is automatically maintained in your Google Drive with dedicated subfolders (<b>TIFF Files</b>, <b>Images</b>, <b>Reports</b>, <b>User Data &amp; Cache</b>). All downloaded files automatically organize there. If offline or not signed in, everything saves directly to your device storage without any errors.
+          When Google Drive is connected, a folder named <b>SEVA GIS</b> is maintained in your Google Drive with dedicated subfolders (<b>TIFF Files</b>, <b>Images</b>, <b>Reports</b>, <b>User Data &amp; Cache</b>), and exported files upload there. If offline or not connected, everything saves directly to your device storage.
         </p>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
@@ -198,7 +198,7 @@ export default function DataManager() {
               onClick={async () => {
                 const res = await authenticateWithGoogle()
                 if (res.success && res.user) {
-                  setMsg(`Connected Google Drive (${res.user.email}). Folder "SEVA GIS" active.`)
+                  setMsg(`Connected Google Drive (${res.user.email}). Exports will sync to "SEVA GIS".`)
                   await loadData()
                 } else if (res.error) {
                   setMsg(res.error)

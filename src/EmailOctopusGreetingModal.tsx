@@ -246,7 +246,7 @@ export default function EmailOctopusGreetingModal({
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               }}
             >
-              EmailOctopus List
+              Report Greeting Card
             </div>
 
             <div style={{ fontSize: '16px', fontWeight: 800, color: '#064e3b', marginBottom: '6px' }}>
@@ -367,7 +367,7 @@ export default function EmailOctopusGreetingModal({
           <div style={{ fontSize: '11.5px', color: '#64748b', lineHeight: 1.5, marginBottom: '18px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#047857', fontWeight: 600, marginBottom: '2px' }}>
               <ShieldCheck size={14} />
-              <span>EmailOctopus Subscriber List: {EMAIL_OCTOPUS_CONFIG.listId}</span>
+              <span>Email list: {EMAIL_OCTOPUS_CONFIG.listId || 'not configured on this deployment'}</span>
             </div>
             <span>
               Contact ID: <code>{contactId || '—'}</code> · Tag: <code>SEVA-GIS-Report-Download</code>.

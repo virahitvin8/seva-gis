@@ -1,9 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  authenticateWithGoogle,
   getGoogleUser,
   saveGoogleUser,
   isGoogleDriveConnected,
+  isRealGoogleAccessToken,
   dispatchExport,
   disconnectGoogle,
   isRealGoogleClientId,
@@ -22,6 +24,26 @@ test('isRealGoogleClientId detects real GCP OAuth Client IDs vs placeholders', (
   assert.equal(isRealGoogleClientId('96520749785-r3al0authcl13nt1d4567890abcdef.apps.googleusercontent.com'), true)
 })
 
+test('isRealGoogleAccessToken only accepts live Google tokens', () => {
+  assert.equal(isRealGoogleAccessToken('ya29.a0AfH6SMB_example'), true)
+  assert.equal(isRealGoogleAccessToken('token_vault_1700000000000'), false)
+  assert.equal(isRealGoogleAccessToken('token_local_1700000000000'), false)
+  assert.equal(isRealGoogleAccessToken(''), false)
+  assert.equal(isRealGoogleAccessToken(undefined), false)
+})
+
+test('authenticateWithGoogle fails honestly when no client ID is configured', async () => {
+  disconnectGoogle()
+
+  const res = await authenticateWithGoogle('farmer@gmail.com')
+
+  // No fabricated identity or token may be produced by the sign-in call.
+  assert.equal(res.success, false)
+  assert.ok(res.error && res.error.length > 0)
+  assert.equal(getGoogleUser(), null)
+  assert.equal(isGoogleDriveConnected(), false)
+})
+
 test('Google user management and storage round-trip', () => {
   // Clear any previous state
   disconnectGoogle()
@@ -32,7 +54,7 @@ test('Google user management and storage round-trip', () => {
     id: 'google_farmer_123',
     email: 'farmer@gmail.com',
     name: 'Ramesh Patel',
-    accessToken: 'test_access_token_abc',
+    accessToken: 'ya29.test-access-token-abc',
     tokenExpiry: Date.now() + 3600 * 1000,
     isGoogleUser: true
   }
@@ -45,6 +67,10 @@ test('Google user management and storage round-trip', () => {
   assert.equal(loaded?.email, 'farmer@gmail.com')
   assert.equal(loaded?.name, 'Ramesh Patel')
   assert.equal(loaded?.isGoogleUser, true)
+
+  // A locally fabricated token never counts as a connected Drive session
+  saveGoogleUser({ ...mockUser, accessToken: 'token_vault_1700000000000' })
+  assert.equal(isGoogleDriveConnected(), false)
 
   // Disconnect cleans up state
   disconnectGoogle()

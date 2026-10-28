@@ -29,3 +29,6 @@ scratch/
 *service-account*.json
 ShellShock/
 prjyproj/
+
+*.jsonl
+security_access_audit.jsonl

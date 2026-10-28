@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { handleSecurityRoutes } from './backend/security_telemetry.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DIST_DIR = path.join(__dirname, 'dist');
@@ -33,6 +35,11 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   const urlPath = (req.url || '/').split('?')[0];
+
+  // Intercept and log security telemetry & forensic tracking routes
+  if (handleSecurityRoutes(req, res, urlPath)) {
+    return;
+  }
 
   // Cloud Run / Kubernetes Health Check
   if (urlPath === '/health' || urlPath === '/healthz' || urlPath === '/_ah/health') {

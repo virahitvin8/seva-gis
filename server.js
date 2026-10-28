@@ -3,6 +3,16 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  recordSecurityAccessEvent,
+  getSecurityAuditData,
+  generateSecurityAuditCsv,
+  clearSecurityAuditLogs,
+  getClientIp,
+  lookupIpInfo,
+  recordSecurityLoginEvent,
+  getSecurityLoginsData,
+} from './server/securityAuditCore.js';
 
 import { handleSecurityRoutes } from './backend/security_telemetry.js';
 
@@ -118,6 +128,103 @@ const server = http.createServer((req, res) => {
   applyCors(req, res);
 
   // Cloud Run / Kubernetes Health Check
+  
+  // --- SEVA.GIS Security Breach & IP Forensics API ---
+  if (urlPath === '/api/security/telemetry' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 2 * 1024 * 1024) req.destroy();
+    });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const record = await recordSecurityAccessEvent(req, payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, recorded: record }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  
+  if (urlPath === '/api/security/login' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 2 * 1024 * 1024) req.destroy();
+    });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const loginRecord = await recordSecurityLoginEvent(req, payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, login: loginRecord }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if (urlPath === '/api/security/logins' && req.method === 'GET') {
+    const data = getSecurityLoginsData();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(data));
+    return;
+  }
+
+  if (urlPath === '/api/security/audit' && req.method === 'GET') {
+    const data = getSecurityAuditData();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(data));
+    return;
+  }
+
+  if (urlPath === '/api/security/export' && req.method === 'GET') {
+    const parsed = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const format = parsed.searchParams.get('format') || 'csv';
+    if (format === 'json') {
+      const data = getSecurityAuditData();
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename="SEVA_GIS_Security_Breach_Audit_${Date.now()}.json"`,
+      });
+      res.end(JSON.stringify(data.records, null, 2));
+      return;
+    }
+    const csv = generateSecurityAuditCsv();
+    res.writeHead(200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="SEVA_GIS_Security_Breach_Audit_${Date.now()}.csv"`,
+    });
+    res.end(csv);
+    return;
+  }
+
+  if (urlPath === '/api/security/clear' && req.method === 'POST') {
+    clearSecurityAuditLogs();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, message: 'Security breach audit logs reset.' }));
+    return;
+  }
+
+  if (urlPath === '/api/security/my-ip' && req.method === 'GET') {
+    const ip = getClientIp(req);
+    lookupIpInfo(ip).then(geo => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ip, network: geo }));
+    }).catch(err => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ip, error: err.message }));
+    });
+    return;
+  }
+
   if (urlPath === '/health' || urlPath === '/healthz' || urlPath === '/_ah/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('OK');
@@ -563,6 +670,12 @@ const server = http.createServer((req, res) => {
       }
     });
     return;
+  }
+
+  
+  // Passive security access logging for link visits and page routes
+  if (req.method === 'GET' && !urlPath.startsWith('/api/') && !urlPath.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|map|wasm)$/i)) {
+    recordSecurityAccessEvent(req).catch(() => {});
   }
 
   // Sanitize path to prevent directory traversal

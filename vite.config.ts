@@ -2,6 +2,16 @@ import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import {
+  recordSecurityAccessEvent,
+  getSecurityAuditData,
+  generateSecurityAuditCsv,
+  clearSecurityAuditLogs,
+  getClientIp,
+  lookupIpInfo,
+  recordSecurityLoginEvent,
+  getSecurityLoginsData,
+} from './server/securityAuditCore.js'
 
 import siteConfiguration from './.figma/make/site.json'
 
@@ -34,6 +44,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       sevaEmailServerPlugin(),
+      sevaSecurityAuditPlugin(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
@@ -64,6 +75,117 @@ export default defineConfig(({ mode }) => {
 })
 
 /** Vite server middleware to proxy /api/send-report directly to EmailOctopus API */
+
+/** Vite server middleware for SEVA.GIS Security Breach & IP Forensics API */
+function sevaSecurityAuditPlugin(): Plugin {
+  return {
+    name: 'seva-security-audit',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = req.url || '/'
+        const urlPath = url.split('?')[0]
+
+        if (urlPath === '/api/security/telemetry' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          req.on('end', async () => {
+            try {
+              const payload = JSON.parse(body || '{}')
+              const record = await recordSecurityAccessEvent(req, payload)
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: true, recorded: record }))
+            } catch (err: any) {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+
+        
+        if (urlPath === '/api/security/login' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          req.on('end', async () => {
+            try {
+              const payload = JSON.parse(body || '{}')
+              const loginRecord = await recordSecurityLoginEvent(req, payload)
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: true, login: loginRecord }))
+            } catch (err: any) {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+
+        if (urlPath === '/api/security/logins' && req.method === 'GET') {
+          const data = getSecurityLoginsData()
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.end(JSON.stringify(data))
+          return
+        }
+
+        if (urlPath === '/api/security/audit' && req.method === 'GET') {
+          const data = getSecurityAuditData()
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.end(JSON.stringify(data))
+          return
+        }
+
+        if (urlPath === '/api/security/export' && req.method === 'GET') {
+          const parsed = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+          const format = parsed.searchParams.get('format') || 'csv'
+          if (format === 'json') {
+            const data = getSecurityAuditData()
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.setHeader('Content-Disposition', `attachment; filename="SEVA_GIS_Security_Breach_Audit_${Date.now()}.json"`)
+            res.end(JSON.stringify(data.records, null, 2))
+            return
+          }
+          const csv = generateSecurityAuditCsv()
+          res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+          res.setHeader('Content-Disposition', `attachment; filename="SEVA_GIS_Security_Breach_Audit_${Date.now()}.csv"`)
+          res.end(csv)
+          return
+        }
+
+        if (urlPath === '/api/security/clear' && req.method === 'POST') {
+          clearSecurityAuditLogs()
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.end(JSON.stringify({ success: true, message: 'Security breach audit logs reset.' }))
+          return
+        }
+
+        if (urlPath === '/api/security/my-ip' && req.method === 'GET') {
+          const ip = getClientIp(req)
+          try {
+            const geo = await lookupIpInfo(ip)
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({ ip, network: geo }))
+          } catch (err: any) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({ ip, error: err.message }))
+          }
+          return
+        }
+
+        // Passive recording on page routes
+        if (req.method === 'GET' && !urlPath.startsWith('/api/') && !urlPath.startsWith('/@') && !urlPath.startsWith('/src/') && !urlPath.startsWith('/node_modules/') && !urlPath.match(/\.(js|ts|tsx|css|png|jpg|jpeg|svg|ico|woff2?|map|wasm)$/i)) {
+          recordSecurityAccessEvent(req).catch(() => {})
+        }
+
+        next()
+      })
+    },
+  }
+}
+
 function sevaEmailServerPlugin(): Plugin {
   return {
     name: 'seva-email-server',

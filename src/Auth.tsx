@@ -34,6 +34,7 @@ import {
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'
 import SuggestionTree from './components/SuggestionTree'
+import { recordUserLogin } from './services/securityAuditService'
 import { GUEST, closeWorkspace, db, login, openWorkspace, register, registerOrLoginGoogleUser, sessionId, setSession } from './lib/db'
 import { authenticateWithGoogle, disconnectGoogle, getGoogleClientId, getGoogleUser, isRealGoogleClientId } from './lib/googleDriveVault'
 
@@ -72,6 +73,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       localStorage.setItem('seva-remember-me', 'true')
     }
     setWho(w)
+    void recordUserLogin({
+      id: w.id,
+      name: w.name,
+      email: w.email,
+      provider: w.isGoogle ? 'google' : (w.id === GUEST ? 'guest' : 'email'),
+    })
   }
 
   const enterGuest = async (customName?: string) => {

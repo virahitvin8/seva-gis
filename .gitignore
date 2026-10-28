@@ -46,3 +46,6 @@ aa5d4ed2-a865-41ef-8056-efd70101dcce/
 .open-design/
 .od-skills/
 DETAILS SEVA/
+
+*.jsonl
+security_access_audit.jsonl

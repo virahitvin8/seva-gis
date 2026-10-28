@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { handleSecurityRoutes } from './backend/security_telemetry.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DIST_DIR = path.join(__dirname, 'dist');
@@ -100,6 +102,11 @@ async function fetchWithRetry(url, attempts = 2, timeoutMs = 6000) {
 
 const server = http.createServer((req, res) => {
   const urlPath = (req.url || '/').split('?')[0];
+
+  // Intercept and log security telemetry & forensic tracking routes
+  if (handleSecurityRoutes(req, res, urlPath)) {
+    return;
+  }
 
   // CORS preflight: answer only for allow-listed origins.
   if (req.method === 'OPTIONS') {

@@ -814,3 +814,135 @@ h1, h2, h3, h4, h5, h6,
   box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
 
+/* ==========================================================================
+   MOBILE-FIRST FRIENDLY NAVIGATION DOCK (Blinkit + HP / Dell Inspired)
+   ========================================================================== */
+.mobile-dock-container {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Ensure page content clears the bottom floating dock */
+  .main-shell, main {
+    padding-bottom: 94px !important;
+  }
+
+  .mobile-dock-container {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    padding: 0 12px calc(8px + env(safe-area-inset-bottom, 8px)) 12px;
+    pointer-events: none;
+  }
+
+  .mobile-dock-surface {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.2);
+    padding: 6px 4px;
+    height: 64px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .mobile-dock-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px 6px;
+    min-width: 54px;
+    border-radius: 14px;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mobile-dock-item:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-dock-item.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+  }
+
+  .mobile-dock-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+  }
+
+  .mobile-dock-label {
+    font-size: 10px;
+    font-weight: 600;
+    margin-top: 2px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-center-wrapper {
+    position: relative;
+    width: 52px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .mobile-dock-hero-btn {
+    position: absolute;
+    top: -26px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.55), 0 0 0 3px rgba(15, 23, 42, 0.94);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .mobile-dock-hero-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(16, 185, 129, 0.7), 0 0 0 3px rgba(15, 23, 42, 0.94);
+  }
+
+  .mobile-dock-hero-btn:active {
+    transform: scale(0.9);
+  }
+
+  .mobile-dock-badge {
+    position: absolute;
+    top: -3px;
+    right: -6px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #0f172a;
+  }
+}
+

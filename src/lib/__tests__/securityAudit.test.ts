@@ -150,7 +150,7 @@ test('recordSecurityLoginEvent records mobile user sign-in event with device & n
 
   const loginsSummary = getSecurityLoginsData();
   assert.ok(loginsSummary.totalLogins >= 1);
-  const found = loginsSummary.logins.find(l => l.id === loginRec.id);
+  const found = loginsSummary.logins.find((l: { id: string; user: { email: string } }) => l.id === loginRec.id);
   assert.ok(found);
   assert.equal(found.user.email, 'ramesh.agri@gmail.com');
 });

@@ -653,7 +653,7 @@ export const ClockwiseParameterEngine: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between pt-1 border-t border-slate-800/80">
-              <span className="text-slate-400">Live Reading:</span>
+              <span className="text-slate-400">Reference Benchmark:</span>
               <span className="font-mono text-emerald-400 font-bold">
                 {activeStep.metricDemo}
               </span>

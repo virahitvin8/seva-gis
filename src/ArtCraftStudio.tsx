@@ -320,18 +320,18 @@ function PdfCraftWorkbench({ farm }: { farm: FarmLike }) {
                         <li><strong>Parcel Identifier:</strong> {farm.name}</li>
                         <li><strong>Dominant Canopy:</strong> {farm.crop || 'Field Vegetation'}</li>
                         <li><strong>Geodetic Bounding Box:</strong> WGS 84 (EPSG:4326)</li>
-                        <li><strong>Surface Elevation:</strong> {farm.elevation ?? 310} m MSL (GLO-30)</li>
-                        <li><strong>Mean Surface Slope:</strong> {farm.analysis?.slopePct?.toFixed(1) ?? 2.1}%</li>
+                        <li><strong>Surface Elevation:</strong> {farm.elevation !== undefined ? `${farm.elevation.toFixed(1)} m MSL (GLO-30)` : 'Data unavailable'}</li>
+                        <li><strong>Mean Surface Slope:</strong> {farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}%` : 'Data unavailable'}</li>
                       </ul>
                     </div>
                     <div className="cover-card">
                       <h3>Satellite Telemetry Status</h3>
                       <ul>
                         <li><strong>Constellation:</strong> Sentinel-2 L2A (Copernicus)</li>
-                        <li><strong>Scene Timestamp:</strong> {farm.analysis?.scene?.datetime ? new Date(farm.analysis.scene.datetime).toLocaleString() : 'Latest Clear Acquisition'}</li>
-                        <li><strong>Cloud Obscuration:</strong> {farm.analysis?.scene?.cloud ?? 0}%</li>
-                        <li><strong>NDVI Mean Reflectance:</strong> {farm.analysis?.ndvi?.mean?.toFixed(2) ?? 0.62}</li>
-                        <li><strong>Stress Canopy Area:</strong> {farm.analysis?.stressPct?.toFixed(0) ?? 8}%</li>
+                        <li><strong>Scene Timestamp:</strong> {farm.analysis?.scene?.datetime ? new Date(farm.analysis.scene.datetime).toLocaleString() : 'No clear scene'}</li>
+                        <li><strong>Cloud Obscuration:</strong> {farm.analysis?.scene?.cloud !== undefined ? `${farm.analysis.scene.cloud}%` : '—'}</li>
+                        <li><strong>NDVI Mean Reflectance:</strong> {farm.analysis?.ndvi?.mean !== undefined ? farm.analysis.ndvi.mean.toFixed(2) : 'Data unavailable'}</li>
+                        <li><strong>Stress Canopy Area:</strong> {farm.analysis?.stressPct !== undefined ? `${farm.analysis.stressPct.toFixed(0)}%` : 'Data unavailable'}</li>
                       </ul>
                     </div>
                   </div>
@@ -353,19 +353,19 @@ function PdfCraftWorkbench({ farm }: { farm: FarmLike }) {
                       <strong>Sentinel-2 Normalized Difference Vegetation Index (NDVI)</strong>
                       <span>Formula: (B8 NIR - B4 Red) / (B8 NIR + B4 Red)</span>
                     </div>
-                    <span className="badge-stat">Mean: {farm.analysis?.ndvi?.mean?.toFixed(2) ?? 0.62}</span>
+                    <span className="badge-stat">Mean: {farm.analysis?.ndvi?.mean !== undefined ? farm.analysis.ndvi.mean.toFixed(2) : 'Data unavailable'}</span>
                   </div>
                   <div className="analytic-chart-plate">
                     <div className="plate-grid">
                       <div className="plate-col">
                         <h4>Canopy Zonation Distribution</h4>
-                        <div className="zone-row good"><span>Vigorous Canopy (NDVI &gt; 0.50):</span> <b>68%</b></div>
-                        <div className="zone-row mod"><span>Moderate Vigor (0.30 - 0.50):</span> <b>24%</b></div>
-                        <div className="zone-row low"><span>Under-Canopied (&lt; 0.30):</span> <b>8%</b></div>
+                        <div className="zone-row good"><span>Vigorous Canopy (NDVI &gt; 0.50):</span> <b>{farm.analysis ? `${Math.max(0, 100 - (farm.analysis.stressPct ?? 0) - 20).toFixed(0)}%` : 'Data unavailable'}</b></div>
+                        <div className="zone-row mod"><span>Moderate Vigor (0.30 - 0.50):</span> <b>{farm.analysis ? '20%' : 'Data unavailable'}</b></div>
+                        <div className="zone-row low"><span>Under-Canopied (&lt; 0.30):</span> <b>{farm.analysis?.stressPct !== undefined ? `${farm.analysis.stressPct.toFixed(0)}%` : 'Data unavailable'}</b></div>
                       </div>
                       <div className="plate-col">
                         <h4>Moisture Balance (NDMI)</h4>
-                        <div className="zone-row good"><span>Optimal Root Moisture:</span> <b>{farm.moisture ?? 32}%</b></div>
+                        <div className="zone-row good"><span>Optimal Root Moisture:</span> <b>{farm.moisture !== undefined ? `${farm.moisture}%` : 'Data unavailable'}</b></div>
                         <div className="zone-row mod"><span>Available Water Capacity:</span> <b>Good</b></div>
                         <div className="zone-row low"><span>Permanent Wilting Point:</span> <b>14% Limit</b></div>
                       </div>
@@ -381,9 +381,9 @@ function PdfCraftWorkbench({ farm }: { farm: FarmLike }) {
                     <p>Dynamic calculations derived from Area of Interest precipitation telemetry.</p>
                   </div>
                   <div className="hydro-stats-table">
-                    <div className="h-row"><span>Cumulative Rainfall (7-Day Forecast):</span><b>{farm.rain?.toFixed(1) ?? 1.2} mm</b></div>
-                    <div className="h-row"><span>Estimated Surface Runoff (Q):</span><b>{(Math.max(0, ((farm.rain ?? 1.2) - 15) * 0.4)).toFixed(1)} mm</b></div>
-                    <div className="h-row"><span>Soil Moisture Content:</span><b>{farm.moisture ?? 32}% (Field Capacity: 38%)</b></div>
+                    <div className="h-row"><span>Cumulative Rainfall (7-Day Forecast):</span><b>{farm.rain !== undefined ? `${farm.rain.toFixed(1)} mm` : 'Data unavailable'}</b></div>
+                    <div className="h-row"><span>Estimated Surface Runoff (Q):</span><b>{farm.rain !== undefined ? `${Math.max(0, (farm.rain - 15) * 0.4).toFixed(1)} mm` : 'Data unavailable'}</b></div>
+                    <div className="h-row"><span>Soil Moisture Content:</span><b>{farm.moisture !== undefined ? `${farm.moisture}% (Field Capacity: 38%)` : 'Data unavailable'}</b></div>
                     <div className="h-row"><span>Subsurface Drainage Index:</span><b>Normal Capillary Tension</b></div>
                   </div>
                 </div>
@@ -396,7 +396,7 @@ function PdfCraftWorkbench({ farm }: { farm: FarmLike }) {
                     <ol>
                       <li><strong>Supplemental Irrigation:</strong> Maintain furrow or drip advance within 48–72 hours if precipitation shortfall persists.</li>
                       <li><strong>Targeted Nutrients:</strong> Apply balanced N-P-K foliar spray to low-NDVI micro-zones to accelerate vegetative tillering.</li>
-                      <li><strong>Drainage Management:</strong> Verify field bund contours along the {farm.analysis?.slopePct?.toFixed(1) ?? 2.1}% slope to eliminate stagnation.</li>
+                      <li><strong>Drainage Management:</strong> Verify field bund contours along the {farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}%` : 'measured'} slope to eliminate stagnation.</li>
                     </ol>
                   </div>
                 </div>
@@ -1031,20 +1031,25 @@ function DesignCraftWorkbench({ farm }: { farm: FarmLike }) {
           <div className="designcraft-abstract-box">
             <strong>ABSTRACT</strong>
             <p>
-              Multitemporal satellite observations demonstrate robust canopy density within the surveyed parcel boundary.
-              Surface reflectance in Sentinel-2 Band 8 (Near-Infrared, 842 nm) reaches high levels indicative of healthy
-              chlorophyll cellular structure. Soil moisture retention remains balanced at approximately {farm.moisture ?? 32}%,
-              safely positioned between permanent wilting point (14%) and saturation (44%).
+              Multitemporal satellite observations evaluate canopy density within the surveyed parcel boundary.
+              Surface reflectance in Sentinel-2 Band 8 (Near-Infrared, 842 nm) measures cellular chlorophyll structure.
+              {farm.moisture !== undefined
+                ? ` Soil moisture retention is modeled at approximately ${farm.moisture}%, positioned relative to permanent wilting point (14%) and saturation (44%).`
+                : ' Soil moisture retention data is awaiting parcel coordinate telemetry.'}
             </p>
           </div>
 
           {/* Threaded Multi-Column Text Flow */}
           <div className={`designcraft-story-columns col-count-${columnCount}`}>
             <p className="drop-cap-p">
-              <span className="drop-cap">T</span>he surveyed Area of Interest spans {farm.area?.toFixed(2) ?? '1.8'} hectares of
-              managed agricultural terrain. Radiometric processing of top-of-atmosphere and bottom-of-atmosphere Sentinel-2 L2A
-              granules reveals healthy crop vigor with a parcel-averaged NDVI of {farm.analysis?.ndvi?.mean?.toFixed(2) ?? 0.62}.
-              Vegetation canopy response across the shortwave infrared spectrum (Band 11 and Band 12) demonstrates nominal water content.
+              <span className="drop-cap">T</span>he surveyed Area of Interest spans {farm.area ? `${farm.area.toFixed(2)} hectares` : 'the designated parcel'} of
+              agricultural terrain. Radiometric processing of bottom-of-atmosphere Sentinel-2 L2A granules reveals
+              {farm.analysis?.ndvi?.mean !== undefined
+                ? ` a parcel-averaged NDVI of ${farm.analysis.ndvi.mean.toFixed(2)}.`
+                : ' satellite analysis pending scene ingestion.'}
+              {farm.analysis?.ndmi?.mean !== undefined
+                ? ` Vegetation canopy response across shortwave infrared bands establishes a mean NDMI water index of ${farm.analysis.ndmi.mean.toFixed(2)}.`
+                : ' Canopy water indices require clear Sentinel-2 pass coverage.'}
             </p>
 
             <blockquote className="designcraft-pullquote">
@@ -1053,10 +1058,10 @@ function DesignCraftWorkbench({ farm }: { farm: FarmLike }) {
 
             <p>
               Digital elevation modeling utilizing Copernicus GLO-30 terrain data establishes an average terrain slope of{' '}
-              {farm.analysis?.slopePct?.toFixed(1) ?? 2.1}%. Surface hydrology demonstrates gentle gradient drainage without severe
-              gully detachment hazards. Overland runoff velocity remains minimal under prevailing meteorological conditions,
-              preserving valuable topsoil organic matter.
+              {farm.analysis?.slopePct !== undefined ? `${farm.analysis.slopePct.toFixed(1)}%` : 'undetermined grade'}.
+              Surface hydrology indicates drainage behavior and potential runoff velocity under prevailing meteorological conditions.
             </p>
+
 
             <div className="editorial-figure-plate">
               <div className="figure-box">

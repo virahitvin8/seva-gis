@@ -5004,7 +5004,7 @@ canvas.seva-raster-canvas,
 /* 3D CARTOON BANYAN APPLE TREE & RUSTGIS ENGINE STYLING                     */
 /* ========================================================================= */
 :root {
-  --font-cartoon: 'Fredoka', 'Inter', sans-serif;
+  --font-cartoon: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono-code: 'JetBrains Mono', monospace;
 }
 .font-cartoon {
@@ -5206,7 +5206,7 @@ canvas.seva-raster-canvas,
 
 :root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-cartoon: 'Fredoka', 'Inter', sans-serif;
+  --font-cartoon: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --cartoon-sky-top: #1e90ff;
   --cartoon-sky-mid: #4facfe;

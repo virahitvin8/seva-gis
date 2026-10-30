@@ -5,7 +5,7 @@ import LogoLoader from './LogoLoader'
 import PopTheTeamModal from './PopTheTeamModal'
 import SecurityBreachAuditModal from './components/SecurityBreachAuditModal'
 import { recordPortalAccessTelemetry, recordUserLogin, fetchLoginHistory, type UserLoginRecord } from './services/securityAuditService'
-import { AlertTriangle, ShieldAlert, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save, Wand2, Palette, Cpu, Plane, Camera, Smartphone } from 'lucide-react'
+import { AlertTriangle, ShieldAlert, ArrowDownToLine, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, ChevronRight, CloudSun, Droplets, ExternalLink, Globe2, HelpCircle, Layers, Leaf, MapPinned, Mountain, Navigation, Plus, RefreshCw, Trash2, Search, Settings2, LogOut, ShieldCheck, Sprout, X, FileCheck2, Maximize2, Minimize2, Activity, SlidersHorizontal, ArrowUp, ArrowDown, RotateCcw, Save, Wand2, Palette, Cpu, Plane, Camera, Smartphone, LocateFixed, Pencil, Upload } from 'lucide-react'
 
 import { mergeWeekly, weeklyRecords, type WeekRec } from './lib/seva'
 import AddFarm, { type NewFarm } from './AddFarm'
@@ -84,24 +84,20 @@ type Farm = { id: string; name: string; location: string; crop: string; area: nu
 type Zone = { lat: number; lon: number; ndvi?: number; ndmi?: number }
 const mappedBoundaryAreaHa = (farm?: Pick<Farm, 'polygon'>) => farm?.polygon && farm.polygon.length >= 3 ? areaHa(farm.polygon) : 0
 
-export const DEFAULT_FARM: Farm = {
-  id: 'chanderi-farm-1',
-  name: 'Chanderi Research Farm',
-  location: '24.6404° N, 78.0524° E',
-  crop: 'Soybean / Wheat',
-  area: 14.8,
-  lat: 24.6404,
-  lon: 78.0524,
-  polygon: [
-    [78.048, 24.638],
-    [78.056, 24.638],
-    [78.056, 24.644],
-    [78.048, 24.644]
-  ],
-  status: 'Awaiting satellite data',
+export const UNCONFIGURED_FIELD: Farm = {
+  id: 'unassigned-field',
+  name: 'No Field Selected',
+  location: 'Delineate or Search Boundary',
+  crop: 'Unspecified',
+  area: 0,
+  lat: 20.5937,
+  lon: 78.9629,
+  polygon: [],
+  status: 'Awaiting boundary definition',
   sample: false
 }
-const initialFarms: Farm[] = [DEFAULT_FARM]
+export const DEFAULT_FARM = UNCONFIGURED_FIELD
+const initialFarms: Farm[] = []
 import Lang from './Lang'
 import { useI18n } from './lib/i18n'
 import { MitraGuide, MitraAvatar } from './Mitra'
@@ -153,21 +149,75 @@ function BrandLogo() {
 
 export default function App() {
   const { who, signOut } = useAccount()
-  const { t } = useI18n()
+  const { lang, t } = useI18n()
+
+  const getIntentLabel = useCallback((id: string) => {
+    switch (id) {
+      case 'general': return t('intent.general')
+      case 'agriculture': return t('intent.agriculture')
+      case 'water': return t('intent.water')
+      case 'drainage': return t('intent.drainage')
+      case 'terrain': return t('intent.terrain')
+      case 'landcover': return t('intent.landcover')
+      case 'change': return t('intent.change')
+      case 'geology': return t('intent.geology')
+      default: return id
+    }
+  }, [t])
+
   const [farms, setFarms] = useState<Farm[]>(() => {
     try {
       const saved = localStorage.getItem('seva-farms')
       if (saved) {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const valid = parsed.filter((x: Farm) => x && typeof x === 'object' && x.id)
+          const valid = parsed.filter((x: Farm) => x && typeof x === 'object' && x.id && x.id !== 'chanderi-farm-1')
           if (valid.length > 0) return valid
         }
       }
     } catch {}
     return initialFarms
   })
-  const [selected, setSelected] = useState(farms[0]?.id || DEFAULT_FARM.id)
+  const [selected, setSelected] = useState(farms[0]?.id || '')
+
+  const handleDetectCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setModal('add')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = Number(pos.coords.latitude.toFixed(6))
+        const lon = Number(pos.coords.longitude.toFixed(6))
+        const delta = 0.0015
+        const newFarm: Farm = {
+          id: `field-${Date.now()}`,
+          name: 'My GPS Field Boundary',
+          location: `${lat > 0 ? lat.toFixed(4) + '° N' : Math.abs(lat).toFixed(4) + '° S'}, ${lon > 0 ? lon.toFixed(4) + '° E' : Math.abs(lon).toFixed(4) + '° W'}`,
+          crop: 'Paddy / General Crop',
+          area: 2.25,
+          lat,
+          lon,
+          polygon: [
+            [Number((lon - delta).toFixed(6)), Number((lat - delta).toFixed(6))],
+            [Number((lon + delta).toFixed(6)), Number((lat - delta).toFixed(6))],
+            [Number((lon + delta).toFixed(6)), Number((lat + delta).toFixed(6))],
+            [Number((lon - delta).toFixed(6)), Number((lat + delta).toFixed(6))]
+          ],
+          status: 'Awaiting satellite data',
+          sample: false
+        }
+        setFarms(current => [newFarm, ...current])
+        setSelected(newFarm.id)
+        refresh(newFarm)
+      },
+      (err) => {
+        console.warn('GPS location lookup notice:', err.message)
+        setModal('add')
+      },
+      { timeout: 8000, enableHighAccuracy: true }
+    )
+  }
   const [layersPanelTarget, setLayersPanelTarget] = useState<HTMLDivElement | null>(null)
   const selectedRef = useRef(selected)
   selectedRef.current = selected
@@ -257,7 +307,7 @@ export default function App() {
   const [mapFocus, setMapFocus] = useState(false)
   const farm = (farms.find(item => item.id === selected) || farms[0] || DEFAULT_FARM) as Farm
   const loading = !!farm && loadingFarmIds.includes(farm.id)
-  const hi = useMemo(() => pickGreeting(who?.name || 'Guest', who?.id === 'guest' || who?.name === 'Guest'), [who?.name, who?.id])
+  const hi = useMemo(() => pickGreeting(who?.name || 'Guest', who?.id === 'guest' || who?.name === 'Guest', lang), [who?.name, who?.id, lang])
   useEffect(() => { localStorage.setItem('seva-farms', JSON.stringify(farms)) }, [farms])
 
   useEffect(() => {
@@ -675,31 +725,31 @@ export default function App() {
     }
   }
 
-  return <div className="app-shell seva-premium cartoon-theme">
+  return <div className="app-shell seva-premium enterprise-theme">
     <aside className={`sidebar ${menu ? 'mobile-open' : ''}`}>
       <a className="brand notranslate" translate="no" href="#"><span className="brand-icon"><BrandLogo/></span><Wordmark variant="pro"/></a>
-      <div className="workspace"><span className="workspace-avatar">A</span><div>My workspace<small>{t('shell.planBadge')}</small></div><ChevronDown size={16}/></div>
-      <div className="nav-label">WORKSPACE</div>
-      <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'DroneStudio', label: 'Drone Studio (1m GSD)', icon: Plane }, { id: 'NodeStudio', label: 'GEE ⟷ QGIS Studio', icon: Cpu }, { id: 'Responsively', label: 'Multi-Device Studio', icon: Smartphone }, { id: 'ShowcaseStudio', label: 'Showcase Studio', icon: Camera }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
-      <div className="nav-label resources-label">RESOURCES</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>{t('shell.dataSources')}<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>Guide tutorial - NAVI</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>{t('shell.fieldGuide')}</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>{t('shell.dataManager')}</button></nav>
-      <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>{t('hero.line1')}<br/>Open to everyone.</h4><p>{t('hero.line2')}</p><span>{t('hero.eyebrow')} <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>{t('shell.popTeamAlt')}</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>Help & documentation<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who?.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who?.name || 'Guest'}<small>{who?.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title={t('shell.logout')} onClick={signOut}><LogOut size={18}/></button></div></div>
+      <div className="workspace"><span className="workspace-avatar">A</span><div>{t('shell.myWorkspace')}<small>{t('shell.planBadge')}</small></div><ChevronDown size={16}/></div>
+      <div className="nav-label">{t('shell.workspace').toUpperCase()}</div>
+      <nav>{[{ id: 'Overview', label: t('nav.overview'), icon: Layers }, { id: 'My farms', label: t('nav.farms'), icon: MapPinned }, { id: 'DroneStudio', label: t('nav.droneStudio'), icon: Plane }, { id: 'NodeStudio', label: t('nav.nodeStudio'), icon: Cpu }, { id: 'Responsively', label: t('nav.responsively'), icon: Smartphone }, { id: 'ShowcaseStudio', label: t('nav.showcaseStudio'), icon: Camera }, { id: 'Terminal', label: t('nav.terminal'), icon: Activity }, { id: 'Crop journal', label: t('nav.journal'), icon: Sprout }, { id: 'Alerts', label: t('nav.alerts'), icon: Bell }, { id: 'Reports', label: t('nav.reports'), icon: ArrowDownToLine }].map(({id,label,icon: Icon}) => <button key={id} className={nav === id ? 'active' : ''} onClick={() => go(id)}><Icon size={19}/>{label}{id === 'Alerts' && farms.some(farmNeedsAttention) && <span className="nav-count">{farms.filter(farmNeedsAttention).length}</span>}</button>)}</nav>
+      <div className="nav-label resources-label">{t('shell.resources').toUpperCase()}</div><nav><button onClick={() => setModal('sources')}><Globe2 size={19}/>{t('shell.dataSources')}<ArrowUpRight size={14}/></button><button onClick={() => dispatchEvent(new Event('seva-tour'))}><HelpCircle size={19}/>{t('shell.mitraTour')}</button><button onClick={() => setModal('guide')}><BookOpen size={19}/>{t('shell.fieldGuide')}</button><button onClick={() => setModal('data')}><ShieldCheck size={19}/>{t('shell.dataManager')}</button></nav>
+      <div className="sidebar-bottom"><div className="service-card"><BrandLogo/><h4>{t('hero.line1')}<br/>{t('hero.openToEveryone')}</h4><p>{t('hero.line2')}</p><span>{t('hero.eyebrow')} <ArrowUpRight size={14}/></span></div><button className="help notranslate" onClick={() => { setPopTeamError(null); setPopTeamReason('User clicked Pop the Team from sidebar'); setShowPopTeam(true) }} style={{ color: '#fca5a5', border: '1px solid #7f1d1d', background: 'rgba(127, 29, 29, 0.2)' }}><AlertTriangle size={17} color="#f87171"/>{t('shell.popTeamAlt')}</button><button className="help" onClick={() => setModal('guide')}><HelpCircle size={18}/>{t('shell.helpDocs')}<ArrowUpRight size={15}/></button><div className="profile"><div className="user-avatar">{(who?.name || 'G')[0].toUpperCase()}</div><div className="profile-name">{who?.name || 'Guest'}<small>{who?.email || 'Saved on this device'}</small></div><button aria-label="Settings" onClick={() => setModal('settings')}><Settings2 size={18}/></button><button className="logout" aria-label="Log out" title={t('shell.logout')} onClick={signOut}><LogOut size={18}/></button></div></div>
     </aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t('shell.openNav')} onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" onClick={handleStealthLogoTap} style={{ cursor: 'pointer' }} translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">Workspace</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-drone-studio-btn notranslate font-cartoon" title="Launch Drone-Grade Precision Studio (Sub-meter Orthomosaic & VRA)" onClick={() => setShowDroneStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(180deg, rgba(2, 132, 199, 0.45), rgba(3, 105, 161, 0.55))', border: '2px solid #0284c7', color: '#e0f2fe', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #075985' }}><Plane size={13} color="#38bdf8" /><span>Drone Studio</span></button><button className="top-node-studio-btn notranslate font-cartoon" title="Launch Automated GEE ⟷ QGIS Node Studio" onClick={() => setShowNodeStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(180deg, rgba(16, 185, 129, 0.45), rgba(5, 150, 105, 0.55))', border: '2px solid #10b981', color: '#d1fae5', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #065f46' }}><Cpu size={13} color="#34d399" /><span>GEE ⟷ QGIS Studio</span></button><button className="top-responsively-btn notranslate font-cartoon" title="Launch Responsively Multi-Device Inspection Studio (Mobile, Tablet, Laptop, Desktop)" onClick={() => setShowResponsively(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(180deg, rgba(99, 102, 241, 0.45), rgba(79, 70, 229, 0.55))', border: '2px solid #818cf8', color: '#e0e7ff', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #4338ca' }}><Smartphone size={13} color="#a5b4fc" /><span>Responsively</span></button><button className="top-marketing-studio-btn notranslate font-cartoon" title="Launch App Store & Showcase Screenshot Studio (Device Frames & 3D Tilt)" onClick={() => setShowMarketingStudio(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: 'linear-gradient(180deg, rgba(244, 63, 94, 0.45), rgba(225, 29, 72, 0.55))', border: '2px solid #f43f5e', color: '#ffe4e6', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #be123c' }}><Camera size={13} color="#fb7185" /><span>Showcase</span></button><button className="top-pop-team-btn notranslate font-cartoon" title={t('shell.popTeamHint')} onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.45), rgba(220, 38, 38, 0.55))', border: '2px solid #ef4444', color: '#fef2f2', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #991b1b' }}><AlertTriangle size={12} color="#fca5a5" /><span>{t('shell.popTeam')}</span></button><button className="top-terminal-btn notranslate font-cartoon" title={t('shell.terminalTitle')} onClick={() => setShowTerminal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#09131e', border: '2px solid #2d6a4f', color: '#86efac', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 0 #143b23' }}><Activity size={12} color="#4ade80" /><span>Terminal</span></button><span className="open-badge"><span/> {t('shell.poweredBy')}</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Guide tutorial - NAVI" title={t('shell.mitraTour')} onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><button type="button" className={`top-drive-btn notranslate font-cartoon ${driveConnected ? 'connected' : ''}`} title={driveConnected ? 'Google Drive connected · Files organize into SEVA GIS' : 'Sign in with Google to auto-organize outputs in Google Drive'} onClick={() => { if (driveConnected) setModal('settings'); else void handleConnectGoogle() }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: driveConnected ? 'rgba(34, 197, 94, 0.18)' : 'rgba(255, 255, 255, 0.08)', border: driveConnected ? '2px solid #22c55e' : '2px solid #334155', color: driveConnected ? '#86efac' : '#e2e8f0', padding: '4px 10px', height: '30px', borderRadius: '10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', boxShadow: driveConnected ? '0 3px 0 #15803d' : '0 3px 0 #1e293b', transition: 'all 0.2s' }}><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>{driveConnected ? 'Drive: SEVA GIS' : 'Google Sign-in'}</span></button><span className="top-avatar" title={who?.name || 'Guest'}>{(who?.name || 'G')[0].toUpperCase()}</span></div></header>
-      <main><div className="page-heading"><div><div className="eyebrow">{todayLabel()}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="mobile-menu" aria-label={t('shell.openNav')} onClick={() => setMenu(!menu)}><i className="fa-solid fa-bars-staggered"/></button><span className="top-brand notranslate" onClick={handleStealthLogoTap} style={{ cursor: 'pointer' }} translate="no"><img src={brandLogo} alt="" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark variant="pro"/><i className="fa-solid fa-satellite top-sat" aria-hidden="true"/></span><span className="crumb-text">{t('shell.workspace')}</span><ChevronRight size={14} className="crumb-text"/><strong>{nav}</strong></div><div className="topbar-right"><button className="top-action-btn notranslate" title="Launch Drone-Grade Precision Studio (Sub-meter Orthomosaic & VRA)" onClick={() => setShowDroneStudio(true)}><Plane size={13} color="#0284c7" /><span>{t('top.droneStudio')}</span></button><button className="top-action-btn notranslate" title="Launch Automated GEE ⟷ QGIS Node Studio" onClick={() => setShowNodeStudio(true)}><Cpu size={13} color="#059669" /><span>{t('top.nodeStudio')}</span></button><button className="top-action-btn notranslate" title="Launch Responsively Multi-Device Inspection Studio" onClick={() => setShowResponsively(true)}><Smartphone size={13} color="#4f46e5" /><span>{t('top.responsively')}</span></button><button className="top-action-btn notranslate" title="Launch App Store & Showcase Screenshot Studio" onClick={() => setShowMarketingStudio(true)}><Camera size={13} color="#e11d48" /><span>{t('top.showcase')}</span></button><button className="top-action-btn notranslate" title={t('shell.popTeamHint')} onClick={() => { setPopTeamError(null); setPopTeamReason('User reported page issue from topbar'); setShowPopTeam(true) }} style={{ color: '#dc2626', borderColor: 'rgba(248, 113, 113, 0.4)', background: 'rgba(239, 68, 68, 0.08)' }}><AlertTriangle size={12} color="#dc2626" /><span>{t('shell.popTeam')}</span></button><button className="top-action-btn notranslate" title={t('shell.terminalTitle')} onClick={() => setShowTerminal(true)} style={{ color: '#4ade80', borderColor: 'rgba(74, 222, 128, 0.4)', background: '#09131e' }}><Activity size={12} color="#4ade80" /><span>{t('top.terminal')}</span></button><span className="open-badge"><span/> {t('shell.poweredBy')}</span><Lang/><button aria-label="Notifications" className="notification" onClick={() => setModal('alerts')}><Bell size={19}/><i/></button><button className="top-tour notranslate" aria-label="Guide tutorial - NAVI" title={t('shell.mitraTour')} onClick={() => dispatchEvent(new Event('seva-tour'))}><MitraAvatar size={30}/></button><button type="button" className={`top-drive-btn notranslate ${driveConnected ? 'connected' : ''}`} title={driveConnected ? 'Google Drive connected · Files organize into SEVA GIS' : 'Sign in with Google to auto-organize outputs in Google Drive'} onClick={() => { if (driveConnected) setModal('settings'); else void handleConnectGoogle() }} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: driveConnected ? 'rgba(34, 197, 94, 0.12)' : '#ffffff', border: driveConnected ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid #cbd5e1', color: driveConnected ? '#15803d' : '#334155', padding: '4px 10px', height: '30px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease' }}><svg width="12" height="12" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>{driveConnected ? t('top.driveConnected') : t('top.googleSignIn')}</span></button><span className="top-avatar" title={who?.name || 'Guest'}>{(who?.name || 'G')[0].toUpperCase()}</span></div></header>
+      <main><div className="page-heading"><div><div className="eyebrow">{todayLabel(lang)}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div>
       <Guide/>
       {!farm ? <div className="empty-farms"><i className="fa-solid fa-seedling"/><h2>{t('empty.title')}</h2><p>{t('empty.body')}</p><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div> : <>
-      <div className="analysis-intent-container" style={{ margin: '14px 0 10px 0', padding: '12px 16px', background: 'rgba(15, 23, 42, 0.94)', borderRadius: 16, border: '2px solid #1e293b', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+      <div className="analysis-intent-container" style={{ margin: '14px 0 10px 0', padding: '12px 16px', background: 'rgba(15, 23, 42, 0.94)', borderRadius: 12, border: '1px solid #1e293b', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="font-cartoon" style={{ fontSize: 13, fontWeight: 700, color: '#38bdf8', letterSpacing: '0.02em' }}>
-              🌾 Analysis Intent
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#38bdf8', letterSpacing: '-0.01em' }}>
+              {t('intent.title')}
             </span>
             <span style={{ fontSize: 11, color: '#94a3b8' }}>
-              · Tailors spectral indicators, band presets &amp; panel priorities
+              · {t('intent.subtitle')}
             </span>
           </div>
-          <span className="font-cartoon" style={{ fontSize: 11.5, fontWeight: 700, color: '#4ade80', background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.4)', padding: '2px 10px', borderRadius: 999 }}>
-            Active: {INTENT_ICONS[analysisIntent]} {getIntentProfile(analysisIntent).label}
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: '#4ade80', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', padding: '2px 10px', borderRadius: 999 }}>
+            {t('intent.active')}: {INTENT_ICONS[analysisIntent]} {getIntentLabel(analysisIntent)}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -714,40 +764,99 @@ export default function App() {
                   setAnalysisIntent(id)
                   saveAnalysisIntent(id)
                 }}
-                className="font-cartoon"
                 style={{
                   fontSize: 12,
                   padding: '6px 12px',
-                  borderRadius: 10,
-                  border: active ? '2px solid #052e16' : '1px solid #334155',
-                  background: active ? 'linear-gradient(180deg, #4ade80 0%, #16a34a 100%)' : 'rgba(15, 23, 42, 0.8)',
-                  color: active ? '#052e16' : '#cbd5e1',
-                  fontWeight: active ? 800 : 600,
+                  borderRadius: 6,
+                  border: active ? '1px solid #16a34a' : '1px solid #334155',
+                  background: active ? '#16a34a' : 'rgba(15, 23, 42, 0.8)',
+                  color: active ? '#ffffff' : '#cbd5e1',
+                  fontWeight: active ? 700 : 500,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  boxShadow: active ? '0 3px 0 #052e16' : 'none',
-                  transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                  boxShadow: active ? '0 2px 6px rgba(22, 163, 74, 0.35)' : 'none',
+                  transition: 'all 0.15s ease'
                 }}
                 title={p.shortDesc}
               >
                 <span>{INTENT_ICONS[id]}</span>
-                <span>{p.label}</span>
+                <span>{getIntentLabel(id)}</span>
               </button>
             )
           })}
         </div>
         <div style={{ marginTop: 10, fontSize: 11.5, color: '#cbd5e1', lineHeight: 1.45, borderTop: '1px solid #1e293b', paddingTop: 8 }}>
-          <b style={{ color: '#38bdf8' }}>{getIntentProfile(analysisIntent).shortDesc}:</b> {getIntentProfile(analysisIntent).description}
+          <b style={{ color: '#38bdf8' }}>{getIntentLabel(analysisIntent)}:</b> {getIntentProfile(analysisIntent).description}
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
-            <b style={{ color: '#facc15' }}>Methodological limits:</b> {getIntentProfile(analysisIntent).limitations}
+            <b style={{ color: '#facc15' }}>{t('intent.limits')}</b> {getIntentProfile(analysisIntent).limitations}
           </div>
         </div>
       </div>
-      <div className="summary-grid"><div className="summary-card"><span className="metric-icon"><MapPinned size={21}/></span><div><span>{t('dash.totalFarms')}</span><strong>{farms.length}<small>Across {new Set(farms.map(item => item.location)).size} locations</small></strong></div></div><div className="summary-card"><span className="metric-icon"><Sprout size={21}/></span><div><span>{t('dash.mappedArea')}</span><strong>{farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0).toFixed(1)} <em>ha</em><small>{(farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0) * 2.47105381).toFixed(1)} acres · outlines only</small></strong></div></div><div className="summary-card"><span className="metric-icon healthy"><Leaf size={21}/></span><div><span>{t('dash.strongCover')}</span><strong>{farms.filter(item => item.status === 'Healthy').length}<small><i className="dot green"/>{t('dash.strongSignal')}</small></strong></div></div><div className="summary-card"><span className="metric-icon attention"><Droplets size={21}/></span><div><span>Fields to review</span><strong>{farms.filter(farmNeedsAttention).length}<small><i className="dot amber"/>{t('dash.reviewFlagged')}</small></strong></div><ArrowUpRight size={17}/></div></div>
-      <div className={`farm-workspace ${mapFocus ? 'map-focus' : ''}`} id="my-farms"><section className="farm-list"><div className="section-top"><h2>{t('farms.title')} <span>{farms.length}</span></h2><button aria-label={t('farm.add')} onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder={t('farms.search')} value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => startTransition(() => setSelected(item.id))}><div className="farm-thumb aoi" title={t('farm.thumbTitle')}><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.polygon && item.polygon.length >= 3 ? `${mappedBoundaryAreaHa(item).toFixed(2)} ha · ${(mappedBoundaryAreaHa(item) * 2.47105381).toFixed(2)} ac` : 'Location pin · area unknown'}<b>·</b>{item.crop}</span><div className="farm-badges-row"><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span><span role="button" tabIndex={0} className="farm-maps-btn" title={`View this field location in Google Maps: ${item.name} (${item.lat.toFixed(4)}°, ${item.lon.toFixed(4)}°)`} onClick={event => { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') } }}><Navigation size={11} className="maps-symbol-icon"/><span>{t('farm.viewLocation')}</span></span></div></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>{t('action.addAnother')}</button><div ref={setLayersPanelTarget} className="ix-panel-dock" aria-label="Layers and symbology controls"/><div className="list-note"><ShieldCheck size={16}/><span>{t('shell.privacy')}</span></div></section>
-       <section className="map-card"><div className="map-header"><div><h2>{farm?.name || 'My Field'}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm?.location || 'Location not set'}<b>·</b>{farm?.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : 'Location pin · area not measured'}</span></div><button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm?.name || 'Field'} (${(farm?.lat ?? 24.6404).toFixed(4)}°, ${(farm?.lon ?? 78.0524).toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm?.lat ?? 24.6404},${farm?.lon ?? 78.0524}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>{t('farm.viewLocation')}</span></button><button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? 'Exit focus' : 'Focus map'}</span></button><button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>Remove</button><button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? 'Updating' : 'Refresh'}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">{t('load.map')}</div>}><IndicatorMap farm={farm || DEFAULT_FARM} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm?.analysis?.scene} intent={analysisIntent}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm?.analysis ? 'Sentinel-2 analysis ready' : 'Satellite analysis pending'}<b>·</b>{farm?.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around this location pin · parcel area not measured'}</span><button onClick={() => setModal('sources')}>{t('shell.aboutData')}<ArrowUpRight size={13}/></button></div></section></div>
+      {farms.length === 0 && (
+        <section className="pro-field-onboarding-card" style={{
+          background: 'linear-gradient(135deg, rgba(7, 17, 12, 0.95), rgba(13, 29, 21, 0.92))',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+          borderRadius: 16,
+          padding: '24px',
+          marginBottom: 20,
+          color: '#e2e8f0'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ maxWidth: 640 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#86efac', fontSize: 12, fontWeight: 700, marginBottom: 12 }}>
+                <ShieldCheck size={14} /> {t('onboard.badge')}
+              </div>
+              <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 24, fontWeight: 800, margin: '0 0 8px', color: '#f8fafc', letterSpacing: '-0.02em' }}>
+                {t('onboard.title')}
+              </h2>
+              <p style={{ fontSize: 13.5, lineHeight: 1.5, color: '#94a3b8', margin: 0 }}>
+                {t('onboard.desc')}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                className="primary"
+                onClick={handleDetectCurrentLocation}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#10b981', color: '#07110c', fontWeight: 700, padding: '10px 18px', borderRadius: 999, border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)' }}
+              >
+                <LocateFixed size={16} /> {t('onboard.detectGps')}
+              </button>
+              <button
+                className="outline"
+                onClick={() => setModal('add')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 999, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)', color: '#f1f5f9', background: 'rgba(255,255,255,0.05)' }}
+              >
+                <Pencil size={15} /> {t('onboard.delineateMap')}
+              </button>
+              <button
+                className="outline"
+                onClick={() => setModal('add')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 999, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)', color: '#f1f5f9', background: 'rgba(255,255,255,0.05)' }}
+              >
+                <Upload size={15} /> {t('onboard.importGeo')}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+      <div className="summary-grid"><div className="summary-card"><span className="metric-icon"><MapPinned size={21}/></span><div><span>{t('dash.totalFarms')}</span><strong>{farms.length}<small>Across {new Set(farms.map(item => item.location)).size} {t('dash.acrossLocations')}</small></strong></div></div><div className="summary-card"><span className="metric-icon"><Sprout size={21}/></span><div><span>{t('dash.mappedArea')}</span><strong>{farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0).toFixed(1)} <em>ha</em><small>{(farms.reduce((sum,item) => sum + mappedBoundaryAreaHa(item), 0) * 2.47105381).toFixed(1)} {t('dash.acresOnly')}</small></strong></div></div><div className="summary-card"><span className="metric-icon healthy"><Leaf size={21}/></span><div><span>{t('dash.strongCover')}</span><strong>{farms.filter(item => item.status === 'Healthy').length}<small><i className="dot green"/>{t('dash.strongSignal')}</small></strong></div></div><div className="summary-card"><span className="metric-icon attention"><Droplets size={21}/></span><div><span>{t('dash.toReview')}</span><strong>{farms.filter(farmNeedsAttention).length}<small><i className="dot amber"/>{t('dash.reviewFlagged')}</small></strong></div><ArrowUpRight size={17}/></div></div>
+      <div className={`farm-workspace ${mapFocus ? 'map-focus' : ''}`} id="my-farms"><section className="farm-list"><div className="section-top"><h2>{t('farms.title')} <span>{farms.length}</span></h2><button aria-label={t('farm.add')} onClick={() => setModal('add')}><Plus size={18}/></button></div><label className="search"><Search size={16}/><input placeholder={t('farms.search')} value={query} onChange={event => setQuery(event.target.value)}/><span>⌘ K</span></label><div className="farm-items">{farms.filter(item => `${item.name} ${item.location}`.toLowerCase().includes(query.toLowerCase())).map((item,index) => <button key={item.id} className={`farm-item ${item.id === selected ? 'selected' : ''}`} onClick={() => startTransition(() => setSelected(item.id))}><div className="farm-thumb aoi" title={t('farm.thumbTitle')}><AoiShape farm={item}/></div><div><h3>{item.name}</h3><p>{item.location}</p><span className="farm-meta">{item.polygon && item.polygon.length >= 3 ? `${mappedBoundaryAreaHa(item).toFixed(2)} ha · ${(mappedBoundaryAreaHa(item) * 2.47105381).toFixed(2)} ac` : t('farm.pinOnly')}<b>·</b>{item.crop}</span><div className="farm-badges-row"><span className={`status ${item.status === 'Healthy' ? 'good' : item.analysis ? 'warning' : 'neutral'}`}><i/>{item.status}</span><span role="button" tabIndex={0} className="farm-maps-btn" title={`View this field location in Google Maps: ${item.name} (${item.lat.toFixed(4)}°, ${item.lon.toFixed(4)}°)`} onClick={event => { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); window.open(`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lon}`, '_blank', 'noopener,noreferrer') } }}><Navigation size={11} className="maps-symbol-icon"/><span>{t('farm.viewLocation')}</span></span></div></div><span role="button" tabIndex={0} aria-label={`Remove ${item.name}`} className="farm-remove" onClick={event => { event.stopPropagation(); removeFarm(item) }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); removeFarm(item) } }}><Trash2 size={15}/></span></button>)}{farms.length === 0 && (
+        <div className="empty-farms-state" style={{ padding: '24px 14px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: '1px dashed rgba(255,255,255,0.12)', margin: '8px 0' }}>
+          <MapPinned size={26} style={{ color: '#10b981', margin: '0 auto 8px', display: 'block' }} />
+          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13px', marginBottom: 4 }}>{t('empty.noFieldsSaved')}</strong>
+          <p style={{ fontSize: '11.5px', lineHeight: 1.4, margin: '0 0 10px', color: '#94a3b8' }}>
+            {t('empty.drawBoundary')}
+          </p>
+          <button className="primary compact" onClick={() => setModal('add')} style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px' }}>
+            <Plus size={14} /> {t('empty.addFirstField')}
+          </button>
+        </div>
+      )}</div><button className="add-another" onClick={() => setModal('add')}><Plus size={17}/>{t('action.addAnother')}</button><div ref={setLayersPanelTarget} className="ix-panel-dock" aria-label="Layers and symbology controls"/><div className="list-note"><ShieldCheck size={16}/><span>{t('shell.privacy')}</span></div></section>
+       <section className="map-card"><div className="map-header"><div><h2>{farm?.polygon && farm.polygon.length >= 3 ? farm.name : t('map.canvasTitle')}<ChevronDown size={16}/></h2><span><MapPinned size={13}/>{farm?.polygon && farm.polygon.length >= 3 ? farm.location : t('map.clickHint')}<b>·</b>{farm?.polygon && farm.polygon.length >= 3 ? `${mappedBoundaryAreaHa(farm).toFixed(2)} ha · ${(mappedBoundaryAreaHa(farm) * 2.47105381).toFixed(2)} acres` : t('map.reflectanceStream')}</span></div>{farm?.polygon && farm.polygon.length >= 3 && <button className="outline compact farm-header-maps-btn" title={`View this field location in Google Maps: ${farm?.name || 'Field'} (${(farm?.lat ?? 24.6404).toFixed(4)}°, ${(farm?.lon ?? 78.0524).toFixed(4)}°)`} onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${farm?.lat ?? 24.6404},${farm?.lon ?? 78.0524}`, '_blank', 'noopener,noreferrer')}><Navigation size={13} color="#2563eb"/><span>{t('farm.viewLocation')}</span></button>}<button className="outline compact" title={mapFocus ? 'Exit focused map view (Esc)' : 'Expand the map and controls'} aria-label={mapFocus ? 'Exit map focus' : 'Focus map'} onClick={() => setMapFocus(value => !value)}>{mapFocus ? <Minimize2 size={13}/> : <Maximize2 size={13}/>}<span>{mapFocus ? t('map.exitFocus') : t('map.focus')}</span></button>{farms.length > 0 && <button className="outline compact" onClick={() => removeFarm(farm)}><Trash2 size={14}/>{t('farm.remove')}</button>}<button className="outline compact" disabled={loading} onClick={() => refresh()}><RefreshCw size={14} className={loading ? 'spin' : ''}/>{loading ? t('action.updating') : t('action.refresh')}</button></div><div className="map-wrap"><SectionBoundary name="Farm map"><Suspense fallback={<div className="reveal-loading map-loading" role="status">{t('load.map')}</div>}><IndicatorMap farm={farm || DEFAULT_FARM} loading={loading} panelTarget={layersPanelTarget} sceneOpts={opts}/></Suspense></SectionBoundary></div><SceneBar opts={opts} onApply={o => { setOpts(o); refresh(farm, o) }} busy={loading} scene={farm?.analysis?.scene} intent={analysisIntent}/><div className="map-footer"><span><ShieldCheck size={14}/>{farm?.analysis ? t('map.ready') : t('map.pending')}<b>·</b>{farm?.polygon && farm.polygon.length >= 3 ? 'Preview from Microsoft Planetary Computer · Copernicus DEM GLO-30 terrain · clipped to your outline' : 'Sentinel-2 preview around canvas view · parcel area not measured'}</span><button onClick={() => setModal('sources')}>{t('shell.aboutData')}<ArrowUpRight size={13}/></button></div></section></div>
 
       {activeSectionOrder.map((secId, idx) => {
         let content = null
@@ -778,67 +887,74 @@ export default function App() {
                 </div>
                 <div className="intelligence-grid">
                   {(() => {
-                    const ndviVal = farm.analysis?.ndvi?.mean
-                    const moistVal = farm.moisture ?? 32
-                    const rainVal = farm.rain ?? 0.7
-                    const slopeVal = farm.analysis?.slopePct ?? 2.1
+                    const hasPolygon = Boolean(farm?.polygon && farm.polygon.length >= 3)
+                    const ndviVal = farm?.analysis?.ndvi?.mean
+                    const moistVal = hasPolygon ? farm.moisture : undefined
+                    const rainVal = hasPolygon ? farm.rain : undefined
+                    const slopeVal = hasPolygon ? farm.analysis?.slopePct : undefined
 
                     const cardsData = [
                       {
                         title: 'Vegetation health',
                         icon: Leaf,
-                        value: ndviVal?.toFixed(2),
+                        value: ndviVal !== undefined ? ndviVal.toFixed(2) : '—',
                         unit: 'NDVI',
-                        label: farm.analysis && ndviVal !== undefined ? classify(ndviVal).label : 'Awaiting analysis',
-                        color: 'green',
-                        bars: true,
+                        label: hasPolygon && farm.analysis && ndviVal !== undefined ? classify(ndviVal).label : (hasPolygon ? 'Satellite analysis in progress' : 'Awaiting field delineation'),
+                        color: hasPolygon && ndviVal !== undefined ? (ndviVal >= 0.5 ? 'green' : ndviVal >= 0.3 ? 'amber' : 'red') : 'neutral',
+                        bars: Boolean(hasPolygon && farm.analysis?.ndvi),
                         stat: farm.analysis?.ndvi,
                         lo: -0.2,
                         hi: 1,
                         benchmarks: 'Benchmark: Vigorous ≥ 0.50 · Moderate 0.30–0.50 · Stressed < 0.30',
-                        reasoning: farm.analysis
+                        reasoning: hasPolygon && farm.analysis
                           ? `${(farm.analysis.stressPct ?? 0).toFixed(0)}% of pixels show NDVI < 0.30 (sparse canopy). If persistent over consecutive clear passes, inspect for root-zone moisture deficit or nutrient deficiency.`
-                          : 'Computed from Sentinel-2 10 m multi-spectral bands (B4 Red & B8 NIR).'
+                          : 'Delineate a field polygon to compute Sentinel-2 10 m multi-spectral reflectance (B4 Red & B8 NIR).'
                       },
                       {
                         title: 'Surface soil moisture model',
                         icon: Droplets,
-                        value: moistVal,
+                        value: moistVal !== undefined ? moistVal : '—',
                         unit: '%',
-                        label: moistVal >= 25 && moistVal <= 38 ? 'Optimal Available Moisture (AWC)' : moistVal < 25 ? 'Moisture Deficit (Dry)' : 'Excess Moisture (Saturated)',
-                        color: moistVal >= 25 && moistVal <= 38 ? 'blue' : moistVal < 25 ? 'amber' : 'red',
-                        bars: true,
+                        label: moistVal !== undefined ? (moistVal >= 25 && moistVal <= 38 ? 'Optimal Available Moisture (AWC)' : moistVal < 25 ? 'Moisture Deficit (Dry)' : 'Excess Moisture (Saturated)') : 'Awaiting field location',
+                        color: moistVal !== undefined ? (moistVal >= 25 && moistVal <= 38 ? 'blue' : moistVal < 25 ? 'amber' : 'red') : 'neutral',
+                        bars: Boolean(hasPolygon && farm.analysis?.ndmi),
                         stat: farm.analysis?.ndmi,
                         lo: -0.3,
                         hi: 0.5,
                         benchmarks: 'Limits: Wilting Point ≈ 14% · Optimal 25%–38% · Field Capacity ≈ 38% · Saturation > 44%',
-                        reasoning: `Why ${moistVal}%? Moisture is within normal capillary retention. If < 15%: root suction fails causing permanent wilting; irrigate immediately. If > 42%: anaerobic waterlogging occurs, suffocating roots.`
+                        reasoning: moistVal !== undefined
+                          ? `Why ${moistVal}%? Moisture is within normal capillary retention. If < 15%: root suction fails causing permanent wilting. If > 42%: anaerobic waterlogging occurs.`
+                          : 'NDMI (B8-B11) and SoilGrids volumetric moisture require a defined field location.'
                       },
                       {
                         title: 'Rainfall outlook (Next 7 days)',
                         icon: CloudSun,
-                        value: rainVal.toFixed(1),
+                        value: rainVal !== undefined ? rainVal.toFixed(1) : '—',
                         unit: 'mm',
-                        label: rainVal < 5 ? 'Rainfall Deficit · Insufficient for Active Crop Demand' : 'Sufficient Precipitation',
-                        color: rainVal < 5 ? 'amber' : 'blue',
+                        label: rainVal !== undefined ? (rainVal < 5 ? 'Rainfall Deficit · Insufficient for Active Crop Demand' : 'Sufficient Precipitation') : 'Open-Meteo forecast pending location',
+                        color: rainVal !== undefined ? (rainVal < 5 ? 'amber' : 'blue') : 'neutral',
                         bars: false,
-                        benchmarks: `Weekly Crop Demand: ≈ 20–35 mm | Forecast: ${rainVal.toFixed(1)} mm (${rainVal < 5 ? 'Shortfall' : 'Surplus'})`,
-                        reasoning: rainVal < 5
-                          ? `Rainfall is insufficient to satisfy crop evapotranspiration. Action: Schedule supplemental irrigation (drip or furrow) within 48–72 hours.`
-                          : `Precipitation meets baseline water requirement. Hold supplemental irrigation to prevent unnecessary energy and water costs.`
+                        benchmarks: rainVal !== undefined ? `Weekly Crop Demand: ≈ 20–35 mm | Forecast: ${rainVal.toFixed(1)} mm` : 'Forecast streams directly from Open-Meteo API',
+                        reasoning: rainVal !== undefined
+                          ? (rainVal < 5
+                            ? `Rainfall is insufficient to satisfy crop evapotranspiration. Action: Schedule supplemental irrigation within 48–72 hours.`
+                            : `Precipitation meets baseline water requirement. Hold supplemental irrigation.`)
+                          : 'Location coordinates needed to query Open-Meteo 7-day precipitation forecasts.'
                       },
                       {
                         title: 'Terrain & elevation',
                         icon: Mountain,
-                        value: farm.elevation?.toFixed(1) ?? '—',
+                        value: farm?.elevation !== undefined ? farm.elevation.toFixed(1) : '—',
                         unit: 'm',
-                        label: `${slopeVal.toFixed(1)}% Surface Slope (GLO-30)`,
+                        label: slopeVal !== undefined ? `${slopeVal.toFixed(1)}% Surface Slope (GLO-30)` : 'Copernicus GLO-30 DEM',
                         color: 'brown',
                         bars: false,
                         benchmarks: 'Grade Classification: Gentle (0%–3%) · Moderate (3%–8%) · Steep (> 8%)',
-                        reasoning: slopeVal <= 3
-                          ? 'Gentle gradient facilitates uniform furrow advance with minimal runoff velocity and negligible topsoil sheet erosion.'
-                          : 'Elevated gradient accelerates runoff velocity; consider contour plowing or check bunds to prevent soil detachment.'
+                        reasoning: slopeVal !== undefined
+                          ? (slopeVal <= 3
+                            ? 'Gentle gradient facilitates uniform furrow advance with minimal runoff velocity and negligible topsoil sheet erosion.'
+                            : 'Elevated gradient accelerates runoff velocity; consider contour plowing or check bunds.')
+                          : 'Elevation and slope calculate from Copernicus GLO-30 DEM upon parcel selection.'
                       }
                     ]
 
@@ -889,12 +1005,12 @@ export default function App() {
                             ) : title.startsWith('Rainfall') ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#eff6ff', borderRadius: 6, border: '1px solid #bfdbfe' }}>
                                 <CloudSun size={14} color="#2563eb" />
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1d4ed8' }}>7-day forecast: {rainVal.toFixed(1)} mm</span>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#1d4ed8' }}>{rainVal !== undefined ? `7-day forecast: ${rainVal.toFixed(1)} mm` : 'Location forecast pending'}</span>
                               </div>
                             ) : (
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', background: '#fefce8', borderRadius: 6, border: '1px solid #fef08a' }}>
                                 <Mountain size={14} color="#b45309" />
-                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#854d0e' }}>{slopeVal.toFixed(1)}% slope</span>
+                                <span style={{ fontSize: '11px', fontWeight: 600, color: '#854d0e' }}>{slopeVal !== undefined ? `${slopeVal.toFixed(1)}% slope` : 'Elevation terrain ready'}</span>
                               </div>
                             )}
                           </div>

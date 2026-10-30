@@ -1,37 +1,37 @@
 /* ========================================================================= */
-/* SEVA.GIS — BMW EXECUTIVE THEME (ANIMATED CARTOON INTERACTIONS)            */
-/* Crisp white canvas · BMW M-sport navy · Electric blue accents · Silver    */
-/* Cartoon 3D buttons & spring micro-animations preserved                    */
+/* SEVA.GIS — ENTERPRISE PRECISION GIS THEME                                 */
+/* Crisp white canvas · Deep slate & navy · Precision Emerald & Blue accents */
+/* Professional enterprise hardware & geospatial workstations aesthetic      */
 /* ========================================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-cartoon: 'Fredoka', 'Inter', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-cartoon: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* BMW Executive Palette */
+  /* Executive Precision Palette */
   --bmw-white:       #f8fafd;
-  --bmw-silver:      #e8edf4;
-  --bmw-silver-mid:  #d0d8e8;
-  --bmw-silver-deep: #b0bcd4;
+  --bmw-silver:      #f1f5f9;
+  --bmw-silver-mid:  #e2e8f0;
+  --bmw-silver-deep: #cbd5e1;
   --bmw-navy:        #0b1f35;
   --bmw-navy-mid:    #0f2942;
   --bmw-navy-light:  #183553;
-  --bmw-blue:        #0066b3;
-  --bmw-blue-bright: #0080d6;
-  --bmw-blue-light:  #4fa8e8;
-  --bmw-blue-pale:   #dceef8;
-  --bmw-chrome:      #c8d0dc;
-  --bmw-text:        #0d1f2d;
-  --bmw-text-mid:    #2c4260;
-  --bmw-text-muted:  #5a7a9a;
+  --bmw-blue:        #0284c7;
+  --bmw-blue-bright: #0ea5e9;
+  --bmw-blue-light:  #38bdf8;
+  --bmw-blue-pale:   #e0f2fe;
+  --bmw-chrome:      #94a3b8;
+  --bmw-text:        #0f172a;
+  --bmw-text-mid:    #334155;
+  --bmw-text-muted:  #64748b;
 
   /* Kept for compatibility */
-  --primary: #0066b3;
-  --border:  #d0d8e8;
-  --muted:   #5a7a9a;
+  --primary: #0284c7;
+  --border:  #e2e8f0;
+  --muted:   #64748b;
 }
 
 body {
@@ -42,13 +42,13 @@ body {
   margin: 0;
 }
 
-/* BMW Executive Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+/* Precision Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bmw-silver); }
-::-webkit-scrollbar-thumb { background: var(--bmw-silver-deep); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--bmw-silver-deep); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--bmw-blue); }
 
-/* Global Cartoon Typography — BMW brand headings */
+/* Global Enterprise Typography */
 h1, h2, h3, h4, h5, h6,
 .font-cartoon,
 .brand,
@@ -68,8 +68,8 @@ h1, h2, h3, h4, h5, h6,
 .au-hub-title,
 .modal h2,
 .modal h3 {
-  font-family: var(--font-cartoon), 'Fredoka', 'Inter', sans-serif !important;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans) !important;
+  letter-spacing: -0.02em;
 }
 
 .font-mono-code {
@@ -77,170 +77,166 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ========================================================================= */
-/* GLOSSY 3D CARTOON BMW BLUE — PRIMARY BUTTON                               */
+/* PRECISION ENTERPRISE BUTTONS                                              */
 /* ========================================================================= */
 
 .primary,
 .au-go,
 .cartoon-btn-primary {
-  background: linear-gradient(180deg, #2196f3 0%, #0066b3 48%, #003f7a 100%) !important;
-  border: 3px solid #001e3c !important;
-  box-shadow: 0 5px 0 #001e3c, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3), 0 1px 2px rgba(0, 0, 0, 0.1) !important;
   color: #ffffff !important;
-  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
-  font-weight: 700 !important;
-  border-radius: 14px !important;
-  padding: 10px 20px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+  transition: all 0.15s ease !important;
 }
 
 .primary:hover,
 .au-go:hover,
 .cartoon-btn-primary:hover {
-  background: linear-gradient(180deg, #42a5f5 0%, #0080d6 48%, #0055a0 100%) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #001e3c, inset 0 2px 3px rgba(255, 255, 255, 0.65) !important;
-  filter: brightness(1.08) !important;
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%) !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4) !important;
+  transform: translateY(-1px) !important;
 }
 
 .primary:active,
 .au-go:active,
 .cartoon-btn-primary:active {
-  transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #001e3c !important;
+  transform: translateY(1px) !important;
+  box-shadow: 0 1px 2px rgba(2, 132, 199, 0.2) !important;
 }
 
-/* Secondary — BMW Navy 3D Button */
+/* Secondary Enterprise Emerald Button */
 .au-guest,
 .cartoon-btn-green {
-  background: linear-gradient(180deg, #224b7a 0%, #0b1f35 52%, #050d18 100%) !important;
-  border: 3px solid #020710 !important;
-  box-shadow: 0 5px 0 #020710, inset 0 2px 2px rgba(255, 255, 255, 0.25) !important;
+  background: linear-gradient(180deg, #059669 0%, #047857 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3), 0 1px 2px rgba(0, 0, 0, 0.1) !important;
   color: #ffffff !important;
-  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
-  font-weight: 700 !important;
-  border-radius: 14px !important;
-  padding: 10px 20px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+  transition: all 0.15s ease !important;
 }
 
 .au-guest:hover,
 .cartoon-btn-green:hover {
-  filter: brightness(1.18) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #020710, inset 0 2px 3px rgba(255, 255, 255, 0.35) !important;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+  transform: translateY(-1px) !important;
 }
 
 .au-guest:active,
 .cartoon-btn-green:active {
-  transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #020710 !important;
+  transform: translateY(1px) !important;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2) !important;
 }
 
-/* Silver Chrome 3D Button */
+/* Amber Alert Button */
 .cartoon-btn-amber {
-  background: linear-gradient(180deg, #e8edf4 0%, #c8d0dc 52%, #a8b4c8 100%) !important;
-  border: 3px solid #6e7e94 !important;
-  box-shadow: 0 5px 0 #6e7e94, inset 0 2px 2px rgba(255, 255, 255, 0.85) !important;
-  color: var(--bmw-navy) !important;
-  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
-  font-weight: 700 !important;
-  border-radius: 14px !important;
-  padding: 10px 20px !important;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 1px 3px rgba(217, 119, 6, 0.3) !important;
+  color: #ffffff !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+  transition: all 0.15s ease !important;
 }
 
 .cartoon-btn-amber:hover {
-  filter: brightness(1.06) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #6e7e94, inset 0 2px 3px rgba(255, 255, 255, 0.95) !important;
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4) !important;
 }
 
 .cartoon-btn-amber:active {
-  transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #6e7e94 !important;
+  transform: translateY(1px) !important;
 }
 
-/* Bright Sky BMW Blue 3D Button */
+/* Precision Blue Button */
 .cartoon-btn-blue {
-  background: linear-gradient(180deg, #4fa8e8 0%, #0080d6 52%, #0055a0 100%) !important;
-  border: 3px solid #001e3c !important;
-  box-shadow: 0 5px 0 #001e3c, inset 0 2px 2px rgba(255, 255, 255, 0.55) !important;
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3) !important;
   color: #ffffff !important;
-  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
-  font-weight: 700 !important;
-  border-radius: 14px !important;
-  padding: 10px 20px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35) !important;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease !important;
+  transition: all 0.15s ease !important;
 }
 
 .cartoon-btn-blue:hover {
-  filter: brightness(1.1) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 #001e3c, inset 0 2px 3px rgba(255, 255, 255, 0.75) !important;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
 }
 
 .cartoon-btn-blue:active {
-  transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 #001e3c !important;
+  transform: translateY(1px) !important;
 }
 
-/* Google Sign-In Button — white chrome on BMW silver */
+/* Google Sign-In Button — Clean Enterprise Flat */
 .au-google-btn {
   background: #ffffff !important;
   color: var(--bmw-navy) !important;
-  border: 3px solid var(--bmw-silver-deep) !important;
-  box-shadow: 0 5px 0 var(--bmw-silver-deep), inset 0 2px 2px rgba(255, 255, 255, 0.9) !important;
-  border-radius: 14px !important;
-  font-family: var(--font-cartoon), 'Fredoka', sans-serif !important;
-  font-weight: 700 !important;
-  padding: 10px 18px !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 10px !important;
   cursor: pointer !important;
-  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+  transition: all 0.15s ease !important;
 }
 
 .au-google-btn:hover {
-  background: var(--bmw-silver) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 7px 0 var(--bmw-silver-deep) !important;
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12) !important;
 }
 
 .au-google-btn:active {
-  transform: translateY(3px) !important;
-  box-shadow: 0 2px 0 var(--bmw-silver-deep) !important;
+  transform: translateY(1px) !important;
 }
+
 
 /* ========================================================================= */
 /* CARTOON 3D PAINTED CARDS — BMW EXECUTIVE WHITE                             */
 /* ========================================================================= */
 
+.summary-card,
 .summary-card,
 .farm-list,
 .map-card,
@@ -256,10 +252,10 @@ h1, h2, h3, h4, h5, h6,
 .modal {
   background: #ffffff !important;
   color: var(--bmw-text) !important;
-  border: 2px solid var(--bmw-silver-mid) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 4px 24px rgba(11, 31, 53, 0.10), 0 1px 4px rgba(11, 31, 53, 0.06) !important;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, border-color 0.25s ease !important;
+  border: 1px solid var(--bmw-silver-mid) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(11, 31, 53, 0.05), 0 1px 2px rgba(11, 31, 53, 0.03) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
 }
 
 .summary-card:hover,
@@ -269,32 +265,33 @@ h1, h2, h3, h4, h5, h6,
 .advice-card:hover,
 .action-card:hover,
 .au-hub-card:hover {
-  transform: translateY(-4px) scale(1.015) !important;
+  transform: translateY(-2px) !important;
   border-color: var(--bmw-blue-light) !important;
-  box-shadow: 0 16px 48px rgba(0, 102, 179, 0.18), 0 0 0 3px rgba(0, 128, 214, 0.12) !important;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.12) !important;
 }
 
-/* Metric Icon — BMW Blue Glossy */
+/* Metric Icon — Clean Precision Rounded */
 .metric-icon {
-  border-radius: 14px !important;
-  box-shadow: 0 4px 10px rgba(0, 102, 179, 0.18) !important;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15) !important;
+  transition: transform 0.2s ease !important;
 }
 .summary-card:hover .metric-icon {
-  transform: scale(1.15) rotate(4deg) !important;
+  transform: scale(1.08) !important;
 }
 
 .metric-icon.healthy {
-  background: linear-gradient(135deg, #0080d6 0%, #0066b3 100%) !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
   color: #ffffff !important;
-  border: 2px solid #003f7a !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 .metric-icon.attention {
-  background: linear-gradient(135deg, #e8a020 0%, #c07a00 100%) !important;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
   color: #ffffff !important;
-  border: 2px solid #7a4c00 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
+
 
 /* ========================================================================= */
 /* SHELL, SIDEBAR & TOPBAR — BMW NAVY                                         */
@@ -649,3 +646,171 @@ h1, h2, h3, h4, h5, h6,
     filter: drop-shadow(0 0 16px rgba(79, 168, 232, 0.85));
   }
 }
+
+/* ========================================================================= */
+/* LANGUAGE SWITCHER PILL & ENTERPRISE QUICK ACTIONS                         */
+/* ========================================================================= */
+
+.lg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lg-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.lg-pill-btn:hover, .lg-pill-btn.active {
+  background: #f8fafc;
+  border-color: #0284c7;
+  color: #0284c7;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15);
+}
+
+.lg-globe-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.lg-current-code {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lg-chevron {
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.lg-chevron.rotate {
+  transform: rotate(180deg);
+}
+
+.lg-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14), 0 4px 10px rgba(15, 23, 42, 0.06);
+  padding: 6px;
+  min-width: 170px;
+  z-index: 1000;
+  display: grid;
+  gap: 3px;
+  animation: fadeInDown 0.15s ease;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lg-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 2px;
+}
+
+.lg-opt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.lg-opt-labels {
+  display: flex;
+  flex-direction: column;
+}
+
+.lg-opt-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.lg-opt-sub {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.lg-opt-btn:hover {
+  background: #f1f5f9;
+}
+
+.lg-opt-btn.on {
+  background: #e0f2fe;
+}
+
+.lg-opt-btn.on .lg-opt-label {
+  color: #0284c7;
+  font-weight: 700;
+}
+
+.lg-check-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+/* Enterprise Topbar Toolbar styling */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.top-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.top-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+}
+

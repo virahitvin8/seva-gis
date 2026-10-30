@@ -148,6 +148,7 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
   const [days, setDays] = useState<number>(180)
   const [cache, setCache] = useState<Record<string, Candle[] | 'error' | 'loading'>>({})
   const farm = farms.find(f => f.id === selected) || farms[0]
+
   useEffect(() => {
     for (const f of farms) {
       if (cache[f.id]) continue
@@ -167,8 +168,35 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
       history(f).then(rows => setCache(c => ({ ...c, [f.id]: rows }))).catch(() => setCache(c => ({ ...c, [f.id]: 'error' })))
     }
   }, [farms.map(f => f.id).join()])
+
   const all = (id: string) => { const v = cache[id]; return Array.isArray(v) ? v : [] }
-  const rows = useMemo(() => { const cut = Date.now() - days * 86400000; return all(farm.id).filter(c => +new Date(c.scene.datetime) >= cut) }, [cache, farm.id, days])
+  const rows = useMemo(() => {
+    if (!farm) return []
+    const cut = Date.now() - days * 86400000
+    return all(farm.id).filter(c => +new Date(c.scene.datetime) >= cut)
+  }, [cache, farm?.id, days])
+
+  if (!farm) {
+    return (
+      <section className="cj" id="crop-journal" aria-label="Crop journal">
+        <div className="cj-top">
+          <div>
+            <div className="eyebrow">CROP JOURNAL</div>
+            <h2>Multi-Temporal Sentinel-2 Phenology Analysis</h2>
+            <p>Compare historical clear satellite passes, surface reflectance anomalies, and vegetative trajectory trends.</p>
+          </div>
+        </div>
+        <div className="cj-card" style={{ padding: '36px 20px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.15)' }}>
+          <Sprout size={36} style={{ color: '#10b981', margin: '0 auto 12px', display: 'block' }} />
+          <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#f8fafc' }}>Awaiting Field Boundary Delineation</h3>
+          <p style={{ color: '#94a3b8', fontSize: 13, maxWidth: 520, margin: '0 auto' }}>
+            Delineate a field polygon or import a boundary (GeoJSON / KML) to query historical Sentinel-2 MSI surface reflectance observations across the last 180 days.
+          </p>
+        </div>
+      </section>
+    )
+  }
+
   // Same guard as the chart: the 10–90% band legend shows only when the rows
   // carry real percentiles (weekly-record rows hold one value each).
   const hasBand = rows.length > 0 && rows.every(c => c.ndvi.p90 > c.ndvi.p10)

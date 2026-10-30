@@ -2,6 +2,10 @@
   "title": "SEVA.GIS — Satellite Precision Agriculture & Land Intelligence",
   "description": "SEVA.GIS (Spatial Evaluation & Vegetation Analytics) is a free open-data GeoAI platform providing 10m Sentinel-2 NDVI crop vigour, soil moisture, variable-rate fertilizer planning, and field analytics for farmers and landowners.",
   "language": "en",
+  "author": "N. Akshit Vinay",
+  "account": "25msrsgis001@shiats.edu.in",
+  "organization": "SHUATS — Remote Sensing & GIS / Agriculture",
+  "repository": "https://github.com/virahitvin8/seva-gis",
   "icons": {
     "icon": "/assets/logo_mark.png"
   },

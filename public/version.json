@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "buildDate": "2026-10-30T23:20:00Z",
+  "buildNumber": 100,
+  "channel": "stable",
+  "appName": "SEVA.GIS",
+  "author": "N. Akshit Vinay",
+  "account": "25msrsgis001@shiats.edu.in",
+  "updateUrl": "https://sevagis.dpdns.org/version.json",
+  "changelog": [
+    "Automated Android application build with live auto-update",
+    "Figma Make connected to 25msrsgis001@shiats.edu.in",
+    "HP-inspired clean spatial intelligence workflow and motion tutorials",
+    "All open-source geospatial engines active: GEE, QGIS, GDAL, Leaflet, Turf"
+  ]
+}

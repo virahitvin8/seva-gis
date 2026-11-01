@@ -21,6 +21,8 @@
     "i18n:coverage": "node scripts/i18n-coverage.mjs",
     "grill": "node scripts/grill.mjs",
     "grill:quick": "node scripts/grill.mjs --quick",
+    "cap:sync": "npm run build && node node_modules/@capacitor/cli/bin/capacitor sync android",
+    "apk:build": "npm run cap:sync && cd android && bash gradlew assembleDebug",
     "demo:assemble": "node scripts/video-pipeline/assemble.mjs"
   },
   "dependencies": {

@@ -22,6 +22,8 @@ import {
   type VillagePreset
 } from '../lib/digipin'
 import { checkAndApplySevaOtaUpdate, simulateOtaUpdateAvailable, type OtaUpdateInfo } from '../ota/liveUpdater'
+import RemoteFieldScoutModal from './RemoteFieldScoutModal'
+import type { GroundScoutPayload } from '../lib/scoutBeaconService'
 
 interface Props {
   farm: FarmData & { id: string; name: string; crop?: string }
@@ -72,6 +74,25 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
   const [searchQuery, setSearchQuery] = useState('')
   const [isVoiceListening, setIsVoiceListening] = useState(false)
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null)
+  const [showRemoteScoutModal, setShowRemoteScoutModal] = useState(false)
+
+  const handleScoutBeaconReceived = (payload: GroundScoutPayload) => {
+    setCenterCoord([payload.longitude, payload.latitude])
+    const delta = 0.0015
+    const lon = payload.longitude
+    const lat = payload.latitude
+    const newPins: [number, number][] = payload.corners && payload.corners.length >= 3
+      ? payload.corners
+      : [
+          [Number((lon - delta).toFixed(6)), Number((lat - delta).toFixed(6))],
+          [Number((lon + delta).toFixed(6)), Number((lat - delta).toFixed(6))],
+          [Number((lon + delta).toFixed(6)), Number((lat + delta).toFixed(6))],
+          [Number((lon - delta).toFixed(6)), Number((lat + delta).toFixed(6))],
+        ]
+    setPins(newPins)
+    setSearchFeedback(`✓ Pinpoint received from ${payload.scoutName || 'friend'}! Center reticle locked.`)
+    setTimeout(() => setSearchFeedback(null), 4500)
+  }
 
   // Handy GPS Telemetry
   const [compassAzimuth, setCompassAzimuth] = useState<number>(42)
@@ -541,6 +562,15 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
         {/* Horizontal Quick-Jump Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 text-[11px]">
           <span className="text-[10px] text-slate-500 uppercase font-bold shrink-0">Quick Jump:</span>
+          <button
+            type="button"
+            onClick={() => setShowRemoteScoutModal(true)}
+            className="px-2.5 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 shrink-0 cursor-pointer transition flex items-center gap-1 font-semibold"
+            title="Ask Friend on Field to Pin & Snap"
+          >
+            <Radio size={11} className="animate-pulse text-amber-400" />
+            <span>📡 Ask Friend on Field</span>
+          </button>
           {RURAL_VILLAGE_PRESETS.map(preset => (
             <button
               key={preset.name}
@@ -1252,6 +1282,14 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
           <span className="text-[10px] mt-1 font-['Space_Grotesk'] uppercase tracking-wider">QGIS Sync</span>
         </button>
       </nav>
+
+      {/* Remote Field Scout Beacon Modal */}
+      <RemoteFieldScoutModal
+        isOpen={showRemoteScoutModal}
+        onClose={() => setShowRemoteScoutModal(false)}
+        plotName={farm.name}
+        onBeaconReceived={handleScoutBeaconReceived}
+      />
     </div>
   )
 }

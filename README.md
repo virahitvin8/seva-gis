@@ -21,6 +21,12 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 
 ## ⚡ What's new in v4.3.0 (Unified Web & Android Field Suite)
 
+- **📡 Remote Field Scout Link & Friend Ground Beacon**:
+  - **Can't find your field on satellite maps?** Generate an instant, zero-install Ground Scout Link in SEVA.GIS on your laptop or phone.
+  - **Share via WhatsApp or SMS**: Send the link to a friend, worker, or neighbor standing at or passing near your field.
+  - **Browser-Based Mobile GPS Viewfinder**: Friend opens the link in Google Chrome/Safari with no app download or sign-in needed.
+  - **Watermarked Photo & Video Proof**: Automatically locks sub-meter GPS coordinates, elevation, compass bearing, and India Post DIGIPIN onto the captured photo or live video clip.
+  - **Real-Time Map Pinpointing & Boundary Snapping**: When your friend taps "Submit Field Proof", SEVA.GIS immediately receives the beacon on your screen, flies the map directly to the field, adjusts farm coordinates, auto-delineates the parcel boundary, and attaches the ground-truth evidence card.
 - **4-in-1 Mobile Field Suite (Reverse-Engineered Tactical GIS)**:
   - **Fields Area Measure (Cadastral HUD)**: Stationary center target reticle (`🎯`), pan map underneath, pin-drop vertices, walk-around GPS boundary tracking, and real-time 6-unit cadastral HUD (Acres, Hectares, Guntha, Bigha, Cents, Perimeter, segment distances).
   - **Handy GPS Tactical Telemetry Console**: 360° rotating compass rose, azimuth bearing (`042° NE`), target anomaly direction pointer (`118.4m`), Copernicus GLO-30 elevation (`248m MSL`), speed (`4.2 km/h`), odometer, and 5-way coordinate system switcher (DIGIPIN, Decimal WGS84, DMS, UTM, MGRS).

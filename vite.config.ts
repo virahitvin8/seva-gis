@@ -13,6 +13,7 @@ import {
   getSecurityLoginsData,
 } from './server/securityAuditCore.js'
 import { dispatchReportEmail } from './server/directMailService.js'
+import { createScoutSession, submitScoutData, getScoutSession } from './server/scoutBeaconService.js'
 
 import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
@@ -45,6 +46,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       sevaEmailServerPlugin(),
+      sevaScoutBeaconPlugin(),
       sevaSecurityAuditPlugin(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
@@ -266,6 +268,90 @@ function sevaEmailServerPlugin(): Plugin {
           })
           return
         }
+        next()
+      })
+    },
+  }
+}
+
+function sevaScoutBeaconPlugin(): Plugin {
+  return {
+    name: 'seva-scout-beacon',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = req.url || ''
+        const [urlPath] = url.split('?')
+
+        if (urlPath === '/api/scout-beacon/create' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+          req.on('end', () => {
+            try {
+              const payload = JSON.parse(body || '{}')
+              const session = createScoutSession(payload)
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: true, sessionId: session.sessionId, session }))
+            } catch (err: any) {
+              res.statusCode = 400
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: false, error: err.message }))
+            }
+          })
+          return
+        }
+
+        if (urlPath === '/api/scout-beacon/status' && req.method === 'GET') {
+          const parsed = new URL(url, 'http://localhost')
+          const sessionId = parsed.searchParams.get('sessionId')
+          if (!sessionId) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({ success: false, error: 'sessionId required' }))
+            return
+          }
+          const session = getScoutSession(sessionId)
+          if (!session) {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({ success: false, error: 'Session not found' }))
+            return
+          }
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.end(JSON.stringify({ success: true, session }))
+          return
+        }
+
+        if (urlPath === '/api/scout-beacon/submit' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+          req.on('end', () => {
+            try {
+              const payload = JSON.parse(body || '{}')
+              const sessionId = payload.sessionId
+              if (!sessionId) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(JSON.stringify({ success: false, error: 'sessionId required' }))
+                return
+              }
+              const result = submitScoutData(sessionId, payload)
+              if (!result.success) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(JSON.stringify({ success: false, error: result.error }))
+                return
+              }
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: true, session: result.session }))
+            } catch (err: any) {
+              res.statusCode = 400
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: false, error: err.message }))
+            }
+          })
+          return
+        }
+
         next()
       })
     },

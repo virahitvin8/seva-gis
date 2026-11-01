@@ -16,6 +16,7 @@ import {
 
 import { handleSecurityRoutes } from './backend/security_telemetry.js';
 import { dispatchReportEmail } from './server/directMailService.js';
+import { createScoutSession, submitScoutData, getScoutSession } from './server/scoutBeaconService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -601,6 +602,80 @@ const server = http.createServer((req, res) => {
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Remote Field Scout Beacon — Create Session
+  if (urlPath === '/api/scout-beacon/create' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 1024 * 1024) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const session = createScoutSession(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, sessionId: session.sessionId, session }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Remote Field Scout Beacon — Query Status
+  if (urlPath === '/api/scout-beacon/status' && req.method === 'GET') {
+    const parsed = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const sessionId = parsed.searchParams.get('sessionId');
+    if (!sessionId) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: 'sessionId required' }));
+      return;
+    }
+    const session = getScoutSession(sessionId);
+    if (!session) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: 'Session not found' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, session }));
+    return;
+  }
+
+  // Remote Field Scout Beacon — Submit Field Telemetry & Media from Ground Friend
+  if (urlPath === '/api/scout-beacon/submit' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      // Allow up to 35MB for high-res photo or short field video base64
+      if (body.length > 35 * 1024 * 1024) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const sessionId = payload.sessionId;
+        if (!sessionId) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: 'sessionId required' }));
+          return;
+        }
+        const result = submitScoutData(sessionId, payload);
+        if (!result.success) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: result.error }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, session: result.session }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
     return;

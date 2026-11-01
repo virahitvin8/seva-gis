@@ -19,12 +19,25 @@ Free and open source, for everyone: farmers, students, officers, researchers, bu
 
 ---
 
-## ⚡ What's new in v2.5
+## ⚡ What's new in v4.3.0 (Unified Web & Android Field Suite)
 
-- **Clockwise Parameter Engine**: Interactive 320×320 orbital radar sweep (1 → 2 → 3 → 4 → 5 → 6) cycling through 4 Domain Intelligence pillars (Precision Agriculture, Hydrology & Water, Soil & Terrain, Agro-Meteorology) with live spectral formulas and quality masks.
-- **Tinker (Thinking Machine) GeoAI Engine**: Cloud fine-tuning and inference pipeline in `tinker-seva-gis/` connecting Sentinel-2 spectral indices to predictive crop stress and agronomic advisories.
-- **Open Design MCP Architecture**: Local headless design protocol integration with prebundled daemon support.
-- **Official Brand SVG Emblem**: Shield-pin with cyan-to-emerald gradient, sky-blue water droplet, and dual ascending agricultural leaves.
+- **4-in-1 Mobile Field Suite (Reverse-Engineered Tactical GIS)**:
+  - **Fields Area Measure (Cadastral HUD)**: Stationary center target reticle (`🎯`), pan map underneath, pin-drop vertices, walk-around GPS boundary tracking, and real-time 6-unit cadastral HUD (Acres, Hectares, Guntha, Bigha, Cents, Perimeter, segment distances).
+  - **Handy GPS Tactical Telemetry Console**: 360° rotating compass rose, azimuth bearing (`042° NE`), target anomaly direction pointer (`118.4m`), Copernicus GLO-30 elevation (`248m MSL`), speed (`4.2 km/h`), odometer, and 5-way coordinate system switcher (DIGIPIN, Decimal WGS84, DMS, UTM, MGRS).
+  - **Agronomic GPS Map Camera**: Live viewfinder with level horizon guide and tamper-proof burned-in geo-stamp card on canvas (mini satellite map, boundary polygon, red pin, plot name, DIGIPIN, Lat/Lng, Elevation, Azimuth, NDVI, NDMI, Z-score anomaly, ISO timestamp).
+  - **Zero-Coordinate Land Discovery**: Voice/text omni-search for Indian villages, postal PIN codes, mandis, and landmarks; 10-character alphanumeric DIGIPIN (`V82-3PG-535J`) for 4m×4m cell resolution.
+- **Automated Live In-App OTA Hot-Swap Pipeline**:
+  - Updates pushed to GitHub (`main`) deploy automatically to the web server and publish delta bundles.
+  - Active web and installed Android users receive real-time in-app notification: *"⚡ New SEVA.GIS Update Available — [1-Tap Update]"*.
+  - Hot-swaps the bundle in 1.5s in-place with **zero Play Store review lag and zero APK reinstall**.
+- **Automated Direct Dispatch Console (Email & SMS)**:
+  - Direct inbox delivery for PDF, HTML, Word, JSON, and ZIP reports via native Node.js SMTP transport and REST APIs (Resend, SendGrid, Brevo).
+  - Direct SMS advisory dispatch to mobile numbers via local OpenSMS Android SIM gateway (`http://10.65.171.208:9292/sms/`).
+- **GeoAI, Cloud-Native COG & Spatial SQL**:
+  - **samgeo / FastSAM**: Zero-shot parcel boundary segmentation from satellite imagery.
+  - **TiTiler & STAC**: Cloud-native dynamic XYZ tile streaming and custom band math.
+  - **DuckDB-WASM**: In-browser spatial SQL engine with PMFBY crop insurance audit.
+- **Top 1000 Geospatial Trending Repositories Registry**: Complete offline-searchable spatial automation intelligence index.
 
 ---
 
@@ -164,8 +177,8 @@ In the **Workflow** view, you can design spatial analysis pipelines using visual
 | Platform | How to run |
 |---|---|
 | **Web Browser** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org). On Android or desktop, use the browser's **Install app / Add to Home Screen** option to pin it as an app. |
-| **Android / iOS** | Use the web app today. A native Android package is planned but **not published yet**; when one is built it will appear on the Releases page. |
-| **Windows Desktop** | Use the web app in any browser today. A desktop installer is planned but **not published yet**; when one is built it will appear on the Releases page. |
+| **Android Field Suite** | Native Android APK built with Capacitor (`@capacitor/android`) with hardware GNSS, offline camera, and live Over-The-Air (OTA) updates. Or install as PWA from [https://sevagis.dpdns.org](https://sevagis.dpdns.org). |
+| **Windows Desktop** | Use the web workstation at [https://sevagis.dpdns.org](https://sevagis.dpdns.org) or connect via the QGIS Live Bridge. |
 | **Developers** | `git clone https://github.com/virahitvin8/seva-gis`, then `npm install`, and `npm run dev`. Copy `.env.example` to `.env` only if you want to point the app at an optional backend (`VITE_API_BASE`). |
 
 ---

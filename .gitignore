@@ -49,3 +49,7 @@ DETAILS SEVA/
 
 *.jsonl
 security_access_audit.jsonl
+.claude - Copy/
+text build.txt
+text build/
+text_build.txt

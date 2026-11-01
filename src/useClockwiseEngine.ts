@@ -53,10 +53,10 @@ export interface ClockwiseEngine {
 export function useClockwiseEngine(
   resetKey: string,
   stepCount: number,
-  options?: { intervalMs?: number; externalHold?: boolean }
+  options?: { intervalMs?: number; externalHold?: boolean; onCycleComplete?: () => void }
 ): ClockwiseEngine {
-  const intervalMs = options?.intervalMs ?? 3000
-  const externalHold = options?.externalHold ?? false
+  const intervalMs = options?.intervalMs ?? 1000
+  const onCycleComplete = options?.onCycleComplete
 
   const [step, setStep] = useState(0)
   const [rotation, setRotation] = useState(0)
@@ -95,7 +95,7 @@ export function useClockwiseEngine(
     return () => io.disconnect()
   }, [container])
 
-  const autoPaused = reducedMotion || hidden || offscreen || externalHold
+  const autoPaused = reducedMotion || hidden || offscreen
   const paused = autoPaused || userPaused
 
   // A domain change (or any resetKey change) clears the old interval in the
@@ -112,11 +112,17 @@ export function useClockwiseEngine(
   useEffect(() => {
     if (paused || stepCount <= 1) return
     const id = window.setInterval(() => {
-      setStep(s => (s + 1) % stepCount)
+      setStep(s => {
+        const nextStep = (s + 1) % stepCount
+        if (nextStep === 0 && onCycleComplete) {
+          onCycleComplete()
+        }
+        return nextStep
+      })
       setRotation(r => r + STEP_ANGLE)
     }, intervalMs)
     return () => window.clearInterval(id)
-  }, [paused, stepCount, intervalMs, tick])
+  }, [paused, stepCount, intervalMs, tick, onCycleComplete])
 
   const selectStep = useCallback(
     (index: number) => {

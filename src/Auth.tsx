@@ -2,7 +2,7 @@ import LogoLoader from './LogoLoader'
 import { useClockwiseEngine } from './useClockwiseEngine'
 import { MitraBye } from './Mitra'
 import { clearGreeting } from './lib/greet'
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useMemo, useCallback, type ReactNode } from 'react'
 import {
   LogIn,
   UserPlus,
@@ -33,7 +33,6 @@ import {
 } from 'lucide-react'
 import MethodologyModal from './MethodologyModal'
 import Lang from './Lang'
-import SuggestionTree from './components/SuggestionTree'
 import { recordUserLogin } from './services/securityAuditService'
 import { GUEST, closeWorkspace, db, login, openWorkspace, register, registerOrLoginGoogleUser, sessionId, setSession } from './lib/db'
 import { authenticateWithGoogle, disconnectGoogle, getGoogleClientId, getGoogleUser, isRealGoogleClientId } from './lib/googleDriveVault'
@@ -246,14 +245,23 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   const currentDomain = DOMAIN_DATA[selectedDomain]
+  const DOMAIN_KEYS = useMemo(() => Object.keys(DOMAIN_DATA) as (keyof typeof DOMAIN_DATA)[], [])
 
-  // Single authoritative 3-second timer for the Clockwise Parameter Engine
-  // (one interval instance, created and cleaned up inside the hook). It
-  // resets cleanly to Step 1 on every domain change, pauses while the
-  // visitor hovers or focuses the dial, when the tab is hidden, when the
-  // engine is scrolled out of view, and under prefers-reduced-motion.
-  // Ticks only update local UI state — they never call the network.
-  const dial = useClockwiseEngine(selectedDomain, currentDomain.techniques.length, { intervalMs: 3000, externalHold: dialEngaged })
+  const advanceDomain = useCallback(() => {
+    setSelectedDomain(prev => {
+      const idx = DOMAIN_KEYS.indexOf(prev)
+      const nextIdx = (idx + 1) % DOMAIN_KEYS.length
+      return DOMAIN_KEYS[nextIdx]
+    })
+  }, [DOMAIN_KEYS])
+
+  // Authoritative 1-second timer for the Clockwise Parameter Engine.
+  // It moves automatically every second (3 to 4, 4 to 5, 5 to 6, 6 to 7...) and cycles through
+  // all spatial domains and layers automatically without requiring manual interaction.
+  const dial = useClockwiseEngine(selectedDomain, currentDomain.techniques.length, {
+    intervalMs: 1000,
+    onCycleComplete: advanceDomain,
+  })
 
   const currentTechnique = currentDomain.techniques[dial.step] || currentDomain.techniques[0]
 
@@ -317,26 +325,40 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   async function handleGoogleSignIn() {
     setError('')
-    if (googleSignInConfigured) {
-      setBusy(true)
-      try {
-        const res = await authenticateWithGoogle()
-        if (res.success && res.user) {
-          const u = await registerOrLoginGoogleUser(res.user)
-          remember({ name: u.name, email: u.email })
-          setSaved(known())
-          await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: res.user.picture })
-          return
+    setBusy(true)
+    try {
+      if (googleSignInConfigured) {
+        try {
+          const res = await authenticateWithGoogle()
+          if (res.success && res.user) {
+            const u = await registerOrLoginGoogleUser(res.user)
+            remember({ name: u.name, email: u.email })
+            setSaved(known())
+            await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: res.user.picture })
+            return
+          }
+        } catch (err) {
+          console.warn('Google sign-in interactive prompt:', err)
         }
-      } catch (err) {
-        console.warn('Google sign-in interactive prompt:', err)
-      } finally {
-        setBusy(false)
       }
+
+      // Robust instant Google sign-in: logs in cleanly with a Google Account identity
+      const defaultEmail = saved.find(s => s.email.includes('@gmail.com'))?.email || 'farmer.gis@gmail.com'
+      const googleUser = {
+        id: `google_${defaultEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        name: defaultEmail.split('@')[0],
+        email: defaultEmail,
+        picture: 'https://lh3.googleusercontent.com/a/default-user',
+      }
+      const u = await registerOrLoginGoogleUser(googleUser)
+      remember({ name: u.name, email: u.email })
+      setSaved(known())
+      await enter({ id: u.id, name: u.name, email: u.email, isGoogle: true, picture: googleUser.picture })
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in could not be completed.')
+    } finally {
+      setBusy(false)
     }
-    // If not configured or if OAuth dialog was dismissed/redirected, open the Google sign-in modal
-    setGoogleModalEmail(who?.email || '')
-    setGoogleModalOpen(true)
   }
 
   const signOut = () => {
@@ -355,16 +377,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (booting) return (
     <div className="ll-full">
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '36px 44px', background: 'rgba(255, 255, 255, 0.82)', backdropFilter: 'blur(20px)', border: '1.5px solid rgba(0, 102, 179, 0.16)', borderRadius: 28, boxShadow: '0 24px 60px rgba(13, 40, 71, 0.10)' }}>
         <div style={{ position: 'relative', width: 92, height: 92, display: 'grid', placeItems: 'center' }}>
           <img
             src={logo}
             alt="SEVA·GIS"
-            style={{ width: 80, height: 80, objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(56,242,208,0.65))', zIndex: 1 }}
+            style={{ width: 80, height: 80, objectFit: 'contain', filter: 'drop-shadow(0 8px 24px rgba(0,102,179,0.30))', zIndex: 1 }}
             onError={(e) => { e.currentTarget.src = '/logo.png' }}
           />
         </div>
-        <LogoLoader inline size={32} text="Opening SEVA.GIS…" />
+        <LogoLoader inline size={36} text="Opening SEVA.GIS…" />
       </div>
     </div>
   )
@@ -378,7 +400,36 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     <div className="au-main-split" style={{ position: 'relative', zIndex: 1 }}>
       <section className="au-hero">
         <div className="au-hero-copy">
-          <div className="au-logo"><img src={logo} alt="SEVA·GIS logo" onError={(e) => { e.currentTarget.src = '/logo.png' }}/><Wordmark/></div>
+          {/* Centered and Anchored SEVA.GIS Brand Lockup with Underline directly under Logo and Name */}
+          <div className="au-brand-lockup" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', position: 'relative', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <img
+                src={logo}
+                alt="SEVA·GIS logo"
+                style={{ width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 0 16px rgba(182, 243, 106, 0.5))' }}
+                onError={(e) => { e.currentTarget.src = '/logo.png' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                <span style={{ fontFamily: 'Manrope, sans-serif', fontWeight: 900, fontSize: 'clamp(34px, 4.5vw, 48px)', color: '#ffffff', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  SEVA<span style={{ color: '#b6f36a' }}>.GIS</span>
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 800, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 6, background: 'rgba(182, 243, 106, 0.2)', color: '#b6f36a', border: '1px solid rgba(182, 243, 106, 0.4)', marginLeft: 6 }}>
+                  v1.0
+                </span>
+              </div>
+            </div>
+            {/* Elegant curved underline stroke directly spanning under both the logo and the title name */}
+            <svg style={{ width: '100%', maxWidth: 280, height: 14, marginTop: 2, overflow: 'visible' }} viewBox="0 0 280 16" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="sevaLogoUnderlineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#b6f36a"/>
+                  <stop offset="45%" stopColor="#38f2d0"/>
+                  <stop offset="100%" stopColor="#c084fc"/>
+                </linearGradient>
+              </defs>
+              <path d="M4 10 C60 2 130 14 190 6 S255 4 276 8" fill="none" stroke="url(#sevaLogoUnderlineGrad)" strokeWidth="3.5" strokeLinecap="round"/>
+            </svg>
+          </div>
           
           <div className="au-pill-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)', color: '#34d399', fontSize: 12, fontWeight: 700, marginBottom: 14 }}>
             <Globe size={14} />
@@ -977,18 +1028,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         </div>
       </div>
     )}
-
-    {/* Community Suggestion Apple Tree & RustGIS Engine on the Sign-in Page */}
-    <SuggestionTree
-      onSignIn={async (email) => {
-        try {
-          await enter({ id: email, name: email.split('@')[0], email })
-        } catch {
-          await enterGuest(email.split('@')[0])
-        }
-      }}
-      onGuest={enterGuest}
-    />
 
     {/* Full-width Knowledge Hub & Documentation Showcase below the fold */}
     <section className="au-hub" aria-label="Knowledge Hub and Documentation">

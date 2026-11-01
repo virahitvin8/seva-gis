@@ -37,15 +37,19 @@ export function getStoredOpenSmsConfig(): OpenSmsConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_OPENSMS_CONFIG)
     if (raw) {
-      return JSON.parse(raw)
+      const parsed = JSON.parse(raw)
+      if (parsed.serverUrl && !parsed.serverUrl.endsWith('/')) {
+        parsed.serverUrl += '/'
+      }
+      return parsed
     }
   } catch (err) {
     // ignore
   }
   return {
-    serverUrl: 'http://127.0.0.1:9292/sms/',
-    apiKey: '',
-    enabled: false,
+    serverUrl: 'http://10.65.171.208:9292/sms/',
+    apiKey: 'osms_QJZxOgTgl2mGc2nXDYW_RNPteNwnpwxI1QS-E47uzlI',
+    enabled: true,
   }
 }
 
@@ -251,6 +255,40 @@ export async function sendViaOpenSmsGateway(
     throw new Error('Please enter a valid mobile number with country code (e.g. +91 9876543210).')
   }
 
+  let targetUrl = config.serverUrl.trim()
+  if (!targetUrl.endsWith('/')) {
+    targetUrl += '/'
+  }
+
+  // 1. Try local same-origin relay proxy first to bypass browser CORS preflight & Mixed Content blocks
+  try {
+    const proxyRes = await fetch('/api/opensms-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serverUrl: targetUrl,
+        apiKey: config.apiKey,
+        number: cleanNum,
+        text: text
+      }),
+    })
+    if (proxyRes.ok) {
+      const pJson = await proxyRes.json().catch(() => ({}))
+      if (pJson.stat === true || pJson.success) {
+        return { success: true, message: pJson.message || 'SMS sent successfully through Android phone SIM card!' }
+      }
+      if (pJson.error) {
+        throw new Error(pJson.error)
+      }
+    }
+  } catch (proxyErr: any) {
+    // If not a proxy error with an explicit message, proceed to direct fetch
+    if (proxyErr.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('404')) {
+      throw proxyErr
+    }
+  }
+
+  // 2. Direct client fetch fallback
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
@@ -267,7 +305,7 @@ export async function sendViaOpenSmsGateway(
   const timeoutId = setTimeout(() => controller.abort(), 12000)
 
   try {
-    const res = await fetch(config.serverUrl, {
+    const res = await fetch(targetUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
@@ -280,6 +318,7 @@ export async function sendViaOpenSmsGateway(
       try {
         const json = await res.json()
         if (json.message) dataText = json.message
+        else if (json.stat === true) dataText = 'SMS dispatched successfully via Android SIM card!'
       } catch (e) {
         // text ok
       }

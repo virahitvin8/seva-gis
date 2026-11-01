@@ -12,6 +12,7 @@ import {
   recordSecurityLoginEvent,
   getSecurityLoginsData,
 } from './server/securityAuditCore.js'
+import { dispatchReportEmail } from './server/directMailService.js'
 
 import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
@@ -84,6 +85,46 @@ function sevaSecurityAuditPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || '/'
         const urlPath = url.split('?')[0]
+
+        if (urlPath === '/api/opensms-proxy' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (chunk: Buffer) => {
+            body += chunk.toString()
+          })
+          req.on('end', async () => {
+            try {
+              const payload = JSON.parse(body || '{}')
+              let target = (payload.serverUrl || 'http://10.65.171.208:9292/sms/').trim()
+              if (!target.endsWith('/')) target += '/'
+
+              const headers: Record<string, string> = {
+                'Content-Type': 'application/json'
+              }
+              if (payload.apiKey && payload.apiKey.trim()) {
+                headers['Authorization'] = `Bearer ${payload.apiKey.trim()}`
+              }
+
+              const proxyRes = await fetch(target, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                  number: payload.number,
+                  text: payload.text
+                }),
+                signal: AbortSignal.timeout(10000)
+              })
+
+              const data = await proxyRes.json().catch(() => ({}))
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify(data))
+            } catch (err: any) {
+              res.statusCode = 502
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ error: err.message || 'Failed to proxy OpenSMS request' }))
+            }
+          })
+          return
+        }
 
         if (urlPath === '/api/security/telemetry' && req.method === 'POST') {
           let body = ''
@@ -199,55 +240,28 @@ function sevaEmailServerPlugin(): Plugin {
           req.on('end', async () => {
             try {
               const payload = JSON.parse(body || '{}')
-              const email = payload.email || 'user@example.com'
-              const farmName = payload.farmName || 'Farm Parcel'
-              const reportId = payload.reportId || `SEVA-${Date.now()}`
-              const eoApiKey = payload.apiKey || 'eo_5f948784821e2b4da262a423736cfe098e358a89fa382f7885f401126a997e58'
-              const eoListId = payload.listId || '15e4d8e2-c4b5-11f1-8441-836e7cd382aa'
-              const tagline = payload.tagline || 'Thank you for using SEVA·GIS! Visit again, see again — Earth intelligence in the spirit of selfless service.'
-
-              let eoContactId: string | null = null
-              let eoSuccess = false
-
-              try {
-                const eoRes = await fetch(`https://emailoctopus.com/api/1.6/lists/${eoListId}/contacts`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    api_key: eoApiKey,
-                    email_address: email,
-                    fields: {
-                      FirstName: farmName,
-                    },
-                    tags: ['SEVA-GIS-Report-Download'],
-                    status: 'SUBSCRIBED',
-                  }),
-                })
-                const eoData = await eoRes.json()
-                if (eoRes.ok && eoData?.id) {
-                  eoContactId = eoData.id
-                  eoSuccess = true
-                } else if (eoData?.error?.code === 'MEMBER_EXISTS_WITH_EMAIL_ADDRESS') {
-                  eoSuccess = true
-                  eoContactId = 'EXISTING_MEMBER'
-                }
-              } catch (e) {
-                console.warn('[Vite EmailOctopus Proxy] API notice:', e)
+              const email = (payload.email || payload.recipientEmail || '').trim()
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                res.statusCode = 400
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(JSON.stringify({ success: false, error: 'A valid recipient email is required' }))
+                return
               }
 
+              const result = await dispatchReportEmail(payload)
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
               res.end(JSON.stringify({
                 success: true,
-                emailOctopus: eoSuccess,
-                contactId: eoContactId,
-                message: `Report and greeting card dispatched via EmailOctopus to ${email}!`,
+                delivered: true,
                 recipient: email,
-                reportId,
-                tagline,
+                transport: result.transport,
+                message: result.message || `Report successfully delivered to ${email}!`,
               }))
-            } catch {
-              res.statusCode = 400
-              res.end(JSON.stringify({ error: 'Invalid payload' }))
+            } catch (err: any) {
+              console.error('[Vite /api/send-report] Error:', err.message)
+              res.statusCode = 500
+              res.setHeader('Content-Type', 'application/json; charset=utf-8')
+              res.end(JSON.stringify({ success: false, error: err.message || 'Failed to dispatch report email' }))
             }
           })
           return

@@ -1,0 +1,33 @@
+name: SEVA.GIS Web & Android Live OTA Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-web-and-android-ota:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SEVA.GIS Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install & Build Production Bundle
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish OTA Bundle to Installed Android Apps (No APK Reinstall)
+        env:
+          CAPGO_API_KEY: ${{ secrets.CAPGO_API_KEY }}
+        run: |
+          if [ -n "$CAPGO_API_KEY" ]; then
+            npx --yes @capgo/cli bundle upload --channel Production --apikey "$CAPGO_API_KEY"
+          else
+            echo "CAPGO_API_KEY not configured in GitHub Secrets; skipping live Capgo distribution."
+          fi

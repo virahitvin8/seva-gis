@@ -3,6 +3,7 @@ import SourceNote from './SourceNote'
 import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Leaf, Droplets, CloudRain, Sprout, Satellite } from 'lucide-react'
 import { classify, history, type Candle, type WeekRec } from './lib/seva'
+import { useI18n } from './lib/i18n'
 
 type JFarm = { id: string; name: string; crop: string; lat: number; lon: number; area: number; rain?: number; moisture?: number; passes?: WeekRec[]; analysis?: { ndvi: { mean: number }; ndmi: { mean: number }; stressPct: number; scene: { cloud: number } } }
 
@@ -145,6 +146,7 @@ function Growth({ rows }: { rows: Candle[] }) {
 }
 
 export default function CropJournal({ farms, selected, onSelect, onRefresh, loading }: { farms: JFarm[]; selected: string; onSelect: (id: string) => void; onRefresh: () => void; loading: boolean }) {
+  const { t } = useI18n()
   const [days, setDays] = useState<number>(180)
   const [cache, setCache] = useState<Record<string, Candle[] | 'error' | 'loading'>>({})
   const farm = farms.find(f => f.id === selected) || farms[0]
@@ -181,9 +183,9 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
       <section className="cj" id="crop-journal" aria-label="Crop journal">
         <div className="cj-top">
           <div>
-            <div className="eyebrow">CROP JOURNAL</div>
-            <h2>Multi-Temporal Sentinel-2 Phenology Analysis</h2>
-            <p>Compare historical clear satellite passes, surface reflectance anomalies, and vegetative trajectory trends.</p>
+            <div className="eyebrow">{t('sec.cropJournal')}</div>
+            <h2>{t('journal.title')}</h2>
+            <p>{t('journal.subtitle')}</p>
           </div>
         </div>
         <div className="cj-card" style={{ padding: '36px 20px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px dashed rgba(255,255,255,0.15)' }}>
@@ -206,24 +208,24 @@ export default function CropJournal({ farms, selected, onSelect, onRefresh, load
   const story = now === undefined ? 'Refresh the map to look for the first clear satellite picture of this farm.'
     : `${farm.name} has an NDVI reading of ${now.toFixed(2)}. ${cls.advice}${diff === undefined ? '' : diff > 0.02 ? ` The reading is ${diff.toFixed(2)} higher than the previous picture; crop stage and recent rain can also affect it.` : diff < -0.02 ? ` The reading is ${Math.abs(diff).toFixed(2)} lower than the previous picture. Compare the same area in the next clear image; a local check can help if the change continues or a decision is time-sensitive.` : ' It is close to the previous picture.'}`
   const cards = [
-    { i: Leaf, t: 'Crop greenness', v: now?.toFixed(2) ?? '—', s: cls.label, c: now === undefined ? '#6b7b6c' : tone(now), w: now === undefined ? 0 : Math.max(0, Math.min(1, now / 0.9)), why: 'This is an image score for green cover, not a percent, yield estimate, or proof of crop health.' },
-    { i: Sprout, t: 'Area with little green cover', v: a ? `${a.stressPct.toFixed(0)}%` : '—', s: 'clear pixels below the 0.30 NDVI flag', c: a && a.stressPct >= 25 ? '#d0453a' : '#2f8f46', w: a ? a.stressPct / 100 : 0, why: 'It flags lower-green pixels for review in this image. Bare soil, early planting, harvest, weeds, or cloud gaps can create a similar pattern.' },
-    { i: Droplets, t: 'Canopy moisture signal', v: a ? a.ndmi.mean.toFixed(2) : '—', s: 'satellite estimate · not soil water', c: '#2b83ba', w: a ? Math.max(0, Math.min(1, (a.ndmi.mean + 0.2) / 0.8)) : 0, why: 'Compare this with recent rain and soil near the roots; do not decide irrigation from this score alone.' },
-    { i: CloudRain, t: 'Rain, next 7 days', v: farm.rain !== undefined ? `${farm.rain.toFixed(0)} mm` : '—', s: farm.moisture !== undefined ? `topsoil model ${farm.moisture}%` : 'topsoil model unavailable', c: '#4b7fb0', w: farm.rain !== undefined ? Math.min(1, farm.rain / 50) : 0, why: 'Rain and surface-soil values are regional estimates. Check your local forecast and soil before irrigation.' },
+    { i: Leaf, t: t('journal.greenness'), v: now?.toFixed(2) ?? '—', s: cls.label, c: now === undefined ? '#6b7b6c' : tone(now), w: now === undefined ? 0 : Math.max(0, Math.min(1, now / 0.9)), why: t('journal.greennessWhy') },
+    { i: Sprout, t: t('journal.lowCover'), v: a ? `${a.stressPct.toFixed(0)}%` : '—', s: 'clear pixels below the 0.30 NDVI flag', c: a && a.stressPct >= 25 ? '#d0453a' : '#2f8f46', w: a ? a.stressPct / 100 : 0, why: t('journal.lowCoverWhy') },
+    { i: Droplets, t: t('journal.canopyMoisture'), v: a ? a.ndmi.mean.toFixed(2) : '—', s: 'satellite estimate · not soil water', c: '#2b83ba', w: a ? Math.max(0, Math.min(1, (a.ndmi.mean + 0.2) / 0.8)) : 0, why: t('journal.canopyMoistureWhy') },
+    { i: CloudRain, t: t('journal.rainOutlook'), v: farm.rain !== undefined ? `${farm.rain.toFixed(0)} mm` : '—', s: farm.moisture !== undefined ? `topsoil model ${farm.moisture}%` : 'topsoil model unavailable', c: '#4b7fb0', w: farm.rain !== undefined ? Math.min(1, farm.rain / 50) : 0, why: t('journal.rainOutlookWhy') },
   ]
   return <section className="cj" id="crop-journal" aria-label="Crop journal">
-    <div className="cj-top"><div><div className="eyebrow">CROP JOURNAL</div><h2>Review Area of Interest from Remote</h2><p>Compare recent clear satellite passes, inspect surface reflectance changes, and evaluate multi-temporal spectral trends across the designated area of interest.</p></div>
+    <div className="cj-top"><div><div className="eyebrow">{t('sec.cropJournal')}</div><h2>{t('journal.title')}</h2><p>{t('journal.subtitle')}</p></div>
       <div className="cj-tools">{frames.map(([n, d]) => <button key={n} className={days === d ? 'on' : ''} onClick={() => setDays(d)}>{n}</button>)}<button onClick={onRefresh} aria-label="Refresh satellite data"><RefreshCw size={14} className={loading ? 'spin' : ''}/></button></div></div>
     <div className="cj-tabs" role="tablist">{farms.map(f => <button role="tab" aria-selected={f.id === farm.id} key={f.id} className={f.id === farm.id ? 'on' : ''} onClick={() => onSelect(f.id)}><b>{f.name}</b><small>{f.crop} · {f.area} ha</small></button>)}</div>
     <div className="cj-grid">
       <div className="cj-card cj-main">
-        <h3>Crop health over time <small>{farm.name}</small></h3>
+        <h3>{t('journal.chartTitle')} <small>{farm.name}</small></h3>
         {state === 'loading' ? <div className="cj-empty"><LogoLoader size={80} text="Loading satellite history…"/></div> : state === 'error' ? <div className="cj-empty"><LogoLoader state="error" size={80} text="Could not load satellite history. Check your internet and press Refresh."/></div> : <Growth rows={rows}/>}
         <SourceNote of={['s2']}/>
         <p className="cj-legend"><i className="ln"/> Area average {hasBand && <><i className="bd"/> Lowest to highest 10% canopy vigor </>}<i className="dt"/> Sentinel-2 pass</p>
         <div className="cj-story"><b>Area of interest telemetry analysis</b><p>{story}</p></div>
       </div>
-      <div className="cj-side">{cards.map(({ i: Icon, t, v, s, c, w, why }) => <div className="cj-card cj-stat" key={t}><span className="cj-ico" style={{ background: c + '22', color: c }}><Icon size={18}/></span><div><small>{t}</small><strong>{v}</strong><em>{s}</em><div className="cj-meter"><i style={{ width: `${w * 100}%`, background: c }}/></div><p><b>Scientific reasoning:</b> {why}</p></div></div>)}</div>
+      <div className="cj-side">{cards.map(({ i: Icon, t: cardTitle, v, s, c, w, why }) => <div className="cj-card cj-stat" key={cardTitle}><span className="cj-ico" style={{ background: c + '22', color: c }}><Icon size={18}/></span><div><small>{cardTitle}</small><strong>{v}</strong><em>{s}</em><div className="cj-meter"><i style={{ width: `${w * 100}%`, background: c }}/></div><p><b>Scientific reasoning:</b> {why}</p></div></div>)}</div>
     </div>
     <div className="cj-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>

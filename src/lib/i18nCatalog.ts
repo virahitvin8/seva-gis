@@ -457,6 +457,23 @@ const en: Catalog = {
   'sec.measure': 'Precision Measurement & Robotics',
   'sec.history': 'Multi-Temporal Satellite History',
 
+  // ---- crop journal & growth stage ----
+  'journal.title': 'Review Area of Interest from Remote',
+  'journal.subtitle': 'Compare recent clear satellite passes, inspect surface reflectance changes, and evaluate multi-temporal spectral trends across the designated area of interest.',
+  'journal.chartTitle': 'Crop health over time',
+  'journal.greenness': 'Crop greenness',
+  'journal.greennessWhy': 'This is an image score for green cover, not a percent, yield estimate, or proof of crop health.',
+  'journal.lowCover': 'Area with little green cover',
+  'journal.lowCoverWhy': 'Flags lower-green pixels for review in this image.',
+  'journal.canopyMoisture': 'Canopy moisture signal',
+  'journal.canopyMoistureWhy': 'Compare this with recent rain and soil near the roots.',
+  'journal.rainOutlook': 'Rain, next 7 days',
+  'journal.rainOutlookWhy': 'Rain and surface-soil values are regional estimates.',
+  'cropcheck.title': 'Crop Growth Stage & Benchmark Check',
+  'cropcheck.subtitle': 'Compare current Sentinel-2 NDVI reading against stage-specific physiological targets',
+  'cropcheck.detectedStage': 'Auto-detected stage based on satellite telemetry',
+  'cropcheck.targetRange': 'Stage Target NDVI',
+
   // ---- scene bar controls ----
   'scene.latest': 'Latest',
   'scene.date': 'Single date',
@@ -899,6 +916,23 @@ const hi: Catalog = {
   'sec.measure': 'सटीक मापन व रोबोटिक्स',
   'sec.history': 'बहु-कालिक उपग्रह इतिहास',
 
+  // ---- crop journal & growth stage ----
+  'journal.title': 'सुदूर संवेदन से क्षेत्र का निरीक्षण',
+  'journal.subtitle': 'हाल के स्पष्ट उपग्रह परिदृश्यों की तुलना करें, परावर्तन परिवर्तनों की जाँच करें और समयबद्ध वर्णक्रमीय प्रवृत्तियों का मूल्यांकन करें।',
+  'journal.chartTitle': 'समय के साथ फसल का स्वास्थ्य',
+  'journal.greenness': 'फसल की हरियाली',
+  'journal.greennessWhy': 'यह हरी चादर का वर्णक्रमीय स्कोर है, उपज का अनुमान या फसल स्वास्थ्य का प्रमाण नहीं।',
+  'journal.lowCover': 'कम हरियाली वाला क्षेत्र',
+  'journal.lowCoverWhy': 'समीक्षा के लिए कम हरियाली वाले पिक्सल को चिह्नित करता है।',
+  'journal.canopyMoisture': 'छत्र नमी संकेत',
+  'journal.canopyMoistureWhy': 'हाल की वर्षा और जड़ों के पास की मिट्टी से तुलना करें।',
+  'journal.rainOutlook': 'अगले 7 दिनों में वर्षा',
+  'journal.rainOutlookWhy': 'वर्षा और मिट्टी की नमी क्षेत्रीय मौसम मॉडल के अनुमान हैं।',
+  'cropcheck.title': 'फसल विकास चरण और मानक जांच',
+  'cropcheck.subtitle': 'वर्तमान सेंटिनल-2 एनडीवीआई की तुलना फसल की चरण-विशिष्ट शारीरिक आवश्यकताओं से करें',
+  'cropcheck.detectedStage': 'उपग्रह माप के आधार पर स्वचालित रूप से पहचाना गया चरण',
+  'cropcheck.targetRange': 'चरण लक्षित एनडीवीआई',
+
   // ---- scene bar controls ----
   'scene.latest': 'नवीनतम',
   'scene.date': 'एकल तिथि',
@@ -1339,6 +1373,23 @@ const te: Catalog = {
   'sec.lab': 'జియో-ఏఐ విశ్లేషణ ల్యాబ్',
   'sec.measure': 'ఖచ్చితమైన కొలత & రోబోటిక్స్',
   'sec.history': 'బహుళ-కాలిక ఉపగ్రహ చరిత్ర',
+
+  // ---- crop journal & growth stage ----
+  'journal.title': 'రిమోట్ సెన్సింగ్ ద్వారా ప్రాంత పరిశీలన',
+  'journal.subtitle': 'ఇటీవలి స్పష్టమైన ఉపగ్రహ చిత్రాలను సరిపోల్చండి, ప్రతిబింబ మార్పులను పరిశీలించండి మరియు కాలక్రమేణా వర్ణపట ధోరణులను అంచనా వేయండి.',
+  'journal.chartTitle': 'సమయానుకూలంగా పంట ఆరోగ్యం',
+  'journal.greenness': 'పంట పచ్చదనం',
+  'journal.greennessWhy': 'ఇది ఆకుపచ్చని కవరేజ్ సూచిక మాత్రమే, దిగుబడి అంచనా లేదా సంపూర్ణ నిరూపణ కాదు.',
+  'journal.lowCover': 'తక్కువ ఆకుపచ్చని విస్తీర్ణం',
+  'journal.lowCoverWhy': 'ఈ చిత్రంలో తక్కువ ఆకుపచ్చ పిక్సెల్‌లను సమీక్ష కోసం చూపుతుంది.',
+  'journal.canopyMoisture': 'పైకప్పు తేమ సంకేతం',
+  'journal.canopyMoistureWhy': 'ఇటీవలి వర్షం మరియు వేర్ల దగ్గర మట్టితో దీన్ని సరిపోల్చండి.',
+  'journal.rainOutlook': 'రాబోయే 7 రోజుల్లో వర్షపాతం',
+  'journal.rainOutlookWhy': 'వర్షం మరియు నేల తేమ విలువలు ప్రాంతీయ వాతావరణ నమూనా అంచనాలు.',
+  'cropcheck.title': 'పంట పెరుగుదల దశ & ప్రామాణిక తనిఖీ',
+  'cropcheck.subtitle': 'ప్రస్తుత సెంటినెల్-2 NDVI ని దశల వారీ శారీరక లక్ష్యాలతో సరిపోల్చండి',
+  'cropcheck.detectedStage': 'ఉపగ్రహ కొలతల ఆధారంగా గుర్తించబడిన దశ',
+  'cropcheck.targetRange': 'దశ లక్ష్యిత NDVI',
 
   // ---- scene bar controls ----
   'scene.latest': 'తాజా',

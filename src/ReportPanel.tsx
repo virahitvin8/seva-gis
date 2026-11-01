@@ -26,6 +26,11 @@ import {
   ExternalLink,
   FileArchive,
   Image,
+  Smartphone,
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
 } from 'lucide-react'
 import { createZipArchive } from './lib/zipWriter'
 import { useAccount } from './Auth'
@@ -54,6 +59,17 @@ import {
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
 import { executeEmailPackageDelivery, type EmailGenerationResult } from './lib/emailGenerator'
+import { sendReportDirectToEmail, getStoredSmtpConfig, saveStoredSmtpConfig } from './lib/directEmailService'
+import {
+  cleanPhoneNumber,
+  generateAdvisoryMessage,
+  sendViaOpenSmsGateway,
+  getStoredOpenSmsConfig,
+  saveStoredOpenSmsConfig,
+  type OpenSmsConfig,
+  type AdvisoryLanguage,
+  type MessageTemplateType,
+} from './lib/openSmsGateway'
 import { openReportPrintView } from './lib/reportPdf'
 import { useI18n } from './lib/i18n'
 
@@ -107,7 +123,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   })
   const [emailInput, setEmailInput] = useState(() => {
     try {
-      return localStorage.getItem('seva-user-email') || ''
+      return localStorage.getItem('seva_dispatch_user_email') || localStorage.getItem('seva-user-email') || ''
     } catch {
       return ''
     }
@@ -117,9 +133,25 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [emailSuccess, setEmailSuccess] = useState('')
   const [emailPackage, setEmailPackage] = useState<EmailGenerationResult | null>(null)
   const [copiedEmail, setCopiedEmail] = useState(false)
+  const [dispatchChannel, setDispatchChannel] = useState<'email' | 'sms'>('email')
+  const [showManualOptions, setShowManualOptions] = useState(false)
+  const [showGatewayConfig, setShowGatewayConfig] = useState(false)
+  const [smtpConfig, setSmtpConfig] = useState(getStoredSmtpConfig)
+  const [openSmsConfig, setOpenSmsConfig] = useState<OpenSmsConfig>(getStoredOpenSmsConfig)
+  const [smsPhoneInput, setSmsPhoneInput] = useState<string>(() => {
+    try {
+      return localStorage.getItem('seva_user_phone') || '+91 '
+    } catch {
+      return '+91 '
+    }
+  })
+  const [smsLang, setSmsLang] = useState<AdvisoryLanguage>('en')
+  const [smsTemplate, setSmsTemplate] = useState<MessageTemplateType>('crop_health')
+  const [sendingSms, setSendingSms] = useState(false)
+  const [smsSuccess, setSmsSuccess] = useState('')
   const [historyList, setHistoryList] = useState<ReportHistoryEntry[]>([])
   const [downloading, setDownloading] = useState<'pdf' | 'doc' | 'dossier' | 'json' | 'md' | 'zip' | 'images' | ''>('')
-  const [exportFormat, setExportFormat] = useState<'html' | 'pdf' | 'doc' | 'json' | 'md' | 'zip'>('html')
+  const [exportFormat, setExportFormat] = useState<'html' | 'pdf' | 'doc' | 'json' | 'md' | 'zip'>('pdf')
 
   const [selectedLangs, setSelectedLangs] = useState<ReportLang[]>(() => {
     try {
@@ -346,7 +378,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const handleSendEmail = async (e?: React.FormEvent) => {
     e?.preventDefault?.()
     if (!emailInput || !emailInput.includes('@')) {
-      setErr('Please enter a valid email address.')
+      setErr('Please enter a valid email address (e.g. you@gmail.com).')
       return
     }
     const current = reports[previewLang]
@@ -361,11 +393,29 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
     try {
       localStorage.setItem('seva-user-email', emailInput)
+      localStorage.setItem('seva_dispatch_user_email', emailInput)
 
       const ext = exportFormat === 'pdf' ? 'pdf' : exportFormat === 'doc' ? 'doc' : exportFormat === 'zip' ? 'zip' : exportFormat === 'json' ? 'json' : exportFormat === 'md' ? 'md' : 'html'
 
-      // 1. Generate authentic email bundle, Gmail web link, and sync to Drive without forced .eml download
-      const deliveryRes = await executeEmailPackageDelivery({
+      // 1. Direct Automated Email Delivery to Recipient Inbox via Server
+      const directResult = await sendReportDirectToEmail({
+        recipientEmail: emailInput,
+        farmName: farm.name,
+        reportId: current.id,
+        areaHa: farm.area,
+        ndvi: farm.analysis?.ndvi?.mean,
+        ndmi: farm.analysis?.ndmi?.mean,
+        format: exportFormat,
+        filename: `${baseFilename}.${ext}`,
+        htmlContent: current.html,
+        senderName: who.name || 'SEVA·GIS Earth Intelligence',
+        smtpConfig,
+      })
+
+      setEmailSuccess(`Report (${exportFormat.toUpperCase()}) successfully delivered directly to ${emailInput}! Check your inbox and spam folder.`)
+
+      // 2. Prepare client .eml bundle silently in background for optional manual review
+      executeEmailPackageDelivery({
         recipientEmail: emailInput,
         farmName: farm.name,
         reportId: current.id,
@@ -375,13 +425,10 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         filename: `${baseFilename}.${ext}`,
         htmlContent: current.html,
         senderName: who.name || 'SEVA·GIS',
-        downloadEml: false, // NO FORCED DOWNLOAD
-      })
+        downloadEml: false,
+      }).then(res => setEmailPackage(res.packageData)).catch(() => {})
 
-      setEmailPackage(deliveryRes.packageData)
-      setEmailSuccess(`Report (${ext.toUpperCase()}) package ready for ${emailInput}! Use the options below to download or send it.`)
-
-      // 2. Background audience sync (non-blocking)
+      // 3. Background non-blocking sync to EmailOctopus list
       syncAndSendViaEmailOctopus({
         email: emailInput,
         farmName: farm.name,
@@ -393,25 +440,34 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         htmlContent: current.html,
       }).catch(() => {})
 
-      setGreetingModalData({
-        isOpen: true,
-        recipientEmail: emailInput,
-        farmName: farm.name,
-        custodianName: who.name || 'SEVA·GIS Member',
-        reportId: current.id,
-        filename: `${baseFilename}.${ext}`,
-        htmlContent: current.html,
-        areaHa: farm.area,
-        ndvi: farm.analysis?.ndvi?.mean,
-        ndmi: farm.analysis?.ndmi?.mean,
-        // No subscriber ID exists unless an EmailOctopus sync confirmed one;
-        // the modal shows a dash rather than a made-up identifier.
-        contactId: '',
-      })
     } catch (err: any) {
-      setErr(err?.message || 'Could not compile email package. Please check network.')
+      setErr(err?.message || 'Could not dispatch report email. Please check your network.')
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  const handleSendSms = async (e?: React.FormEvent) => {
+    e?.preventDefault?.()
+    const cleanNum = cleanPhoneNumber(smsPhoneInput)
+    if (!cleanNum || cleanNum.length < 8) {
+      setErr('Please enter a valid mobile number with country code (e.g. +91 9876543210).')
+      return
+    }
+
+    setSendingSms(true)
+    setSmsSuccess('')
+    setErr('')
+
+    try {
+      localStorage.setItem('seva_user_phone', smsPhoneInput)
+      const messageText = generateAdvisoryMessage(farm as any, smsTemplate, smsLang)
+      const res = await sendViaOpenSmsGateway(openSmsConfig, cleanNum, messageText)
+      setSmsSuccess(`SMS alert automatically dispatched to ${cleanNum} via Android SIM gateway! (${res.message})`)
+    } catch (err: any) {
+      setErr(err?.message || 'Failed to dispatch SMS via OpenSMS gateway.')
+    } finally {
+      setSendingSms(false)
     }
   }
 
@@ -771,107 +827,416 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
           {err && <p className="rp-err">{err}</p>}
 
-          {/* EmailOctopus delivery snippet box - Stacked Clean Layout */}
+          {/* Automated Direct Dispatch Console (Email & SMS) */}
           {hasReports && curReport && (
-            <div className="rp-email-box" style={{ background: '#f8fafc', border: '1.5px solid #10b981', borderRadius: '12px', padding: '16px', marginTop: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
-                  <Mail size={17} color="#059669" />
-                  <span>Report Email Generator &amp; Direct Dispatch</span>
+            <div className="rp-email-box" style={{ background: '#f8fafc', border: '1.5px solid #10b981', borderRadius: '14px', padding: '18px', marginTop: '16px', boxShadow: '0 4px 16px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '14.5px', color: '#0f172a' }}>
+                  <Sparkles size={18} color="#059669" />
+                  <span>Automated Direct Dispatch Console</span>
                 </div>
-                <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
-                  ● RFC 822 Email Engine &amp; Drive Vault
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowGatewayConfig(!showGatewayConfig)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11.5px',
+                      color: '#475569',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Settings size={12} />
+                    <span>Gateway Settings</span>
+                  </button>
+                  <span style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                    ● 100% Automated
+                  </span>
+                </div>
               </div>
-              <p style={{ margin: '0 0 12px', fontSize: '12.5px', color: '#64748b' }}>
-                Compiles a complete email package (.eml) with the report attached, pre-populates your email client, and auto-syncs to your Google Drive.
-              </p>
 
-              {/* Email form with format selector and direct dispatch */}
-              <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>{t('rp.recipient')}</label>
-                    <input
-                      type="email"
-                      placeholder="Enter your email (e.g. you@gmail.com)"
-                      value={emailInput}
-                      onChange={e => setEmailInput(e.target.value)}
-                      style={{
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: '1.5px solid #10b981',
-                        fontSize: '13.5px',
-                        background: '#ffffff',
-                        color: '#0f172a',
-                        outline: 'none',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '12.5px', fontWeight: 600, color: '#1e293b' }}>Attachment Format</label>
-                    <select
-                      value={exportFormat}
-                      onChange={e => setExportFormat(e.target.value as any)}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        border: '1.5px solid #10b981',
-                        fontSize: '13px',
-                        background: '#ffffff',
-                        color: '#0f172a',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        height: '42px'
-                      }}
-                    >
-                      <option value="html">HTML Dossier (.html)</option>
-                      <option value="pdf">Print-Ready PDF (.pdf)</option>
-                      <option value="zip">Complete Bundle (.zip)</option>
-                      <option value="doc">Word Document (.doc)</option>
-                      <option value="md">Markdown README (.md)</option>
-                      <option value="json">Analytical Data (.json)</option>
-                    </select>
-                  </div>
-                </div>
-                <button type="submit" className="primary sm" disabled={sendingEmail} style={{ width: '100%', justifyContent: 'center', padding: '10px 16px', fontSize: '13.5px' }}>
-                  <Send size={15} />
-                  {sendingEmail ? 'Compiling Package...' : `Send Report via Email / EmailOctopus (${exportFormat.toUpperCase()})`}
+              {/* Channel Selector: Email vs SMS */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', background: '#e2e8f0', padding: '3px', borderRadius: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setDispatchChannel('email')}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: dispatchChannel === 'email' ? '#ffffff' : 'transparent',
+                    color: dispatchChannel === 'email' ? '#047857' : '#64748b',
+                    boxShadow: dispatchChannel === 'email' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Mail size={15} color={dispatchChannel === 'email' ? '#059669' : '#64748b'} />
+                  <span>Send to Email Inbox Directly</span>
                 </button>
-              </form>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '12.5px', color: '#475569' }}>
-                <input
-                  type="checkbox"
-                  id="auto-email-cb"
-                  checked={autoEmailOnDownload}
-                  onChange={e => setAutoEmailOnDownload(e.target.checked)}
-                  style={{ cursor: 'pointer' }}
-                />
-                <label htmlFor="auto-email-cb" style={{ cursor: 'pointer' }}>Automatically generate email package on report download</label>
+                <button
+                  type="button"
+                  onClick={() => setDispatchChannel('sms')}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: dispatchChannel === 'sms' ? '#ffffff' : 'transparent',
+                    color: dispatchChannel === 'sms' ? '#0284c7' : '#64748b',
+                    boxShadow: dispatchChannel === 'sms' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Smartphone size={15} color={dispatchChannel === 'sms' ? '#0284c7' : '#64748b'} />
+                  <span>Send SMS to Mobile Directly</span>
+                </button>
               </div>
 
+              {/* 1. Direct Email Dispatch Tab */}
+              {dispatchChannel === 'email' && (
+                <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>Recipient Email Address</label>
+                      <input
+                        type="email"
+                        placeholder="akshitvinay4636@gmail.com"
+                        value={emailInput}
+                        onChange={e => setEmailInput(e.target.value)}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #10b981',
+                          fontSize: '13.5px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>Report Attachment</label>
+                      <select
+                        value={exportFormat}
+                        onChange={e => setExportFormat(e.target.value as any)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #10b981',
+                          fontSize: '13px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          height: '42px'
+                        }}
+                      >
+                        <option value="pdf">Print-Ready PDF (.pdf)</option>
+                        <option value="html">HTML Interactive Dossier (.html)</option>
+                        <option value="doc">Word Document (.doc)</option>
+                        <option value="zip">Complete Bundle (.zip)</option>
+                        <option value="json">Analytical JSON (.json)</option>
+                        <option value="md">Markdown README (.md)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="primary"
+                    disabled={sendingEmail}
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      padding: '12px 18px',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      cursor: sendingEmail ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 12px rgba(16,185,129,0.25)'
+                    }}
+                  >
+                    {sendingEmail ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Transmitting Report Directly to Your Inbox...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        <span>Send Report Directly to My Email Now ({exportFormat.toUpperCase()})</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* 2. Direct Mobile SMS Dispatch Tab */}
+              {dispatchChannel === 'sms' && (
+                <form onSubmit={handleSendSms} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr)', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>Mobile Number</label>
+                      <input
+                        type="tel"
+                        placeholder="+91 9876543210"
+                        value={smsPhoneInput}
+                        onChange={e => setSmsPhoneInput(e.target.value)}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #0284c7',
+                          fontSize: '13.5px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>Language</label>
+                      <select
+                        value={smsLang}
+                        onChange={e => setSmsLang(e.target.value as any)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 10px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #0284c7',
+                          fontSize: '13px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          height: '42px'
+                        }}
+                      >
+                        <option value="en">English (EN)</option>
+                        <option value="te">తెలుగు Telugu (TE)</option>
+                        <option value="hi">हिन्दी Hindi (HI)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}>Advisory Type</label>
+                      <select
+                        value={smsTemplate}
+                        onChange={e => setSmsTemplate(e.target.value as any)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 10px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #0284c7',
+                          fontSize: '13px',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          height: '42px'
+                        }}
+                      >
+                        <option value="crop_health">🌾 Crop Health</option>
+                        <option value="irrigation">💧 Irrigation</option>
+                        <option value="weather_alert">🌦️ Weather Alert</option>
+                        <option value="pmfby_claim">🛡️ PMFBY Insurance</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Live SMS Text Preview Box */}
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: '#0369a1', fontFamily: 'monospace', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                    {generateAdvisoryMessage(farm as any, smsTemplate, smsLang)}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="primary"
+                    disabled={sendingSms}
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      padding: '12px 18px',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      cursor: sendingSms ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 12px rgba(14,165,233,0.25)'
+                    }}
+                  >
+                    {sendingSms ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Sending SMS Automatically via SIM Card...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        <span>Send Automatic SMS to Mobile Now</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* Delivery Feedback Badges */}
               {emailSuccess && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: '#047857', fontSize: '12.5px', marginTop: '12px', background: '#ecfdf5', padding: '10px 14px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                  <CheckCircle2 size={16} style={{ marginTop: 2, flexShrink: 0 }} />
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#047857', fontSize: '13px', marginTop: '14px', background: '#ecfdf5', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #10b981' }}>
+                  <CheckCircle2 size={18} style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <strong>{emailSuccess}</strong>
+                    <div style={{ fontSize: '11.5px', color: '#065f46', marginTop: '2px' }}>
+                      Transmitted directly to your inbox. No manual attachments or downloads required.
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Multi-Channel Real Email Actions Grid */}
-              {emailPackage && (
-                <div style={{ marginTop: '14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '14px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Sparkles size={14} color="#059669" />
-                    <span>Real Delivery Actions (Instant &amp; Reliable):</span>
+              {smsSuccess && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', color: '#0369a1', fontSize: '13px', marginTop: '14px', background: '#f0f9ff', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #0284c7' }}>
+                  <CheckCircle2 size={18} style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div>
+                    <strong>{smsSuccess}</strong>
+                    <div style={{ fontSize: '11.5px', color: '#0284c7', marginTop: '2px' }}>
+                      Delivered through OpenSMS Android SIM gateway without manual phone interaction.
+                    </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                </div>
+              )}
+
+              {/* Gateway & SMTP Settings Drawer */}
+              {showGatewayConfig && (
+                <div style={{ marginTop: '14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '14px' }}>
+                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
+                    ⚙️ Gateway &amp; SMTP Dispatch Settings:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP Host (Optional Custom)</label>
+                      <input
+                        type="text"
+                        placeholder="smtp.gmail.com"
+                        value={smtpConfig.host}
+                        onChange={e => {
+                          const updated = { ...smtpConfig, host: e.target.value }
+                          setSmtpConfig(updated)
+                          saveStoredSmtpConfig(updated)
+                        }}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP User (e.g. Gmail)</label>
+                      <input
+                        type="text"
+                        placeholder="your_email@gmail.com"
+                        value={smtpConfig.user}
+                        onChange={e => {
+                          const updated = { ...smtpConfig, user: e.target.value }
+                          setSmtpConfig(updated)
+                          saveStoredSmtpConfig(updated)
+                        }}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP App Password</label>
+                      <input
+                        type="password"
+                        placeholder="16-digit Google App Password"
+                        value={smtpConfig.pass}
+                        onChange={e => {
+                          const updated = { ...smtpConfig, pass: e.target.value }
+                          setSmtpConfig(updated)
+                          saveStoredSmtpConfig(updated)
+                        }}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>OpenSMS Device URL</label>
+                      <input
+                        type="text"
+                        placeholder="http://10.65.171.208:9292/sms/"
+                        value={openSmsConfig.serverUrl}
+                        onChange={e => {
+                          const updated = { ...openSmsConfig, serverUrl: e.target.value }
+                          setOpenSmsConfig(updated)
+                          saveStoredOpenSmsConfig(updated)
+                        }}
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Optional Collapsible Manual / Alternative Options */}
+              <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowManualOptions(!showManualOptions)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '11.5px',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    padding: 0
+                  }}
+                >
+                  {showManualOptions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  <span>{showManualOptions ? 'Hide Manual Options' : 'Alternative Options (Manual Gmail Web / .eml Download)'}</span>
+                </button>
+
+                {showManualOptions && emailPackage && (
+                  <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px' }}>
                     <a
                       href={emailPackage.gmailWebUrl}
                       target="_blank"
@@ -883,14 +1248,14 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                         gap: '6px',
                         background: '#ea4335',
                         color: '#ffffff',
-                        padding: '8px 12px',
+                        padding: '7px 10px',
                         borderRadius: '6px',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         fontWeight: 600,
                         textDecoration: 'none'
                       }}
                     >
-                      <ExternalLink size={13} />
+                      <ExternalLink size={12} />
                       <span>Open in Gmail Web</span>
                     </a>
 
@@ -911,15 +1276,15 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                         gap: '6px',
                         background: '#047857',
                         color: '#ffffff',
-                        padding: '8px 12px',
+                        padding: '7px 10px',
                         borderRadius: '6px',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         fontWeight: 600,
                         border: 'none',
                         cursor: 'pointer'
                       }}
                     >
-                      <Download size={13} />
+                      <Download size={12} />
                       <span>Download .eml File</span>
                     </button>
 
@@ -939,44 +1304,20 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                         gap: '6px',
                         background: '#f1f5f9',
                         color: '#1e293b',
-                        padding: '8px 12px',
+                        padding: '7px 10px',
                         borderRadius: '6px',
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         fontWeight: 600,
                         border: '1px solid #cbd5e1',
                         cursor: 'pointer'
                       }}
                     >
-                      <CheckCircle2 size={13} color={copiedEmail ? '#10b981' : '#64748b'} />
-                      <span>{copiedEmail ? 'Copied Briefing!' : 'Copy Briefing Text'}</span>
+                      <CheckCircle2 size={12} color={copiedEmail ? '#10b981' : '#64748b'} />
+                      <span>{copiedEmail ? 'Copied Text!' : 'Copy Text'}</span>
                     </button>
-
-                    <a
-                      href={emailPackage.mailtoUrl}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        background: '#f1f5f9',
-                        color: '#1e293b',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        border: '1px solid #cbd5e1',
-                        textDecoration: 'none'
-                      }}
-                    >
-                      <Mail size={13} />
-                      <span>Default Mail Client</span>
-                    </a>
                   </div>
-                  <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
-                    Opening the <b>.eml file</b> or <b>Gmail Web</b> will immediately load the executive briefing, attachments, and recipient address without any third-party server delivery failure.
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
 
             </div>
           )}

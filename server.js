@@ -15,6 +15,7 @@ import {
 } from './server/securityAuditCore.js';
 
 import { handleSecurityRoutes } from './backend/security_telemetry.js';
+import { dispatchReportEmail } from './server/directMailService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -150,7 +151,44 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  
+  if (urlPath === '/api/opensms-proxy' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 2 * 1024 * 1024) req.destroy();
+    });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        let target = (payload.serverUrl || 'http://10.65.171.208:9292/sms/').trim();
+        if (!target.endsWith('/')) target += '/';
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (payload.apiKey && payload.apiKey.trim()) {
+          headers['Authorization'] = `Bearer ${payload.apiKey.trim()}`;
+        }
+
+        const proxyRes = await fetch(target, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            number: payload.number,
+            text: payload.text
+          }),
+          signal: AbortSignal.timeout(10000)
+        });
+
+        const data = await proxyRes.json().catch(() => ({}));
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(data));
+      } catch (err) {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: err.message || 'Failed to proxy OpenSMS request' }));
+      }
+    });
+    return;
+  }
+
   if (urlPath === '/api/security/login' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => {
@@ -262,99 +300,36 @@ const server = http.createServer((req, res) => {
   }
 
   // SEVA.GIS Report Email Delivery API with EmailOctopus integration
+  // SEVA.GIS Direct Automated Report Email Delivery API (SMTP / API / EmailOctopus)
   if (urlPath === '/api/send-report' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => {
       body += chunk;
-      if (body.length > 10 * 1024 * 1024) req.destroy(); // 10MB limit
+      if (body.length > 15 * 1024 * 1024) req.destroy(); // 15MB limit
     });
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
-        const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+        const email = (payload.email || payload.recipientEmail || '').trim();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
           res.end(JSON.stringify({ success: false, error: 'A valid recipient email is required' }));
           return;
         }
-        const farmName = typeof payload.farmName === 'string' && payload.farmName ? payload.farmName : 'Unnamed parcel';
-        const reportId = typeof payload.reportId === 'string' && payload.reportId ? payload.reportId : `SEVA-${Date.now()}`;
-        const eoApiKey = payload.apiKey || process.env.EMAIL_OCTOPUS_API_KEY;
-        const eoListId = payload.listId || process.env.EMAIL_OCTOPUS_LIST_ID;
-        const tagline = payload.tagline || 'Thank you for using SEVA·GIS! Visit again, see again — Earth intelligence in the spirit of selfless service.';
 
-        if (!eoApiKey || !eoListId) {
-          res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({
-            success: false,
-            emailOctopus: false,
-            configured: false,
-            required: ['EMAIL_OCTOPUS_API_KEY', 'EMAIL_OCTOPUS_LIST_ID'],
-            message: 'EmailOctopus is not configured on this server. No email was sent — use the in-browser download pack instead.',
-          }));
-          return;
-        }
-
-        console.log(`[SEVA·GIS EmailOctopus] Processing report delivery for ${farmName} (${reportId}) to ${email}`);
-
-        let eoContactId = null;
-        let eoSuccess = false;
-
-        // Sync contact to EmailOctopus list
-        try {
-          const eoRes = await fetch(`https://emailoctopus.com/api/1.6/lists/${eoListId}/contacts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              api_key: eoApiKey,
-              email_address: email,
-              fields: {
-                FirstName: farmName,
-              },
-              tags: ['SEVA-GIS-Report-Download'],
-              status: 'SUBSCRIBED',
-            }),
-          });
-          const eoData = await eoRes.json();
-          if (eoRes.ok && eoData?.id) {
-            eoContactId = eoData.id;
-            eoSuccess = true;
-            console.log(`[SEVA·GIS EmailOctopus] Successfully subscribed contact ${eoContactId} (${email}) to list ${eoListId}`);
-          } else if (eoData?.error?.code === 'MEMBER_EXISTS_WITH_EMAIL_ADDRESS') {
-            eoSuccess = true;
-            console.log(`[SEVA·GIS EmailOctopus] Member already exists (${email}); updating status`);
-          } else {
-            console.warn('[SEVA·GIS EmailOctopus] API notice:', eoData);
-          }
-        } catch (eoErr) {
-          console.warn('[SEVA·GIS EmailOctopus] Network exception during sync:', eoErr);
-        }
-
-        if (!eoSuccess) {
-          res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({
-            success: false,
-            emailOctopus: false,
-            message: 'EmailOctopus rejected the contact sync — no email was sent.',
-            recipient: email,
-            reportId,
-          }));
-          return;
-        }
-
+        const result = await dispatchReportEmail(payload);
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
           success: true,
-          emailOctopus: true,
-          contactId: eoContactId,
-          message: `Contact synced to the EmailOctopus list for ${email}. ${tagline}`,
+          delivered: true,
           recipient: email,
-          reportId: reportId,
-          tagline: tagline,
+          transport: result.transport,
+          message: result.message || `Report successfully delivered to ${email}!`,
         }));
       } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
+        console.error('[Server /api/send-report] Error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message || 'Failed to dispatch report email' }));
       }
     });
     return;

@@ -376,8 +376,8 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .au-hero {
-  background: linear-gradient(135deg, #0b1f35 0%, #0f2942 45%, #183553 80%, #0066b3 100%) !important;
-  box-shadow: inset 0 -12px 40px rgba(0, 128, 214, 0.18) !important;
+  background: linear-gradient(135deg, #0d2c4d 0%, #114273 40%, #0066b3 75%, #082d54 100%) !important;
+  box-shadow: inset 0 -12px 40px rgba(0, 102, 179, 0.3) !important;
 }
 
 .au-stats li {

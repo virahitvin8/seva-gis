@@ -146,6 +146,7 @@ export default function FinancialSummaryTerminal({
   })
 
   const [activeTab, setActiveTab] = useState<'terminal' | 'comparison' | 'matrix'>('terminal')
+  const [simplifiedView, setSimplifiedView] = useState(true)
   const [selectedSessionId, setSelectedSessionId] = useState<string>(sessions[sessions.length - 1]?.id || 'sess-6')
 
   useEffect(() => {
@@ -233,7 +234,7 @@ export default function FinancialSummaryTerminal({
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Terminal Header Bar (TradingView / Binance Style) */}
+        {/* Terminal Header Bar */}
         <div style={{
           background: '#060c08',
           borderBottom: '1px solid #1e2922',
@@ -256,6 +257,21 @@ export default function FinancialSummaryTerminal({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
+              onClick={() => setSimplifiedView(v => !v)}
+              style={{
+                background: simplifiedView ? '#10b981' : '#1e293b',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {simplifiedView ? '🔍 Reveal Everything' : '📋 Simplified View'}
+            </button>
+            <button
               onClick={handleExportCsv}
               className="outline sm"
               style={{ color: '#94a3b8', borderColor: '#334155', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11.5px' }}
@@ -272,52 +288,160 @@ export default function FinancialSummaryTerminal({
           </div>
         </div>
 
-        {/* Live Ticker Tape Strip */}
-        <div style={{
-          background: '#0d1811',
-          borderBottom: '1px solid #162a1d',
-          padding: '8px 20px',
-          display: 'flex',
-          gap: '24px',
-          overflowX: 'auto',
-          fontSize: '11.5px',
-          fontFamily: 'monospace'
-        }}>
-          <div>
-            <span style={{ color: '#64748b' }}>CANOPY NDVI: </span>
-            <b style={{ color: '#4ade80' }}>{activeSession.ndvi.toFixed(2)}</b>
-            <span style={{ color: deltaNdvi >= 0 ? '#4ade80' : '#f87171', marginLeft: '4px' }}>
-              {deltaNdvi >= 0 ? '+' : ''}{deltaNdvi.toFixed(2)}
-            </span>
+        {/* Simplified View Mode: clean, human-friendly summary cards */}
+        {simplifiedView ? (
+          <div style={{ padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, color: '#f8fafc', fontWeight: 800 }}>
+                  Field Summary &amp; Recommended Actions
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#94a3b8' }}>
+                  Clear, uncluttered vitals computed from Sentinel-2 10m satellite passes and meteorological telemetry.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSimplifiedView(false)}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '10px 18px',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                }}
+              >
+                🔍 Reveal Everything (Deep Multi-Session Telemetry) →
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+              <div style={{ background: '#102218', border: '1.5px solid #22c55e', borderRadius: 14, padding: '16px 18px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#86efac', textTransform: 'uppercase', marginBottom: 6 }}>
+                  🌿 Crop Vigor (NDVI)
+                </div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: '#4ade80', lineHeight: 1 }}>
+                  {activeSession.ndvi.toFixed(2)}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', marginTop: 6 }}>
+                  {activeSession.ndvi >= 0.5 ? 'Dense, Healthy Crop Canopy' : activeSession.ndvi >= 0.3 ? 'Moderate Green Cover' : 'Sparse / Stressed Canopy'}
+                </div>
+                <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.4 }}>
+                  Vegetation index calculated from 10m Sentinel-2 Red &amp; NIR bands.
+                </p>
+              </div>
+
+              <div style={{ background: '#0a1d2e', border: '1.5px solid #38bdf8', borderRadius: 14, padding: '16px 18px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#7dd3fc', textTransform: 'uppercase', marginBottom: 6 }}>
+                  💧 Moisture &amp; Hydration
+                </div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: '#38bdf8', lineHeight: 1 }}>
+                  {activeSession.soilMoisture}%
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', marginTop: 6 }}>
+                  Topsoil Hydration (NDMI: {activeSession.ndmi.toFixed(2)})
+                </div>
+                <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.4 }}>
+                  Cellular leaf water and root-zone moisture level.
+                </p>
+              </div>
+
+              <div style={{ background: '#1c1917', border: '1.5px solid #fbbf24', borderRadius: 14, padding: '16px 18px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#fde68a', textTransform: 'uppercase', marginBottom: 6 }}>
+                  🌧️ 7-Day Rainfall Outlook
+                </div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: '#facc15', lineHeight: 1 }}>
+                  {activeSession.rainfallMm.toFixed(1)} mm
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', marginTop: 6 }}>
+                  {activeSession.rainfallMm > 25 ? 'Heavy precipitation expected' : activeSession.rainfallMm > 5 ? 'Light to moderate showers' : 'Dry conditions, plan irrigation'}
+                </div>
+                <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.4 }}>
+                  Open-Meteo high-resolution agronomic forecast.
+                </p>
+              </div>
+
+              <div style={{ background: '#18122c', border: '1.5px solid #a855f7', borderRadius: 14, padding: '16px 18px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#d8b4fe', textTransform: 'uppercase', marginBottom: 6 }}>
+                  🌾 Projected Yield &amp; Nutrition
+                </div>
+                <div style={{ fontSize: 32, fontWeight: 900, color: '#c084fc', lineHeight: 1 }}>
+                  {activeSession.yieldEstQtl.toFixed(1)} <span style={{ fontSize: 16 }}>Qtl/ha</span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', marginTop: 6 }}>
+                  Recommended Urea: {activeSession.nitrogenUreaKg} kg/ha
+                </div>
+                <p style={{ fontSize: 11.5, color: '#94a3b8', margin: '6px 0 0', lineHeight: 1.4 }}>
+                  Variable-Rate Nitrogen prescription based on canopy vigor.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ fontSize: 12.5, color: '#94a3b8' }}>
+                Looking for technical matrices, spectral eigenvectors, or 6-session historical graphs?
+              </div>
+              <button
+                type="button"
+                onClick={() => setSimplifiedView(false)}
+                style={{ background: '#1e293b', color: '#86efac', border: '1px solid #334155', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Reveal Everything →
+              </button>
+            </div>
           </div>
-          <div>
-            <span style={{ color: '#64748b' }}>LEAF MOISTURE: </span>
-            <b style={{ color: '#38bdf8' }}>{activeSession.ndmi.toFixed(2)}</b>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>STRESS COVER: </span>
-            <b style={{ color: activeSession.stressPct > 20 ? '#fbbf24' : '#4ade80' }}>{activeSession.stressPct.toFixed(1)}%</b>
-            <span style={{ color: deltaStress <= 0 ? '#4ade80' : '#f87171', marginLeft: '4px' }}>
-              {deltaStress <= 0 ? '' : '+'}{deltaStress.toFixed(1)}%
-            </span>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>SOIL WATER (0-1cm): </span>
-            <b style={{ color: '#38bdf8' }}>{activeSession.soilMoisture}%</b>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>7-DAY RAIN: </span>
-            <b style={{ color: '#f8fafc' }}>{activeSession.rainfallMm.toFixed(1)} mm</b>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>VRA UREA REC: </span>
-            <b style={{ color: '#facc15' }}>{activeSession.nitrogenUreaKg} kg/ha</b>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>PROJECTED YIELD: </span>
-            <b style={{ color: '#4ade80' }}>{activeSession.yieldEstQtl.toFixed(1)} Qtl/ha</b>
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Live Ticker Tape Strip */}
+            <div style={{
+              background: '#0d1811',
+              borderBottom: '1px solid #162a1d',
+              padding: '8px 20px',
+              display: 'flex',
+              gap: '24px',
+              overflowX: 'auto',
+              fontSize: '11.5px',
+              fontFamily: 'monospace'
+            }}>
+              <div>
+                <span style={{ color: '#64748b' }}>CANOPY NDVI: </span>
+                <b style={{ color: '#4ade80' }}>{activeSession.ndvi.toFixed(2)}</b>
+                <span style={{ color: deltaNdvi >= 0 ? '#4ade80' : '#f87171', marginLeft: '4px' }}>
+                  {deltaNdvi >= 0 ? '+' : ''}{deltaNdvi.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>LEAF MOISTURE: </span>
+                <b style={{ color: '#38bdf8' }}>{activeSession.ndmi.toFixed(2)}</b>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>STRESS COVER: </span>
+                <b style={{ color: activeSession.stressPct > 20 ? '#fbbf24' : '#4ade80' }}>{activeSession.stressPct.toFixed(1)}%</b>
+                <span style={{ color: deltaStress <= 0 ? '#4ade80' : '#f87171', marginLeft: '4px' }}>
+                  {deltaStress <= 0 ? '' : '+'}{deltaStress.toFixed(1)}%
+                </span>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>SOIL WATER (0-1cm): </span>
+                <b style={{ color: '#38bdf8' }}>{activeSession.soilMoisture}%</b>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>7-DAY RAIN: </span>
+                <b style={{ color: '#f8fafc' }}>{activeSession.rainfallMm.toFixed(1)} mm</b>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>VRA UREA REC: </span>
+                <b style={{ color: '#facc15' }}>{activeSession.nitrogenUreaKg} kg/ha</b>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>PROJECTED YIELD: </span>
+                <b style={{ color: '#4ade80' }}>{activeSession.yieldEstQtl.toFixed(1)} Qtl/ha</b>
+              </div>
+            </div>
 
         {/* Inner Content Area */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
@@ -631,7 +755,9 @@ export default function FinancialSummaryTerminal({
             </div>
           )}
         </div>
-      </section>
-    </div>
+      </>
+    )}
+  </section>
+</div>
   )
 }

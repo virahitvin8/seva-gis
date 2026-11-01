@@ -3,6 +3,7 @@ import { Sparkles, TrendingUp, AlertCircle, CheckCircle2, ChevronRight, Sprout, 
 import { EXTENDED_CROPS, GROWTH_STAGES, computeStageAdjustedVerdict, matchCropSpec, autoDetectStage, type GrowthStage } from './lib/cropstages'
 import type { FarmData, WeekRec } from './lib/seva'
 import { getGroundTalk } from './lib/plainTalk'
+import { useI18n } from './lib/i18n'
 
 type Props = {
   farm: FarmData & { id: string; name: string; crop?: string; passes?: WeekRec[] }
@@ -12,6 +13,7 @@ type Props = {
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—')
 
 export default function FieldHealthScore({ farm }: Props) {
+  const { t } = useI18n()
   const currentNdvi = farm.analysis?.ndvi.mean ?? 0
   const currentNdmi = farm.analysis?.ndmi.mean ?? 0
 
@@ -71,7 +73,7 @@ export default function FieldHealthScore({ farm }: Props) {
   const benchmarkPath = chartPoints.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p.expected)}`).join(' ')
   const currentStageIndex = ['sowing', 'vegetative', 'flowering', 'grain_fill', 'maturity'].indexOf(stage)
 
-  if (!farm.analysis) return <section className="ag-card" style={{ padding: 16, marginBottom: 20 }}><h3>Crop check</h3><p style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>Waiting for a clear satellite reading. Once it arrives, this card will compare the field’s green-cover signal with a general crop guide.</p></section>
+  if (!farm.analysis) return <section className="ag-card" style={{ padding: 16, marginBottom: 20 }}><h3>{t('cropcheck.title')}</h3><p style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12 }}>{t('cropcheck.subtitle')}</p></section>
 
   return (
     <div className="ag-card" style={{ padding: 16, borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card-bg, #fff)', marginBottom: 20 }}>
@@ -92,11 +94,11 @@ export default function FieldHealthScore({ farm }: Props) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'var(--muted)', textTransform: 'uppercase' }}>
-                CROP CHECK
+                {t('cropcheck.title')}
               </span>
               {isAuto && (
                 <span style={{ fontSize: 10, background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                  <Sparkles size={10} /> Suggested stage
+                  <Sparkles size={10} /> {t('cropcheck.detectedStage')}
                 </span>
               )}
             </div>

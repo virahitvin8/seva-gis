@@ -192,39 +192,108 @@ function Tour({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const handleSkipAll = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    try {
+      localStorage.setItem('seva-mitra-choice', 'done')
+      sessionStorage.setItem('seva-mitra-choice', 'done')
+    } catch {}
+    onClose()
+  }
+
+  const handleSkipStep = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    next()
+  }
+
   return <div className="mi-tour" role="dialog" aria-label="SEVA.GIS quick tour">
     {rect ? <div className="mi-spot" style={{ left: rect.x - pad, top: rect.y - pad, width: rect.w + pad * 2, height: rect.h + pad * 2 }} /> : <div className="mi-dim" />}
     <div className="mi-pop" ref={pop} style={{ left, top, width: W }}>
-      <header><MitraAvatar size={30} /><b>NAVI</b><span>{i + 1} of {STEPS.length}</span><button aria-label="Close tour" onClick={onClose}><X size={15} /></button></header>
+      <header><MitraAvatar size={30} /><b>NAVI</b><span>{i + 1} of {STEPS.length}</span><button aria-label="Close tour" onClick={handleSkipAll}><X size={15} /></button></header>
       <h4>{step.title}</h4><p>{step.body}</p>
       <div className="mi-dots">{STEPS.map((_, k) => <button key={k} aria-label={`Step ${k + 1}`} className={k === i ? 'on' : ''} onClick={() => setI(k)} />)}</div>
-      <footer>
-        <button className="mi-ghost" onClick={onClose}>Skip all</button>
-        <button className="mi-ghost" onClick={next}>Skip this step</button>
-        <span />
-        <button className="mi-ghost" disabled={i === 0} onClick={() => setI(i - 1)} aria-label="Back"><ChevronLeft size={16} /></button>
-        <button className="mi-go" onClick={next}>{i === STEPS.length - 1 ? 'Finish' : 'Next'}<ChevronRight size={15} /></button>
+      <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 10 }}>
+        <button
+          type="button"
+          className="mi-ghost"
+          style={{ background: '#f1f5f9', border: '1.5px solid #cbd5e1', color: '#334155', fontWeight: 700, padding: '7px 12px', borderRadius: 8 }}
+          onClick={handleSkipAll}
+        >
+          Skip all
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            className="mi-ghost"
+            style={{ padding: '7px 10px', borderRadius: 8 }}
+            onClick={handleSkipStep}
+          >
+            Skip step
+          </button>
+          <button
+            type="button"
+            className="mi-ghost"
+            disabled={i === 0}
+            onClick={() => setI(i - 1)}
+            aria-label="Back"
+            style={{ padding: '7px 8px', borderRadius: 8 }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            className="mi-go"
+            onClick={next}
+            style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, padding: '7px 14px', borderRadius: 8 }}
+          >
+            {i === STEPS.length - 1 ? 'Finish' : 'Next'}
+            <ChevronRight size={15} />
+          </button>
+        </div>
       </footer>
     </div>
   </div>
 }
 
 export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
-  // Use localStorage so choice persists across sessions (not just current tab)
+  // Use localStorage and sessionStorage so choice persists across sessions
   const [state, setState] = useState<'ask' | 'tour' | 'off'>(() => {
-    const choice = localStorage.getItem('seva-mitra-choice')
-    if (choice === 'done') return 'off'
+    try {
+      const choice = localStorage.getItem('seva-mitra-choice') || sessionStorage.getItem('seva-mitra-choice')
+      if (choice === 'done') return 'off'
+    } catch {}
     return 'ask'
   })
 
   const handleSkip = () => {
-    localStorage.setItem('seva-mitra-choice', 'done')
+    try {
+      localStorage.setItem('seva-mitra-choice', 'done')
+      sessionStorage.setItem('seva-mitra-choice', 'done')
+    } catch {}
     setState('off')
   }
 
   const handleTour = () => {
-    localStorage.setItem('seva-mitra-choice', 'done')
+    try {
+      localStorage.setItem('seva-mitra-choice', 'done')
+      sessionStorage.setItem('seva-mitra-choice', 'done')
+    } catch {}
     setState('tour')
+  }
+
+  const handleCloseTour = () => {
+    try {
+      localStorage.setItem('seva-mitra-choice', 'done')
+      sessionStorage.setItem('seva-mitra-choice', 'done')
+    } catch {}
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    setState('off')
   }
 
   useEffect(() => {
@@ -233,7 +302,7 @@ export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
     return () => removeEventListener('seva-tour', open)
   }, [])
 
-  if (state === 'tour') return <Tour onClose={() => { scrollTo({ top: 0, behavior: 'smooth' }); setState('off') }} />
+  if (state === 'tour') return <Tour onClose={handleCloseTour} />
   const who = guest ? 'there' : name.split(' ')[0]
   return <>
     {state === 'ask' && (
@@ -258,7 +327,7 @@ export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
                 Continue Quick Tour with NAVI →
               </button>
               <button className="mi-ask-btn-skip" onClick={handleSkip}>
-                Skip &amp; Remember Choice
+                Skip all · Explore on my own
               </button>
             </div>
             <small className="mi-ask-footnote">Your choice is remembered. You can reopen NAVI anytime from the top bar.</small>

@@ -1,6 +1,8 @@
 # SEVA GIS - Google Earth Engine tile service
 from __future__ import annotations
+import atexit
 import asyncio, hashlib, io, json, logging, os, time, urllib.request
+from contextlib import asynccontextmanager
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
 import math
@@ -11,6 +13,8 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
+from posthog import Posthog
+from posthog.integrations.asgi import PosthogASGIMiddleware
 
 # Works both when run as `main:app` from this directory (the container layout) and
 # when imported as `backend.main` from the repository root.
@@ -31,8 +35,88 @@ ALLOWED_ORIGINS: list[str] = [o.strip() for o in os.environ.get("EE_ALLOWED_ORIG
 RATE_LIMIT_RPM: int = int(os.environ.get("EE_RATE_LIMIT_RPM", "60"))
 CACHE_TTL: int = int(os.environ.get("EE_CACHE_TTL", "600"))
 MAX_BODY: int = 128 * 1024
+POSTHOG_PROJECT_TOKEN = os.environ.get("POSTHOG_PROJECT_TOKEN", "").strip()
+POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "").strip()
+POSTHOG_ENABLED = bool(POSTHOG_PROJECT_TOKEN and POSTHOG_HOST)
 
-app = FastAPI(title="SEVA GIS Earth Engine Proxy v2", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc")
+posthog_client: Posthog | None = None
+posthog_log_provider = None
+posthog_log = logging.getLogger("seva-gee.posthog")
+posthog_log.propagate = False
+if POSTHOG_ENABLED:
+    posthog_client = Posthog(
+        project_api_key=POSTHOG_PROJECT_TOKEN,
+        host=POSTHOG_HOST,
+        enable_exception_autocapture=True,
+        privacy_mode=False,
+    )
+    atexit.register(posthog_client.shutdown)
+    try:
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+
+        posthog_log_provider = LoggerProvider()
+        posthog_log_provider.add_log_record_processor(
+            BatchLogRecordProcessor(
+                OTLPLogExporter(
+                    endpoint=f"{POSTHOG_HOST.rstrip('/')}/i/v1/logs",
+                    headers={"Authorization": f"Bearer {POSTHOG_PROJECT_TOKEN}"},
+                )
+            )
+        )
+        posthog_log.addHandler(LoggingHandler(logger_provider=posthog_log_provider))
+        posthog_log.setLevel(logging.INFO)
+        posthog_log.info(
+            "PostHog log capture configured",
+            extra={"event": "posthog_log_capture_configured", "service": "seva-gis-earth-engine"},
+        )
+    except ImportError:
+        log.warning(
+            "PostHog log capture requires the OpenTelemetry log exporter dependencies; "
+            "application logs continue locally until they are installed"
+        )
+elif os.environ.get("ENVIRONMENT", "development").lower() != "production":
+    if not POSTHOG_PROJECT_TOKEN:
+        log.warning(
+            "POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, "
+            "this causes events to be silently missed. This error stops appearing once "
+            "POSTHOG_PROJECT_TOKEN is configured"
+        )
+    if not POSTHOG_HOST:
+        log.warning(
+            "POSTHOG_HOST variable required by PostHog is missing or un-configured, this causes "
+            "events to be silently missed. This error stops appearing once POSTHOG_HOST is configured"
+        )
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    if posthog_client:
+        try:
+            await asyncio.wait_for(asyncio.to_thread(posthog_client.flush), timeout=3)
+        except Exception:
+            log.exception("PostHog flush failed during shutdown")
+    if posthog_log_provider:
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(posthog_log_provider.shutdown, 3000),
+                timeout=3,
+            )
+        except Exception:
+            log.exception("PostHog log flush failed during shutdown")
+
+
+app = FastAPI(
+    title="SEVA GIS Earth Engine Proxy v2",
+    version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    lifespan=lifespan,
+)
+if posthog_client:
+    app.add_middleware(PosthogASGIMiddleware, client=posthog_client)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -57,6 +141,10 @@ def _initialize_ee() -> None:
             creds = ee.ServiceAccountCredentials(SA_EMAIL, key_path)
             ee.Initialize(credentials=creds, project=PROJECT_ID)
             log.info("EE: Initialized with service account %s", SA_EMAIL)
+            posthog_log.info(
+                "Earth Engine initialized",
+                extra={"event": "earth_engine_initialized", "authentication_mode": "service_account"},
+            )
             _ee_ready = True
             return
         except Exception as sa_err:
@@ -64,6 +152,10 @@ def _initialize_ee() -> None:
     # Fallback: Application Default Credentials (Cloud Run workload identity)
     ee.Initialize(project=PROJECT_ID)
     log.info("EE: Initialized with Application Default Credentials")
+    posthog_log.info(
+        "Earth Engine initialized",
+        extra={"event": "earth_engine_initialized", "authentication_mode": "application_default_credentials"},
+    )
     _ee_ready = True
 
 async def _ensure_ee() -> None:
@@ -95,6 +187,17 @@ def _check_rate(ip: str) -> None:
 
 def _ck(*p: Any) -> str:
     return hashlib.sha256("|".join(str(x) for x in p).encode()).hexdigest()[:32]
+
+
+def _capture_event(event: str, properties: dict[str, Any]) -> None:
+    """Capture a completed action without delaying the request."""
+    if not posthog_client:
+        return
+    try:
+        posthog_client.capture(event, properties=properties)
+    except Exception:
+        log.exception("PostHog capture failed")
+
 
 # === Definitions ===
 BAND_COMBOS = {
@@ -490,7 +593,13 @@ async def render_farm_endpoint(request: Request, body: GeeRenderReq) -> dict:
         }
 
     try:
-        return await asyncio.to_thread(_execute)
+        result = await asyncio.to_thread(_execute)
+        _capture_event("gee_render_completed", {
+            "render_mode": body.mode,
+            "preset": body.preset,
+            "scene_count": result["scenes"],
+        })
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -503,7 +612,14 @@ async def create_map(request: Request, body: MapReq) -> dict:
     start, end = _dr(body)
     ck = _ck(body.coordinates, body.mode, start, end, body.max_cloud, body.indicator_id, body.band_combination, body.compositing, body.percentile_stretch)
     cached = _cache_get(ck)
-    if cached: return {**cached,"cached":True}
+    if cached:
+        result = {**cached, "cached": True}
+        _capture_event("earth_engine_map_created", {
+            "product": body.band_combination or body.indicator_id or "ndvi",
+            "cached": True,
+            "scene_count": result["sceneCount"],
+        })
+        return result
 
     def _render() -> dict:
         field = _geom(body.coordinates)
@@ -536,7 +652,14 @@ async def create_map(request: Request, body: MapReq) -> dict:
         result = {"tileUrl":_tileurl(mid),"source":"GEE/COPERNICUS/S2_SR_HARMONIZED","sceneCount":n,"latestSceneDate":ldate,"compositing":body.compositing,"stretchMode":"pct_2_98" if body.percentile_stretch else "manual","cached":False}
         _cache_set(ck, result); return result
 
-    try: return await asyncio.to_thread(_render)
+    try:
+        result = await asyncio.to_thread(_render)
+        _capture_event("earth_engine_map_created", {
+            "product": body.band_combination or body.indicator_id or "ndvi",
+            "cached": False,
+            "scene_count": result["sceneCount"],
+        })
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, f"EE error: {exc}") from exc
 
@@ -556,7 +679,14 @@ async def stats(request: Request, body: StatsReq) -> dict:
             s = ii.reduceRegion(ee.Reducer.mean().combine(ee.Reducer.minMax(),sharedInputs=True).combine(ee.Reducer.stdDev(),sharedInputs=True).combine(ee.Reducer.percentile([25,75]),sharedInputs=True),geometry=field,scale=body.scale,maxPixels=5_000_000,bestEffort=True).getInfo()
             out["indicators"][ind] = {k2: round(s.get(f"{ind}_{k2}",0) or 0,4) for k2 in ["mean","min","max","stdDev","p25","p75"]}
         return out
-    try: return await asyncio.to_thread(_compute)
+    try:
+        result = await asyncio.to_thread(_compute)
+        _capture_event("earth_engine_stats_generated", {
+            "indicator_count": len(result["indicators"]),
+            "scene_count": result["sceneCount"],
+            "scale_meters": body.scale,
+        })
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, str(exc)) from exc
 
@@ -580,7 +710,14 @@ async def timeseries(request: Request, body: TSReq) -> dict:
             else: pts.append({"date":cur.isoformat(),"windowEnd":we.isoformat(),"value":None,"sceneCount":0})
             cur += timedelta(days=body.interval_days)
         return {"indicator":body.indicator_id,"intervalDays":body.interval_days,"points":pts}
-    try: return await asyncio.to_thread(_compute)
+    try:
+        result = await asyncio.to_thread(_compute)
+        _capture_event("earth_engine_timeseries_generated", {
+            "indicator": result["indicator"],
+            "interval_days": result["intervalDays"],
+            "point_count": len(result["points"]),
+        })
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, str(exc)) from exc
 
@@ -604,7 +741,14 @@ async def change(request: Request, body: ChangeReq) -> dict:
         gp = delta.gt(body.threshold).reduceRegion(ee.Reducer.sum(),field,30,maxPixels=5_000_000,bestEffort=True).getInfo().get("delta",0) or 0
         lp = delta.lt(-body.threshold).reduceRegion(ee.Reducer.sum(),field,30,maxPixels=5_000_000,bestEffort=True).getInfo().get("delta",0) or 0
         return {"tileUrl":_tileurl(mid),"indicator":body.indicator_id,"beforeScenes":nb,"afterScenes":na,"delta":{k2:round(s.get(f"delta_{k2}",0) or 0,4) for k2 in ["mean","stdDev","min","max"]},"gainedPct":round(100*gp/tp,1),"lostPct":round(100*lp/tp,1),"threshold":body.threshold}
-    try: return await asyncio.to_thread(_compute)
+    try:
+        result = await asyncio.to_thread(_compute)
+        _capture_event("earth_engine_change_analyzed", {
+            "indicator": result["indicator"],
+            "before_scene_count": result["beforeScenes"],
+            "after_scene_count": result["afterScenes"],
+        })
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, str(exc)) from exc
 
@@ -613,13 +757,19 @@ async def dem(request: Request, body: DemReq) -> dict:
     """Copernicus GLO-30 DEM: elevation/slope/aspect/hillshade tile."""
     _check_rate(request.client.host if request.client else "x"); await _ensure_ee()
     ck = _ck(body.coordinates, body.layer); cached = _cache_get(ck)
-    if cached: return {**cached,"cached":True}
+    if cached:
+        result = {**cached, "cached": True}
+        _capture_event("dem_tile_created", {"layer": body.layer, "cached": True})
+        return result
     def _render() -> dict:
         field = _geom(body.coordinates); img, vis = _dem_layers(field)[body.layer]
         mid = img.getMapId(vis)
         r = {"tileUrl":_tileurl(mid),"layer":body.layer,"source":"COPERNICUS/DEM/GLO30","cached":False}
         _cache_set(ck,r); return r
-    try: return await asyncio.to_thread(_render)
+    try:
+        result = await asyncio.to_thread(_render)
+        _capture_event("dem_tile_created", {"layer": body.layer, "cached": False})
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, str(exc)) from exc
 
@@ -640,7 +790,13 @@ async def alert(request: Request, body: AlertReq) -> dict:
         pct = round(100*sp/tp,1); fired = pct >= body.alert_pct
         mid = stressed.updateMask(stressed).getMapId({"min":0,"max":1,"palette":["00000000","d73027"],"format":"png"})
         return {"tileUrl":_tileurl(mid),"ndviThreshold":body.ndvi_threshold,"meanNdvi":round(mn or 0,4),"stressedPct":pct,"alertTriggered":fired,"alertMessage":(f"ALERT: {pct}% below NDVI {body.ndvi_threshold}." if fired else f"OK: {pct}% stressed."),"sceneCount":n}
-    try: return await asyncio.to_thread(_compute)
+    try:
+        result = await asyncio.to_thread(_compute)
+        _capture_event("earth_engine_alert_analyzed", {
+            "alert_triggered": result["alertTriggered"],
+            "scene_count": result["sceneCount"],
+        })
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, str(exc)) from exc
 
@@ -675,7 +831,13 @@ async def lulc(request: Request, body: LulcReq) -> dict:
     start, end = _dr(body)
     ck = _ck(body.coordinates, "lulc", start, end)
     cached = _cache_get(ck)
-    if cached: return {**cached, "cached": True}
+    if cached:
+        result = {**cached, "cached": True}
+        _capture_event("land_cover_classified", {
+            "cached": True,
+            "scene_count": result["sceneCount"],
+        })
+        return result
 
     def _compute() -> dict:
         field = _geom(body.coordinates)
@@ -736,7 +898,13 @@ async def lulc(request: Request, body: LulcReq) -> dict:
         _cache_set(ck, result)
         return result
 
-    try: return await asyncio.to_thread(_compute)
+    try:
+        result = await asyncio.to_thread(_compute)
+        _capture_event("land_cover_classified", {
+            "cached": False,
+            "scene_count": result["sceneCount"],
+        })
+        return result
     except HTTPException: raise
     except Exception as exc: raise HTTPException(502, f"LULC error: {exc}") from exc
 
@@ -830,7 +998,14 @@ async def export(request: Request, body: ExportReq) -> dict:
         }
 
     try:
-        return await asyncio.to_thread(_build)
+        result = await asyncio.to_thread(_build)
+        _capture_event("geotiff_export_requested", {
+            "product": result["product"],
+            "source": result["source"],
+            "scale_meters": result["scaleMeters"],
+            "scene_count": result["sceneCount"],
+        })
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -838,7 +1013,11 @@ async def export(request: Request, body: ExportReq) -> dict:
 
 
 # === Desktop plugin planning ===
-llm.configure(indicators=list(INDICATORS.keys()), band_combinations=list(BAND_COMBOS.keys()))
+llm.configure(
+    indicators=list(INDICATORS.keys()),
+    band_combinations=list(BAND_COMBOS.keys()),
+    posthog_client=posthog_client,
+)
 
 @app.post("/api/earth-engine/interpret")
 async def interpret(request: Request, body: InterpretReq) -> dict:
@@ -856,6 +1035,20 @@ async def interpret(request: Request, body: InterpretReq) -> dict:
     result = await asyncio.to_thread(llm.interpret, body.sentences, defaults)
     result["planVersion"] = llm.PLAN_VERSION
     result["providerConfigured"] = bool(llm.provider_config())
+    _capture_event("query_plan_interpreted", {
+        "engine": result["engine"],
+        "box_count": len(result["boxes"]),
+        "warning_count": len(result["warnings"]),
+    })
+    posthog_log.info(
+        "Query plan completed",
+        extra={
+            "event": "query_plan_completed",
+            "engine": result["engine"],
+            "box_count": len(result["boxes"]),
+            "warning_count": len(result["warnings"]),
+        },
+    )
     return result
 
 # === Vector-producing operations ===
@@ -1023,7 +1216,14 @@ async def zones(request: Request, body: ZonesReq) -> dict:
         }
 
     try:
-        return await asyncio.to_thread(_compute)
+        result = await asyncio.to_thread(_compute)
+        _capture_event("zones_generated", {
+            "indicator": result["indicator"],
+            "level": result["level"],
+            "returned_feature_count": result["returnedFeatures"],
+            "truncated": result["truncated"],
+        })
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -1090,7 +1290,12 @@ async def streams(request: Request, body: StreamsReq) -> dict:
         return {"type": "FeatureCollection", "features": features["features"], "stats": stats}
 
     try:
-        return await asyncio.to_thread(_compute)
+        result = await asyncio.to_thread(_compute)
+        _capture_event("streams_generated", {
+            "segment_count": result["stats"]["segments"],
+            "target_meters": body.target_meters,
+        })
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -1164,7 +1369,13 @@ async def candidates(request: Request, body: CandidatesReq) -> dict:
         }
 
     try:
-        return await asyncio.to_thread(_compute)
+        result = await asyncio.to_thread(_compute)
+        _capture_event("candidates_generated", {
+            "kind": result["kind"],
+            "returned_feature_count": result["returnedFeatures"],
+            "truncated": result["truncated"],
+        })
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -1173,5 +1384,8 @@ async def candidates(request: Request, body: CandidatesReq) -> dict:
 
 @app.delete("/api/cache")
 async def clear_cache() -> dict:
-    n = len(_tile_cache); _tile_cache.clear(); return {"cleared": n}
+    n = len(_tile_cache)
+    _tile_cache.clear()
+    _capture_event("cache_cleared", {"cleared_entry_count": n})
+    return {"cleared": n}
 

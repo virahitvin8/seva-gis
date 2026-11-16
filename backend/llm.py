@@ -31,8 +31,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
+import uuid
 from datetime import date, datetime, timedelta
 
 PLAN_VERSION = 1
@@ -162,15 +164,20 @@ LIMITATIONS = {
 }
 
 
-def configure(indicators=None, band_combinations=None, dem_layers=None) -> None:
-    """Bind this planner to the service's real vocabulary (called once by main.py)."""
-    global INDICATORS, BAND_COMBINATIONS, DEM_LAYERS
+_ai_session_id = str(uuid.uuid4())
+_posthog_client = None
+
+
+def configure(indicators=None, band_combinations=None, dem_layers=None, posthog_client=None) -> None:
+    """Bind this planner to the service's real vocabulary and PostHog client."""
+    global INDICATORS, BAND_COMBINATIONS, DEM_LAYERS, _posthog_client
     if indicators:
         INDICATORS = tuple(indicators)
     if band_combinations:
         BAND_COMBINATIONS = tuple(band_combinations)
     if dem_layers:
         DEM_LAYERS = tuple(dem_layers)
+    _posthog_client = posthog_client
 
 
 # --------------------------------------------------------------------------- helpers
@@ -623,6 +630,7 @@ def provider_config() -> dict | None:
     if name == "vertex":
         return {
             "provider": "vertex",
+            "ai_provider": "gemini",
             "model": os.environ.get("EE_LLM_MODEL", "gemini-2.5-flash").strip(),
             "location": os.environ.get("EE_LLM_LOCATION", "us-central1").strip(),
             "project": (os.environ.get("EE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip(),
@@ -633,6 +641,7 @@ def provider_config() -> dict | None:
             return None
         return {
             "provider": "openai",
+            "ai_provider": name,
             "model": os.environ.get("EE_LLM_MODEL", "gpt-4o-mini").strip(),
             "base_url": os.environ.get("EE_LLM_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
             "api_key": api_key,
@@ -651,7 +660,44 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: float = 30.0) ->
         return json.loads(response.read().decode("utf-8"))
 
 
-def _call_vertex(prompt: str, settings: dict) -> str:
+def _capture_generation(
+    prompt: str,
+    output: str,
+    settings: dict,
+    trace_id: str,
+    latency: float,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> None:
+    """Queue AI observability without allowing telemetry to affect the planner."""
+    if not _posthog_client:
+        return
+    properties = {
+        "$ai_trace_id": trace_id,
+        "$ai_session_id": _ai_session_id,
+        "$ai_span_id": str(uuid.uuid4()),
+        "$ai_span_name": "earth_engine_query_planner",
+        "$ai_model": settings["model"],
+        "$ai_provider": settings["ai_provider"],
+        "$ai_input": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "$ai_output_choices": [{"role": "assistant", "content": output}],
+        "$ai_temperature": 0,
+        "$ai_latency": latency,
+    }
+    if input_tokens is not None:
+        properties["$ai_input_tokens"] = input_tokens
+    if output_tokens is not None:
+        properties["$ai_output_tokens"] = output_tokens
+    try:
+        _posthog_client.capture_ai("$ai_generation", properties=properties)
+    except Exception:
+        pass
+
+
+def _call_vertex(prompt: str, settings: dict, trace_id: str) -> str:
     import google.auth  # provided by earthengine-api; used here only for the token
     import google.auth.transport.requests
 
@@ -670,11 +716,23 @@ def _call_vertex(prompt: str, settings: dict) -> str:
             "responseSchema": RESPONSE_SCHEMA,
         },
     }
+    started = time.monotonic()
     body = _post_json(url, payload, {"Authorization": "Bearer " + credentials.token})
-    return body["candidates"][0]["content"]["parts"][0]["text"]
+    output = body["candidates"][0]["content"]["parts"][0]["text"]
+    usage = body.get("usageMetadata", {})
+    _capture_generation(
+        prompt,
+        output,
+        settings,
+        trace_id,
+        time.monotonic() - started,
+        usage.get("promptTokenCount"),
+        usage.get("candidatesTokenCount"),
+    )
+    return output
 
 
-def _call_openai(prompt: str, settings: dict) -> str:
+def _call_openai(prompt: str, settings: dict, trace_id: str) -> str:
     payload = {
         "model": settings["model"],
         "temperature": 0,
@@ -684,12 +742,24 @@ def _call_openai(prompt: str, settings: dict) -> str:
             {"role": "user", "content": prompt},
         ],
     }
+    started = time.monotonic()
     body = _post_json(
         settings["base_url"] + "/chat/completions",
         payload,
         {"Authorization": "Bearer " + settings["api_key"]},
     )
-    return body["choices"][0]["message"]["content"]
+    output = body["choices"][0]["message"]["content"]
+    usage = body.get("usage", {})
+    _capture_generation(
+        prompt,
+        output,
+        settings,
+        trace_id,
+        time.monotonic() - started,
+        usage.get("prompt_tokens"),
+        usage.get("completion_tokens"),
+    )
+    return output
 
 
 def interpret_llm(sentences, settings: dict) -> list[dict]:
@@ -697,7 +767,12 @@ def interpret_llm(sentences, settings: dict) -> list[dict]:
     prompt = "Lines to convert, one box each, in this order:\n" + "\n".join(
         "%d. %s" % (i + 1, s) for i, s in enumerate(sentences)
     )
-    raw = _call_vertex(prompt, settings) if settings["provider"] == "vertex" else _call_openai(prompt, settings)
+    trace_id = str(uuid.uuid4())
+    raw = (
+        _call_vertex(prompt, settings, trace_id)
+        if settings["provider"] == "vertex"
+        else _call_openai(prompt, settings, trace_id)
+    )
     parsed = json.loads(raw)
     boxes = parsed.get("boxes")
     if not isinstance(boxes, list):

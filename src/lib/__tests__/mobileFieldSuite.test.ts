@@ -103,6 +103,6 @@ test('simulateOtaUpdateAvailable triggers prompt callback with valid bundle info
     hotSwapTriggered = typeof trigger === 'function'
   })
 
-  assert.equal(receivedVersion, 'v4.4.0-OTA')
+  assert.equal(receivedVersion, 'v4.5.0-OTA')
   assert.ok(hotSwapTriggered)
 })

@@ -10,6 +10,13 @@ import {
   estimateGeoidHeightM,
   computeOrthometricAltitudeM,
   estimateMagneticDeclinationDeg,
+  computeIgrfField,
+  parseIgrfCof,
+  parseGeoidPgm,
+  sampleGeoidUndulation,
+  CoordinateAverager,
+  relativeDirectionFromDelta,
+  buildFdrsTelemetryFrames,
   bearingDeg,
   compassCardinal16,
   geodesicDistanceM,
@@ -24,6 +31,8 @@ import {
   exportWaypointsCsv,
   parseGpxOrKml,
 } from '../geodesyField';
+import { ProximityVoiceScheduler } from '../fieldAudioSensors';
+import { buildMapLibreRasterStyle, planOfflineTileRegion } from '../offlineMapLayers';
 
 test('toUtm and toMgrs compute accurate WGS84 coordinates for Hyderabad', () => {
   const utm = toUtm(17.385, 78.4867);
@@ -159,4 +168,72 @@ test('GPX, KML, and CSV serialization and parsing round-trip cleanly', () => {
   const csv = exportWaypointsCsv(wps);
   assert.ok(csv.includes('Borewell North'));
   assert.ok(csv.includes('44N'));
+});
+
+test('IGRF-2025 full spherical harmonics match real geomagnetic declination globally', () => {
+  // Sydney ~ +12.5° East, Hyderabad ~ -0.7° to -1.3° West, San Francisco ~ +13° East
+  const syd = computeIgrfField(-33.8688, 151.2093, 0, 2025.5);
+  assert.ok(syd.declinationDeg > 11 && syd.declinationDeg < 14.5, `Sydney decl=${syd.declinationDeg}`);
+  assert.ok(syd.inclinationDeg < -60 && syd.inclinationDeg > -70, `Sydney inc=${syd.inclinationDeg}`);
+
+  const sf = computeIgrfField(37.7749, -122.4194, 0, 2025.5);
+  assert.ok(sf.declinationDeg > 11 && sf.declinationDeg < 15, `SF decl=${sf.declinationDeg}`);
+
+  const hyd = computeIgrfField(17.385, 78.4867, 0.5, 2025.5);
+  assert.ok(hyd.declinationDeg > -2.5 && hyd.declinationDeg < 0.5, `Hyderabad decl=${hyd.declinationDeg}`);
+  assert.ok(hyd.totalIntensityNt > 38000 && hyd.totalIntensityNt < 46000, `Hyderabad F=${hyd.totalIntensityNt}`);
+
+  const parsed = parseIgrfCof('IGRF2025 2025.00 13 8\n 1 0 -29350.00 0.00 12.60 0.00');
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].name, 'IGRF2025');
+  assert.equal(parsed[0].terms[0].g, -29350);
+});
+
+test('parseGeoidPgm and sampleGeoidUndulation decode binary P5 PGM grids accurately', () => {
+  const header = 'P5\n# Offset -100\n# Scale 0.5\n2 2\n65535\n';
+  const hdrBytes = new TextEncoder().encode(header);
+  const full = new Uint8Array(hdrBytes.length + 8);
+  full.set(hdrBytes, 0);
+  const view = new DataView(full.buffer, hdrBytes.length);
+  // Offset + Scale * val -> [ -100 + 0.5*200 = 0, -100 + 0.5*300 = 50, ... ]
+  view.setUint16(0, 200, false);
+  view.setUint16(2, 300, false);
+  view.setUint16(4, 200, false);
+  view.setUint16(6, 300, false);
+
+  const grid = parseGeoidPgm(full);
+  assert.equal(grid.width, 2);
+  assert.equal(grid.height, 2);
+  const sample0 = sampleGeoidUndulation(grid, 0, 0);
+  assert.equal(sample0, 0);
+  const sampleMid = sampleGeoidUndulation(grid, 0, 90);
+  assert.equal(sampleMid, 25);
+});
+
+test('CoordinateAverager, ProximityVoiceScheduler, FDRS telemetry, and offline tile planner work together', () => {
+  const avg = new CoordinateAverager(5);
+  avg.addSample({ lat: 17.385, lon: 78.4867, altitudeM: 500, accuracyM: 3, timestamp: 1 });
+  const r = avg.addSample({ lat: 17.3851, lon: 78.4868, altitudeM: 502, accuracyM: 3, timestamp: 2 });
+  assert.ok(r && r.sampleCount === 2);
+  avg.reset();
+  assert.equal(avg.getCount(), 0);
+
+  assert.equal(relativeDirectionFromDelta(5, 'en'), 'straight ahead');
+  assert.equal(relativeDirectionFromDelta(-85, 'en'), 'turn left');
+  assert.equal(relativeDirectionFromDelta(90, 'hi'), 'दाएँ मुड़ें');
+
+  const spoken: string[] = [];
+  const sched = new ProximityVoiceScheduler();
+  assert.equal(sched.evaluate(150, 'turn right', (p) => spoken.push(p), 1000, 'en'), true);
+  assert.equal(sched.evaluate(140, 'turn right', (p) => spoken.push(p), 5000, 'en'), false); // cooldown
+  assert.equal(sched.evaluate(5, 'straight ahead', (p) => spoken.push(p), 6000, 'en'), true); // arrival bucket change
+
+  const fdrs = buildFdrsTelemetryFrames({ lat: 17.385, lon: 78.4867, altitudeM: 512, speedMs: 1.5, accuracyM: 3.2 }, 42);
+  assert.equal(fdrs.gatewayTopic, 'fdrs/data/42');
+  assert.equal(fdrs.frames.length, 5);
+
+  const style = buildMapLibreRasterStyle('opentopomap');
+  assert.equal(style.layers[0].id, 'base-raster-layer');
+  const plan = planOfflineTileRegion('osm-standard', { minLat: 17.38, maxLat: 17.39, minLon: 78.48, maxLon: 78.49 }, 14, 15, 50);
+  assert.ok(plan.tileCount > 0 && plan.tileCount <= 50);
 });

@@ -1,0 +1,94 @@
+name: Android APK Auto-Build & Release
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-build:
+    name: Build & Release Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web Assets & Sync Capacitor Android
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          VITE_GIT_SHA: ${{ github.sha }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
+          VITE_APK_VERSION_CODE: "45"
+        run: |
+          npm run build
+          npx cap sync android
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Stage APK into temporary release path
+        run: |
+          VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/seva-gis-latest.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk "/tmp/seva-gis-v${VERSION}.apk"
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: seva-gis-android-apk
+          path: /tmp/seva-gis-latest.apk
+
+      - name: Publish APK to Latest GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest"
+          VER="${APP_VERSION}"
+          NOTES="Automated SEVA.GIS Android APK v${VER} (build #${{ github.run_number }}, commit ${GITHUB_SHA::7}). Syncs live with https://sevagis.dpdns.org (/version.json & /updates/latest.json) and includes automatic in-app update popups plus Industrial Precision & Farmer-Friendly Field Studio."
+          cp /tmp/seva-gis-latest.apk seva-gis-latest.apk
+          cp "/tmp/seva-gis-v${VER}.apk" "seva-gis-v${VER}.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" seva-gis-latest.apk "seva-gis-v${VER}.apk" --clobber
+            gh release edit "$TAG" --title "SEVA.GIS Latest Android APK (v${VER})" --notes "$NOTES" --latest
+          else
+            gh release create "$TAG" seva-gis-latest.apk "seva-gis-v${VER}.apk" \
+              --target "${{ github.sha }}" \
+              --title "SEVA.GIS Latest Android APK (v${VER})" \
+              --notes "$NOTES" \
+              --latest
+          fi
+          rm -f seva-gis-latest.apk "seva-gis-v${VER}.apk"
+
+      - name: Update Repo APK on main
+        if: "!contains(github.event.head_commit.message, '[skip ci]')"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p releases
+          cp /tmp/seva-gis-latest.apk releases/seva-gis-latest.apk
+          git add releases/seva-gis-latest.apk
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(android): update seva-gis-latest.apk v${APP_VERSION} for build #${{ github.run_number }} [skip ci]"
+            git pull --rebase --autostash origin main || true
+            git push origin HEAD:main
+          fi
+

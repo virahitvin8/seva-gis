@@ -204,11 +204,17 @@ class AppUpdateService {
       try { return localStorage.getItem(APPLIED_COMMIT_KEY); } catch { return null; }
     })();
 
-    const candidateUrls = [`/version.json?t=${Date.now()}`];
+    const candidateUrls = [
+      `/version.json?t=${Date.now()}`,
+      `/updates/latest.json?t=${Date.now()}`,
+    ];
     if (window.location.origin !== LIVE_SITE_ORIGIN && window.location.hostname !== 'localhost') {
       // Same-origin already points to deployed host
     } else if (window.location.hostname === 'localhost' && (window as any).Capacitor) {
-      candidateUrls.push(`${LIVE_SITE_ORIGIN}/version.json?t=${Date.now()}`);
+      candidateUrls.push(
+        `${LIVE_SITE_ORIGIN}/version.json?t=${Date.now()}`,
+        `${LIVE_SITE_ORIGIN}/updates/latest.json?t=${Date.now()}`
+      );
     }
 
     for (const url of candidateUrls) {
@@ -219,7 +225,23 @@ class AppUpdateService {
         });
         if (!res.ok) continue;
 
-        const remoteInfo: AppVersionInfo = await res.json();
+        const raw = await res.json();
+        const remoteInfo: AppVersionInfo = {
+          version: raw.version || raw.appVersion || current.version,
+          buildDate: raw.buildDate || raw.lastChecked || new Date().toISOString(),
+          buildNumber: Number(raw.buildNumber ?? raw.buildVersion ?? current.buildNumber),
+          commit: raw.commit || 'remote',
+          channel: raw.channel || 'stable',
+          appName: raw.appName || 'SEVA.GIS',
+          author: raw.author || 'N. Akshit Vinay',
+          apkVersionCode: raw.apkVersionCode != null ? Number(raw.apkVersionCode) : undefined,
+          apkDownloadUrl: raw.apkDownloadUrl || raw.downloadUrl || DEFAULT_APK_RELEASE_URL,
+          changelog: Array.isArray(raw.changelog)
+            ? raw.changelog
+            : raw.releaseNotes
+              ? [String(raw.releaseNotes)]
+              : undefined,
+        };
         const check = isNewerBuild(remoteInfo, current, appliedCommit);
 
         if (check.hasUpdate || forceSwNotification) {

@@ -120,6 +120,97 @@ export function formatSpeedUnit(kmh: number, unitSystem: 'metric' | 'imperial' |
 }
 
 /**
+ * Debounced turn-by-turn proximity announcer so field navigation avoids audio spam.
+ */
+export class ProximityVoiceScheduler {
+  private lastSpokenMs = 0;
+  private lastBucket = -1;
+
+  reset(): void {
+    this.lastSpokenMs = 0;
+    this.lastBucket = -1;
+  }
+
+  evaluate(
+    distanceMeters: number,
+    relativeDirection: string,
+    speakFn: (phrase: string) => void = (p) => speakFieldGuidance(p),
+    nowMs: number = Date.now(),
+    langCode: 'en' | 'te' | 'hi' = 'en'
+  ): boolean {
+    const bucket = distanceMeters <= 8 ? 0 : distanceMeters <= 25 ? 1 : distanceMeters <= 100 ? 2 : 3;
+    const minCooldown = bucket === 0 ? 12000 : 18000;
+    if (bucket !== this.lastBucket || nowMs - this.lastSpokenMs >= minCooldown) {
+      this.lastBucket = bucket;
+      this.lastSpokenMs = nowMs;
+      if (bucket === 0) {
+        const msg =
+          langCode === 'hi'
+            ? `लक्ष्य ${Math.round(distanceMeters)} मीटर के भीतर है`
+            : langCode === 'te'
+              ? `లక్ష్యం ${Math.round(distanceMeters)} మీటర్లలో ఉంది`
+              : `Target reached within ${Math.round(distanceMeters)} meters`;
+        speakFn(msg);
+      } else {
+        const dist = formatGuidanceDistance(distanceMeters);
+        const msg =
+          langCode === 'hi'
+            ? `${dist} दूर, ${relativeDirection}`
+            : langCode === 'te'
+              ? `${dist} దూరంలో, ${relativeDirection}`
+              : `${dist}, ${relativeDirection}`;
+        speakFn(msg);
+      }
+      return true;
+    }
+    return false;
+  }
+}
+
+/**
+ * Starts a real Web Audio AnalyserNode stream from the user's microphone for live waveform metering.
+ * Returns null if microphone access or AudioContext is unavailable.
+ */
+export async function startMicrophoneWaveformAnalyser(): Promise<{
+  readBars: (barCount?: number) => number[];
+  stop: () => void;
+} | null> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
+  const ctx = getAudioContext();
+  if (!ctx) return null;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 64;
+    analyser.smoothingTimeConstant = 0.72;
+    source.connect(analyser);
+    const freqData = new Uint8Array(analyser.frequencyBinCount);
+
+    return {
+      readBars(barCount = 24): number[] {
+        analyser.getByteFrequencyData(freqData);
+        const bars: number[] = [];
+        const step = Math.max(1, Math.floor(freqData.length / barCount));
+        for (let i = 0; i < barCount; i++) {
+          const val = freqData[Math.min(freqData.length - 1, i * step)] || 0;
+          bars.push(Number((val / 255).toFixed(3)));
+        }
+        return bars;
+      },
+      stop() {
+        try {
+          source.disconnect();
+        } catch {}
+        stream.getTracks().forEach((t) => t.stop());
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Attempts to toggle native camera hardware torch via MediaStreamTrack constraints.
  * Returns whether hardware torch control succeeded (callers can use screen-torch fallback if false).
  */

@@ -53,6 +53,11 @@ Every open-source project contributing concepts, formats, or algorithms is recor
 | **USGS MRDS** | United States Geological Survey | Mineral Resources Data System (Historic mineral occurrence records) |
 | **Open-Meteo** | Open-Meteo GmbH | High-resolution agro-meteorological forecasting (CC BY 4.0) |
 | **NASA POWER** | NASA Langley Research Center | Prediction Of Worldwide Energy Resources agroclimatology |
+| **IAGA IGRF-14** | International Association of Geomagnetism & Aeronomy | Epoch 2025.00 spherical harmonic geomagnetic field coefficients (Public Domain) |
+| **Terrio / GeoLibre** | `opengeos/terrio` & `opengeos/GeoLibre` | MapLibre GL open base layer definitions & offline tile caching (MIT) |
+| **Farm Data Relay System** | `timmbogner/Farm-Data-Relay-System` | Off-grid LoRa / ESP-NOW agricultural telemetry data packet standard (MIT) |
+| **KhetMap** | `virahitvin8/khetmap` | Simple smallholder field workflow and bottom navigation ergonomics (MIT) |
+| **Graphify** | `Graphify-Labs/graphify` | Semantic codebase indexing & module architecture verification (Apache-2.0 / MIT) |
 
 ## How to Contribute
 We welcome open-source contributions!

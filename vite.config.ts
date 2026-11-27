@@ -22,7 +22,7 @@ import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 // Vite config — https://vitejs.dev/config/
 function resolveBuildStamp() {
-  let pkgVersion = '4.4.0'
+  let pkgVersion = '4.5.0'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf-8'))
     if (pkg?.version) pkgVersion = pkg.version
@@ -39,9 +39,9 @@ function resolveBuildStamp() {
   }
   if (!gitCount) {
     try {
-      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 44
+      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 45
     } catch {
-      gitCount = 44
+      gitCount = 45
     }
   }
   return {
@@ -49,7 +49,7 @@ function resolveBuildStamp() {
     commit: gitCommit || 'local',
     buildNumber: gitCount,
     buildDate: new Date().toISOString(),
-    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 44),
+    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 45),
   }
 }
 
@@ -72,6 +72,24 @@ function sevaVersionStampPlugin(stamp: ReturnType<typeof resolveBuildStamp>): Pl
             apkVersionCode: stamp.apkVersionCode,
           }
           fs.writeFileSync(versionPath, JSON.stringify(updated, null, 2))
+        } catch { }
+      }
+      const updatesDir = path.join(distDir, 'updates')
+      const latestOtaPath = path.join(updatesDir, 'latest.json')
+      if (fs.existsSync(latestOtaPath)) {
+        try {
+          const existingOta = JSON.parse(fs.readFileSync(latestOtaPath, 'utf-8'))
+          const updatedOta = {
+            ...existingOta,
+            appVersion: stamp.version,
+            version: stamp.version,
+            buildVersion: stamp.buildNumber,
+            buildNumber: stamp.buildNumber,
+            commit: stamp.commit,
+            apkVersionCode: stamp.apkVersionCode,
+            lastChecked: stamp.buildDate,
+          }
+          fs.writeFileSync(latestOtaPath, JSON.stringify(updatedOta, null, 2))
         } catch { }
       }
       const swPath = path.join(distDir, 'sw.js')

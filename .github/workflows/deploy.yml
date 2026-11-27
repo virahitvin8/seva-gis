@@ -42,7 +42,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           VITE_GIT_SHA: ${{ github.sha }}
           VITE_BUILD_NUMBER: ${{ github.run_number }}
-          VITE_APK_VERSION_CODE: "44"
+          VITE_APK_VERSION_CODE: "45"
           VITE_GOOGLE_CLIENT_ID: ${{ secrets['VITE_GOOGLE_CLIENT_ID'] || vars['VITE_GOOGLE_CLIENT_ID'] || '' }}
           VITE_EE_API_URL: ${{ secrets['VITE_EE_API_URL'] || vars['VITE_EE_API_URL'] || '' }}
 
@@ -51,6 +51,7 @@ jobs:
           cp dist/index.html dist/404.html
           [ -f dist/CNAME ] || echo "sevagis.dpdns.org" > dist/CNAME
           cat dist/version.json
+          cat dist/updates/latest.json
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -67,83 +68,6 @@ jobs:
         uses: actions/deploy-pages@v4
 
   android-build:
-    name: Build & Release Android APK
     needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build Web Assets & Sync Capacitor Android
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-          VITE_GIT_SHA: ${{ github.sha }}
-          VITE_BUILD_NUMBER: ${{ github.run_number }}
-          VITE_APK_VERSION_CODE: "44"
-        run: |
-          npm run build
-          npx cap sync android
-
-      - name: Build Android APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Stage APK into releases folder
-        run: |
-          mkdir -p releases
-          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/seva-gis-latest.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/seva-gis-v4.4.0.apk
-
-      - name: Upload Android APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: seva-gis-android-apk
-          path: /tmp/seva-gis-latest.apk
-
-      - name: Publish APK to Latest GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="latest"
-          NOTES="Automated SEVA.GIS Android APK v4.4.0 (build #${{ github.run_number }}, commit ${GITHUB_SHA::7}). Syncs live with https://sevagis.dpdns.org and includes automatic in-app update popups plus Handy GPS tactical field suite."
-          cp /tmp/seva-gis-latest.apk seva-gis-latest.apk
-          cp /tmp/seva-gis-v4.4.0.apk seva-gis-v4.4.0.apk
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" seva-gis-latest.apk seva-gis-v4.4.0.apk --clobber
-            gh release edit "$TAG" --title "SEVA.GIS Latest Android APK (v4.4.0)" --notes "$NOTES" --latest
-          else
-            gh release create "$TAG" seva-gis-latest.apk seva-gis-v4.4.0.apk \
-              --target "${{ github.sha }}" \
-              --title "SEVA.GIS Latest Android APK (v4.4.0)" \
-              --notes "$NOTES" \
-              --latest
-          fi
-          rm -f seva-gis-latest.apk seva-gis-v4.4.0.apk
-
-      - name: Update Repo APK on main
-        if: "!contains(github.event.head_commit.message, '[skip ci]')"
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          cp /tmp/seva-gis-latest.apk releases/seva-gis-latest.apk
-          git add releases/seva-gis-latest.apk
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(android): update seva-gis-latest.apk for build #${{ github.run_number }} [skip ci]"
-            git pull --rebase --autostash origin main || true
-            git push origin HEAD:main
-          fi
+    uses: ./.github/workflows/android-build.yml
+    secrets: inherit

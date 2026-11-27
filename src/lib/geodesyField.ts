@@ -292,7 +292,393 @@ export function toMaidenhead(lat: number, lon: number): string {
  * North Atlantic positive ~ +55m, West Pacific ~ +70m) so MSL orthometric altitude H = h - N
  * can be computed when offline.
  */
-export function estimateGeoidHeightM(lat: number, lon: number): number {
+/**
+ * Parses an IAGA IGRF `.COF` coefficient table string into epochs (n=1..13).
+ */
+export interface IgrfCoefficientTerm {
+  n: number;
+  m: number;
+  g: number;
+  h: number;
+  dg: number;
+  dh: number;
+}
+
+export interface IgrfEpochModel {
+  name: string;
+  epoch: number;
+  maxDegree: number;
+  terms: IgrfCoefficientTerm[];
+}
+
+export function parseIgrfCof(content: string): IgrfEpochModel[] {
+  const models: IgrfEpochModel[] = [];
+  let current: IgrfEpochModel | null = null;
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    if (/^[A-Za-z]/.test(parts[0])) {
+      current = {
+        name: parts[0],
+        epoch: Number.parseFloat(parts[1]),
+        maxDegree: Number.parseInt(parts[2], 10),
+        terms: [],
+      };
+      models.push(current);
+      continue;
+    }
+    if (current && parts.length >= 6) {
+      const n = Number.parseInt(parts[0], 10);
+      const m = Number.parseInt(parts[1], 10);
+      const g = Number.parseFloat(parts[2]);
+      const h = Number.parseFloat(parts[3]);
+      const dg = Number.parseFloat(parts[4]);
+      const dh = Number.parseFloat(parts[5]);
+      if (Number.isFinite(n) && Number.isFinite(m) && Number.isFinite(g) && Number.isFinite(h)) {
+        current.terms.push({
+          n,
+          m,
+          g,
+          h,
+          dg: Number.isFinite(dg) ? dg : 0,
+          dh: Number.isFinite(dh) ? dh : 0,
+        });
+      }
+    }
+  }
+  return models;
+}
+
+/**
+ * Official IAGA IGRF-14 Epoch 2025.00–2030.00 spherical harmonic coefficients (n=1..13, nT & nT/yr).
+ * Source: IAGA V-MOD / NASA / NOAA IGRF.COF (Public Domain).
+ */
+const IGRF2025_TERMS: Array<[number, number, number, number, number, number]> = [
+  [1, 0, -29350.0, 0.0, 12.6, 0.0],
+  [1, 1, -1410.3, 4545.5, 10.0, -21.5],
+  [2, 0, -2556.2, 0.0, -11.2, 0.0],
+  [2, 1, 2950.9, -3133.6, -5.3, -27.3],
+  [2, 2, 1648.7, -814.2, -8.3, -11.1],
+  [3, 0, 1360.9, 0.0, -1.5, 0.0],
+  [3, 1, -2404.2, -56.9, -4.4, 3.8],
+  [3, 2, 1243.8, 237.6, 0.4, -0.2],
+  [3, 3, 453.4, -549.6, -15.6, -3.9],
+  [4, 0, 894.7, 0.0, -1.7, 0.0],
+  [4, 1, 799.6, 278.6, -2.3, -1.3],
+  [4, 2, 55.8, -134.0, -5.8, 4.1],
+  [4, 3, -281.1, 212.0, 5.4, 1.6],
+  [4, 4, 12.0, -375.4, -6.8, -4.1],
+  [5, 0, -232.9, 0.0, 0.6, 0.0],
+  [5, 1, 369.0, 45.3, 1.3, -0.5],
+  [5, 2, 187.2, 220.0, 0.0, 2.1],
+  [5, 3, -138.7, -122.9, 0.7, 0.5],
+  [5, 4, -141.9, 42.9, 2.3, 1.7],
+  [5, 5, 20.9, 106.2, 1.0, 1.9],
+  [6, 0, 64.3, 0.0, -0.2, 0.0],
+  [6, 1, 63.8, -18.4, -0.3, 0.3],
+  [6, 2, 76.7, 16.8, 0.8, -1.6],
+  [6, 3, -115.7, 48.9, 1.2, -0.4],
+  [6, 4, -40.9, -59.8, -0.8, 0.8],
+  [6, 5, 14.9, 10.9, 0.4, 0.7],
+  [6, 6, -60.8, 72.8, 0.9, 0.9],
+  [7, 0, 79.6, 0.0, -0.1, 0.0],
+  [7, 1, -76.9, -48.9, -0.1, 0.6],
+  [7, 2, -8.8, -14.4, -0.1, 0.5],
+  [7, 3, 59.3, -1.0, 0.5, -0.7],
+  [7, 4, 15.8, 23.5, -0.1, 0.0],
+  [7, 5, 2.5, -7.4, -0.8, -0.9],
+  [7, 6, -11.2, -25.1, -0.8, 0.5],
+  [7, 7, 14.3, -2.2, 0.9, -0.3],
+  [8, 0, 23.1, 0.0, -0.1, 0.0],
+  [8, 1, 10.9, 7.2, 0.2, -0.3],
+  [8, 2, -17.5, -12.6, 0.0, 0.4],
+  [8, 3, 2.0, 11.5, 0.4, -0.3],
+  [8, 4, -21.8, -9.7, -0.1, 0.4],
+  [8, 5, 16.9, 12.7, 0.3, -0.5],
+  [8, 6, 14.9, 0.7, 0.1, -0.6],
+  [8, 7, -16.8, -5.2, 0.0, 0.3],
+  [8, 8, 1.0, 3.9, 0.3, 0.2],
+  [9, 0, 4.7, 0.0, 0.0, 0.0],
+  [9, 1, 8.0, -24.8, 0.0, 0.0],
+  [9, 2, 3.0, 12.1, 0.0, 0.0],
+  [9, 3, -0.2, 8.3, 0.0, 0.0],
+  [9, 4, -2.5, -3.4, 0.0, 0.0],
+  [9, 5, -13.1, -5.3, 0.0, 0.0],
+  [9, 6, 2.4, 7.2, 0.0, 0.0],
+  [9, 7, 8.6, -0.6, 0.0, 0.0],
+  [9, 8, -8.7, 0.8, 0.0, 0.0],
+  [9, 9, -12.8, 9.8, 0.0, 0.0],
+  [10, 0, -1.3, 0.0, 0.0, 0.0],
+  [10, 1, -6.4, 3.3, 0.0, 0.0],
+  [10, 2, 0.2, 0.1, 0.0, 0.0],
+  [10, 3, 2.0, 2.5, 0.0, 0.0],
+  [10, 4, -1.0, 5.4, 0.0, 0.0],
+  [10, 5, -0.5, -9.0, 0.0, 0.0],
+  [10, 6, -0.9, 0.4, 0.0, 0.0],
+  [10, 7, 1.5, -4.2, 0.0, 0.0],
+  [10, 8, 0.9, -3.8, 0.0, 0.0],
+  [10, 9, -2.6, 0.9, 0.0, 0.0],
+  [10, 10, -3.9, -9.0, 0.0, 0.0],
+  [11, 0, 3.0, 0.0, 0.0, 0.0],
+  [11, 1, -1.4, 0.0, 0.0, 0.0],
+  [11, 2, -2.5, 2.8, 0.0, 0.0],
+  [11, 3, 2.4, -0.6, 0.0, 0.0],
+  [11, 4, -0.6, 0.1, 0.0, 0.0],
+  [11, 5, 0.0, 0.5, 0.0, 0.0],
+  [11, 6, -0.6, -0.3, 0.0, 0.0],
+  [11, 7, -0.1, -1.2, 0.0, 0.0],
+  [11, 8, 1.1, -1.7, 0.0, 0.0],
+  [11, 9, -1.0, -2.9, 0.0, 0.0],
+  [11, 10, -0.1, -1.8, 0.0, 0.0],
+  [11, 11, 2.6, -2.3, 0.0, 0.0],
+  [12, 0, -2.0, 0.0, 0.0, 0.0],
+  [12, 1, -0.1, -1.2, 0.0, 0.0],
+  [12, 2, 0.4, 0.6, 0.0, 0.0],
+  [12, 3, 1.2, 1.0, 0.0, 0.0],
+  [12, 4, -1.2, -1.5, 0.0, 0.0],
+  [12, 5, 0.6, 0.0, 0.0, 0.0],
+  [12, 6, 0.5, 0.6, 0.0, 0.0],
+  [12, 7, 0.5, -0.2, 0.0, 0.0],
+  [12, 8, -0.1, 0.8, 0.0, 0.0],
+  [12, 9, -0.5, 0.1, 0.0, 0.0],
+  [12, 10, -0.2, -0.9, 0.0, 0.0],
+  [12, 11, -1.2, 0.1, 0.0, 0.0],
+  [12, 12, -0.7, 0.2, 0.0, 0.0],
+  [13, 0, 0.2, 0.0, 0.0, 0.0],
+  [13, 1, -0.9, -0.9, 0.0, 0.0],
+  [13, 2, 0.6, 0.7, 0.0, 0.0],
+  [13, 3, 0.7, 1.2, 0.0, 0.0],
+  [13, 4, -0.2, -0.3, 0.0, 0.0],
+  [13, 5, 0.5, -1.3, 0.0, 0.0],
+  [13, 6, 0.1, -0.1, 0.0, 0.0],
+  [13, 7, 0.7, 0.2, 0.0, 0.0],
+  [13, 8, 0.0, -0.2, 0.0, 0.0],
+  [13, 9, 0.3, 0.5, 0.0, 0.0],
+  [13, 10, 0.2, 0.6, 0.0, 0.0],
+  [13, 11, 0.4, -0.6, 0.0, 0.0],
+  [13, 12, -0.5, -0.3, 0.0, 0.0],
+  [13, 13, -0.4, -0.5, 0.0, 0.0],
+];
+
+const BUILTIN_IGRF2025: IgrfEpochModel = {
+  name: 'IGRF2025',
+  epoch: 2025.0,
+  maxDegree: 13,
+  terms: IGRF2025_TERMS.map(([n, m, g, h, dg, dh]) => ({ n, m, g, h, dg, dh })),
+};
+
+/**
+ * Computes full-order (n=1..13) spherical harmonic IGRF magnetic declination, inclination, and total field.
+ */
+export function computeIgrfField(
+  lat: number,
+  lon: number,
+  altKm = 0,
+  decimalYear = new Date().getUTCFullYear() + new Date().getUTCMonth() / 12,
+  customModels?: IgrfEpochModel[]
+): { declinationDeg: number; inclinationDeg: number; totalIntensityNt: number; modelName: string } {
+  const models = customModels && customModels.length > 0 ? customModels : [BUILTIN_IGRF2025];
+  let model = models[0];
+  for (const m of models) {
+    if (m.epoch <= decimalYear && m.epoch >= model.epoch) model = m;
+  }
+  const dt = Math.max(-5, Math.min(10, decimalYear - model.epoch));
+
+  const phi = Math.max(-89.99, Math.min(89.99, lat)) * DEG2RAD;
+  const lam = normalizeLon(lon) * DEG2RAD;
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+
+  // Convert WGS84 geodetic (phi, altKm) -> geocentric spherical (rKm, sinTheta, cosTheta)
+  const aWgs = 6378.137;
+  const bWgs = 6356.7523142;
+  const e2 = 1 - (bWgs * bWgs) / (aWgs * aWgs);
+  const rc = aWgs / Math.sqrt(1 - e2 * sinPhi * sinPhi);
+  const p = (rc + altKm) * cosPhi;
+  const z = (rc * (1 - e2) + altKm) * sinPhi;
+  const rKm = Math.sqrt(p * p + z * z);
+  const phiGeo = Math.atan2(z, p);
+  const delta = phi - phiGeo;
+  const sinTheta = Math.max(1e-7, p / rKm);
+  const cosTheta = z / rKm;
+
+  const N = model.maxDegree;
+  const S: number[][] = Array.from({ length: N + 1 }, () => new Array(N + 1).fill(0));
+  const dS: number[][] = Array.from({ length: N + 1 }, () => new Array(N + 1).fill(0));
+  S[0][0] = 1.0;
+
+  for (let n = 1; n <= N; n++) {
+    for (let m = 0; m <= n; m++) {
+      if (m === n) {
+        const f = n === 1 ? 1.0 : Math.sqrt((2 * n - 1) / (2 * n));
+        S[n][n] = f * sinTheta * S[n - 1][n - 1];
+        dS[n][n] = f * (sinTheta * dS[n - 1][n - 1] + cosTheta * S[n - 1][n - 1]);
+      } else if (m === n - 1) {
+        const f = Math.sqrt(2 * n - 1);
+        S[n][m] = f * cosTheta * S[n - 1][m];
+        dS[n][m] = f * (cosTheta * dS[n - 1][m] - sinTheta * S[n - 1][m]);
+      } else {
+        const denom = Math.sqrt(n * n - m * m);
+        const k = Math.sqrt((n - 1) * (n - 1) - m * m);
+        S[n][m] = ((2 * n - 1) * cosTheta * S[n - 1][m] - k * S[n - 2][m]) / denom;
+        dS[n][m] = ((2 * n - 1) * (cosTheta * dS[n - 1][m] - sinTheta * S[n - 1][m]) - k * dS[n - 2][m]) / denom;
+      }
+    }
+  }
+
+  const aRef = 6371.2;
+  const cosM: number[] = new Array(N + 1);
+  const sinM: number[] = new Array(N + 1);
+  for (let m = 0; m <= N; m++) {
+    cosM[m] = Math.cos(m * lam);
+    sinM[m] = Math.sin(m * lam);
+  }
+
+  let xGeo = 0;
+  let yGeo = 0;
+  let zGeo = 0;
+  for (const t of model.terms) {
+    if (t.n > N || t.m > t.n) continue;
+    const g = t.g + dt * t.dg;
+    const h = t.h + dt * t.dh;
+    const ratioN2 = Math.pow(aRef / rKm, t.n + 2);
+    const cosTerm = g * cosM[t.m] + h * sinM[t.m];
+    const sinTerm = g * sinM[t.m] - h * cosM[t.m];
+    xGeo += ratioN2 * cosTerm * dS[t.n][t.m];
+    yGeo += (ratioN2 * t.m * sinTerm * S[t.n][t.m]) / sinTheta;
+    zGeo -= (t.n + 1) * ratioN2 * cosTerm * S[t.n][t.m];
+  }
+
+  // Rotate geocentric -> geodetic
+  const x = xGeo * Math.cos(delta) - zGeo * Math.sin(delta);
+  const y = yGeo;
+  const zField = xGeo * Math.sin(delta) + zGeo * Math.cos(delta);
+  const hHoriz = Math.sqrt(x * x + y * y);
+  const declinationDeg = Math.atan2(y, x) * RAD2DEG;
+  const inclinationDeg = Math.atan2(zField, hHoriz) * RAD2DEG;
+  const totalIntensityNt = Math.sqrt(hHoriz * hHoriz + zField * zField);
+
+  return {
+    declinationDeg: Number(declinationDeg.toFixed(2)),
+    inclinationDeg: Number(inclinationDeg.toFixed(2)),
+    totalIntensityNt: Math.round(totalIntensityNt),
+    modelName: model.name,
+  };
+}
+
+/**
+ * Estimates geomagnetic declination (degrees East positive, West negative) using
+ * full IAGA IGRF-14 Epoch 2025 spherical harmonics (degrees 1..13 + secular variation).
+ */
+export function estimateMagneticDeclinationDeg(
+  lat: number,
+  lon: number,
+  date: Date = new Date()
+): number {
+  const year = date.getUTCFullYear() + date.getUTCMonth() / 12 + date.getUTCDate() / 365.25;
+  return Number(computeIgrfField(lat, lon, 0, year).declinationDeg.toFixed(1));
+}
+
+/**
+ * GeographicLib-compatible Binary Netpbm P5 Geoid PGM parser & bilinear interpolator.
+ */
+export interface GeoidGrid {
+  width: number;
+  height: number;
+  offsetM: number;
+  scaleM: number;
+  data: Uint16Array;
+}
+
+export function parseGeoidPgm(bytes: Uint8Array): GeoidGrid {
+  let cursor = 0;
+  const tokens: string[] = [];
+  const readToken = (): string => {
+    while (cursor < bytes.length) {
+      const ch = bytes[cursor];
+      if (ch === 35) {
+        const start = cursor;
+        while (cursor < bytes.length && bytes[cursor] !== 10) cursor++;
+        const comment = new TextDecoder().decode(bytes.slice(start, cursor));
+        if (comment.includes('Offset') || comment.includes('Scale')) {
+          tokens.push(comment);
+        }
+        cursor++;
+        continue;
+      }
+      if (ch === 32 || ch === 10 || ch === 13 || ch === 9) {
+        cursor++;
+        continue;
+      }
+      break;
+    }
+    const start = cursor;
+    while (cursor < bytes.length) {
+      const ch = bytes[cursor];
+      if (ch === 32 || ch === 10 || ch === 13 || ch === 9) break;
+      cursor++;
+    }
+    return new TextDecoder().decode(bytes.slice(start, cursor));
+  };
+
+  const magic = readToken();
+  if (magic !== 'P5') {
+    throw new Error(`Unsupported PGM magic header: ${magic}`);
+  }
+  const widthToken = readToken();
+  const heightToken = readToken();
+  const maxValToken = readToken();
+  if (cursor < bytes.length && (bytes[cursor] === 10 || bytes[cursor] === 32)) cursor++;
+
+  const width = Number.parseInt(widthToken, 10);
+  const height = Number.parseInt(heightToken, 10);
+  const maxVal = Number.parseInt(maxValToken, 10);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || maxVal <= 0) {
+    throw new Error('Invalid PGM dimensions or maxVal');
+  }
+
+  let offsetM = -108.0;
+  let scaleM = 0.003;
+  for (const tok of tokens) {
+    const offMatch = /Offset\s+([-+]?\d*\.?\d+(?:e[-+]?\d+)?)/i.exec(tok);
+    const scaleMatch = /Scale\s+([-+]?\d*\.?\d+(?:e[-+]?\d+)?)/i.exec(tok);
+    if (offMatch) offsetM = Number.parseFloat(offMatch[1]);
+    if (scaleMatch) scaleM = Number.parseFloat(scaleMatch[1]);
+  }
+
+  const pixelCount = width * height;
+  const data = new Uint16Array(pixelCount);
+  const view = new DataView(bytes.buffer, bytes.byteOffset + cursor);
+  for (let i = 0; i < pixelCount && i * 2 + 1 < view.byteLength; i++) {
+    data[i] = view.getUint16(i * 2, false);
+  }
+  return { width, height, offsetM, scaleM, data };
+}
+
+export function sampleGeoidUndulation(grid: GeoidGrid, lat: number, lon: number): number {
+  const clampedLat = Math.max(-90, Math.min(90, lat));
+  const normLon = ((lon % 360) + 360) % 360;
+  const fx = (normLon / 360) * grid.width;
+  const fy = ((90 - clampedLat) / 180) * (grid.height - 1);
+
+  const x0 = Math.floor(fx) % grid.width;
+  const x1 = (x0 + 1) % grid.width;
+  const y0 = Math.min(grid.height - 1, Math.max(0, Math.floor(fy)));
+  const y1 = Math.min(grid.height - 1, y0 + 1);
+  const tx = fx - Math.floor(fx);
+  const ty = fy - y0;
+
+  const val = (x: number, y: number) => grid.offsetM + grid.scaleM * grid.data[y * grid.width + x];
+  const n0 = val(x0, y0) * (1 - tx) + val(x1, y0) * tx;
+  const n1 = val(x0, y1) * (1 - tx) + val(x1, y1) * tx;
+  return Number((n0 * (1 - ty) + n1 * ty).toFixed(2));
+}
+
+export function estimateGeoidHeightM(lat: number, lon: number, customGrid?: GeoidGrid | null): number {
+  if (customGrid && customGrid.width > 0 && customGrid.height > 0) {
+    return sampleGeoidUndulation(customGrid, lat, lon);
+  }
   const phi = lat * DEG2RAD;
   const lam = lon * DEG2RAD;
   // Compact spherical harmonic + regional Gaussian geoid surface model (approx ±6m globally)
@@ -326,7 +712,8 @@ export function computeOrthometricAltitudeM(
   ellipsoidAltM: number,
   lat: number,
   lon: number,
-  manualOffsetM: number | null = null
+  manualOffsetM: number | null = null,
+  customGrid?: GeoidGrid | null
 ): { mslM: number; geoidSeparationM: number; mode: 'manual' | 'egm-model' } {
   if (manualOffsetM !== null && Number.isFinite(manualOffsetM)) {
     return {
@@ -335,39 +722,12 @@ export function computeOrthometricAltitudeM(
       mode: 'manual',
     };
   }
-  const n = estimateGeoidHeightM(lat, lon);
+  const n = estimateGeoidHeightM(lat, lon, customGrid);
   return {
     mslM: Number((ellipsoidAltM - n).toFixed(1)),
     geoidSeparationM: n,
     mode: 'egm-model',
   };
-}
-
-/**
- * Estimates geomagnetic declination (degrees East positive, West negative) using a
- * tilted eccentric geomagnetic pole model (IGRF-14 north magnetic pole drift).
- */
-export function estimateMagneticDeclinationDeg(
-  lat: number,
-  lon: number,
-  date: Date = new Date()
-): number {
-  const year = date.getUTCFullYear() + date.getUTCMonth() / 12;
-  // North magnetic pole approx path: ~86.5°N, 162°E in 2020 drifting toward Siberia
-  const poleLat = (86.4 - 0.03 * (year - 2020)) * DEG2RAD;
-  const poleLon = (162.8 - 0.9 * (year - 2020)) * DEG2RAD;
-
-  const phi = Math.max(-85, Math.min(85, lat)) * DEG2RAD;
-  const lam = normalizeLon(lon) * DEG2RAD;
-  const dLam = poleLon - lam;
-
-  const y = Math.cos(poleLat) * Math.sin(dLam);
-  const x = Math.cos(phi) * Math.sin(poleLat) - Math.sin(phi) * Math.cos(poleLat) * Math.cos(dLam);
-  let decl = Math.atan2(y, x) * RAD2DEG;
-
-  // Regional crustal/non-dipole correction term (South Asia ~ -0.5° to -1.5°, Americas/Atlantic tilt)
-  decl += 3.5 * Math.sin((lon + 45) * DEG2RAD) * Math.cos(phi);
-  return Number(Math.max(-60, Math.min(60, decl)).toFixed(1));
 }
 
 /**
@@ -764,6 +1124,9 @@ export interface FieldWaypoint {
   altM?: number | null;
   type: string;
   symbol?: string;
+  soilType?: string;
+  farmId?: string;
+  crop?: string;
   createdAt?: string;
   notes?: string;
 }
@@ -786,16 +1149,20 @@ export function exportWaypointsAndTrackGpx(
   track: TrackPoint[]
 ): string {
   const wptXml = waypoints
-    .map(
-      (w) =>
+    .map((w) => {
+      const metaParts = [w.notes, w.farmId ? `Farm:${w.farmId}` : '', w.crop ? `Crop:${w.crop}` : '', w.soilType ? `Soil:${w.soilType}` : '']
+        .filter(Boolean)
+        .join(' | ');
+      return (
         `  <wpt lat="${w.lat.toFixed(7)}" lon="${w.lon.toFixed(7)}">\n` +
         (w.altM != null ? `    <ele>${w.altM.toFixed(1)}</ele>\n` : '') +
         (w.createdAt ? `    <time>${escapeXml(w.createdAt)}</time>\n` : '') +
         `    <name>${escapeXml(w.label)}</name>\n` +
         `    <sym>${escapeXml(w.symbol || w.type || 'Waypoint')}</sym>\n` +
-        (w.notes ? `    <desc>${escapeXml(w.notes)}</desc>\n` : '') +
+        (metaParts ? `    <desc>${escapeXml(metaParts)}</desc>\n` : '') +
         `  </wpt>`
-    )
+      );
+    })
     .join('\n');
 
   const trkXml =
@@ -868,7 +1235,7 @@ export function exportWaypointsAndTrackKml(
  * Generates CSV spreadsheet of waypoints with multi-format coordinates.
  */
 export function exportWaypointsCsv(waypoints: FieldWaypoint[]): string {
-  const header = 'id,label,type,lat,lon,alt_m,utm,mgrs,plus_code,created_at,notes';
+  const header = 'id,label,type,lat,lon,alt_m,utm,mgrs,plus_code,farm_id,crop,soil_type,created_at,notes';
   const rows = waypoints.map((w) => {
     const utm = toUtm(w.lat, w.lon).formatted;
     const mgrs = toMgrs(w.lat, w.lon);
@@ -883,6 +1250,9 @@ export function exportWaypointsCsv(waypoints: FieldWaypoint[]): string {
       utm,
       mgrs,
       plus,
+      w.farmId || '',
+      w.crop || '',
+      w.soilType || '',
       w.createdAt || '',
       w.notes || '',
     ].map((c) => `"${String(c).replace(/"/g, '""')}"`);
@@ -983,4 +1353,101 @@ export function parseGpxOrKml(xmlText: string): {
 
   return { waypoints, track };
 }
+
+/**
+ * Streaming GNSS Coordinate Averager (Handy-Open-GPS / joint-gnss pattern).
+ * Supports continuous weighted fix accumulation and convergence status.
+ */
+export class CoordinateAverager {
+  private samples: GnssSample[] = [];
+  private readonly maxSamples: number;
+
+  constructor(maxSamples = 120) {
+    this.maxSamples = maxSamples;
+  }
+
+  addSample(sample: GnssSample): AveragedFixResult | null {
+    this.samples.push(sample);
+    if (this.samples.length > this.maxSamples) {
+      this.samples.shift();
+    }
+    return this.getResult();
+  }
+
+  getCount(): number {
+    return this.samples.length;
+  }
+
+  getResult(): AveragedFixResult | null {
+    return computeAveragedFix(this.samples);
+  }
+
+  reset(): void {
+    this.samples = [];
+  }
+}
+
+/**
+ * Returns plain-language clock-face / turn cue relative to heading.
+ */
+export function relativeDirectionFromDelta(signedDeltaDeg: number, langCode: 'en' | 'te' | 'hi' = 'en'): string {
+  const abs = Math.abs(signedDeltaDeg);
+  if (abs <= 15) {
+    return langCode === 'hi' ? 'सीधे आगे' : langCode === 'te' ? 'నేరుగా ముందుకు' : 'straight ahead';
+  }
+  if (abs >= 165) {
+    return langCode === 'hi' ? 'सीधे पीछे मुड़ें' : langCode === 'te' ? 'వెనుకకు తిరగండి' : 'turn around';
+  }
+  const right = signedDeltaDeg > 0;
+  if (abs <= 45) {
+    if (langCode === 'hi') return right ? 'हल्का दाएँ' : 'हल्का बाएँ';
+    if (langCode === 'te') return right ? 'కొంచెం కుడివైపు' : 'కొంచెం ఎడమవైపు';
+    return right ? 'bear right' : 'bear left';
+  }
+  if (abs <= 125) {
+    if (langCode === 'hi') return right ? 'दाएँ मुड़ें' : 'बाएँ मुड़ें';
+    if (langCode === 'te') return right ? 'కుడివైపు తిరగండి' : 'ఎడమవైపు తిరగండి';
+    return right ? 'turn right' : 'turn left';
+  }
+  if (langCode === 'hi') return right ? 'पीछे दाएँ' : 'पीछे बाएँ';
+  if (langCode === 'te') return right ? 'వెనుక కుడివైపు' : 'వెనుక ఎడమవైపు';
+  return right ? 'sharp back-right' : 'sharp back-left';
+}
+
+/**
+ * Farm Data Relay System (timmbogner/Farm-Data-Relay-System, MIT) compatible
+ * structured telemetry frame serializer (fdrs_datatypes.h compatible IDs).
+ */
+export interface FdrsDataReading {
+  id: number;
+  type: number; // 10=LAT_T, 11=LON_T, 12=ALT_T, 13=SPD_T, 14=ACC_T
+  name: string;
+  data: number;
+}
+
+export function buildFdrsTelemetryFrames(
+  fix: { lat: number; lon: number; altitudeM?: number | null; speedMs?: number | null; accuracyM?: number },
+  deviceId = 101
+): { protocol: 'FDRS_V2'; gatewayTopic: string; frames: FdrsDataReading[]; json: string } {
+  const frames: FdrsDataReading[] = [
+    { id: deviceId, type: 10, name: 'LAT_T', data: Number(fix.lat.toFixed(6)) },
+    { id: deviceId, type: 11, name: 'LON_T', data: Number(fix.lon.toFixed(6)) },
+  ];
+  if (typeof fix.altitudeM === 'number' && Number.isFinite(fix.altitudeM)) {
+    frames.push({ id: deviceId, type: 12, name: 'ALT_T', data: Number(fix.altitudeM.toFixed(1)) });
+  }
+  if (typeof fix.speedMs === 'number' && Number.isFinite(fix.speedMs)) {
+    frames.push({ id: deviceId, type: 13, name: 'SPD_T', data: Number((fix.speedMs * 3.6).toFixed(2)) });
+  }
+  if (typeof fix.accuracyM === 'number' && Number.isFinite(fix.accuracyM)) {
+    frames.push({ id: deviceId, type: 14, name: 'ACC_T', data: Number(fix.accuracyM.toFixed(1)) });
+  }
+  return {
+    protocol: 'FDRS_V2',
+    gatewayTopic: `fdrs/data/${deviceId}`,
+    frames,
+    json: JSON.stringify(frames),
+  };
+}
+
 

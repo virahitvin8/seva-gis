@@ -1,16 +1,20 @@
 {
-  "version": "1.0.0",
-  "buildDate": "2026-10-30T23:20:00Z",
-  "buildNumber": 100,
+  "version": "4.4.0",
+  "buildDate": "2026-11-27T18:00:00Z",
+  "buildNumber": 44,
+  "commit": "local",
   "channel": "stable",
   "appName": "SEVA.GIS",
   "author": "N. Akshit Vinay",
-  "account": "25msrsgis001@shiats.edu.in",
   "updateUrl": "https://sevagis.dpdns.org/version.json",
+  "releaseTag": "latest",
+  "apkVersionCode": 44,
+  "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "changelog": [
-    "Automated Android application build with live auto-update",
-    "Figma Make connected to 25msrsgis001@shiats.edu.in",
-    "HP-inspired clean spatial intelligence workflow and motion tutorials",
-    "All open-source geospatial engines active: GEE, QGIS, GDAL, Leaflet, Turf"
+    "Real hardware GNSS watchPosition, GPS coordinate averaging (CEP95), and waypoint projection",
+    "Exact WGS84 UTM, MGRS, DDM, Plus Code, Maidenhead, and 7 geodetic datums",
+    "EGM geoid orthometric MSL altitude, magnetic declination, clinometer, and solar/lunar ephemeris",
+    "Tracklog odometer, SVG elevation profile, GPX/KML/CSV export-import, voice guidance, torch, and voice memos",
+    "Automatic in-app website-to-APK sync and instant auto-update popup"
   ]
 }

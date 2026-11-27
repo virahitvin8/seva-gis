@@ -489,6 +489,15 @@ const en: Catalog = {
   'scene.usable': 'Usable (15–35%)',
   'scene.cloudy': 'Cloudy (>35%)',
   'scene.guidanceFor': 'Guidance for',
+
+  // ---- auto update popup ----
+  'update.title': 'SEVA·GIS Update Available',
+  'update.subtitle': 'New website & field suite updates are ready.',
+  'update.autoIn': 'Updating automatically in',
+  'update.applying': 'Applying latest update…',
+  'update.later': 'Later',
+  'update.now': 'Update Now',
+  'update.getApk': 'Get Latest APK',
 }
 
 const hi: Catalog = {
@@ -948,6 +957,15 @@ const hi: Catalog = {
   'scene.usable': 'उपयोगी (15–35%)',
   'scene.cloudy': 'बादल युक्त (>35%)',
   'scene.guidanceFor': 'के लिए मार्गदर्शन',
+
+  // ---- auto update popup ----
+  'update.title': 'SEVA·GIS नया अपडेट उपलब्ध है',
+  'update.subtitle': 'वेबसाइट और फ़ील्ड सूट के नए फ़ीचर तैयार हैं।',
+  'update.autoIn': 'अपने आप अपडेट हो रहा है',
+  'update.applying': 'नया अपडेट लागू हो रहा है…',
+  'update.later': 'बाद में',
+  'update.now': 'अभी अपडेट करें',
+  'update.getApk': 'नया APK डाउनलोड करें',
 }
 
 const te: Catalog = {
@@ -1406,6 +1424,15 @@ const te: Catalog = {
   'scene.usable': 'ఉపయోగకరం (15–35%)',
   'scene.cloudy': 'మేఘావృతం (>35%)',
   'scene.guidanceFor': 'కోసం మార్గదర్శకత్వం',
+
+  // ---- auto update popup ----
+  'update.title': 'SEVA·GIS కొత్త అప్‌డేట్ అందుబాటులో ఉంది',
+  'update.subtitle': 'వెబ్‌సైట్ మరియు ఫీల్డ్ సూట్ కొత్త ఫీచర్లు సిద్ధంగా ఉన్నాయి.',
+  'update.autoIn': 'స్వయంచాలకంగా అప్‌డేట్ అవుతోంది',
+  'update.applying': 'తాజా అప్‌డేట్ వర్తింపజేయబడుతోంది…',
+  'update.later': 'తర్వాత',
+  'update.now': 'ఇప్పుడే అప్‌డేట్ చేయండి',
+  'update.getApk': 'తాజా APK పొందండి',
 }
 
 export const CATALOGS: Record<Lang, Catalog> = { en, hi, te }

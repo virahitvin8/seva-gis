@@ -2,6 +2,8 @@ import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import fs from 'node:fs'
+import { execSync } from 'node:child_process'
 import {
   recordSecurityAccessEvent,
   getSecurityAuditData,
@@ -19,11 +21,84 @@ import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 
 // Vite config — https://vitejs.dev/config/
+function resolveBuildStamp() {
+  let pkgVersion = '4.4.0'
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf-8'))
+    if (pkg?.version) pkgVersion = pkg.version
+  } catch { }
+
+  let gitCommit = (process.env.VITE_GIT_SHA || process.env.GITHUB_SHA || '').slice(0, 7)
+  let gitCount = Number(process.env.VITE_BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER || 0)
+  if (!gitCommit) {
+    try {
+      gitCommit = execSync('git rev-parse --short HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()
+    } catch {
+      gitCommit = 'local'
+    }
+  }
+  if (!gitCount) {
+    try {
+      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 44
+    } catch {
+      gitCount = 44
+    }
+  }
+  return {
+    version: process.env.VITE_APP_VERSION || pkgVersion,
+    commit: gitCommit || 'local',
+    buildNumber: gitCount,
+    buildDate: new Date().toISOString(),
+    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 44),
+  }
+}
+
+function sevaVersionStampPlugin(stamp: ReturnType<typeof resolveBuildStamp>): Plugin {
+  return {
+    name: 'seva-version-stamp',
+    apply: 'build',
+    closeBundle() {
+      const distDir = path.resolve(import.meta.dirname, 'dist')
+      const versionPath = path.join(distDir, 'version.json')
+      if (fs.existsSync(versionPath)) {
+        try {
+          const existing = JSON.parse(fs.readFileSync(versionPath, 'utf-8'))
+          const updated = {
+            ...existing,
+            version: stamp.version,
+            commit: stamp.commit,
+            buildNumber: stamp.buildNumber,
+            buildDate: stamp.buildDate,
+            apkVersionCode: stamp.apkVersionCode,
+          }
+          fs.writeFileSync(versionPath, JSON.stringify(updated, null, 2))
+        } catch { }
+      }
+      const swPath = path.join(distDir, 'sw.js')
+      if (fs.existsSync(swPath)) {
+        try {
+          const sw = fs.readFileSync(swPath, 'utf-8')
+          const swVer = `${stamp.version}-${stamp.commit}-${stamp.buildNumber}`
+          fs.writeFileSync(swPath, sw.replace(/__SEVA_SW_VERSION__/g, swVer))
+        } catch { }
+      }
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
+  const buildStamp = resolveBuildStamp()
 
   return {
+    define: {
+      __SEVA_APP_VERSION__: JSON.stringify(buildStamp.version),
+      __SEVA_BUILD_COMMIT__: JSON.stringify(buildStamp.commit),
+      __SEVA_BUILD_NUMBER__: JSON.stringify(buildStamp.buildNumber),
+      __SEVA_BUILD_DATE__: JSON.stringify(buildStamp.buildDate),
+      __SEVA_APK_VERSION_CODE__: JSON.stringify(buildStamp.apkVersionCode),
+    },
     base: process.env.BASE_PATH ? process.env.BASE_PATH : process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
     build: {
       emptyOutDir: true,
@@ -45,6 +120,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      sevaVersionStampPlugin(buildStamp),
       sevaEmailServerPlugin(),
       sevaScoutBeaconPlugin(),
       sevaSecurityAuditPlugin(),
@@ -67,7 +143,7 @@ export default defineConfig(({ mode }) => {
       watch: {
         ignored: [
           '**/.figma/**',
-],
+        ],
       },
     },
     preview: {
@@ -147,7 +223,7 @@ function sevaSecurityAuditPlugin(): Plugin {
           return
         }
 
-        
+
         if (urlPath === '/api/security/login' && req.method === 'POST') {
           let body = ''
           req.on('data', (chunk: Buffer) => {
@@ -220,7 +296,7 @@ function sevaSecurityAuditPlugin(): Plugin {
 
         // Passive recording on page routes
         if (req.method === 'GET' && !urlPath.startsWith('/api/') && !urlPath.startsWith('/@') && !urlPath.startsWith('/src/') && !urlPath.startsWith('/node_modules/') && !urlPath.match(/\.(js|ts|tsx|css|png|jpg|jpeg|svg|ico|woff2?|map|wasm)$/i)) {
-          recordSecurityAccessEvent(req).catch(() => {})
+          recordSecurityAccessEvent(req).catch(() => { })
         }
 
         next()

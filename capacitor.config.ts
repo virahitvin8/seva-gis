@@ -9,6 +9,7 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     cleartext: true,
     url: 'https://sevagis.dpdns.org',
+    errorPath: 'index.html',
     allowNavigation: [
       'sevagis.dpdns.org',
       'open-meteo.com',

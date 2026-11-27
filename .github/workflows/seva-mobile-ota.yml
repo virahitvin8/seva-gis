@@ -15,11 +15,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
       - name: Install & Build Production Bundle
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          VITE_GIT_SHA: ${{ github.sha }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
+          VITE_APK_VERSION_CODE: "44"
         run: |
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
           npm run build
 
       - name: Publish OTA Bundle to Installed Android Apps (No APK Reinstall)
@@ -29,5 +37,5 @@ jobs:
           if [ -n "$CAPGO_API_KEY" ]; then
             npx --yes @capgo/cli bundle upload --channel Production --apikey "$CAPGO_API_KEY"
           else
-            echo "CAPGO_API_KEY not configured in GitHub Secrets; skipping live Capgo distribution."
+            echo "CAPGO_API_KEY not configured in GitHub Secrets; live GitHub Pages + version.json SW auto-update handles Android WebView sync."
           fi

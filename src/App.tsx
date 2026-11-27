@@ -812,6 +812,11 @@ export default function App() {
             <Radio size={12} className="text-amber-400 animate-pulse" />
             <span>Friend on Field</span>
           </button>
+          <span className="mb-sep">·</span>
+          <button type="button" onClick={() => setShowFieldSuite(true)} className="mb-gps-btn" title="Open Handy GPS, Compass, Camera & Area Measure">
+            <Smartphone size={12} className="text-emerald-400" />
+            <span>Handy GPS</span>
+          </button>
         </div>
         <div className="page-heading"><div><div className="eyebrow">{todayLabel(lang)}</div><h1>{hi.text}{hi.dot && <span>.</span>}</h1><p>{hi.line}</p></div><button className="primary" onClick={() => setModal('add')}><Plus size={18}/>{t('action.add')}</button></div>
       <Guide/>

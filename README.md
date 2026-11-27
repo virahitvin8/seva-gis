@@ -183,17 +183,16 @@ In the **Workflow** view, you can design spatial analysis pipelines using visual
 | Platform | How to run |
 |---|---|
 | **Web Browser** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org). On Android or desktop, use the browser's **Install app / Add to Home Screen** option to pin it as an app. |
-| **Android Field Suite** | Native Android APK built with Capacitor (`@capacitor/android`) with hardware GNSS, offline camera, and live Over-The-Air (OTA) updates. Or install as PWA from [https://sevagis.dpdns.org](https://sevagis.dpdns.org). |
+| **Android Field Suite** | Native Android APK built with Capacitor (`@capacitor/android`) featuring Handy GPS telemetry (real GNSS, coordinate averaging, 7 datums, exact UTM/MGRS/DIGIPIN, EGM MSL, magnetic compass & clinometer, waypoints/projection, GPX/KML/CSV, elevation profile, voice guidance, torch, voice memos) and automatic in-app website sync. Download `releases/seva-gis-latest.apk` or from GitHub Latest Releases. |
 | **Windows Desktop** | Use the web workstation at [https://sevagis.dpdns.org](https://sevagis.dpdns.org) or connect via the QGIS Live Bridge. |
 | **Developers** | `git clone https://github.com/virahitvin8/seva-gis`, then `npm install`, and `npm run dev`. Copy `.env.example` to `.env` only if you want to point the app at an optional backend (`VITE_API_BASE`). |
 
 ---
 
 ## Releases
-There are **no tagged releases with installers yet** — the Releases page is currently empty. Until packages are published there:
-- Use the live site, or build the web app from source (see above).
-- The QGIS plugin and ArcGIS toolbox sources live in this repository (see **Plugins**); zipped builds are attached to Releases once released.
-- When the Android package, Windows installer and plugin zips are ready, they will be attached to a tagged GitHub Release with plain-language notes.
+Pre-built Android APKs are published automatically in [GitHub Releases (latest)](https://github.com/virahitvin8/seva-gis/releases/latest) and tracked at `releases/seva-gis-latest.apk` on every push to `main`:
+- **Android APK (`seva-gis-latest.apk`)**: Install on any Android phone; website updates pushed to `main` sync automatically with an in-app update popup.
+- **QGIS & ArcGIS Plugins**: Zipped plugins live in `public/plugins/` (`seva_gee_flow_qgis.zip`, `seva_gee_flow_arcgis.zip`).
 
 ---
 

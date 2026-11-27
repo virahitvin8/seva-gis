@@ -4,7 +4,7 @@ import {
   Check, X, Search, Mic, Plus, Minus, Maximize2, Lock, Unlock,
   Footprints, AlertTriangle, Activity, ArrowUpRight, Sparkles,
   Smartphone, MapPin, Eye, Sliders, ChevronDown, CheckCircle2,
-  Radio, HardDrive, Send, ExternalLink
+  Radio, HardDrive, Send, ExternalLink, Flashlight, Square, Volume2, LocateFixed
 } from 'lucide-react'
 import type { FarmData } from '../lib/seva'
 import { farmRing } from '../lib/seva'
@@ -21,6 +21,22 @@ import {
   RURAL_VILLAGE_PRESETS,
   type VillagePreset
 } from '../lib/digipin'
+import {
+  computeOrthometricAltitudeM,
+  geodesicDistanceM,
+  type FieldWaypoint,
+  type TrackPoint,
+} from '../lib/geodesyField'
+import {
+  playFieldTone,
+  setCameraStreamTorch,
+} from '../lib/fieldAudioSensors'
+import { useI18n } from '../lib/i18n'
+import HandyGpsConsole, {
+  type CoordinateSystem,
+  type UnitSystem,
+  type LiveGnssFix,
+} from './HandyGpsConsole'
 import { checkAndApplySevaOtaUpdate, simulateOtaUpdateAvailable, type OtaUpdateInfo } from '../ota/liveUpdater'
 import RemoteFieldScoutModal from './RemoteFieldScoutModal'
 import type { GroundScoutPayload } from '../lib/scoutBeaconService'
@@ -32,7 +48,16 @@ interface Props {
 }
 
 type ActiveModule = 'measure' | 'gps' | 'camera' | 'indices' | 'qgis'
-type CoordinateSystem = 'digipin' | 'decimal' | 'dms' | 'utm' | 'mgrs'
+
+interface VoiceMemoItem {
+  id: string
+  url: string
+  lat: number
+  lon: number
+  digipin: string
+  durationSec: number
+  createdAt: string
+}
 
 const SPECTRAL_INDICES = [
   { id: 'ndvi', name: 'NDVI (Plant Vigour)', formula: '(B8 - B4)/(B8 + B4)', range: '-0.1 to 0.88', color: '#10b981' },
@@ -52,9 +77,13 @@ const SPECTRAL_INDICES = [
 ]
 
 export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Props) {
+  const { lang } = useI18n()
+
   // Navigation & Module states
   const [activeModule, setActiveModule] = useState<ActiveModule>('measure')
   const [selectedCoordSys, setSelectedCoordSys] = useState<CoordinateSystem>('digipin')
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric')
+  const [isNightMode, setIsNightMode] = useState<boolean>(false)
 
   // Map & Reticle states
   const initialRing = useMemo<Ring>(() => farmRing(farm), [farm])
@@ -66,8 +95,6 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
   const [zoomLevel, setZoomLevel] = useState<number>(17)
   const [isStabilizerLocked, setIsStabilizerLocked] = useState<boolean>(false)
   const [isWalkingPerimeter, setIsWalkingPerimeter] = useState<boolean>(false)
-  const [walkBreadcrumbs, setWalkBreadcrumbs] = useState<[number, number][]>([])
-  const [gnssAccuracyM, setGnssAccuracyM] = useState<number>(1.4)
   const [isAutoSnapping, setIsAutoSnapping] = useState<boolean>(false)
 
   // Search & Zero-Coordinate Discovery
@@ -94,41 +121,76 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
     setTimeout(() => setSearchFeedback(null), 4500)
   }
 
-  // Handy GPS Telemetry
-  const [compassAzimuth, setCompassAzimuth] = useState<number>(42)
-  const [targetBearing, setTargetBearing] = useState<number>(38)
-  const [elevationM, setElevationM] = useState<number>(248)
-  const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number>(3.8)
-  const [walkedDistanceM, setWalkedDistanceM] = useState<number>(1420)
-  const [waypoints, setWaypoints] = useState<Array<{ id: string; label: string; lat: number; lon: number; type: string }>>([
-    { id: 'wp-1', label: 'Corner Post #1 (East Bund)', lat: initialRing[0]?.[1] ?? 17.3850, lon: initialRing[0]?.[0] ?? 78.4867, type: 'corner' },
-    { id: 'wp-2', label: 'Z-Score Stress Hotspot (NDMI Low)', lat: (initialRing[0]?.[1] ?? 17.3850) + 0.0006, lon: (initialRing[0]?.[0] ?? 78.4867) + 0.0004, type: 'stress' },
-    { id: 'wp-3', label: 'Borewell & Solar Pump Inflow', lat: (initialRing[0]?.[1] ?? 17.3850) - 0.0005, lon: (initialRing[0]?.[0] ?? 78.4867) + 0.0008, type: 'water' },
-  ])
+  // Real GNSS Receiver, Device Orientation Compass & Tracklog states
+  const [gpsFix, setGpsFix] = useState<LiveGnssFix | null>(null)
+  const [gpsError, setGpsError] = useState<string | null>(null)
+  const hadGpsFixRef = useRef<boolean>(false)
+  const [compassHeadingDeg, setCompassHeadingDeg] = useState<number | null>(null)
+  const [compassSource, setCompassSource] = useState<'sensor' | 'gps' | 'none'>('none')
+  const [pitchDeg, setPitchDeg] = useState<number | null>(null)
+  const [rollDeg, setRollDeg] = useState<number | null>(null)
 
-  // GPS Map Camera states
+  const [isTrackingLog, setIsTrackingLog] = useState<boolean>(false)
+  const [trackPoints, setTrackPoints] = useState<TrackPoint[]>(() => {
+    try {
+      const saved = localStorage.getItem('seva_field_tracklog')
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return []
+  })
+
+  const [waypoints, setWaypoints] = useState<FieldWaypoint[]>(() => {
+    try {
+      const saved = localStorage.getItem('seva_field_waypoints')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    const baseLat = initialRing[0]?.[1] ?? farm.lat ?? 17.3850
+    const baseLon = initialRing[0]?.[0] ?? farm.lon ?? 78.4867
+    return [
+      { id: 'wp-1', label: 'Corner Post #1 (Boundary Start)', lat: baseLat, lon: baseLon, type: 'corner' },
+      { id: 'wp-2', label: 'Mid-Field Survey Point', lat: baseLat + 0.0006, lon: baseLon + 0.0004, type: 'survey' },
+    ]
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('seva_field_waypoints', JSON.stringify(waypoints)) } catch {}
+  }, [waypoints])
+
+  useEffect(() => {
+    try { localStorage.setItem('seva_field_tracklog', JSON.stringify(trackPoints.slice(-2000))) } catch {}
+  }, [trackPoints])
+
+  // GPS Map Camera, Torch & Voice Memo states
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [cameraActive, setCameraActive] = useState<boolean>(false)
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null)
   const [isCapturing, setIsCapturing] = useState<boolean>(false)
+  const [torchOn, setTorchOn] = useState<boolean>(false)
+  const [screenTorchFallback, setScreenTorchFallback] = useState<boolean>(false)
+  const [photoCaption, setPhotoCaption] = useState<string>('')
+  const [burnLocation, setBurnLocation] = useState<boolean>(true)
+  const [burnAltitude, setBurnAltitude] = useState<boolean>(true)
+  const [burnBearing, setBurnBearing] = useState<boolean>(true)
+  const [isRecordingMemo, setIsRecordingMemo] = useState<boolean>(false)
+  const [voiceMemos, setVoiceMemos] = useState<VoiceMemoItem[]>([])
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const memoChunksRef = useRef<Blob[]>([])
+  const memoStartedAtRef = useRef<number>(0)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  // 14 Indices & Spectral Probe
+  // Real Spectral Indices & Pixel Probe from Farm Analysis
   const [activeSpectralIndex, setActiveSpectralIndex] = useState('ndvi')
-  const [splitSwipePos, setSplitSwipePos] = useState<number>(50) // percentage
-  const [pixelProbe, setPixelProbe] = useState({
-    b2: 0.042, // Blue
-    b3: 0.068, // Green
-    b4: 0.051, // Red
-    b5: 0.112, // RedEdge
-    b8: 0.384, // NIR
-    b11: 0.148, // SWIR
-    ndvi: farm.analysis?.ndvi ?? 0.68,
-    ndre: 0.42,
-    ndmi: 0.28,
-    zScore: -0.42, // Optimal/normal
-  })
+  const farmAnalysisAny = farm.analysis as any
+  const liveNdvi = typeof (farm as any).ndvi === 'number'
+    ? (farm as any).ndvi
+    : typeof farmAnalysisAny?.ndvi?.mean === 'number'
+      ? farmAnalysisAny.ndvi.mean
+      : null
+  const liveNdmi = typeof farmAnalysisAny?.ndmi?.mean === 'number' ? farmAnalysisAny.ndmi.mean : null
+  const liveNdre = typeof farmAnalysisAny?.ndre?.mean === 'number' ? farmAnalysisAny.ndre.mean : null
 
   // QGIS Bridge Sync states
   const [qgisPath, setQgisPath] = useState('C:/Users/Agronomist/Documents/SEVA_GIS_Layers')
@@ -148,18 +210,122 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
     })
   }, [])
 
-  // Simulate compass movement & GNSS telemetry jitter
+  // Real Hardware GNSS WatchPosition
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCompassAzimuth(prev => (prev + (Math.random() * 2 - 1) + 360) % 360)
-      if (isWalkingPerimeter) {
-        setElevationM(prev => Math.round(prev + (Math.random() * 0.4 - 0.2)))
-        setCurrentSpeedKmh(prev => Math.max(1.5, Math.min(5.2, prev + (Math.random() * 0.4 - 0.2))))
-        setWalkedDistanceM(prev => prev + 3)
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      setGpsError('Geolocation API unavailable on this device')
+      return
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const nextFix: LiveGnssFix = {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracyM: pos.coords.accuracy ?? 10,
+          altitudeM: pos.coords.altitude,
+          speedMs: pos.coords.speed,
+          headingDeg: pos.coords.heading,
+          timestamp: pos.timestamp || Date.now(),
+        }
+        setGpsFix(nextFix)
+        setGpsError(null)
+        if (!hadGpsFixRef.current) {
+          hadGpsFixRef.current = true
+          playFieldTone('fix-acquired')
+        }
+        if (typeof pos.coords.heading === 'number' && Number.isFinite(pos.coords.heading)) {
+          setCompassHeadingDeg((prev) => prev ?? pos.coords.heading)
+          setCompassSource((prev) => (prev === 'sensor' ? 'sensor' : 'gps'))
+        }
+      },
+      (err) => {
+        setGpsError(err.message || 'GNSS signal unavailable')
+        if (hadGpsFixRef.current) {
+          hadGpsFixRef.current = false
+          playFieldTone('fix-lost')
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 }
+    )
+    return () => navigator.geolocation.clearWatch(watchId)
+  }, [])
+
+  // Append real GNSS positions to Tracklog & Walk-Perimeter boundary pins
+  useEffect(() => {
+    if (!gpsFix) return
+    if (isTrackingLog || isWalkingPerimeter) {
+      const msl = gpsFix.altitudeM != null
+        ? computeOrthometricAltitudeM(gpsFix.altitudeM, gpsFix.lat, gpsFix.lon).mslM
+        : null
+      setTrackPoints((prev) => {
+        const last = prev[prev.length - 1]
+        if (last && geodesicDistanceM(last.lat, last.lon, gpsFix.lat, gpsFix.lon) < 2.5) {
+          return prev
+        }
+        return [
+          ...prev,
+          {
+            lat: gpsFix.lat,
+            lon: gpsFix.lon,
+            altM: msl,
+            timestamp: gpsFix.timestamp,
+            speedMs: gpsFix.speedMs,
+          },
+        ]
+      })
+    }
+    if (isWalkingPerimeter) {
+      setPins((prev) => {
+        const lastPin = prev[prev.length - 1]
+        if (lastPin && geodesicDistanceM(lastPin[1], lastPin[0], gpsFix.lat, gpsFix.lon) < 4) {
+          return prev
+        }
+        return [...prev, [Number(gpsFix.lon.toFixed(7)), Number(gpsFix.lat.toFixed(7))]]
+      })
+    }
+  }, [gpsFix, isTrackingLog, isWalkingPerimeter])
+
+  // Real Hardware Compass & Clinometer (DeviceOrientationEvent)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleOrientation = (ev: DeviceOrientationEvent) => {
+      const anyEv = ev as any
+      let heading: number | null = null
+      if (typeof anyEv.webkitCompassHeading === 'number' && Number.isFinite(anyEv.webkitCompassHeading)) {
+        heading = anyEv.webkitCompassHeading
+      } else if (typeof ev.alpha === 'number' && Number.isFinite(ev.alpha)) {
+        heading = (360 - ev.alpha) % 360
       }
-    }, 1500)
-    return () => clearInterval(interval)
-  }, [isWalkingPerimeter])
+      if (heading !== null) {
+        setCompassHeadingDeg(heading)
+        setCompassSource('sensor')
+      }
+      if (typeof ev.beta === 'number' && Number.isFinite(ev.beta)) {
+        setPitchDeg(Number(ev.beta.toFixed(1)))
+      }
+      if (typeof ev.gamma === 'number' && Number.isFinite(ev.gamma)) {
+        setRollDeg(Number(ev.gamma.toFixed(1)))
+      }
+    }
+
+    window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener)
+    window.addEventListener('deviceorientation', handleOrientation)
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation as EventListener)
+      window.removeEventListener('deviceorientation', handleOrientation)
+    }
+  }, [])
+
+  const activeLat = gpsFix ? gpsFix.lat : centerCoord[1]
+  const activeLon = gpsFix ? gpsFix.lon : centerCoord[0]
+  const elevationM = useMemo(() => {
+    if (gpsFix?.altitudeM != null) {
+      return Math.round(computeOrthometricAltitudeM(gpsFix.altitudeM, activeLat, activeLon).mslM)
+    }
+    return typeof farm.elevation === 'number' ? Math.round(farm.elevation) : null
+  }, [gpsFix?.altitudeM, activeLat, activeLon, farm.elevation])
+  const gnssAccuracyM = gpsFix ? Number(gpsFix.accuracyM.toFixed(1)) : null
+  const compassAzimuth = compassHeadingDeg ?? gpsFix?.headingDeg ?? 0
 
   // Camera initialization & cleanup
   useEffect(() => {
@@ -188,7 +354,6 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
         setCameraActive(false)
       }
     } catch {
-      // Fallback to simulated crop viewfinder if hardware camera blocked or in iframe
       setCameraActive(false)
     }
   }
@@ -198,7 +363,59 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
       cameraStream.getTracks().forEach(track => track.stop())
       setCameraStream(null)
     }
+    setTorchOn(false)
+    setScreenTorchFallback(false)
     setCameraActive(false)
+  }
+
+  const handleToggleTorch = async () => {
+    const next = !torchOn
+    setTorchOn(next)
+    const hwWorked = await setCameraStreamTorch(cameraStream, next)
+    setScreenTorchFallback(next && !hwWorked)
+  }
+
+  const handleToggleVoiceMemo = async () => {
+    if (isRecordingMemo && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop()
+      setIsRecordingMemo(false)
+      return
+    }
+    if (!navigator.mediaDevices?.getUserMedia) return
+    try {
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const rec = new MediaRecorder(audioStream)
+      memoChunksRef.current = []
+      memoStartedAtRef.current = Date.now()
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) memoChunksRef.current.push(e.data)
+      }
+      rec.onstop = () => {
+        audioStream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(memoChunksRef.current, { type: rec.mimeType || 'audio/webm' })
+        const url = URL.createObjectURL(blob)
+        const durationSec = Math.max(1, Math.round((Date.now() - memoStartedAtRef.current) / 1000))
+        const digipin = encodeDigipin(activeLat, activeLon)
+        setVoiceMemos((prev) => [
+          {
+            id: `memo-${Date.now()}`,
+            url,
+            lat: activeLat,
+            lon: activeLon,
+            digipin,
+            durationSec,
+            createdAt: new Date().toISOString(),
+          },
+          ...prev,
+        ])
+      }
+      mediaRecorderRef.current = rec
+      rec.start()
+      setIsRecordingMemo(true)
+    } catch {
+      setSearchFeedback('Microphone permission needed to record geotagged voice memo.')
+      setTimeout(() => setSearchFeedback(null), 3500)
+    }
   }
 
   // Multi-unit Cadastral Calculations
@@ -371,26 +588,33 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
     const textX = mapX + mapSize + 40
     ctx.fillStyle = '#ffffff'
     ctx.font = 'bold 22px Space Grotesk, sans-serif'
-    ctx.fillText(`SEVA·GIS EVIDENCE CERTIFICATE: ${farm.name.toUpperCase()}`, textX, stampY + 50)
+    ctx.fillText(`SEVA·GIS EVIDENCE CERTIFICATE: ${(photoCaption.trim() || farm.name).toUpperCase()}`, textX, stampY + 50)
 
     ctx.font = '16px JetBrains Mono, monospace'
     ctx.fillStyle = '#38bdf8'
-    ctx.fillText(`DIGIPIN: ${centerCoords.digipin}   |   WGS84: ${centerCoords.decimal}`, textX, stampY + 84)
+    ctx.fillText(
+      burnLocation
+        ? `DIGIPIN: ${centerCoords.digipin}   |   WGS84: ${centerCoords.decimal}`
+        : `DIGIPIN: ${centerCoords.digipin}   |   LOCATION REDACTED`,
+      textX,
+      stampY + 84
+    )
 
     ctx.fillStyle = '#94a3b8'
-    ctx.fillText(`ELEVATION: ${elevationM}m MSL   |   AZIMUTH: ${Math.round(compassAzimuth)}° NE   |   ACCURACY: ±${gnssAccuracyM}m 3D Fix`, textX, stampY + 116)
+    const altLabel = burnAltitude ? `${elevationM != null ? `${elevationM}m MSL` : 'Alt n/a'}` : 'Alt hidden'
+    const brngLabel = burnBearing ? `${Math.round(compassAzimuth)}°` : 'Bearing hidden'
+    const accLabel = gnssAccuracyM != null ? `±${gnssAccuracyM}m GNSS` : 'Reticle ref'
+    ctx.fillText(`ELEVATION: ${altLabel}   |   AZIMUTH: ${brngLabel}   |   ACCURACY: ${accLabel}`, textX, stampY + 116)
 
-    const farmAny = farm as any
-    const meanNdvi = typeof farmAny.ndvi === 'number'
-      ? farmAny.ndvi
-      : typeof (farm.analysis?.ndvi as any)?.mean === 'number'
-        ? (farm.analysis?.ndvi as any).mean
-        : 0.68
     ctx.fillStyle = '#10b981'
-    ctx.fillText(`MEAN NDVI: ${meanNdvi.toFixed(3)}   |   NDMI: 0.284   |   ANOMALY STATUS: OPTIMAL (Z: -0.42)`, textX, stampY + 148)
+    ctx.fillText(
+      `MEAN NDVI: ${liveNdvi != null ? liveNdvi.toFixed(3) : 'n/a'}   |   NDMI: ${liveNdmi != null ? liveNdmi.toFixed(3) : 'n/a'}   |   CROP: ${farm.crop || 'Field Crop'}`,
+      textX,
+      stampY + 148
+    )
 
     ctx.fillStyle = '#f59e0b'
-    ctx.fillText(`CADASTRAL AREA: ${cadastralMetrics.formatted.acres} (${cadastralMetrics.formatted.guntha})   |   CROP: ${farm.crop || 'Field Crop'}`, textX, stampY + 180)
+    ctx.fillText(`CADASTRAL AREA: ${cadastralMetrics.formatted.acres} (${cadastralMetrics.formatted.guntha})`, textX, stampY + 180)
 
     ctx.fillStyle = '#64748b'
     ctx.font = '13px JetBrains Mono, monospace'
@@ -442,7 +666,7 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
                 SEVA·GIS FIELD SUITE
               </span>
               <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
-                v4.3.0
+                v4.4.0
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate max-w-[200px] sm:max-w-md">
@@ -454,8 +678,8 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
         {/* Live GNSS Accuracy Pill */}
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-slate-300 font-mono">
-            <Radio size={12} className="text-emerald-400 animate-pulse" />
-            <span>GNSS ±{gnssAccuracyM}m</span>
+            <Radio size={12} className={gnssAccuracyM != null ? 'text-emerald-400 animate-pulse' : 'text-amber-400'} />
+            <span>{gnssAccuracyM != null ? `GNSS ±${gnssAccuracyM}m` : 'GNSS Acquiring'}</span>
           </div>
 
           {/* Test OTA Banner Trigger */}
@@ -674,12 +898,14 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
                     <span className="font-bold tracking-wider">
                       {selectedCoordSys === 'digipin' && `DIGIPIN: ${centerCoords.digipin}`}
                       {selectedCoordSys === 'decimal' && centerCoords.decimal}
+                      {selectedCoordSys === 'ddm' && centerCoords.ddm}
                       {selectedCoordSys === 'dms' && centerCoords.dms}
                       {selectedCoordSys === 'utm' && centerCoords.utm}
                       {selectedCoordSys === 'mgrs' && centerCoords.mgrs}
+                      {selectedCoordSys === 'plusCode' && `Plus: ${centerCoords.plusCode}`}
                     </span>
                     <span className="text-slate-500">|</span>
-                    <span className="text-slate-300">{elevationM}m MSL</span>
+                    <span className="text-slate-300">{elevationM != null ? `${elevationM}m MSL` : 'Alt n/a'}</span>
                   </div>
                 </div>
               </div>
@@ -768,30 +994,50 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
               </div>
 
               {/* BOTTOM ACTIONS BAR FOR PIN-DROP & BOUNDARY */}
-              <div className="absolute bottom-2 left-4 right-4 flex items-center justify-center gap-2 z-20">
+              <div className="absolute bottom-2 left-4 right-4 flex flex-wrap items-center justify-center gap-2 z-20">
                 <button
                   onClick={handleDropCornerPin}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg active:scale-95 transition cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
                 >
                   <Plus size={16} />
-                  <span>+ Drop Corner Pin</span>
+                  <span>+ Drop Pin</span>
                 </button>
+
+                {gpsFix && (
+                  <button
+                    onClick={() => {
+                      const pt: [number, number] = [Number(gpsFix.lon.toFixed(7)), Number(gpsFix.lat.toFixed(7))]
+                      setCenterCoord(pt)
+                      setPins(prev => [...prev, pt])
+                      playFieldTone('pin-drop')
+                    }}
+                    className="px-3 py-2.5 rounded-xl bg-slate-900/95 hover:bg-slate-800 text-emerald-300 border border-emerald-500/50 font-bold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
+                    title="Drop boundary pin at exact live GNSS fix"
+                  >
+                    <LocateFixed size={14} />
+                    <span>+ GPS Fix Pin</span>
+                  </button>
+                )}
 
                 <button
                   onClick={handleAutoSnapField}
                   disabled={isAutoSnapping}
-                  className="px-3.5 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 font-semibold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
+                  className="px-3 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-cyan-500/40 font-semibold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
                 >
                   <Sparkles size={14} className={isAutoSnapping ? 'animate-spin' : ''} />
-                  <span>{isAutoSnapping ? 'Segmenting...' : 'Auto-Snap (samgeo)'}</span>
+                  <span>{isAutoSnapping ? 'Segmenting...' : 'Auto-Snap'}</span>
                 </button>
 
                 <button
-                  onClick={() => setIsWalkingPerimeter(!isWalkingPerimeter)}
-                  className={`px-3.5 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer border ${isWalkingPerimeter ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-slate-900/90 text-slate-300 border-slate-700'}`}
+                  onClick={() => {
+                    const next = !isWalkingPerimeter
+                    setIsWalkingPerimeter(next)
+                    if (next) setIsTrackingLog(true)
+                  }}
+                  className={`px-3 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer border ${isWalkingPerimeter ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'bg-slate-900/90 text-slate-300 border-slate-700'}`}
                 >
                   <Footprints size={14} />
-                  <span>{isWalkingPerimeter ? 'Stop Track' : 'Walk GPS'}</span>
+                  <span>{isWalkingPerimeter ? 'Stop Walk' : 'Walk GPS'}</span>
                 </button>
 
                 {pins.length > 0 && (
@@ -824,156 +1070,49 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
 
         {/* MODULE B: HANDY GPS OUTDOOR TELEMETRY CONSOLE */}
         {activeModule === 'gps' && (
-          <div className="w-full h-full p-4 overflow-y-auto space-y-4 max-w-4xl mx-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <Compass size={18} className="text-cyan-400" />
-                  <span>Handy GPS Tactical Telemetry Console</span>
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Dual-dial GNSS/Magnetic compass rose with real-time waypoint azimuth guidance.
-                </p>
-              </div>
-
-              {/* 1-Tap Coordinate System Switcher */}
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-[11px] font-mono">
-                {(['digipin', 'decimal', 'dms', 'utm', 'mgrs'] as CoordinateSystem[]).map(cs => (
-                  <button
-                    key={cs}
-                    onClick={() => setSelectedCoordSys(cs)}
-                    className={`px-2 py-1 rounded uppercase font-bold cursor-pointer transition ${selectedCoordSys === cs ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                  >
-                    {cs}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* DUAL-DIAL INSTRUMENT CLUSTER */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Dial 1: 360° Rotating Compass Rose */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden shadow-xl">
-                <div className="relative w-56 h-56 rounded-full border-4 border-slate-800 bg-slate-950 flex items-center justify-center shadow-inner">
-                  {/* Rotating Dial Markings */}
-                  <div
-                    className="absolute inset-2 rounded-full border border-dashed border-slate-700 transition-transform duration-500 ease-out"
-                    style={{ transform: `rotate(${-compassAzimuth}deg)` }}
-                  >
-                    <span className="absolute top-2 left-1/2 -translate-x-1/2 font-bold text-xs text-red-500">N</span>
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 font-bold text-xs text-slate-300">E</span>
-                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 font-bold text-xs text-slate-300">S</span>
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 font-bold text-xs text-slate-300">W</span>
-                  </div>
-
-                  {/* Waypoint Target Direction Pointer */}
-                  <div
-                    className="absolute w-1 h-24 bg-gradient-to-t from-transparent via-cyan-400 to-cyan-300 origin-bottom transition-transform duration-500"
-                    style={{ transform: `rotate(${targetBearing - compassAzimuth}deg)`, bottom: '50%' }}
-                  />
-
-                  {/* Center Hub Readout */}
-                  <div className="w-20 h-20 rounded-full bg-slate-900 border border-slate-700 flex flex-col items-center justify-center font-mono z-10">
-                    <span className="text-lg font-bold text-amber-400">{Math.round(compassAzimuth)}°</span>
-                    <span className="text-[10px] text-slate-400 uppercase">Azimuth</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 text-center">
-                  <div className="text-xs text-slate-400 font-mono">
-                    Target Bearing: <strong className="text-cyan-400">{targetBearing}° NE</strong> (Waypoint #2 Stress Anomaly)
-                  </div>
-                </div>
-              </div>
-
-              {/* 6-Card Telemetry Grid */}
-              <div className="grid grid-cols-2 gap-3 font-mono">
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                  <div className="text-[10px] text-slate-400 uppercase">Latitude (WGS84)</div>
-                  <div className="text-sm font-bold text-white mt-1">{centerCoord[1].toFixed(5)}°N</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                  <div className="text-[10px] text-slate-400 uppercase">Longitude (WGS84)</div>
-                  <div className="text-sm font-bold text-white mt-1">{centerCoord[0].toFixed(5)}°E</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 col-span-2">
-                  <div className="text-[10px] text-slate-400 uppercase">Mappls / Postal DIGIPIN (4m×4m)</div>
-                  <div className="text-base font-bold text-amber-400 tracking-wider mt-1">{centerCoords.digipin}</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                  <div className="text-[10px] text-slate-400 uppercase">GLO-30 Altitude</div>
-                  <div className="text-sm font-bold text-cyan-300 mt-1">{elevationM}m MSL</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                  <div className="text-[10px] text-slate-400 uppercase">Current Speed</div>
-                  <div className="text-sm font-bold text-emerald-400 mt-1">{currentSpeedKmh.toFixed(1)} km/h</div>
-                </div>
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 col-span-2">
-                  <div className="text-[10px] text-slate-400 uppercase">Military Grid / UTM Zone</div>
-                  <div className="text-xs font-bold text-slate-300 mt-1">{centerCoords.utm}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Waypoint Guidance List */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold uppercase text-slate-300 tracking-wider">
-                  Active Field Waypoints & Target Fixes
-                </h3>
-                <button
-                  onClick={() => {
-                    const id = `wp-${waypoints.length + 1}`
-                    setWaypoints(prev => [
-                      ...prev,
-                      { id, label: `Soil Sample Point #${prev.length + 1}`, lat: centerCoord[1], lon: centerCoord[0], type: 'soil' }
-                    ])
-                  }}
-                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-emerald-400 border border-emerald-500/30 flex items-center gap-1 cursor-pointer"
-                >
-                  <Plus size={12} />
-                  <span>Mark Soil Point</span>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {waypoints.map((wp, idx) => (
-                  <div key={wp.id} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-between text-xs font-mono">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-300">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <div className="text-white font-semibold">{wp.label}</div>
-                        <div className="text-[11px] text-slate-500">{wp.lat.toFixed(5)}°N, {wp.lon.toFixed(5)}°E</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setTargetBearing(idx * 60 + 20)
-                      }}
-                      className="px-2.5 py-1 rounded bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800 text-[11px] cursor-pointer"
-                    >
-                      Guide Target
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <HandyGpsConsole
+            centerCoord={centerCoord}
+            gpsFix={gpsFix}
+            gpsError={gpsError}
+            compassHeadingDeg={compassHeadingDeg}
+            compassSource={compassSource}
+            pitchDeg={pitchDeg}
+            rollDeg={rollDeg}
+            waypoints={waypoints}
+            onAddWaypoint={(wp) => setWaypoints((prev) => [...prev, wp])}
+            onUpdateWaypoints={setWaypoints}
+            onImportGpxKml={(wps, trk) => {
+              if (wps.length > 0) setWaypoints((prev) => [...prev, ...wps])
+              if (trk.length > 0) setTrackPoints((prev) => [...prev, ...trk])
+            }}
+            onJumpToCoord={(lon, lat) => {
+              setCenterCoord([lon, lat])
+              setActiveModule('measure')
+            }}
+            trackPoints={trackPoints}
+            isTracking={isTrackingLog}
+            onToggleTracking={() => setIsTrackingLog((v) => !v)}
+            onResetTrack={() => setTrackPoints([])}
+            selectedCoordSys={selectedCoordSys}
+            onChangeCoordSys={setSelectedCoordSys}
+            unitSystem={unitSystem}
+            onChangeUnitSystem={setUnitSystem}
+            isNightMode={isNightMode}
+            onToggleNightMode={() => setIsNightMode((v) => !v)}
+            lang={lang}
+          />
         )}
 
-        {/* MODULE C: AGRONOMIC GPS MAP CAMERA (GEO-STAMPED EVIDENCE) */}
+        {/* MODULE C: AGRONOMIC GPS MAP CAMERA, TORCH & GEOTAGGED VOICE MEMOS */}
         {activeModule === 'camera' && (
-          <div className="w-full h-full flex flex-col relative overflow-hidden bg-black">
+          <div className={`w-full h-full flex flex-col relative overflow-hidden ${screenTorchFallback ? 'bg-white' : 'bg-black'}`}>
             {/* Camera Viewfinder View */}
             <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
-              {/* Hardware Video or Simulated Viewfinder */}
               <video
                 ref={videoRef}
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${isNightMode ? 'sepia hue-rotate-[-50deg] saturate-200 brightness-75' : ''}`}
                 style={{ display: cameraActive ? 'block' : 'none' }}
               />
 
@@ -986,7 +1125,7 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
                     Agronomic Evidence Viewfinder Ready
                   </h3>
                   <p className="text-xs text-slate-400 max-w-sm mb-4">
-                    Captures tamper-proof field photos with burned-in Sentinel-2 NDVI, DIGIPIN, and cadastral boundary overlay.
+                    Captures tamper-proof field photos with burned-in Sentinel-2 NDVI, DIGIPIN, altitude MSL, and bearing.
                   </p>
                   <button
                     onClick={startCamera}
@@ -995,6 +1134,76 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
                     <Camera size={14} />
                     <span>Enable Device Camera</span>
                   </button>
+                </div>
+              )}
+
+              {/* Top Camera Tools Bar: Torch, Night Mode, Burn-in Toggles & Caption */}
+              <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={handleToggleTorch}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border flex items-center gap-1 cursor-pointer backdrop-blur-md ${
+                      torchOn
+                        ? 'bg-amber-400 text-slate-950 border-amber-300'
+                        : 'bg-slate-950/80 text-slate-200 border-slate-700'
+                    }`}
+                  >
+                    <Flashlight size={13} />
+                    <span>{torchOn ? 'Torch ON' : 'Torch'}</span>
+                  </button>
+                  <button
+                    onClick={() => setIsNightMode((v) => !v)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border flex items-center gap-1 cursor-pointer backdrop-blur-md ${
+                      isNightMode
+                        ? 'bg-red-700 text-white border-red-400'
+                        : 'bg-slate-950/80 text-slate-200 border-slate-700'
+                    }`}
+                  >
+                    <Eye size={13} />
+                    <span>Night</span>
+                  </button>
+                  <button
+                    onClick={() => setBurnLocation((v) => !v)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-mono border cursor-pointer backdrop-blur-md ${
+                      burnLocation ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-950/80 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    Loc {burnLocation ? 'ON' : 'OFF'}
+                  </button>
+                  <button
+                    onClick={() => setBurnAltitude((v) => !v)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-mono border cursor-pointer backdrop-blur-md ${
+                      burnAltitude ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-slate-950/80 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    Alt {burnAltitude ? 'ON' : 'OFF'}
+                  </button>
+                  <button
+                    onClick={() => setBurnBearing((v) => !v)}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-mono border cursor-pointer backdrop-blur-md ${
+                      burnBearing ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-950/80 text-slate-400 border-slate-700'
+                    }`}
+                  >
+                    Brng {burnBearing ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={photoCaption}
+                  onChange={(e) => setPhotoCaption(e.target.value)}
+                  placeholder="Optional photo caption..."
+                  className="bg-slate-950/85 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-400 w-44 sm:w-56 backdrop-blur-md"
+                />
+              </div>
+
+              {/* Horizon Roll Indicator */}
+              {rollDeg != null && (
+                <div className="absolute inset-x-0 top-1/2 flex items-center justify-center pointer-events-none z-10">
+                  <div
+                    className="w-32 h-[2px] bg-amber-400/70 transition-transform duration-150"
+                    style={{ transform: `rotate(${-rollDeg}deg)` }}
+                  />
                 </div>
               )}
 
@@ -1012,43 +1221,62 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
               </div>
 
               {/* LIVE BURNED-IN BOTTOM AGRONOMIC GEO-STAMP CARD PREVIEW */}
-              <div className="absolute bottom-4 left-4 right-4 bg-slate-950/92 border border-emerald-500/50 rounded-2xl p-4 backdrop-blur-md shadow-2xl pointer-events-none">
-                <div className="flex items-center gap-4">
-                  {/* Left: Mini Satellite Map */}
-                  <div className="w-20 h-20 rounded-xl bg-slate-900 border border-cyan-500/40 flex items-center justify-center relative overflow-hidden shrink-0">
+              <div className="absolute bottom-4 left-4 right-4 bg-slate-950/92 border border-emerald-500/50 rounded-2xl p-3.5 backdrop-blur-md shadow-2xl pointer-events-none">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-16 h-16 rounded-xl bg-slate-900 border border-cyan-500/40 flex items-center justify-center relative overflow-hidden shrink-0">
                     <div className="absolute inset-1 border border-emerald-400 rounded-md" />
                     <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-md" />
                   </div>
 
-                  {/* Right: Forensic Certificate Details */}
                   <div className="flex-1 font-mono text-[11px] leading-relaxed truncate">
                     <div className="font-['Space_Grotesk'] font-bold text-white text-xs truncate">
-                      {farm.name.toUpperCase()} · {farm.crop || 'Field Crop'}
+                      {(photoCaption.trim() || farm.name).toUpperCase()} · {farm.crop || 'Field Crop'}
                     </div>
                     <div className="text-amber-400">
                       DIGIPIN: {centerCoords.digipin}
                     </div>
                     <div className="text-slate-300">
-                      {centerCoords.decimal} | {elevationM}m MSL | {Math.round(compassAzimuth)}° NE
+                      {burnLocation ? centerCoords.decimal : 'Location hidden'} | {burnAltitude ? (elevationM != null ? `${elevationM}m MSL` : 'Alt n/a') : 'Alt hidden'} | {burnBearing ? `${Math.round(compassAzimuth)}°` : 'Brng hidden'}
                     </div>
                     <div className="text-emerald-400">
-                      NDVI: {(typeof (farm as any).ndvi === 'number' ? (farm as any).ndvi : (farm.analysis?.ndvi as any)?.mean ?? 0.68).toFixed(2)} | NDMI: 0.28 | Z-Score: -0.42
+                      NDVI: {liveNdvi != null ? liveNdvi.toFixed(2) : 'n/a'} | NDMI: {liveNdmi != null ? liveNdmi.toFixed(2) : 'n/a'}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Bottom Shutter Action Bar */}
-            <div className="bg-slate-950 border-t border-slate-800 p-4 flex items-center justify-between z-20">
-              <div className="text-xs text-slate-400 font-mono">
-                Tamper-Proof Hardware Timestamp
+            {/* Geotagged Voice Memos Strip (when memos recorded) */}
+            {voiceMemos.length > 0 && (
+              <div className="bg-slate-900 border-t border-slate-800 px-3 py-2 flex items-center gap-2 overflow-x-auto text-xs font-mono">
+                {voiceMemos.map((memo) => (
+                  <div key={memo.id} className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 shrink-0">
+                    <Volume2 size={13} className="text-cyan-400" />
+                    <span className="text-slate-300">{memo.digipin} ({memo.durationSec}s)</span>
+                    <audio controls src={memo.url} className="h-6 w-32" />
+                  </div>
+                ))}
               </div>
+            )}
+
+            {/* Bottom Shutter & Voice Memo Action Bar */}
+            <div className="bg-slate-950 border-t border-slate-800 p-3 sm:p-4 flex items-center justify-between gap-2 z-20">
+              <button
+                onClick={handleToggleVoiceMemo}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center gap-1.5 cursor-pointer ${
+                  isRecordingMemo
+                    ? 'bg-red-600 text-white border-red-400 animate-pulse'
+                    : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40'
+                }`}
+              >
+                {isRecordingMemo ? <Square size={13} /> : <Mic size={13} />}
+                <span>{isRecordingMemo ? 'Stop Memo' : 'Voice Memo'}</span>
+              </button>
 
               <button
                 onClick={handleCaptureGeoPhoto}
                 disabled={isCapturing}
-                className="w-16 h-16 rounded-full border-4 border-emerald-400 bg-white hover:bg-slate-200 active:scale-90 transition flex items-center justify-center shadow-lg cursor-pointer"
+                className="w-16 h-16 rounded-full border-4 border-emerald-400 bg-white hover:bg-slate-200 active:scale-90 transition flex items-center justify-center shadow-lg cursor-pointer shrink-0"
                 title="Capture Geo-Stamped Evidence Photo"
                 aria-label="Capture Geo Photo"
               >
@@ -1061,19 +1289,21 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
                 <a
                   href={capturedPhotoUrl}
                   download={`${farm.name.toLowerCase().replace(/\s+/g, '_')}_geostamp.jpg`}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1 cursor-pointer"
                 >
                   <Download size={13} />
-                  <span>Download</span>
+                  <span>Save Photo</span>
                 </a>
               ) : (
-                <div className="w-20" />
+                <div className="w-24 text-right text-[10px] text-slate-500 font-mono">
+                  Geo-Stamp Ready
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* MODULE D: 14 SPECTRAL INDICES & PIXEL PROBE */}
+        {/* MODULE D: 14 SPECTRAL INDICES & REAL FARM TELEMETRY */}
         {activeModule === 'indices' && (
           <div className="w-full h-full p-4 overflow-y-auto space-y-4 max-w-4xl mx-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -1120,42 +1350,41 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
               ))}
             </div>
 
-            {/* 10m Pixel Probe Telemetry Card */}
+            {/* Real Satellite Telemetry Card */}
             <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3 font-mono">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-white uppercase">
-                  10m Sub-Pixel Spectral Radiance Probe (Center Crosshair)
+                  Sentinel-2 Scene Summary ({farm.name})
                 </span>
                 <span className="text-xs text-emerald-400">
-                  Z-Score: {pixelProbe.zScore} (Normal Biomass)
+                  {farmAnalysisAny?.scene?.datetime
+                    ? `Scene: ${new Date(farmAnalysisAny.scene.datetime).toLocaleDateString()}`
+                    : 'Run satellite refresh on dashboard for live band reads'}
                 </span>
               </div>
 
-              {/* Band Reflectance Bars */}
-              <div className="grid grid-cols-6 gap-2 text-center text-xs">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center text-xs">
                 <div>
-                  <div className="text-slate-400 text-[10px]">B2 Blue</div>
-                  <div className="text-white font-bold">{pixelProbe.b2}</div>
+                  <div className="text-slate-400 text-[10px]">Mean NDVI</div>
+                  <div className="text-emerald-400 font-bold">{liveNdvi != null ? liveNdvi.toFixed(3) : 'n/a'}</div>
                 </div>
                 <div>
-                  <div className="text-slate-400 text-[10px]">B3 Green</div>
-                  <div className="text-white font-bold">{pixelProbe.b3}</div>
+                  <div className="text-slate-400 text-[10px]">Mean NDMI</div>
+                  <div className="text-cyan-400 font-bold">{liveNdmi != null ? liveNdmi.toFixed(3) : 'n/a'}</div>
                 </div>
                 <div>
-                  <div className="text-slate-400 text-[10px]">B4 Red</div>
-                  <div className="text-white font-bold">{pixelProbe.b4}</div>
+                  <div className="text-slate-400 text-[10px]">Mean NDRE</div>
+                  <div className="text-lime-400 font-bold">{liveNdre != null ? liveNdre.toFixed(3) : 'n/a'}</div>
                 </div>
                 <div>
-                  <div className="text-slate-400 text-[10px]">B5 RedEdge</div>
-                  <div className="text-white font-bold">{pixelProbe.b5}</div>
+                  <div className="text-slate-400 text-[10px]">Slope (GLO-30)</div>
+                  <div className="text-white font-bold">
+                    {typeof farmAnalysisAny?.slopePct === 'number' ? `${farmAnalysisAny.slopePct.toFixed(1)}%` : 'n/a'}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-slate-400 text-[10px]">B8 NIR</div>
-                  <div className="text-emerald-400 font-bold">{pixelProbe.b8}</div>
-                </div>
-                <div>
-                  <div className="text-slate-400 text-[10px]">B11 SWIR</div>
-                  <div className="text-cyan-400 font-bold">{pixelProbe.b11}</div>
+                  <div className="text-slate-400 text-[10px]">Elevation MSL</div>
+                  <div className="text-amber-300 font-bold">{elevationM != null ? `${elevationM} m` : 'n/a'}</div>
                 </div>
               </div>
             </div>

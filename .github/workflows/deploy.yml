@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -29,7 +31,6 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck --if-present
-        continue-on-error: true
 
       - name: Build
         run: |
@@ -39,24 +40,17 @@ jobs:
           npm run build
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+          VITE_GIT_SHA: ${{ github.sha }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
+          VITE_APK_VERSION_CODE: "44"
           VITE_GOOGLE_CLIENT_ID: ${{ secrets['VITE_GOOGLE_CLIENT_ID'] || vars['VITE_GOOGLE_CLIENT_ID'] || '' }}
           VITE_EE_API_URL: ${{ secrets['VITE_EE_API_URL'] || vars['VITE_EE_API_URL'] || '' }}
 
-      - name: SPA fallback + CNAME + Version Stamping
+      - name: SPA fallback + CNAME + Version Verification
         run: |
           cp dist/index.html dist/404.html
           [ -f dist/CNAME ] || echo "sevagis.dpdns.org" > dist/CNAME
-          node -e '
-            const fs = require("fs");
-            const vPath = "dist/version.json";
-            if (fs.existsSync(vPath)) {
-              const v = JSON.parse(fs.readFileSync(vPath, "utf-8"));
-              v.buildDate = new Date().toISOString();
-              v.commit = "${{ github.sha }}";
-              v.buildNumber = ${{ github.run_number }};
-              fs.writeFileSync(vPath, JSON.stringify(v, null, 2));
-            }
-          '
+          cat dist/version.json
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -73,12 +67,13 @@ jobs:
         uses: actions/deploy-pages@v4
 
   android-build:
-    name: Build Android APK
+    name: Build & Release Android APK
     needs: build
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -87,45 +82,68 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build Web Assets
-        run: npm run build
-
-      - name: Sync Capacitor Android
-        continue-on-error: true
+      - name: Build Web Assets & Sync Capacitor Android
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          VITE_GIT_SHA: ${{ github.sha }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
+          VITE_APK_VERSION_CODE: "44"
         run: |
-          if [ ! -d "android" ]; then
-            npx cap add android || echo "Capacitor android add skipped in CI"
-          fi
-          npx cap sync android || echo "Capacitor android sync skipped in CI"
+          npm run build
+          npx cap sync android
 
-      - name: Make gradlew executable
-        continue-on-error: true
+      - name: Build Android APK
         run: |
-          if [ -f "android/gradlew" ]; then
-            chmod +x android/gradlew
-          fi
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Build Android Debug APK
-        continue-on-error: true
+      - name: Stage APK into releases folder
         run: |
-          if [ -d "android" ] && [ -f "android/gradlew" ]; then
-            cd android
-            ./gradlew assembleDebug --no-daemon || echo "Gradle build failed; continuing"
-          else
-            echo "Android directory or gradlew not found; skipping APK compilation."
-          fi
+          mkdir -p releases
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/seva-gis-latest.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/seva-gis-v4.4.0.apk
 
       - name: Upload Android APK Artifact
-        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: seva-gis-android-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: ignore
+          path: /tmp/seva-gis-latest.apk
 
+      - name: Publish APK to Latest GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest"
+          NOTES="Automated SEVA.GIS Android APK v4.4.0 (build #${{ github.run_number }}, commit ${GITHUB_SHA::7}). Syncs live with https://sevagis.dpdns.org and includes automatic in-app update popups plus Handy GPS tactical field suite."
+          cp /tmp/seva-gis-latest.apk seva-gis-latest.apk
+          cp /tmp/seva-gis-v4.4.0.apk seva-gis-v4.4.0.apk
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" seva-gis-latest.apk seva-gis-v4.4.0.apk --clobber
+            gh release edit "$TAG" --title "SEVA.GIS Latest Android APK (v4.4.0)" --notes "$NOTES" --latest
+          else
+            gh release create "$TAG" seva-gis-latest.apk seva-gis-v4.4.0.apk \
+              --target "${{ github.sha }}" \
+              --title "SEVA.GIS Latest Android APK (v4.4.0)" \
+              --notes "$NOTES" \
+              --latest
+          fi
+          rm -f seva-gis-latest.apk seva-gis-v4.4.0.apk
 
+      - name: Update Repo APK on main
+        if: "!contains(github.event.head_commit.message, '[skip ci]')"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp /tmp/seva-gis-latest.apk releases/seva-gis-latest.apk
+          git add releases/seva-gis-latest.apk
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(android): update seva-gis-latest.apk for build #${{ github.run_number }} [skip ci]"
+            git pull --rebase --autostash origin main || true
+            git push origin HEAD:main
+          fi

@@ -92,27 +92,45 @@ export function toDms(val: number, isLat: boolean): string {
   return `${deg}°${min}'${sec}"${dir}`;
 }
 
+import {
+  toUtm,
+  toMgrs,
+  toDdm,
+  toOpenLocationCode,
+  toMaidenhead,
+  transformWgs84ToDatum,
+  type SupportedDatum,
+} from './geodesyField';
+
 /**
  * Formats coordinates into standard coordinate systems:
- * DIGIPIN, Decimal Degrees, DMS, UTM Zone, and MGRS.
+ * DIGIPIN, Decimal Degrees, DDM, DMS, exact UTM Zone, exact MGRS, Plus Code, and Maidenhead.
  */
-export function formatAllCoordinateSystems(lat: number, lon: number) {
-  const digipin = encodeDigipin(lat, lon);
-  const decimal = `${lat >= 0 ? '+' : ''}${lat.toFixed(5)}°, ${lon >= 0 ? '+' : ''}${lon.toFixed(5)}°`;
-  const dms = `${toDms(lat, true)} ${toDms(lon, false)}`;
+export function formatAllCoordinateSystems(lat: number, lon: number, datum: SupportedDatum = 'WGS84') {
+  const shifted = datum === 'WGS84' ? { lat, lon } : transformWgs84ToDatum(lat, lon, 0, datum);
+  const dLat = shifted.lat;
+  const dLon = shifted.lon;
 
-  // Approximate UTM zone
-  const zoneNumber = Math.floor((lon + 180) / 6) + 1;
-  const zoneLetter = lat >= 0 ? 'N' : 'S';
-  const utm = `${zoneNumber}${zoneLetter} E:${Math.floor((lon % 6) * 100000 + 500000)} N:${Math.floor(lat * 111320)}`;
-  const mgrs = `${zoneNumber}${zoneLetter} DP ${String(Math.abs(Math.floor(lon * 1000)) % 10000).padStart(4, '0')} ${String(Math.abs(Math.floor(lat * 1000)) % 10000).padStart(4, '0')}`;
+  const digipin = encodeDigipin(lat, lon);
+  const decimal = `${dLat >= 0 ? '+' : ''}${dLat.toFixed(5)}°, ${dLon >= 0 ? '+' : ''}${dLon.toFixed(5)}°`;
+  const dms = `${toDms(dLat, true)} ${toDms(dLon, false)}`;
+  const ddm = `${toDdm(dLat, true)} ${toDdm(dLon, false)}`;
+  const utmObj = toUtm(dLat, dLon);
+  const utm = utmObj.formatted;
+  const mgrs = toMgrs(dLat, dLon, 5);
+  const plusCode = toOpenLocationCode(lat, lon);
+  const maidenhead = toMaidenhead(lat, lon);
 
   return {
     digipin,
     decimal,
+    ddm,
     dms,
     utm,
     mgrs,
+    plusCode,
+    maidenhead,
+    datum,
   };
 }
 

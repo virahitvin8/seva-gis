@@ -7,6 +7,7 @@ import './index.css'
 import './seva-premium.css'
 
 import PopTheTeamModal from './PopTheTeamModal'
+import AppUpdatePopup from './components/AppUpdatePopup'
 import { I18nProvider } from './lib/i18n'
 import { Brand } from './components/Brand'
 
@@ -169,7 +170,10 @@ const root = rootHost.__sevaReactRoot ??= ReactDOM.createRoot(document.getElemen
 root.render(
   <React.StrictMode>
     <GlobalErrorBoundary>
-      <I18nProvider><AuthGate><App /></AuthGate></I18nProvider>
+      <I18nProvider>
+        <AuthGate><App /></AuthGate>
+        <AppUpdatePopup />
+      </I18nProvider>
     </GlobalErrorBoundary>
   </React.StrictMode>,
 )

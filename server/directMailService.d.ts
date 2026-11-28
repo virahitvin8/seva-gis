@@ -25,6 +25,7 @@ export interface DirectMailPayload {
 export interface DirectMailResult {
   success: boolean
   delivered: boolean
+  needsClientFallback?: boolean
   transport: string
   host?: string
   id?: string

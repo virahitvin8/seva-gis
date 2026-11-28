@@ -1,8 +1,11 @@
 /**
  * SEVA.GIS - Direct Automated Email Dispatch Service
- * Handles instant automatic delivery of spatial reports to recipient email addresses.
- * Sends attachments directly to recipient inboxes via backend SMTP/API without manual downloads.
+ * Handles instant automatic delivery via backend SMTP/Resend when available,
+ * and seamlessly generates a ready-to-send RFC-822 .eml + Gmail Web + mailto: + Share
+ * package on static hosts (GitHub Pages / offline Android APK) without throwing HTTP 405.
  */
+
+import { executeEmailPackageDelivery, type EmailGenerationResult } from './emailGenerator'
 
 export interface DirectEmailPayload {
   recipientEmail: string
@@ -27,10 +30,12 @@ export interface DirectEmailPayload {
 export interface DirectEmailResponse {
   success: boolean
   delivered: boolean
+  isClientFallback?: boolean
   recipient: string
   format: string
   transport?: string
   message: string
+  packageData?: EmailGenerationResult
   error?: string
 }
 
@@ -85,8 +90,35 @@ export function saveStoredSmtpConfig(config: { host: string; port: number; user:
   safeStorage.setItem(STORAGE_KEY_SMTP_CONFIG, JSON.stringify(config))
 }
 
+async function buildClientEmailFallback(payload: DirectEmailPayload, reasonNote: string): Promise<DirectEmailResponse> {
+  const pkgResult = await executeEmailPackageDelivery({
+    recipientEmail: payload.recipientEmail,
+    farmName: payload.farmName,
+    reportId: payload.reportId,
+    areaHa: payload.areaHa,
+    ndvi: payload.ndvi,
+    ndmi: payload.ndmi,
+    filename: payload.filename,
+    htmlContent: payload.htmlContent,
+    senderName: payload.senderName || 'SEVA·GIS',
+    downloadEml: false,
+  })
+
+  return {
+    success: true,
+    delivered: false,
+    isClientFallback: true,
+    recipient: payload.recipientEmail,
+    format: payload.format.toUpperCase(),
+    transport: 'client-package',
+    packageData: pkgResult.packageData,
+    message: `${reasonNote} Prepared Gmail Web compose, Device Mail app & .eml bundle for ${payload.recipientEmail}.`,
+  }
+}
+
 /**
- * Dispatch report directly and automatically to the recipient's email inbox.
+ * Dispatch report directly and automatically to the recipient's email inbox,
+ * with automatic static-host / offline fallback to .eml + Gmail + mailto: + Share.
  */
 export async function sendReportDirectToEmail(payload: DirectEmailPayload): Promise<DirectEmailResponse> {
   const { recipientEmail, farmName, reportId, areaHa, ndvi, ndmi, format, filename, htmlContent, senderName } = payload
@@ -125,22 +157,50 @@ export async function sendReportDirectToEmail(payload: DirectEmailPayload): Prom
       body: JSON.stringify(requestBody),
     })
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      throw new Error(errData.error || errData.message || `Server returned ${res.status}: Failed to send email`)
+    // Static CDNs (GitHub Pages / offline WebView / unconfigured Vercel) return 404/405/501
+    if (res.status === 404 || res.status === 405 || res.status === 501) {
+      return await buildClientEmailFallback(
+        payload,
+        `Server mail endpoint unavailable on this static/offline host (HTTP ${res.status}).`
+      )
     }
 
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      if (data?.needsClientFallback) {
+        return await buildClientEmailFallback(payload, data.message || 'Server SMTP unconfigured.')
+      }
+      throw new Error(data.error || data.message || `Server returned ${res.status}: Failed to send email`)
+    }
+
+    if (data.delivered === false || data.needsClientFallback) {
+      return await buildClientEmailFallback(
+        payload,
+        data.message || 'Server SMTP credentials not configured.'
+      )
+    }
+
     return {
       success: true,
-      delivered: Boolean(data.delivered ?? true),
+      delivered: true,
       recipient: recipientEmail,
       format: format.toUpperCase(),
       transport: data.transport || 'direct-smtp',
-      message: data.message || `Report (${format.toUpperCase()}) successfully dispatched directly to ${recipientEmail}!`,
+      message: data.message || `Report (${format.toUpperCase()}) successfully delivered to ${recipientEmail}!`,
     }
   } catch (err: any) {
-    console.error('[DirectEmailService] Error dispatching email:', err)
+    // Graceful network fallback (e.g. Android offline / blocked proxy)
+    const msg = String(err?.message || '')
+    if (
+      err?.name === 'TypeError' ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg.includes('405') ||
+      msg.includes('404')
+    ) {
+      return await buildClientEmailFallback(payload, 'Direct SMTP server unreachable.')
+    }
     throw err
   }
 }

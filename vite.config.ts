@@ -347,11 +347,12 @@ function sevaEmailServerPlugin(): Plugin {
               const result = await dispatchReportEmail(payload)
               res.setHeader('Content-Type', 'application/json; charset=utf-8')
               res.end(JSON.stringify({
-                success: true,
-                delivered: true,
+                success: Boolean(result.delivered),
+                delivered: Boolean(result.delivered),
+                needsClientFallback: Boolean(result.needsClientFallback),
                 recipient: email,
                 transport: result.transport,
-                message: result.message || `Report successfully delivered to ${email}!`,
+                message: result.message || `Report processed for ${email}.`,
               }))
             } catch (err: any) {
               console.error('[Vite /api/send-report] Error:', err.message)

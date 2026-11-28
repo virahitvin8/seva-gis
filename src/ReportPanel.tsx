@@ -66,6 +66,9 @@ import {
   sendViaOpenSmsGateway,
   getStoredOpenSmsConfig,
   saveStoredOpenSmsConfig,
+  getNativeSmsUri,
+  getWhatsAppUri,
+  OpenSmsGatewayError,
   type OpenSmsConfig,
   type AdvisoryLanguage,
   type MessageTemplateType,
@@ -131,6 +134,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [autoEmailOnDownload, setAutoEmailOnDownload] = useState(true)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailSuccess, setEmailSuccess] = useState('')
+  const [emailDeliveredDirectly, setEmailDeliveredDirectly] = useState(false)
   const [emailPackage, setEmailPackage] = useState<EmailGenerationResult | null>(null)
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [dispatchChannel, setDispatchChannel] = useState<'email' | 'sms'>('email')
@@ -149,6 +153,8 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [smsTemplate, setSmsTemplate] = useState<MessageTemplateType>('crop_health')
   const [sendingSms, setSendingSms] = useState(false)
   const [smsSuccess, setSmsSuccess] = useState('')
+  const [smsFallbackInfo, setSmsFallbackInfo] = useState<{ note: string; smsUri: string; waUri: string; preview: string } | null>(null)
+  const [copiedSms, setCopiedSms] = useState(false)
   const [historyList, setHistoryList] = useState<ReportHistoryEntry[]>([])
   const [downloading, setDownloading] = useState<'pdf' | 'doc' | 'dossier' | 'json' | 'md' | 'zip' | 'images' | ''>('')
   const [exportFormat, setExportFormat] = useState<'html' | 'pdf' | 'doc' | 'json' | 'md' | 'zip'>('pdf')
@@ -389,6 +395,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
     setSendingEmail(true)
     setEmailSuccess('')
+    setEmailDeliveredDirectly(false)
     setErr('')
 
     try {
@@ -397,7 +404,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
       const ext = exportFormat === 'pdf' ? 'pdf' : exportFormat === 'doc' ? 'doc' : exportFormat === 'zip' ? 'zip' : exportFormat === 'json' ? 'json' : exportFormat === 'md' ? 'md' : 'html'
 
-      // 1. Direct Automated Email Delivery to Recipient Inbox via Server
+      // 1. Direct Automated Email Delivery (falls back cleanly to .eml/Gmail/mailto on static 405 hosts)
       const directResult = await sendReportDirectToEmail({
         recipientEmail: emailInput,
         farmName: farm.name,
@@ -412,33 +419,41 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         smtpConfig,
       })
 
-      setEmailSuccess(`Report (${exportFormat.toUpperCase()}) successfully delivered directly to ${emailInput}! Check your inbox and spam folder.`)
+      setEmailDeliveredDirectly(Boolean(directResult.delivered))
+      setEmailSuccess(directResult.message)
 
-      // 2. Prepare client .eml bundle silently in background for optional manual review
-      executeEmailPackageDelivery({
-        recipientEmail: emailInput,
-        farmName: farm.name,
-        reportId: current.id,
-        areaHa: farm.area,
-        ndvi: farm.analysis?.ndvi?.mean,
-        ndmi: farm.analysis?.ndmi?.mean,
-        filename: `${baseFilename}.${ext}`,
-        htmlContent: current.html,
-        senderName: who.name || 'SEVA·GIS',
-        downloadEml: false,
-      }).then(res => setEmailPackage(res.packageData)).catch(() => {})
+      if (directResult.packageData) {
+        setEmailPackage(directResult.packageData)
+        if (directResult.isClientFallback) {
+          setShowManualOptions(true)
+        }
+      } else {
+        executeEmailPackageDelivery({
+          recipientEmail: emailInput,
+          farmName: farm.name,
+          reportId: current.id,
+          areaHa: farm.area,
+          ndvi: farm.analysis?.ndvi?.mean,
+          ndmi: farm.analysis?.ndmi?.mean,
+          filename: `${baseFilename}.${ext}`,
+          htmlContent: current.html,
+          senderName: who.name || 'SEVA·GIS',
+          downloadEml: false,
+        }).then(res => setEmailPackage(res.packageData)).catch(() => {})
+      }
 
-      // 3. Background non-blocking sync to EmailOctopus list
-      syncAndSendViaEmailOctopus({
-        email: emailInput,
-        farmName: farm.name,
-        reportId: current.id,
-        areaHa: farm.area,
-        ndvi: farm.analysis?.ndvi?.mean,
-        ndmi: farm.analysis?.ndmi?.mean,
-        filename: `${baseFilename}.${ext}`,
-        htmlContent: current.html,
-      }).catch(() => {})
+      if (directResult.delivered && EMAIL_OCTOPUS_CONFIG.apiKey && EMAIL_OCTOPUS_CONFIG.listId) {
+        syncAndSendViaEmailOctopus({
+          email: emailInput,
+          farmName: farm.name,
+          reportId: current.id,
+          areaHa: farm.area,
+          ndvi: farm.analysis?.ndvi?.mean,
+          ndmi: farm.analysis?.ndmi?.mean,
+          filename: `${baseFilename}.${ext}`,
+          htmlContent: current.html,
+        }).catch(() => {})
+      }
 
     } catch (err: any) {
       setErr(err?.message || 'Could not dispatch report email. Please check your network.')
@@ -457,15 +472,27 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
 
     setSendingSms(true)
     setSmsSuccess('')
+    setSmsFallbackInfo(null)
     setErr('')
+
+    const messageText = generateAdvisoryMessage(farm as any, smsTemplate, smsLang)
+    const fallbackSmsUri = getNativeSmsUri(cleanNum, messageText)
+    const fallbackWhatsAppUri = getWhatsAppUri(cleanNum, messageText)
 
     try {
       localStorage.setItem('seva_user_phone', smsPhoneInput)
-      const messageText = generateAdvisoryMessage(farm as any, smsTemplate, smsLang)
       const res = await sendViaOpenSmsGateway(openSmsConfig, cleanNum, messageText)
-      setSmsSuccess(`SMS alert automatically dispatched to ${cleanNum} via Android SIM gateway! (${res.message})`)
+      setSmsSuccess(`SMS alert dispatched to ${cleanNum} via Android SIM gateway! (${res.message})`)
     } catch (err: any) {
-      setErr(err?.message || 'Failed to dispatch SMS via OpenSMS gateway.')
+      const note = err instanceof OpenSmsGatewayError
+        ? err.message
+        : (err?.message || 'OpenSMS gateway unavailable on this network.')
+      setSmsFallbackInfo({
+        note,
+        smsUri: err instanceof OpenSmsGatewayError ? err.fallbackSmsUri : fallbackSmsUri,
+        waUri: err instanceof OpenSmsGatewayError ? err.fallbackWhatsAppUri : fallbackWhatsAppUri,
+        preview: messageText,
+      })
     } finally {
       setSendingSms(false)
     }
@@ -1109,7 +1136,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                     {sendingSms ? (
                       <>
                         <RefreshCw size={16} className="animate-spin" />
-                        <span>Sending SMS Automatically via SIM Card...</span>
+                        <span>Connecting to OpenSMS Android Gateway...</span>
                       </>
                     ) : (
                       <>
@@ -1118,6 +1145,76 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                       </>
                     )}
                   </button>
+
+                  {/* Always-Available Direct Device SMS, WhatsApp & Copy Buttons */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+                    <a
+                      href={getNativeSmsUri(cleanPhoneNumber(smsPhoneInput) || '', generateAdvisoryMessage(farm as any, smsTemplate, smsLang))}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        background: '#0f172a',
+                        color: '#ffffff',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <Smartphone size={14} />
+                      <span>Phone SMS App</span>
+                    </a>
+                    <a
+                      href={getWhatsAppUri(cleanPhoneNumber(smsPhoneInput) || '', generateAdvisoryMessage(farm as any, smsTemplate, smsLang))}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        background: '#16a34a',
+                        color: '#ffffff',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <ExternalLink size={14} />
+                      <span>Send via WhatsApp</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const txt = generateAdvisoryMessage(farm as any, smsTemplate, smsLang)
+                        navigator.clipboard?.writeText(txt).catch(() => {})
+                        setCopiedSms(true)
+                        setTimeout(() => setCopiedSms(false), 2500)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        background: '#f1f5f9',
+                        color: '#1e293b',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <CheckCircle2 size={14} color={copiedSms ? '#16a34a' : '#64748b'} />
+                      <span>{copiedSms ? 'Copied SMS!' : 'Copy Advisory'}</span>
+                    </button>
+                  </div>
                 </form>
               )}
 
@@ -1128,8 +1225,35 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                   <div>
                     <strong>{emailSuccess}</strong>
                     <div style={{ fontSize: '11.5px', color: '#065f46', marginTop: '2px' }}>
-                      Transmitted directly to your inbox. No manual attachments or downloads required.
+                      {emailDeliveredDirectly
+                        ? 'Transmitted directly via server mail relay.'
+                        : 'Ready to send directly via Gmail Web, Phone Mail App, or .eml bundle below.'}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {smsFallbackInfo && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', color: '#92400e', fontSize: '12.5px', marginTop: '14px', background: '#fffbeb', padding: '12px 16px', borderRadius: '10px', border: '1.5px solid #f59e0b' }}>
+                  <div>
+                    <strong>OpenSMS LAN Gateway Unavailable — Use Instant Direct Send:</strong>
+                    <div style={{ fontSize: '11.5px', color: '#78350f', marginTop: '3px' }}>{smsFallbackInfo.note}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <a
+                      href={smsFallbackInfo.smsUri}
+                      style={{ background: '#0284c7', color: '#ffffff', padding: '8px 14px', borderRadius: '7px', fontWeight: 700, fontSize: '12px', textDecoration: 'none' }}
+                    >
+                      Launch Phone SMS App →
+                    </a>
+                    <a
+                      href={smsFallbackInfo.waUri}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ background: '#16a34a', color: '#ffffff', padding: '8px 14px', borderRadius: '7px', fontWeight: 700, fontSize: '12px', textDecoration: 'none' }}
+                    >
+                      Send via WhatsApp →
+                    </a>
                   </div>
                 </div>
               )}
@@ -1199,7 +1323,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                       <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>OpenSMS Device URL</label>
                       <input
                         type="text"
-                        placeholder="http://10.65.171.208:9292/sms/"
+                        placeholder="http://127.0.0.1:9292/sms/"
                         value={openSmsConfig.serverUrl}
                         onChange={e => {
                           const updated = { ...openSmsConfig, serverUrl: e.target.value }
@@ -1257,6 +1381,26 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                     >
                       <ExternalLink size={12} />
                       <span>Open in Gmail Web</span>
+                    </a>
+
+                    <a
+                      href={emailPackage.mailtoUrl}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: '#0284c7',
+                        color: '#ffffff',
+                        padding: '7px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        textDecoration: 'none'
+                      }}
+                    >
+                      <Mail size={12} />
+                      <span>Phone Mail App</span>
                     </a>
 
                     <button

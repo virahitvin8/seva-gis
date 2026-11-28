@@ -41,14 +41,18 @@ export function getStoredOpenSmsConfig(): OpenSmsConfig {
       if (parsed.serverUrl && !parsed.serverUrl.endsWith('/')) {
         parsed.serverUrl += '/'
       }
-      return parsed
+      return {
+        serverUrl: parsed.serverUrl || 'http://127.0.0.1:9292/sms/',
+        apiKey: typeof parsed.apiKey === 'string' ? parsed.apiKey : '',
+        enabled: parsed.enabled !== false,
+      }
     }
   } catch (err) {
     // ignore
   }
   return {
-    serverUrl: 'http://10.65.171.208:9292/sms/',
-    apiKey: 'osms_QJZxOgTgl2mGc2nXDYW_RNPteNwnpwxI1QS-E47uzlI',
+    serverUrl: 'http://127.0.0.1:9292/sms/',
+    apiKey: '',
     enabled: true,
   }
 }
@@ -236,6 +240,38 @@ Report link (use with your field inspection records): https://sevagis.dpdns.org/
   }
 }
 
+export class OpenSmsGatewayError extends Error {
+  reason: 'mixed-content' | 'timeout' | 'unreachable' | 'http-error'
+  fallbackSmsUri: string
+  fallbackWhatsAppUri: string
+
+  constructor(
+    message: string,
+    reason: 'mixed-content' | 'timeout' | 'unreachable' | 'http-error',
+    number: string,
+    text: string
+  ) {
+    super(message)
+    this.name = 'OpenSmsGatewayError'
+    this.reason = reason
+    this.fallbackSmsUri = getNativeSmsUri(number, text)
+    this.fallbackWhatsAppUri = getWhatsAppUri(number, text)
+  }
+}
+
+export function isBlockedMixedContentUrl(urlString: string): boolean {
+  if (typeof window === 'undefined' || !window.location) return false
+  if (window.location.protocol !== 'https:') return false
+  try {
+    const u = new URL(urlString)
+    if (u.protocol !== 'http:') return false
+    // Loopback http://127.0.0.1 and localhost are treated as potentially trustworthy in Chromium/WebView
+    return u.hostname !== '127.0.0.1' && u.hostname !== 'localhost'
+  } catch {
+    return false
+  }
+}
+
 /**
  * Send SMS via OpenSMS Android API Gateway
  * Endpoint: POST http://<android-ip>:9292/sms/
@@ -244,10 +280,16 @@ Report link (use with your field inspection records): https://sevagis.dpdns.org/
 export async function sendViaOpenSmsGateway(
   config: OpenSmsConfig,
   number: string,
-  text: string
+  text: string,
+  timeoutMs = 4500
 ): Promise<{ success: boolean; message: string }> {
   if (!config.serverUrl) {
-    throw new Error('OpenSMS server URL is not configured. Please enter your Android device IP and port 9292.')
+    throw new OpenSmsGatewayError(
+      'OpenSMS server URL is not configured. Tap "Phone SMS App" or enter your Android OpenSMS URL (e.g. http://127.0.0.1:9292/sms/).',
+      'unreachable',
+      number,
+      text
+    )
   }
 
   const cleanNum = cleanPhoneNumber(number)
@@ -260,8 +302,10 @@ export async function sendViaOpenSmsGateway(
     targetUrl += '/'
   }
 
-  // 1. Try local same-origin relay proxy first to bypass browser CORS preflight & Mixed Content blocks
+  // 1. Try local/Vercel same-origin relay proxy if hosted on HTTP/tunnel; skip immediately on 404/405 static CDNs
   try {
+    const proxyController = new AbortController()
+    const proxyTimer = setTimeout(() => proxyController.abort(), timeoutMs)
     const proxyRes = await fetch('/api/opensms-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -271,24 +315,43 @@ export async function sendViaOpenSmsGateway(
         number: cleanNum,
         text: text
       }),
-    })
+      signal: proxyController.signal,
+    }).finally(() => clearTimeout(proxyTimer))
+
     if (proxyRes.ok) {
       const pJson = await proxyRes.json().catch(() => ({}))
       if (pJson.stat === true || pJson.success) {
         return { success: true, message: pJson.message || 'SMS sent successfully through Android phone SIM card!' }
       }
       if (pJson.error) {
-        throw new Error(pJson.error)
+        throw new OpenSmsGatewayError(pJson.error, 'unreachable', cleanNum, text)
+      }
+    } else if (proxyRes.status !== 404 && proxyRes.status !== 405) {
+      const errJson = await proxyRes.json().catch(() => ({}))
+      if (errJson?.reason === 'private-lan-ip' && isBlockedMixedContentUrl(targetUrl)) {
+        throw new OpenSmsGatewayError(
+          errJson.error || 'OpenSMS LAN IP cannot be reached over cloud HTTPS. Use Phone SMS App or WhatsApp below.',
+          'mixed-content',
+          cleanNum,
+          text
+        )
       }
     }
   } catch (proxyErr: any) {
-    // If not a proxy error with an explicit message, proceed to direct fetch
-    if (proxyErr.message && !proxyErr.message.includes('Failed to fetch') && !proxyErr.message.includes('404')) {
-      throw proxyErr
-    }
+    if (proxyErr instanceof OpenSmsGatewayError) throw proxyErr
   }
 
-  // 2. Direct client fetch fallback
+  // 2. Reject HTTPS -> non-loopback HTTP LAN Mixed Content immediately instead of hanging until timeout
+  if (isBlockedMixedContentUrl(targetUrl)) {
+    throw new OpenSmsGatewayError(
+      `Browser blocks HTTPS requests to HTTP LAN gateway (${targetUrl}). Tap "Phone SMS App" or "WhatsApp" below, or use an HTTPS tunnel / http://127.0.0.1:9292/sms/ on your Android phone.`,
+      'mixed-content',
+      cleanNum,
+      text
+    )
+  }
+
+  // 3. Direct client fetch (e.g. http://127.0.0.1:9292 on same Android device, local HTTP PC, or HTTPS tunnel)
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
@@ -302,7 +365,7 @@ export async function sendViaOpenSmsGateway(
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 12000)
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch(targetUrl, {
@@ -319,24 +382,36 @@ export async function sendViaOpenSmsGateway(
         const json = await res.json()
         if (json.message) dataText = json.message
         else if (json.stat === true) dataText = 'SMS dispatched successfully via Android SIM card!'
-      } catch (e) {
+      } catch {
         // text ok
       }
       return { success: true, message: dataText }
     } else {
       const errText = await res.text().catch(() => '')
-      throw new Error(`OpenSMS server responded with HTTP ${res.status}: ${errText || res.statusText}`)
+      throw new OpenSmsGatewayError(
+        `OpenSMS server responded with HTTP ${res.status}: ${errText || res.statusText}`,
+        'http-error',
+        cleanNum,
+        text
+      )
     }
   } catch (err: any) {
     clearTimeout(timeoutId)
+    if (err instanceof OpenSmsGatewayError) throw err
     if (err.name === 'AbortError') {
-      throw new Error('Connection to OpenSMS timed out after 12 seconds. Ensure your Android phone and PC are on the same Wi-Fi network and OpenSMS server is running.')
+      throw new OpenSmsGatewayError(
+        `OpenSMS gateway at ${targetUrl} did not respond within ${Math.round(timeoutMs / 1000)}s. Start OpenSMS on your phone or tap "Phone SMS App" / "WhatsApp" below to send right away.`,
+        'timeout',
+        cleanNum,
+        text
+      )
     }
-    // Mixed content / CORS error handling
-    if (err.message && err.message.includes('Failed to fetch')) {
-      throw new Error('Failed to connect to OpenSMS gateway. Note: If accessing SEVA·GIS over HTTPS, modern browsers block HTTP LAN requests due to Mixed Content policy. You can use the "Direct Device SMS" or "WhatsApp" buttons, or run OpenSMS behind a secure tunnel (e.g. ngrok / Tailscale / Cloudflare Tunnel).')
-    }
-    throw err
+    throw new OpenSmsGatewayError(
+      `Could not reach OpenSMS at ${targetUrl}. Tap "Phone SMS App" or "WhatsApp" below to dispatch directly from this device.`,
+      'unreachable',
+      cleanNum,
+      text
+    )
   }
 }
 

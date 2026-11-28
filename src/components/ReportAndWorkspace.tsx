@@ -40,6 +40,7 @@ import {
   exportObsidianZettelkastenNote,
   triggerBrowserDownload,
 } from '../services/engineConnector';
+import { executeEmailPackageDelivery, type EmailGenerationResult } from '../lib/emailGenerator';
 import { TRANSLATIONS } from '../i18n/translations';
 
 interface ReportAndWorkspaceProps {
@@ -62,7 +63,7 @@ export const ReportAndWorkspace: React.FC<ReportAndWorkspaceProps> = ({
   const [recipientEmail, setRecipientEmail] = useState('');
   const [selectedFormats, setSelectedFormats] = useState<string[]>(['pdf', 'json', 'html']);
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [emailStatus, setEmailStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [emailStatus, setEmailStatus] = useState<{ success: boolean; message: string; fallbackPackage?: EmailGenerationResult } | null>(null);
 
   const [workspaceTreeOpen, setWorkspaceTreeOpen] = useState(false);
   const [activePackModal, setActivePackModal] = useState<'pmfby' | 'loan' | 'backup' | null>(null);
@@ -111,6 +112,23 @@ export const ReportAndWorkspace: React.FC<ReportAndWorkspaceProps> = ({
       </div>
     `;
 
+    const buildFallback = async (reason: string) => {
+      const pkg = await executeEmailPackageDelivery({
+        recipientEmail,
+        farmName: aoi.name,
+        reportId: `SEVA-${Date.now().toString().slice(-6)}`,
+        areaHa: aoi.hectares,
+        filename: `${aoi.name.replace(/\W+/g, '_')}_Report.html`,
+        htmlContent: reportHtml,
+        downloadEml: false,
+      });
+      setEmailStatus({
+        success: true,
+        message: `${reason} Prepared Gmail Web, Device Mail & .eml bundle for ${recipientEmail}.`,
+        fallbackPackage: pkg.packageData,
+      });
+    };
+
     try {
       const res = await fetch('/api/report/send-email', {
         method: 'POST',
@@ -132,23 +150,22 @@ export const ReportAndWorkspace: React.FC<ReportAndWorkspaceProps> = ({
         }),
       });
 
-      const data = await res.json();
+      if (res.status === 404 || res.status === 405 || res.status === 501) {
+        await buildFallback(`Server mail relay unavailable (HTTP ${res.status}).`);
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.sent) {
         setEmailStatus({
           success: true,
           message: `Report successfully dispatched directly to ${recipientEmail} with ${data.attachedFiles?.length || 0} attachments.`,
         });
       } else {
-        setEmailStatus({
-          success: false,
-          message: data.error || 'SMTP delivery unconfigured in .env or failed upstream.',
-        });
+        await buildFallback(data.error || data.message || 'SMTP delivery unconfigured.');
       }
     } catch (err: any) {
-      setEmailStatus({
-        success: false,
-        message: `Network failure connecting to /api/report/send-email: ${err.message}`,
-      });
+      await buildFallback(`Offline/static dispatch fallback (${err?.message || 'network unavailable'}).`);
     } finally {
       setSendingEmail(false);
     }
@@ -309,18 +326,38 @@ export const ReportAndWorkspace: React.FC<ReportAndWorkspaceProps> = ({
 
           {emailStatus && (
             <div
-              className={`p-3.5 rounded-xl text-xs flex items-center gap-2 ${
+              className={`p-3.5 rounded-xl text-xs space-y-2 ${
                 emailStatus.success
                   ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
                   : 'bg-rose-50 text-rose-900 border border-rose-300'
               }`}
             >
-              {emailStatus.success ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <div className="flex items-center gap-2">
+                {emailStatus.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{emailStatus.message}</span>
+              </div>
+              {emailStatus.fallbackPackage && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <a
+                    href={emailStatus.fallbackPackage.gmailWebUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold"
+                  >
+                    Open in Gmail Web
+                  </a>
+                  <a
+                    href={emailStatus.fallbackPackage.mailtoUrl}
+                    className="px-3 py-1.5 rounded-lg bg-sky-600 text-white font-bold"
+                  >
+                    Phone Mail App
+                  </a>
+                </div>
               )}
-              <span>{emailStatus.message}</span>
             </div>
           )}
         </div>

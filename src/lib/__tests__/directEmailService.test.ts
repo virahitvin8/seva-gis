@@ -40,8 +40,31 @@ test('sendReportDirectToEmail rejects invalid email format without @', async () 
         htmlContent: '<html></html>',
       })
     },
-    {
+      {
       message: /valid recipient email/i,
     }
   )
+})
+
+test('sendReportDirectToEmail falls back cleanly to client package when server returns HTTP 405', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => new Response('Method Not Allowed', { status: 405 })) as typeof fetch
+  try {
+    const res = await sendReportDirectToEmail({
+      recipientEmail: 'farmer@example.com',
+      farmName: 'Kisan Plot',
+      reportId: 'SEVA-405',
+      format: 'pdf',
+      filename: 'Kisan_Plot.pdf',
+      htmlContent: '<html><body>Report</body></html>',
+    })
+    assert.equal(res.success, true)
+    assert.equal(res.delivered, false)
+    assert.equal(res.isClientFallback, true)
+    assert.equal(res.transport, 'client-package')
+    assert.ok(res.packageData?.gmailWebUrl.includes('mail.google.com'))
+    assert.ok(res.packageData?.mailtoUrl.startsWith('mailto:farmer%40example.com'))
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

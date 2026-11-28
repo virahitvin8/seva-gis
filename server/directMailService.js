@@ -13,8 +13,9 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const OUTBOX_DIR = path.join(__dirname, 'data');
-const OUTBOX_FILE = path.join(OUTBOX_DIR, 'mail_outbox.json');
+const isEphemeralFs = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const OUTBOX_DIR = isEphemeralFs ? '/tmp' : path.join(__dirname, 'data');
+const OUTBOX_FILE = path.join(OUTBOX_DIR, 'seva_mail_outbox.json');
 
 // Ensure data dir exists
 try {
@@ -386,25 +387,28 @@ export async function dispatchReportEmail(payload) {
     }
   }
 
-  // 4. Default dispatch fallback (always succeeds and records to outbox)
+  // 4. Honest fallback status when neither SMTP nor Resend delivered the message
   if (!dispatchResult) {
     dispatchResult = {
-      success: true,
-      delivered: true,
-      transport: smtpHost ? 'smtp-queued' : 'instant-dispatch',
-      message: `Report (${format.toUpperCase()}) successfully processed and delivered to ${email}!`,
+      success: false,
+      delivered: false,
+      needsClientFallback: true,
+      transport: 'unconfigured',
+      message: `No server SMTP or Resend credentials are configured. Falling back to client .eml / mail compose package for ${email}.`,
     };
   }
 
-  recordToOutbox({
-    recipient: email,
-    farmName,
-    reportId,
-    format,
-    filename,
-    transport: dispatchResult.transport,
-    subject,
-  });
+  if (dispatchResult.delivered) {
+    recordToOutbox({
+      recipient: email,
+      farmName,
+      reportId,
+      format,
+      filename,
+      transport: dispatchResult.transport,
+      subject,
+    });
+  }
 
   return dispatchResult;
 }

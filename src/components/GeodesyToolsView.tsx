@@ -174,13 +174,25 @@ export default function GeodesyToolsView({
     <div className="space-y-4 pb-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <ArrowLeftRight size={19} className="text-[#81C784]" />
+          <img src="/images/field-kit/32x32-icon-earth.png" alt="Geodesy" className="w-6 h-6 object-contain" />
           <span>{t('field.tools.title')}</span>
         </h2>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2E7D32]/20 border border-[#2E7D32]/50 text-[11px] font-semibold text-[#A5D6A7]">
           <ShieldCheck size={12} />
           <span>{t('field.badge.localOnly')}</span>
         </span>
+      </div>
+
+      <div className="relative h-14 rounded-xl overflow-hidden border border-[#2F2F2F] bg-[#121212]">
+        <img
+          src="/images/field-kit/BMNG_world.topo.bathy.200405.3.2048x1024.jpg"
+          alt="NASA Blue Marble WGS84 Datum Reference"
+          className="w-full h-full object-cover opacity-55"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#121212]/90 via-transparent to-[#121212]/90 px-4 flex items-center justify-between text-xs font-mono">
+          <span className="text-[#81C784] font-bold">WGS84 · IGRF-2025 · EGM2008</span>
+          <img src="/images/field-kit/usda_logo-32x32.png" alt="USDA Datum Ref" className="w-6 h-6 object-contain" />
+        </div>
       </div>
 
       {/* Side-by-Side Geodesy Transformation Cards */}

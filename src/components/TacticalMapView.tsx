@@ -63,6 +63,7 @@ export default function TacticalMapView({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const gpsMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const wptMarkersRef = useRef<maplibregl.Marker[]>([]);
   const suppressMoveRef = useRef(false);
 
   const [activeLayer, setActiveLayer] = useState<BaseLayerId>('esri-satellite');
@@ -199,6 +200,8 @@ export default function TacticalMapView({
         cancelled = true;
         gpsMarkerRef.current?.remove();
         gpsMarkerRef.current = null;
+        wptMarkersRef.current.forEach((m) => m.remove());
+        wptMarkersRef.current = [];
         map.remove();
         mapRef.current = null;
       };
@@ -221,11 +224,26 @@ export default function TacticalMapView({
     map.easeTo({ pitch: is3dTilt ? 52 : 0, duration: 400 });
   }, [is3dTilt]);
 
-  // Update vector overlays when pins/waypoints/track change
+  // Update vector overlays and pushpin markers when pins/waypoints/track change
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    syncOverlays(map);
+    if (!map) return;
+    if (map.isStyleLoaded()) {
+      syncOverlays(map);
+    }
+    wptMarkersRef.current.forEach((m) => m.remove());
+    wptMarkersRef.current = waypoints.map((w) => {
+      const el = document.createElement('div');
+      el.title = w.label;
+      el.className = 'w-7 h-7 flex items-center justify-center drop-shadow-md cursor-pointer';
+      const img = document.createElement('img');
+      const iconFile = w.symbol && w.symbol.endsWith('.png') ? w.symbol : 'castshadow-orange.png';
+      img.src = `/images/field-kit/pushpins/${iconFile}`;
+      img.alt = w.label;
+      img.className = 'w-7 h-7 object-contain';
+      el.appendChild(img);
+      return new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([w.lon, w.lat]).addTo(map);
+    });
   }, [pins, closedRing, waypoints, trackPoints]);
 
   // Update live GPS dot marker
@@ -297,12 +315,13 @@ export default function TacticalMapView({
           </div>
         )}
 
-        {/* Fixed Central Precision Crosshair */}
+        {/* Fixed Central Precision Crosshair (NASA WorldWind Sprite) */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
-          <div className="relative flex items-center justify-center">
-            <Crosshair size={42} strokeWidth={1.6} className="text-[#F57C00] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" />
-            <span className="w-2 h-2 rounded-full bg-white border border-[#121212] absolute" />
-          </div>
+          <img
+            src="/images/field-kit/64x64-crosshair.png"
+            alt="Precision crosshair"
+            className="w-11 h-11 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+          />
         </div>
 
         {/* Floating Transparent Speed & Boundary Widget */}
@@ -366,12 +385,40 @@ export default function TacticalMapView({
           <button
             type="button"
             onClick={handleCycleLayer}
-            className="min-h-[48px] min-w-[48px] px-3 rounded-xl bg-[#1E1E1E]/95 border border-[#3A3A3A] hover:border-[#F57C00] text-white flex items-center justify-center shadow-lg"
+            className="min-h-[48px] min-w-[48px] px-2.5 rounded-xl bg-[#1E1E1E]/95 border border-[#3A3A3A] hover:border-[#F57C00] text-white flex items-center justify-center shadow-lg"
             title={t('field.map.layers')}
             aria-label={t('field.map.layers')}
           >
-            <Layers size={22} className="text-[#FFB74D]" />
+            <img src="/images/field-kit/layer-manager-64x64.png" alt="Layers" className="w-7 h-7 object-contain" />
           </button>
+
+          {/* WorldWind Camera Zoom & Pitch Controls */}
+          <div className="flex flex-col gap-1 bg-[#1E1E1E]/95 border border-[#3A3A3A] rounded-xl p-1 shadow-lg">
+            <button
+              type="button"
+              onClick={() => mapRef.current?.zoomIn()}
+              className="min-h-[40px] min-w-[40px] rounded-lg hover:bg-[#2E7D32]/30 flex items-center justify-center"
+              aria-label="Zoom In"
+            >
+              <img src="/images/field-kit/view-zoom-in-32x32.png" alt="+" className="w-6 h-6" />
+            </button>
+            <button
+              type="button"
+              onClick={() => mapRef.current?.zoomOut()}
+              className="min-h-[40px] min-w-[40px] rounded-lg hover:bg-[#2E7D32]/30 flex items-center justify-center"
+              aria-label="Zoom Out"
+            >
+              <img src="/images/field-kit/view-zoom-out-32x32.png" alt="-" className="w-6 h-6" />
+            </button>
+            <button
+              type="button"
+              onClick={() => mapRef.current?.rotateTo(mapRef.current.getBearing() - 30)}
+              className="min-h-[40px] min-w-[40px] rounded-lg hover:bg-[#F57C00]/20 flex items-center justify-center"
+              aria-label="Rotate Left"
+            >
+              <img src="/images/field-kit/view-heading-left-32x32.png" alt="Rotate left" className="w-6 h-6" />
+            </button>
+          </div>
         </div>
       </div>
 

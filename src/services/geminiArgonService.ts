@@ -10,6 +10,8 @@
  * for complex spatio-temporal reasoning, variable rate recommendations, and PMFBY audit validation.
  */
 
+import { executeRoutedOpenAiFallback, getStoredRouterConfig } from './freeLlmRouter';
+
 export interface ArgonAnalysisOptions {
   model?: string;
   thinkingLevel?: 'low' | 'medium' | 'high';
@@ -158,66 +160,84 @@ export async function evaluateWithGemini4Argon(
 ): Promise<ArgonAnalysisResult> {
   const apiKey = options.apiKey || getGeminiApiKey();
   const thinkingLevel = options.thinkingLevel || 'high';
+  const prompt = buildArgonPrompt(farm);
+  const routerCfg = getStoredRouterConfig();
+  const hasRouterProviders = Boolean(
+    routerCfg.freellmapiGatewayUrl || routerCfg.groqApiKey || routerCfg.openRouterApiKey
+  );
 
-  if (!apiKey) {
-    // Return deterministic peer-reviewed fallback if no API key is supplied
+  if (!apiKey && !hasRouterProviders) {
+    // Return deterministic peer-reviewed fallback if no API key or FreeLLMAPI router is configured
     return generateDeterministicFallback(farm, thinkingLevel);
   }
 
-  const prompt = buildArgonPrompt(farm);
-
-  try {
-    // 1. Try Interactions API endpoint (Preferred for Gemini 4 Argon)
-    const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions`;
-    const response = await fetch(interactionsUrl, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gemini-4-argon',
-        input: prompt,
-        generation_config: {
-          thinking_level: thinkingLevel,
-          response_mime_type: 'application/json',
+  if (apiKey) {
+    try {
+      // 1. Try Interactions API endpoint (Preferred for Gemini 4 Argon)
+      const interactionsUrl = `https://generativelanguage.googleapis.com/v1beta/interactions`;
+      const response = await fetch(interactionsUrl, {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          model: 'gemini-4-argon',
+          input: prompt,
+          generation_config: {
+            thinking_level: thinkingLevel,
+            response_mime_type: 'application/json',
+          },
+        }),
+      });
 
-    if (response.ok) {
-      const data = await response.json();
-      const outputText = data.output_text || data.interaction?.output_text || '';
-      const parsed = JSON.parse(cleanJsonString(outputText));
-      return formatArgonResponse(parsed, 'gemini-4-argon', thinkingLevel, false);
+      if (response.ok) {
+        const data = await response.json();
+        const outputText = data.output_text || data.interaction?.output_text || '';
+        const parsed = JSON.parse(cleanJsonString(outputText));
+        return formatArgonResponse(parsed, 'gemini-4-argon', thinkingLevel, false);
+      }
+    } catch (err) {
+      console.warn('[Gemini 4 Argon] Interactions API failed, falling back to generateContent:', err);
     }
-  } catch (err) {
-    console.warn('[Gemini 4 Argon] Interactions API failed, falling back to generateContent:', err);
+
+    try {
+      // 2. Fallback to standard generateContent with thinkingConfig
+      const genContentUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-4-argon:generateContent?key=${apiKey}`;
+      const response = await fetch(genContentUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            thinkingConfig: { thinkingLevel: thinkingLevel },
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const parsed = JSON.parse(cleanJsonString(text));
+        return formatArgonResponse(parsed, 'gemini-4-argon', thinkingLevel, false);
+      }
+    } catch (err) {
+      console.error('[Gemini 4 Argon] generateContent failed:', err);
+    }
   }
 
-  try {
-    // 2. Fallback to standard generateContent with thinkingConfig
-    const genContentUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-4-argon:generateContent?key=${apiKey}`;
-    const response = await fetch(genContentUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          thinkingConfig: { thinkingLevel: thinkingLevel },
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const parsed = JSON.parse(cleanJsonString(text));
-      return formatArgonResponse(parsed, 'gemini-4-argon', thinkingLevel, false);
+  // 3. FreeLLMAPI / OpenAI-compatible multi-provider Bandit Failover Chain
+  if (hasRouterProviders) {
+    try {
+      const routed = await executeRoutedOpenAiFallback(prompt, routerCfg);
+      if (routed) {
+        const parsed = JSON.parse(cleanJsonString(routed.text));
+        return formatArgonResponse(parsed, `${routed.model} [${routed.platform}]`, thinkingLevel, false);
+      }
+    } catch (err) {
+      console.warn('[FreeLLMAPI Router] Fallback chain failed:', err);
     }
-  } catch (err) {
-    console.error('[Gemini 4 Argon] generateContent failed:', err);
   }
 
   // Graceful deterministic fallback

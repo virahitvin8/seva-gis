@@ -22,7 +22,7 @@ import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 // Vite config — https://vitejs.dev/config/
 function resolveBuildStamp() {
-  let pkgVersion = '4.5.0'
+  let pkgVersion = '4.6.0'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf-8'))
     if (pkg?.version) pkgVersion = pkg.version
@@ -39,9 +39,9 @@ function resolveBuildStamp() {
   }
   if (!gitCount) {
     try {
-      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 45
+      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 46
     } catch {
-      gitCount = 45
+      gitCount = 46
     }
   }
   return {
@@ -49,7 +49,7 @@ function resolveBuildStamp() {
     commit: gitCommit || 'local',
     buildNumber: gitCount,
     buildDate: new Date().toISOString(),
-    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 45),
+    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 46),
   }
 }
 

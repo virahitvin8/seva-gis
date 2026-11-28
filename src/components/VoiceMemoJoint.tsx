@@ -8,6 +8,7 @@ import {
   type TrackPoint,
   computeTrackStats,
   buildFdrsTelemetryFrames,
+  exportFdrsNodeConfigHeader,
   exportWaypointsAndTrackGpx,
   exportWaypointsAndTrackKml,
   exportWaypointsCsv,
@@ -509,22 +510,32 @@ export default function VoiceMemoJoint({
         </div>
       </div>
 
-      {/* FDRS LoRa / MQTT Telemetry Packet */}
+      {/* FDRS LoRa / MQTT Telemetry Packet & Node C++ Firmware Header */}
       <section className="bg-[#1E1E1E] border border-[#2E2E2E] rounded-2xl p-4 space-y-2.5">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-bold text-white">{t('field.rec.fdrsTitle')}</div>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(fdrsPacket.json).catch(() => {});
-              setFdrsCopied(true);
-              setTimeout(() => setFdrsCopied(false), 1800);
-            }}
-            className="min-h-[40px] px-3 rounded-xl bg-[#2A2A2A] text-xs font-bold text-[#81C784] flex items-center gap-1.5"
-          >
-            {fdrsCopied ? <Check size={14} /> : <Copy size={14} />}
-            <span>{t('field.rec.copyFdrs')}</span>
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => downloadFile(exportFdrsNodeConfigHeader(101, '0x01', 'lora'), 'fdrs_node_config.h', 'text/plain')}
+              className="min-h-[40px] px-3 rounded-xl bg-[#2E7D32] text-xs font-bold text-white flex items-center gap-1.5"
+            >
+              <Download size={14} />
+              <span>fdrs_node_config.h</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(fdrsPacket.json).catch(() => {});
+                setFdrsCopied(true);
+                setTimeout(() => setFdrsCopied(false), 1800);
+              }}
+              className="min-h-[40px] px-3 rounded-xl bg-[#2A2A2A] text-xs font-bold text-[#81C784] flex items-center gap-1.5"
+            >
+              {fdrsCopied ? <Check size={14} /> : <Copy size={14} />}
+              <span>{t('field.rec.copyFdrs')}</span>
+            </button>
+          </div>
         </div>
         <pre className="bg-[#121212] border border-[#2B2B2B] rounded-xl p-3 text-[11px] font-mono text-[#C7D0C9] overflow-x-auto tabular-nums">
           Topic: {fdrsPacket.gatewayTopic}{'\n'}{fdrsPacket.json}

@@ -1,7 +1,7 @@
 {
-  "version": "4.5.0",
+  "version": "4.6.0",
   "buildDate": "2026-11-28T00:00:00Z",
-  "buildNumber": 45,
+  "buildNumber": 46,
   "commit": "local",
   "channel": "stable",
   "appName": "SEVA.GIS",
@@ -9,13 +9,12 @@
   "updateUrl": "https://sevagis.dpdns.org/version.json",
   "otaManifestUrl": "https://sevagis.dpdns.org/updates/latest.json",
   "releaseTag": "latest",
-  "apkVersionCode": 45,
+  "apkVersionCode": 46,
   "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "changelog": [
-    "Industrial Precision dark field studio + Easy Farmer 1-tap voice guidance mode",
-    "Real MapLibre GL tactical map with Esri Satellite, OSM, OpenTopoMap & offline Z13-Z16 tile cache",
-    "Official IAGA IGRF-14 Epoch 2025 spherical harmonic geomagnetic declination & EGM2008 orthometric toggle",
-    "Live Web Audio mic waveform voice notes with speech transcript & waypoint soil/farm/crop sheets",
-    "Farm Data Relay System (FDRS) telemetry frames & automatic Git-to-APK live OTA popup sync"
+    "Integrated FreeLLMAPI Bandit multi-provider failover router (balanced/smartest/fastest/reliable) with cooldown recovery in Gemini 4 Argon Advisor",
+    "Added NASA WorldWind Java Blue Marble & pushpin field imagery across Tactical Map, Precision Dashboard, Geodesy Tools & Waypoint Sheets",
+    "Added Farm Data Relay System (FDRS) C++ fdrs_node_config.h firmware header export for off-grid LoRa/ESP-NOW sensors",
+    "Automated multi-asset GitHub Releases (APK + latest-android.yml + web bundle + QGIS/ArcGIS plugins), GHCR multi-arch Docker packages, and pnpm-lockfile Vercel sync"
   ]
 }

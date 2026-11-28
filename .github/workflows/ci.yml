@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Lockfile, Typecheck, Tests, i18n & Build (Node 22)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Verify pnpm lockfile & install dependencies
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm rebuild @rolldown/binding-linux-x64-gnu 2>/dev/null || true
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run full unit test suite
+        run: npm test
+
+      - name: Verify localization parity (EN / HI / TE)
+        run: node --import ./scripts/test-run.mjs --test src/lib/__tests__/i18n.test.ts
+
+      - name: Build production bundle & verify OTA manifests
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          VITE_GIT_SHA: ${{ github.sha }}
+          VITE_BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          npm run build
+          test -f dist/version.json
+          test -f dist/updates/latest.json
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -58,6 +58,8 @@ Every open-source project contributing concepts, formats, or algorithms is recor
 | **Farm Data Relay System** | `timmbogner/Farm-Data-Relay-System` | Off-grid LoRa / ESP-NOW agricultural telemetry data packet standard (MIT) |
 | **KhetMap** | `virahitvin8/khetmap` | Simple smallholder field workflow and bottom navigation ergonomics (MIT) |
 | **Graphify** | `Graphify-Labs/graphify` | Semantic codebase indexing & module architecture verification (Apache-2.0 / MIT) |
+| **FreeLLMAPI** | `tashfeenahmed/freellmapi` | Bandit multi-provider LLM scorer, escalating cooldown ladder, keyless failover pattern, and automated multi-platform CI/release pipeline (MIT) |
+| **NASA WorldWind Java** | `NASAWorldWind/WorldWindJava` | Tactical GIS pushpins, notched compass dial, crosshairs, view navigation icons, layer manager icon & Blue Marble imagery under `/public/images/field-kit` (NASA-1.3 / Public Domain) |
 
 ## How to Contribute
 We welcome open-source contributions!

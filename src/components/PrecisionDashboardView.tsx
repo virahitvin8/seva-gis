@@ -375,16 +375,23 @@ export default function PrecisionDashboardView({
         </button>
       </div>
 
-      {/* Compass, IGRF-2025 Declination & Ephemeris Telemetry Row */}
+      {/* Compass Rose Dial, IGRF-2025 Declination & Ephemeris Telemetry Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        <div className="bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl p-3.5 flex items-center justify-between">
+        <div className="bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl p-3.5 flex items-center justify-between gap-2">
           <div>
             <div className="text-xs text-[#A3B1A6]">{t('field.dash.heading')}</div>
             <div className="font-mono text-base font-bold text-white tabular-nums mt-0.5">
               {Math.round(compassAzimuth)}°T ({compassCardinal16(compassAzimuth)}) · {Math.round(magAzimuth)}°M
             </div>
           </div>
-          <Compass size={22} className={compassSource === 'sensor' ? 'text-[#81C784]' : 'text-[#A3B1A6]'} />
+          <div className="w-12 h-12 rounded-full bg-[#121212] border border-[#323232] flex items-center justify-center shrink-0 overflow-hidden">
+            <img
+              src="/images/field-kit/notched-compass.png"
+              alt="Compass"
+              className="w-10 h-10 object-contain motion-reduce:transition-none"
+              style={{ transform: `rotate(${Math.round(compassAzimuth)}deg)` }}
+            />
+          </div>
         </div>
 
         <div className="bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl p-3.5">
@@ -402,6 +409,35 @@ export default function PrecisionDashboardView({
             </div>
           </div>
           <Sun size={20} className="text-[#FFB74D]" />
+        </div>
+      </div>
+
+      {/* Global Blue Marble Position Fix Strip */}
+      <div className="bg-[#1E1E1E] border border-[#2E2E2E] rounded-xl p-3 flex items-center justify-between gap-3">
+        <div className="relative w-32 h-16 rounded-lg overflow-hidden border border-[#343434] shrink-0 bg-[#121212]">
+          <img
+            src="/images/field-kit/earth-map-512x256.png"
+            alt="Earth Locator"
+            className="w-full h-full object-cover opacity-90"
+          />
+          <img
+            src="/images/field-kit/32x32-crosshair-simple.png"
+            alt="Fix"
+            className="w-4 h-4 absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+            style={{
+              left: `${Math.max(4, Math.min(96, ((lon + 180) / 360) * 100))}%`,
+              top: `${Math.max(6, Math.min(94, ((90 - lat) / 180) * 100))}%`,
+            }}
+          />
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+            <img src="/images/field-kit/16x16-icon-earth.png" alt="WGS84" className="w-4 h-4" />
+            <span>WGS84 · EPSG:4326</span>
+          </div>
+          <div className="text-[11px] font-mono text-[#A3B1A6] tabular-nums truncate">
+            {lat.toFixed(5)}°, {lon.toFixed(5)}° · UTM {utm.zoneNumber}{utm.hemisphere}
+          </div>
         </div>
       </div>
     </div>

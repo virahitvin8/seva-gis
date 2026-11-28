@@ -1,15 +1,22 @@
-name: Android APK Auto-Build & Release
+name: Android APK Auto-Build & Multi-Package Release
 
 on:
   workflow_call:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
 
+concurrency:
+  group: android-apk-release
+  cancel-in-progress: false
+
 jobs:
   android-build:
-    name: Build & Release Android APK
+    name: Build & Release Android APK + Packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +40,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           VITE_GIT_SHA: ${{ github.sha }}
           VITE_BUILD_NUMBER: ${{ github.run_number }}
-          VITE_APK_VERSION_CODE: "45"
+          VITE_APK_VERSION_CODE: "46"
         run: |
           npm run build
           npx cap sync android
@@ -44,51 +51,92 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Stage APK into temporary release path
+      - name: Stage APK, Updater YAML, Web Tarball & GIS Plugins
         run: |
           VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
-          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/seva-gis-latest.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk "/tmp/seva-gis-v${VERSION}.apk"
+          mkdir -p /tmp/release-assets
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/release-assets/seva-gis-latest.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk "/tmp/release-assets/seva-gis-v${VERSION}.apk"
+          tar -czf "/tmp/release-assets/seva-gis-web-v${VERSION}.tar.gz" -C dist .
+          cp public/plugins/seva_gee_flow_qgis.zip /tmp/release-assets/
+          cp public/plugins/seva_gis_qgis_plugin.zip /tmp/release-assets/
+          cp public/plugins/seva_gee_flow_arcgis.zip /tmp/release-assets/
+          SHA512=$(openssl dgst -sha512 -binary /tmp/release-assets/seva-gis-latest.apk | base64 -w0)
+          SIZE=$(stat -c%s /tmp/release-assets/seva-gis-latest.apk)
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          cat > /tmp/release-assets/latest-android.yml <<EOF
+          version: ${VERSION}
+          versionCode: 46
+          files:
+            - url: seva-gis-v${VERSION}.apk
+              sha512: ${SHA512}
+              size: ${SIZE}
+          path: seva-gis-latest.apk
+          sha512: ${SHA512}
+          releaseDate: '${DATE}'
+          EOF
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: seva-gis-android-apk
-          path: /tmp/seva-gis-latest.apk
+          path: /tmp/release-assets/seva-gis-latest.apk
 
-      - name: Publish APK to Latest GitHub Release
+      - name: Publish Multi-Asset GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="latest"
           VER="${APP_VERSION}"
-          NOTES="Automated SEVA.GIS Android APK v${VER} (build #${{ github.run_number }}, commit ${GITHUB_SHA::7}). Syncs live with https://sevagis.dpdns.org (/version.json & /updates/latest.json) and includes automatic in-app update popups plus Industrial Precision & Farmer-Friendly Field Studio."
-          cp /tmp/seva-gis-latest.apk seva-gis-latest.apk
-          cp "/tmp/seva-gis-v${VER}.apk" "seva-gis-v${VER}.apk"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" seva-gis-latest.apk "seva-gis-v${VER}.apk" --clobber
-            gh release edit "$TAG" --title "SEVA.GIS Latest Android APK (v${VER})" --notes "$NOTES" --latest
+          BODY_HEADER="Automated SEVA.GIS v${VER} build #${{ github.run_number }} (${GITHUB_SHA::7}). Syncs automatically with https://sevagis.dpdns.org (/version.json & /updates/latest.json)."
+          if [ -f .github/RELEASE_TEMPLATE.md ]; then
+            NOTES=$(printf "%s\n\n%s" "$BODY_HEADER" "$(cat .github/RELEASE_TEMPLATE.md)")
           else
-            gh release create "$TAG" seva-gis-latest.apk "seva-gis-v${VER}.apk" \
-              --target "${{ github.sha }}" \
-              --title "SEVA.GIS Latest Android APK (v${VER})" \
-              --notes "$NOTES" \
-              --latest
+            NOTES="$BODY_HEADER"
           fi
-          rm -f seva-gis-latest.apk "seva-gis-v${VER}.apk"
+
+          publish_tag() {
+            local TAG="$1"
+            local TITLE="$2"
+            local IS_LATEST="$3"
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" /tmp/release-assets/* --clobber
+              if [ "$IS_LATEST" = "true" ]; then
+                gh release edit "$TAG" --title "$TITLE" --notes "$NOTES" --latest
+              else
+                gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
+              fi
+            else
+              if [ "$IS_LATEST" = "true" ]; then
+                gh release create "$TAG" /tmp/release-assets/* \
+                  --target "${{ github.sha }}" \
+                  --title "$TITLE" \
+                  --notes "$NOTES" \
+                  --latest
+              else
+                gh release create "$TAG" /tmp/release-assets/* \
+                  --target "${{ github.sha }}" \
+                  --title "$TITLE" \
+                  --notes "$NOTES"
+              fi
+            fi
+          }
+
+          publish_tag "latest" "SEVA.GIS Latest Android APK & Suite (v${VER})" "true"
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            publish_tag "${GITHUB_REF_NAME}" "SEVA.GIS ${GITHUB_REF_NAME}" "false"
+          fi
 
       - name: Update Repo APK on main
-        if: "!contains(github.event.head_commit.message, '[skip ci]')"
+        if: "github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p releases
-          cp /tmp/seva-gis-latest.apk releases/seva-gis-latest.apk
+          cp /tmp/release-assets/seva-gis-latest.apk releases/seva-gis-latest.apk
           git add releases/seva-gis-latest.apk
           if ! git diff --cached --quiet; then
             git commit -m "chore(android): update seva-gis-latest.apk v${APP_VERSION} for build #${{ github.run_number }} [skip ci]"
             git pull --rebase --autostash origin main || true
             git push origin HEAD:main
           fi
-

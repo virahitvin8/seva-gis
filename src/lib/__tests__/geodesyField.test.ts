@@ -17,6 +17,7 @@ import {
   CoordinateAverager,
   relativeDirectionFromDelta,
   buildFdrsTelemetryFrames,
+  exportFdrsNodeConfigHeader,
   bearingDeg,
   compassCardinal16,
   geodesicDistanceM,
@@ -236,4 +237,13 @@ test('CoordinateAverager, ProximityVoiceScheduler, FDRS telemetry, and offline t
   assert.equal(style.layers[0].id, 'base-raster-layer');
   const plan = planOfflineTileRegion('osm-standard', { minLat: 17.38, maxLat: 17.39, minLon: 78.48, maxLon: 78.49 }, 14, 15, 50);
   assert.ok(plan.tileCount > 0 && plan.tileCount <= 50);
+
+  const loraHdr = exportFdrsNodeConfigHeader(204, '0x09', 'lora');
+  assert.ok(loraHdr.includes('#pragma once'));
+  assert.ok(loraHdr.includes('#define READING_ID    204'));
+  assert.ok(loraHdr.includes('#define GTWY_MAC      0x09'));
+  assert.ok(loraHdr.includes('#define USE_LORA'));
+
+  const espHdr = exportFdrsNodeConfigHeader(77, '0x02', 'espnow');
+  assert.ok(espHdr.includes('#define USE_ESPNOW'));
 });

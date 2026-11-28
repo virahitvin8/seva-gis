@@ -33,6 +33,8 @@ RUN apk add --no-cache nginx
 COPY package.json ./
 COPY --from=builder /app/dist ./dist
 COPY server.js ./
+COPY server ./server
+COPY api ./api
 COPY nginx.conf /etc/nginx/http.d/default.conf
 
 # Cloud Run defaults to port 8080

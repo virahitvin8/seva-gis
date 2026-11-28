@@ -1,15 +1,14 @@
 {
-  "appVersion": "4.5.0",
-  "version": "4.5.0",
-  "buildVersion": 45,
-  "buildNumber": 45,
+  "appVersion": "4.6.0",
+  "version": "4.6.0",
+  "buildVersion": 46,
+  "buildNumber": 46,
   "commit": "local",
-  "apkVersionCode": 45,
-  "releaseNotes": "Industrial Precision + Simple Farmer UI, MapLibre GL tactical map & offline Z13-Z16 tile cache, IGRF-2025 spherical harmonics, EGM2008 geoid toggle, live voice waveform memos, FDRS telemetry, and automatic live OTA sync.",
+  "apkVersionCode": 46,
+  "releaseNotes": "v4.6.0: FreeLLMAPI Bandit multi-provider router + cooldown recovery, NASA WorldWind Blue Marble & pushpin imagery across Field Studio, FDRS LoRa/ESP-NOW header export, GHCR multi-arch containers, and automatic website-to-APK live OTA sync.",
   "downloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "minimumVersion": "4.0.0",
   "forceUpdate": false,
   "lastChecked": "2026-11-28T00:00:00Z"
 }
-

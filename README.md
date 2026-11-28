@@ -1,217 +1,121 @@
-# 🛰️ SEVA.GIS: Where Satellites Meet Soil
+# SEVA.GIS — Where Satellites Meet Soil
 
-**SEVA.GIS** stands for **S**patial **E**valuation & **V**egetation **A**nalytics, **G**eographic **I**nformation **S**ystem.
+[![Version](https://img.shields.io/badge/version-4.6.0-2E7D32?style=flat-square)](https://github.com/virahitvin8/seva-gis/releases/latest)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
+[![CI](https://github.com/virahitvin8/seva-gis/actions/workflows/ci.yml/badge.svg)](https://github.com/virahitvin8/seva-gis/actions/workflows/ci.yml)
+[![Container](https://img.shields.io/badge/ghcr.io-seva--gis-0db7ed?style=flat-square&logo=docker)](https://github.com/virahitvin8/seva-gis/pkgs/container/seva-gis)
+[![Android APK](https://img.shields.io/badge/Android-SEVA.GIS%20APK-3DDC84?style=flat-square&logo=android)](https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk)
 
-> **No money. No keys. No code. No data processing.**  
-> Pick your land on the map. SEVA.GIS tells you how it is, why it is that way, where things are, what to do and what not to do.
+**SEVA.GIS** (**S**patial **E**valuation & **V**egetation **A**nalytics, **G**eographic **I**nformation **S**ystem) is a free, local-first satellite agronomy, field survey, and precision GIS platform built for farmers, researchers, field officers, and engineers — in **English**, **తెలుగు (Telugu)**, and **हिन्दी (Hindi)**.
 
-Free and open source, for everyone: farmers, students, officers, researchers, builders. Use it on the web — on a computer or on your phone.
+> **No subscription. No cloud lock-in. No black-box guesswork.**  
+> Draw or walk your field boundary. SEVA.GIS streams public Sentinel-2 L2A & Sentinel-1 scenes, Copernicus 30 m elevation, ISRIC soil grids, and live weather inside your browser or Capacitor Android APK. When a remote source is unreachable, SEVA.GIS shows **"Data unavailable"** with the exact reason and a Retry button instead of inventing numbers.
 
 ---
 
-## Live sites & domains
+## Live Sites & Domains
 
-| Where | Link | Status |
+| Surface | URL | TLS / Hosting Status |
 |---|---|---|
-| **Main production site** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live — serving over HTTPS |
-| **is-a.dev domain** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Merged & active (is-a-dev/register#57108) |
-| **is-a.bot domain** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Merged & active (free-domains/is-a.bot#555) |
+| **Primary Production Web App** | [https://sevagis.dpdns.org](https://sevagis.dpdns.org) | Live over HTTPS (GitHub Pages custom `CNAME`) |
+| **Mirror Domain** | [https://sevagis.is-a.bot](https://sevagis.is-a.bot) | Live over HTTPS (`HTTP/2 200` via Cloudflare SSL) |
+| **Vercel Edge & API Proxy** | [https://seva-gis.vercel.app](https://seva-gis.vercel.app) | Live — hosts serverless `/api/send-report` & `/api/opensms-proxy` |
+| **Latest Android APK** | [seva-gis-latest.apk](https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk) | Auto-built in CI (`android-build.yml`) with live web OTA popup sync |
+| **`sevagis.is-a.dev` Alias** | [https://sevagis.is-a.dev](https://sevagis.is-a.dev) | Needs DNS/proxy update (see note below) |
+
+> **Why browsers show `"Your connection is not private"` on `sevagis.is-a.dev`:**  
+> GitHub Pages only permits one custom domain in [`public/CNAME`](public/CNAME) (`sevagis.dpdns.org`), so direct DNS from `sevagis.is-a.dev` to `185.199.111.153` receives GitHub's `*.github.io` wildcard certificate (`NET::ERR_CERT_COMMON_NAME_INVALID`). Fix this outside git by either adding `sevagis.is-a.dev` in Vercel Project Settings -> Domains and pointing the `is-a-dev/register` `CNAME` record to `cname.vercel-dns.com`, or enabling Cloudflare Full SSL proxy in front of GitHub Pages / Vercel. See [SECURITY.md](SECURITY.md).
 
 ---
 
-## ⚡ What's new in v4.3.0 (Unified Web & Android Field Suite)
+## What's New in v4.6.0
 
-- **📡 Remote Field Scout Link & Friend Ground Beacon**:
-  - **Can't find your field on satellite maps?** Generate an instant, zero-install Ground Scout Link in SEVA.GIS on your laptop or phone.
-  - **Share via WhatsApp or SMS**: Send the link to a friend, worker, or neighbor standing at or passing near your field.
-  - **Browser-Based Mobile GPS Viewfinder**: Friend opens the link in Google Chrome/Safari with no app download or sign-in needed.
-  - **Watermarked Photo & Video Proof**: Automatically locks sub-meter GPS coordinates, elevation, compass bearing, and India Post DIGIPIN onto the captured photo or live video clip.
-  - **Real-Time Map Pinpointing & Boundary Snapping**: When your friend taps "Submit Field Proof", SEVA.GIS immediately receives the beacon on your screen, flies the map directly to the field, adjusts farm coordinates, auto-delineates the parcel boundary, and attaches the ground-truth evidence card.
-- **4-in-1 Mobile Field Suite (Reverse-Engineered Tactical GIS)**:
-  - **Fields Area Measure (Cadastral HUD)**: Stationary center target reticle (`🎯`), pan map underneath, pin-drop vertices, walk-around GPS boundary tracking, and real-time 6-unit cadastral HUD (Acres, Hectares, Guntha, Bigha, Cents, Perimeter, segment distances).
-  - **Handy GPS Tactical Telemetry Console**: 360° rotating compass rose, azimuth bearing (`042° NE`), target anomaly direction pointer (`118.4m`), Copernicus GLO-30 elevation (`248m MSL`), speed (`4.2 km/h`), odometer, and 5-way coordinate system switcher (DIGIPIN, Decimal WGS84, DMS, UTM, MGRS).
-  - **Agronomic GPS Map Camera**: Live viewfinder with level horizon guide and tamper-proof burned-in geo-stamp card on canvas (mini satellite map, boundary polygon, red pin, plot name, DIGIPIN, Lat/Lng, Elevation, Azimuth, NDVI, NDMI, Z-score anomaly, ISO timestamp).
-  - **Zero-Coordinate Land Discovery**: Voice/text omni-search for Indian villages, postal PIN codes, mandis, and landmarks; 10-character alphanumeric DIGIPIN (`V82-3PG-535J`) for 4m×4m cell resolution.
-- **Automated Live In-App OTA Hot-Swap Pipeline**:
-  - Updates pushed to GitHub (`main`) deploy automatically to the web server and publish delta bundles.
-  - Active web and installed Android users receive real-time in-app notification: *"⚡ New SEVA.GIS Update Available — [1-Tap Update]"*.
-  - Hot-swaps the bundle in 1.5s in-place with **zero Play Store review lag and zero APK reinstall**.
-- **Automated Direct Dispatch Console (Email & SMS)**:
-  - Direct inbox delivery for PDF, HTML, Word, JSON, and ZIP reports via native Node.js SMTP transport and REST APIs (Resend, SendGrid, Brevo).
-  - Direct SMS advisory dispatch to mobile numbers via local OpenSMS Android SIM gateway (`http://10.65.171.208:9292/sms/`).
-- **GeoAI, Cloud-Native COG & Spatial SQL**:
-  - **samgeo / FastSAM**: Zero-shot parcel boundary segmentation from satellite imagery.
-  - **TiTiler & STAC**: Cloud-native dynamic XYZ tile streaming and custom band math.
-  - **DuckDB-WASM**: In-browser spatial SQL engine with PMFBY crop insurance audit.
-- **Top 1000 Geospatial Trending Repositories Registry**: Complete offline-searchable spatial automation intelligence index.
+- **FreeLLMAPI Multi-Provider Bandit Router (`src/services/freeLlmRouter.ts`)**:
+  - Derived cleanly from [`tashfeenahmed/freellmapi`](https://github.com/tashfeenahmed/freellmapi) (MIT License).
+  - Thompson/Beta-posterior candidate scoring across four presets (`balanced`, `smartest`, `fastest`, `reliable`) with bounded headroom guardrails, escalating cooldown ladder (`2m -> 10m -> 1h -> 24h`), authoritative `Retry-After` handling, and half-time recovery probes.
+  - Configurable directly inside **Gemini 4 Argon Cognitive GeoAI Advisor** (`FreeLLMAPI /v1` gateway, `Groq`, `OpenRouter`, and `Google Gemini`), falling back cleanly to the offline **FAO-56 agronomic engine** when no key/gateway is active.
+- **NASA WorldWind Field Imagery Kit & SEVA.GIS Branded Android Launcher (`public/images/field-kit/`)**:
+  - Integrated NASA WorldWind Java SDK / Blue Marble sprite assets (`notched-compass.png`, `earth-map-512x256.png`, `BMNG_world.topo.bathy.200405.3.2048x1024.jpg`, crosshairs, layer manager icons, and pushpin markers) across **Precision Dashboard**, **Tactical Map**, **Geodesy Tools**, and **Waypoint Metadata Sheet**.
+  - Kept the signature SEVA.GIS banyan emblem as the Web PWA touch icon (`apple-touch-icon.png`) and generated multi-density Android launcher icons (`mipmap-*`) + splash drawables from [`public/logo.png`](public/logo.png).
+- **Farm Data Relay System (FDRS) Firmware Config Export**:
+  - Export ready-to-compile Arduino/ESP32 `fdrs_node_config.h` headers (`#define USE_LORA` / `#define USE_ESPNOW`, reading ID, gateway MAC) directly from the Field Studio Voice Memo & Telemetry joint (`exportFdrsNodeConfigHeader()`).
+- **Automated Multi-Package Release & Container Pipeline**:
+  - `CI` ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): verifies `pnpm-lock.yaml` (`--frozen-lockfile`), TypeScript check, full Node test suite, EN/HI/TE localization parity, production bundle, and `gitleaks` secret scan.
+  - `Docker Package (GHCR)` ([`.github/workflows/docker.yml`](.github/workflows/docker.yml)): builds and pushes multi-arch `linux/amd64` + `linux/arm64` images to `ghcr.io/virahitvin8/seva-gis`.
+  - `Android APK Auto-Build & Multi-Package Release` ([`.github/workflows/android-build.yml`](.github/workflows/android-build.yml)): publishes `seva-gis-latest.apk`, `seva-gis-v<ver>.apk`, `latest-android.yml` (SHA-512 updater metadata), `seva-gis-web-v<ver>.tar.gz`, and QGIS/ArcGIS plugins to GitHub Releases on `main` pushes and `v*` tags.
 
 ---
 
-## Why use SEVA.GIS?
-- **Zero technical barrier:** You do not need to know GIS, remote sensing, mathematics, or coding.
-- **Zero financial cost:** You do not need to pay subscription fees, buy tokens, or sign up for cloud API keys.
-- **Actionable clarity:** You get answers in plain words, with maps, charts, and clear next steps.
-- **Universal compatibility:** Your files open seamlessly in QGIS, ArcGIS, Excel, Google Earth Engine, or tractor consoles when you want to explore further.
+## Core Capabilities
 
----
-
-## Use it in 3 steps
-1. **Draw or upload your land** (AOI = Area of Interest). Draw on the interactive map or import GeoJSON, KML, or zipped Shapefile.
-2. **Wait while satellites do the work.** SEVA.GIS streams Sentinel-2 L2A and Sentinel-1 radar scenes from the open Microsoft Planetary Computer STAC API, reads the pixels straight from Cloud-Optimized GeoTIFFs in your browser, and adds Copernicus 30 m elevation, ISRIC soil grids and local weather from open services.
-3. **Read your land report.** Open the map, explore the cards, inspect the high-resolution layers, and download the complete dossier (email delivery when the optional email backend is configured).
-
----
-
-## What you get
-| Section | In plain words |
+| Capability | Details |
 |---|---|
-| **Crop health** | How green, dense, and vigorous the crops are, and how that changed over time (hover the chart for exact date and value). |
-| **Water and drainage** | Where water collects, where it runs off, slope steepness, flow paths, and which terrain factors matter most. |
-| **Soil** | Clay, sand, silt, organic carbon, pH acidity, and cation exchange capacity of your soil. |
-| **Minerals** | Where surface minerals are likely (tap **Show points** to inspect clusters directly on your field map). |
-| **Weather** | Live rain, temperature, soil temperature, and water balance, with automatic NASA POWER backup if primary servers are busy. |
-| **Pests and disease** | Early warning spectral anomaly patches to guide on-ground scouting. |
-| **Farm shape** | Width, compactness, autonomous tractor/drone path planning, and nearby farm relationships. |
-| **Reports** | Print-ready PDF, Word (.doc), ZIP dossier, HTML, JSON, and georeferenced cartographic map images — saved to your device, or emailed when the optional email backend is configured. |
-| **Languages** | Full native support across **English**, **తెలుగు (Telugu)**, and **हिन्दी (Hindi)**. |
+| **Crop & Vegetation Intelligence** | Client-side STAC discovery & Cloud-Optimized GeoTIFF streaming for Sentinel-2 L2A & Sentinel-1 SAR (NDVI, NDRE, NDMI, EVI, SAVI, MSAVI, GNDVI, BSI) with Scene Classification (SCL) cloud masking. |
+| **Hydrology, Soil & Minerals** | Copernicus 30 m DEM slope/drainage/TWI, ISRIC soil texture/organic carbon/pH, weather + NASA POWER fallback, and surface mineral cluster indicators ("Likely / Indicated"). |
+| **Mobile Field Studio (Web + Android)** | Two modes — **Simple 1-Tap Farmer Mode** with voice readout (EN/HI/TE) and **Industrial Precision Mode**: live GNSS averaging, 7 datums, exact UTM/MGRS/DDM/PlusCode/Maidenhead/DIGIPIN, IAGA IGRF-14 Epoch 2025 magnetic declination, EGM2008 orthometric height, MapLibre GL offline tile planner (Z13-Z16), GPX/KML/CSV export, and Web Audio voice memos. |
+| **Remote Field Scout & Dispatch** | Shareable browser scout link (`/api/scout`) with GPS watermark stamp, plus Direct Dispatch Console supporting `/api/send-report` (SMTP/Resend/SendGrid/Brevo) and `/api/opensms-proxy` / LAN OpenSMS SIM gateway. |
+| **Live Website-to-APK Sync** | Installed Android APKs poll [`/version.json`](public/version.json) and [`/updates/latest.json`](public/updates/latest.json), prompting users with an in-app 1-tap update dialog whenever `main` deploys. |
+| **Local-First Privacy** | Farm polygons, tracklogs, waypoints, and optional API keys remain in browser `IndexedDB` / `localStorage` on your device unless you choose to export or share them. |
 
 ---
 
-## How it works (the methodology)
+## Use It in 3 Steps
+
+1. **Mark or import your land (AOI)** — Draw on the map, trace vertices by walking in **Field Studio**, look up an Indian village/DIGIPIN, or upload GeoJSON, KML, or zipped Shapefile.
+2. **Stream open satellite & terrain layers** — SEVA.GIS queries public STAC catalogs, decodes GeoTIFF pixel windows in-browser, masks clouds, and adds Copernicus 30 m elevation + local weather.
+3. **Inspect, compare & export** — Review plain-language field advisories in English, Telugu, or Hindi, view mineral/anomaly clusters on the map, or export PDF, HTML, `.doc`, GPX/KML/CSV, QGIS/ArcGIS packages, or Docker self-hosted deployments.
+
+---
+
+## How Data Flows
 
 ```mermaid
 flowchart LR
-  A[1. You pick your land] --> B[2. Open STAC services stream satellite data]
-  B --> C[3. Clouds removed, data cleaned]
-  C --> D[4. Health, water, soil and mineral layers are computed]
-  D --> E[5. Layers become maps, points and charts]
-  E --> F[6. Plain-language advice and reports]
+  U[Field Boundary / GPS Fix on Device] --> S[STAC & COG Range Requests]
+  S --> C[SCL Cloud Masking & Band Math in Browser]
+  C --> A[Health, Water, Soil & Indicated Mineral Layers]
+  A --> O[Interactive Maps, Voice Readout & Reports]
+  O --> D[Optional Dispatch: Email / OpenSMS / FDRS / QGIS]
 ```
-
-### Step by step:
-1. **Your land:** You delineate a polygon in standard EPSG:4326 latitude/longitude coordinates.
-2. **Satellite data:** Sentinel-2 L2A (multispectral surface reflectance) and Sentinel-1 (C-band SAR radar) scenes are discovered through the Microsoft Planetary Computer STAC API; pixel values are read directly from each scene's Cloud-Optimized GeoTIFF with HTTP range requests, inside your browser. Copernicus 30 m DEM elevation and ISRIC soil grids come from open services.
-3. **Cleaning:** Cloud pixels, cirrus, and terrain shadows are masked using the Scene Classification Layer (SCL).
-4. **Layers:** Over 30 vegetative, hydrological, soil, and mineral indices are computed specifically for your boundaries.
-5. **Meaning:** Raw pixel statistics are converted into intuitive color maps, cluster points, time-series charts, and agronomic guidance.
-6. **Delivery:** Displayed on screen, exportable to standard GIS formats, or sent to your inbox when the optional email backend is configured.
-
----
-
-## Behind the scenes
-
-- **Front end (what you see):** React 19, TypeScript, Leaflet and MapLibre GL map engines, Tailwind CSS v4, Dexie (IndexedDB) local storage, and smooth motion graphics in English, Telugu, and Hindi. Runs in any modern browser and can be added to the home screen as a web app (a web manifest is included; offline caching is not implemented yet, so a connection is required).
-- **Where the computing happens:** Almost everything runs inside your browser — scene discovery (STAC), pixel reads (COG range requests), cloud masking (SCL), index math, statistics and charts. There is no central server for the core pipeline, and your field boundaries stay on your device.
-- **Optional back end:** The repository ships two optional helpers for people who want server-side Earth Engine processing or email dispatch: `backend/` (a FastAPI + Google Earth Engine service; see `backend/README.md`) and `server/geeServer.ts` (a Node.js skeleton for the same). They are used only when a deployment sets `VITE_API_BASE`, which the public site does not.
-
-### How they connect:
-
-```mermaid
-sequenceDiagram
-  participant U as You (browser)
-  participant S as STAC + COG services
-  participant W as Weather / Soil services
-  U->>S: Find recent Sentinel scenes for my land
-  S-->>U: Scene list with date, sensor and cloud %
-  U->>S: Read pixel windows from each scene (COG)
-  S-->>U: Raw band values
-  U->>W: Ask for weather and soil values
-  W-->>U: Weather and soil values
-  U->>U: Mask clouds, compute indices and statistics in your browser
-```
-
-If any remote service is temporarily unreachable, SEVA.GIS displays **"Data unavailable"** along with the specific technical reason and a retry button. It never fills gaps with artificial numbers.
-
----
-
-## Layers and how they relate
-- **Base map:** High-resolution optical satellite imagery and topographic street maps.
-- **Your land (AOI):** The field boundary that clips and standardizes all data layers.
-- **Crop health layers:** NDVI, NDRE, NDMI, EVI, SAVI, MSAVI, GNDVI, and canopy chlorophyll content.
-- **Water & drainage layers:** NDWI, Topographic Wetness Index (TWI), slope degrees, flow direction, and drainage stream channels.
-- **Soil and ground layers:** Soil texture, Bare Soil Index (BSI), and residue coverage.
-- **Mineral layers:** Iron oxide, hydrothermal clay, carbonate, ferrous silicates, and quartz enrichment ratios.
-- **Reference layers (optional):** Historic mineral occurrences from USGS MRDS records.
-
-Every layer is clipped precisely to your AOI, shares the same observation timestamps, and can be toggled, adjusted with the live opacity slider, and exported.
-
----
-
-## Minerals and points
-Open the **Minerals** section under Field Intelligence. Each mineral card includes a **Show points** button.
-- When clicked, real anomaly cluster points appear directly on your field map.
-- The map legend updates with the mineral name, color code, cluster count, and "Likely (Indicated)" badge.
-- Clicking any cluster point opens an interactive popup showing its exact centroid coordinates, ratio intensity, cluster area in hectares, regional soil type, sensor, and acquisition date.
-- Satellite ratios detect surface spectral characteristics in bare topsoil, providing **indicated** exploratory guidance rather than subsurface borehole confirmation.
-
----
-
-## The engine boxes (no typing, no code)
-In the **Workflow** view, you can design spatial analysis pipelines using visual engine boxes:
-- Dedicated boxes for **Google Earth Engine**, **QGIS**, **ArcMap / ArcGIS**, **MATLAB / Octave**, and **SEVA.GIS Client Engine**.
-- Tap any port toggle to activate or deactivate inputs and outputs.
-- Drag connections between boxes:
-  - **Green dotted line:** The inputs and outputs match and form a valid processing pipeline.
-  - **Red line:** Schema or format mismatch, accompanied by a plain-language explanation of why they cannot be joined.
-- **Compare Engines Mode:** Run the same AOI through two engines side-by-side (e.g., GEE vs. PyQGIS) with automated parity verification (tolerance ≤ 1.0%).
-
----
-
-## Plugins
-
-| Plugin | What it does | File |
-|---|---|---|
-| **QGIS Plugin** | Connects SEVA.GIS with your local QGIS session; pulls active field boundaries and pushes Earth Engine raster composites directly onto the QGIS map canvas. | `public/plugins/seva_gee_flow_qgis.zip` |
-| **ArcGIS / ArcMap Toolbox** | Standalone Python Toolbox (`.pyt`) enabling 1-click import of SEVA.GIS GeoJSON, automatic Map Algebra index calculation, and raster extraction. | `public/plugins/seva_gee_flow_arcgis.zip` |
-| **Octave / MATLAB Scripts** | High-performance numerical matrix scripts for smoothing temporal noise, calculating unmixing endmembers, and statistical validation. | `bridges/` |
-
-### Installing the QGIS Plugin:
-1. Open QGIS (version 3.16 or newer).
-2. Go to **Plugins** → **Manage and Install Plugins...** → **Install from ZIP**.
-3. Choose `public/plugins/seva_gee_flow_qgis.zip` and click **Install Plugin**.
-4. Check the box next to **SEVA.GIS Flow** in your installed plugins list.
-
-### Installing the ArcGIS Toolbox:
-1. Open ArcGIS Pro or ArcMap 10.x.
-2. Open the **Catalog** pane, right-click **Toolboxes**, and select **Add Toolbox**.
-3. Navigate to and select `SEVA_GEE_Flow.pyt`.
 
 ---
 
 ## Install & Run Everywhere
 
-| Platform | How to run |
+| Platform | Command / Link |
 |---|---|
-| **Web Browser** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org). On Android or desktop, use the browser's **Install app / Add to Home Screen** option to pin it as an app. |
-| **Android Field Suite** | Native Android APK built with Capacitor (`@capacitor/android`) featuring Handy GPS telemetry (real GNSS, coordinate averaging, 7 datums, exact UTM/MGRS/DIGIPIN, EGM MSL, magnetic compass & clinometer, waypoints/projection, GPX/KML/CSV, elevation profile, voice guidance, torch, voice memos) and automatic in-app website sync. Download `releases/seva-gis-latest.apk` or from GitHub Latest Releases. |
-| **Windows Desktop** | Use the web workstation at [https://sevagis.dpdns.org](https://sevagis.dpdns.org) or connect via the QGIS Live Bridge. |
-| **Developers** | `git clone https://github.com/virahitvin8/seva-gis`, then `npm install`, and `npm run dev`. Copy `.env.example` to `.env` only if you want to point the app at an optional backend (`VITE_API_BASE`). |
+| **Web Browser / PWA** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org) (or [https://seva-gis.vercel.app](https://seva-gis.vercel.app)) |
+| **Android APK** | Download [`seva-gis-latest.apk`](https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk) or install [`releases/seva-gis-latest.apk`](releases/seva-gis-latest.apk) |
+| **Docker (GHCR Multi-Arch)** | `docker run -p 8080:8080 ghcr.io/virahitvin8/seva-gis:main` |
+| **QGIS / ArcGIS Plugins** | Install [`public/plugins/seva_gee_flow_qgis.zip`](public/plugins/seva_gee_flow_qgis.zip), [`seva_gis_qgis_plugin.zip`](public/plugins/seva_gis_qgis_plugin.zip), or [`seva_gee_flow_arcgis.zip`](public/plugins/seva_gee_flow_arcgis.zip) |
+| **Local Development** | `git clone https://github.com/virahitvin8/seva-gis && pnpm install --frozen-lockfile && npm run dev` |
+
+### Local Verification Commands
+
+```bash
+pnpm install --frozen-lockfile --ignore-scripts
+npm run typecheck
+npm test
+npm run build
+```
 
 ---
 
-## Releases
-Pre-built Android APKs are published automatically in [GitHub Releases (latest)](https://github.com/virahitvin8/seva-gis/releases/latest) and tracked at `releases/seva-gis-latest.apk` on every push to `main`:
-- **Android APK (`seva-gis-latest.apk`)**: Install on any Android phone; website updates pushed to `main` sync automatically with an in-app update popup.
-- **QGIS & ArcGIS Plugins**: Zipped plugins live in `public/plugins/` (`seva_gee_flow_qgis.zip`, `seva_gee_flow_arcgis.zip`).
+## Documentation & Governance
+
+- [GLOSSARY.md](GLOSSARY.md) — Canonical definitions for domain concepts (`AOI`, `DIGIPIN`, `Bandit Router`, `FDRS`, `OTA`, `IAGA IGRF-14`).
+- [CREDITS.md](CREDITS.md) — Third-party attributions including `tashfeenahmed/freellmapi` (MIT), NASA WorldWind Java / Blue Marble (`NASA-1.3`), `Farm-Data-Relay-System` (MIT), `IAGA IGRF-14`, `MapLibre GL`, and `Capacitor`.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Branch rules, verification requirements, and attribution policy.
+- [SECURITY.md](SECURITY.md) — Local-first key storage rules, secret scanning policy, and multi-domain TLS guidance.
 
 ---
 
-## Licences
-- **Core Web Application, Backend Server, Mobile, Desktop, ArcGIS Toolbox, and Octave Scripts:** Licensed under the [Apache License 2.0](LICENSE) (see `LICENSE` and `NOTICE`).
-- **QGIS Integration Plugin:** Licensed under the [GNU General Public License v3.0 (GPL-3.0-or-later)](plugins/qgis/LICENSE) in compliance with QGIS ecosystem standards.
-- **Third-Party Libraries and Datasets:** All dependencies retain their original open-source licenses as documented in [CREDITS.md](CREDITS.md) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+## Licenses
+
+- **Core Web App, Server Proxies, Mobile Field Suite, ArcGIS Toolbox & Octave Scripts**: [Apache License 2.0](LICENSE) (see [NOTICE](NOTICE)).
+- **QGIS Plugin**: [GNU GPL v3.0 or later](plugins/qgis/LICENSE).
+- **Third-Party Components**: Documented with license tags in [CREDITS.md](CREDITS.md) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ---
 
-## Credits
-SEVA.GIS was created and architected by **N. Akshit Vinay** (MSc GIS & Remote Sensing, BSc Agriculture) as an autonomous vibe-coded project built with **Claude Code**, **Google Antigravity**, **FreeBuff**, and **Figma**.
-
-Heartfelt gratitude to the maintainers of all open-source projects, tools, and planetary datasets listed in [CREDITS.md](CREDITS.md).
-
----
-
-## Contributing
-We welcome contributions from GIS researchers, software developers, agronomists, and students worldwide!
-1. Open an issue or submit a pull request on GitHub.
-2. Maintain our strict standard of authentic data (no artificial or placeholder metrics).
-3. Provide clear test results and visual evidence for any changes to spatial models or interface layouts.
+Created and architected by **N. Akshit Vinay** (MSc GIS & Remote Sensing, BSc Agriculture).

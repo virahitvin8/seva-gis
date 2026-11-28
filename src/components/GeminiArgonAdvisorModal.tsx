@@ -27,6 +27,11 @@ import {
   type ArgonAnalysisResult,
   type FarmArgonTelemetry
 } from '../services/geminiArgonService'
+import {
+  getStoredRouterConfig,
+  saveStoredRouterConfig,
+  type RoutingStrategy
+} from '../services/freeLlmRouter'
 import type { FarmData } from '../lib/seva'
 
 export interface GeminiArgonAdvisorModalProps {
@@ -43,6 +48,7 @@ export default function GeminiArgonAdvisorModal({ isOpen, onClose, farm }: Gemin
   const [result, setResult] = useState<ArgonAnalysisResult | null>(null)
   const [activeLang, setActiveLang] = useState<'en' | 'hi' | 'te'>('en')
   const [copiedCode, setCopiedCode] = useState(false)
+  const [routerCfg, setRouterCfg] = useState(() => getStoredRouterConfig())
 
   // Auto-run analysis when modal opens or farm changes
   useEffect(() => {
@@ -86,6 +92,7 @@ export default function GeminiArgonAdvisorModal({ isOpen, onClose, farm }: Gemin
   const handleSaveKey = (newKey: string) => {
     setApiKey(newKey)
     setGeminiApiKey(newKey)
+    saveStoredRouterConfig(routerCfg)
     setShowKeyInput(false)
     runAnalysis()
   }
@@ -156,34 +163,89 @@ export default function GeminiArgonAdvisorModal({ isOpen, onClose, farm }: Gemin
           </div>
         </div>
 
-        {/* API Key Drawer */}
+        {/* API Key & FreeLLMAPI Multi-Provider Router Drawer */}
         {showKeyInput && (
-          <div className="px-6 py-3 bg-slate-950/80 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 flex-1 min-w-[300px]">
-              <span className="text-slate-400 font-medium">Google AI Studio Key:</span>
-              <input
-                type="password"
-                placeholder="AIzaSy... (from aistudio.google.com)"
-                value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
-                className="flex-1 max-w-md px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-sky-500"
-              />
-              <button
-                onClick={() => handleSaveKey(apiKey)}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition cursor-pointer"
+          <div className="px-6 py-3 bg-slate-950/80 border-b border-slate-800/80 flex flex-col gap-2.5 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+                <span className="text-slate-400 font-medium">Google AI Studio Key:</span>
+                <input
+                  type="password"
+                  placeholder="AIzaSy... (from aistudio.google.com)"
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  className="flex-1 max-w-md px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-xs focus:outline-none focus:border-sky-500"
+                />
+                <button
+                  onClick={() => handleSaveKey(apiKey)}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition cursor-pointer"
+                >
+                  Save
+                </button>
+              </div>
+              <a
+                href="https://aistudio.google.com/apps/3bb45d74-02be-40e3-96b3-0a34b3b5fd16?showAssistant=true&showCode=true"
+                target="_blank"
+                rel="noreferrer"
+                className="text-sky-400 hover:text-sky-300 flex items-center gap-1 font-medium group text-decoration-none"
               >
-                Save
-              </button>
+                <span>AI Studio Reference App</span>
+                <ExternalLink size={12} className="group-hover:translate-x-0.5 transition" />
+              </a>
             </div>
-            <a
-              href="https://aistudio.google.com/apps/3bb45d74-02be-40e3-96b3-0a34b3b5fd16?showAssistant=true&showCode=true"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-400 hover:text-sky-300 flex items-center gap-1 font-medium group text-decoration-none"
-            >
-              <span>AI Studio Reference App</span>
-              <ExternalLink size={12} className="group-hover:translate-x-0.5 transition" />
-            </a>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t border-slate-800/70">
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-slate-400">FreeLLMAPI /v1 Gateway URL (optional)</span>
+                <input
+                  type="url"
+                  placeholder="http://127.0.0.1:4321/v1"
+                  value={routerCfg.freellmapiGatewayUrl}
+                  onChange={e => setRouterCfg(prev => ({ ...prev, freellmapiGatewayUrl: e.target.value }))}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-[11px] focus:outline-none focus:border-sky-500"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-slate-400">Bandit Routing Strategy</span>
+                <select
+                  value={routerCfg.strategy}
+                  onChange={e => setRouterCfg(prev => ({ ...prev, strategy: e.target.value as RoutingStrategy }))}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-[11px] focus:outline-none focus:border-sky-500"
+                >
+                  <option value="balanced">balanced (0.50 rel / 0.25 spd / 0.25 int)</option>
+                  <option value="smartest">smartest (0.55 intelligence)</option>
+                  <option value="fastest">fastest (0.55 speed)</option>
+                  <option value="reliable">reliable (0.70 reliability)</option>
+                </select>
+              </label>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-slate-400">Groq Key (fallback)</span>
+                  <input
+                    type="password"
+                    placeholder="gsk_..."
+                    value={routerCfg.groqApiKey}
+                    onChange={e => setRouterCfg(prev => ({ ...prev, groqApiKey: e.target.value }))}
+                    className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-[11px] focus:outline-none focus:border-sky-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-slate-400">OpenRouter Key</span>
+                  <input
+                    type="password"
+                    placeholder="sk-or-..."
+                    value={routerCfg.openRouterApiKey}
+                    onChange={e => setRouterCfg(prev => ({ ...prev, openRouterApiKey: e.target.value }))}
+                    className="px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-mono text-[11px] focus:outline-none focus:border-sky-500"
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="text-[11px] text-emerald-300/80">
+              Multi-provider Bandit failover active (Google Gemini → FreeLLMAPI / Groq / OpenRouter → Offline FAO-56 agronomic engine).
+            </div>
           </div>
         )}
 

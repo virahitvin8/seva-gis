@@ -42,7 +42,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           VITE_GIT_SHA: ${{ github.sha }}
           VITE_BUILD_NUMBER: ${{ github.run_number }}
-          VITE_APK_VERSION_CODE: "45"
+          VITE_APK_VERSION_CODE: "46"
           VITE_GOOGLE_CLIENT_ID: ${{ secrets['VITE_GOOGLE_CLIENT_ID'] || vars['VITE_GOOGLE_CLIENT_ID'] || '' }}
           VITE_EE_API_URL: ${{ secrets['VITE_EE_API_URL'] || vars['VITE_EE_API_URL'] || '' }}
 

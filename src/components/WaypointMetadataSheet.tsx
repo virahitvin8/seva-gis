@@ -25,6 +25,15 @@ const SYMBOL_TYPES = [
   { id: 'survey', label: 'Survey Benchmark' },
 ];
 
+const PUSHPIN_SPRITES = [
+  'castshadow-green.png',
+  'castshadow-orange.png',
+  'castshadow-blue.png',
+  'castshadow-red.png',
+  'castshadow-purple.png',
+  'push-pin-yellow.png',
+];
+
 const SOIL_PRESETS = ['Black Cotton (Vertisol)', 'Red Loam (Alfisol)', 'Sandy Loam', 'Alluvial Clay', 'Laterite'];
 
 export default function WaypointMetadataSheet({
@@ -44,6 +53,7 @@ export default function WaypointMetadataSheet({
   const [crop, setCrop] = useState(defaultCrop || '');
   const [soilType, setSoilType] = useState(SOIL_PRESETS[0]);
   const [type, setType] = useState('corner');
+  const [symbol, setSymbol] = useState('castshadow-orange.png');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -54,6 +64,7 @@ export default function WaypointMetadataSheet({
       setCrop(editingWaypoint.crop || defaultCrop || '');
       setSoilType(editingWaypoint.soilType || SOIL_PRESETS[0]);
       setType(editingWaypoint.type || 'corner');
+      setSymbol(editingWaypoint.symbol?.endsWith('.png') ? editingWaypoint.symbol : 'castshadow-orange.png');
       setNotes(editingWaypoint.notes || '');
     } else {
       setLabel(`WP-${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
@@ -61,6 +72,7 @@ export default function WaypointMetadataSheet({
       setCrop(defaultCrop || '');
       setSoilType(SOIL_PRESETS[0]);
       setType('corner');
+      setSymbol('castshadow-green.png');
       setNotes('');
     }
   }, [isOpen, editingWaypoint, defaultFarmName, defaultCrop]);
@@ -80,7 +92,7 @@ export default function WaypointMetadataSheet({
       lon,
       altM: editingWaypoint?.altM ?? initialAltM,
       type,
-      symbol: SYMBOL_TYPES.find((s) => s.id === type)?.label || type,
+      symbol,
       farmId: farmId.trim() || undefined,
       crop: crop.trim() || undefined,
       soilType: soilType.trim() || undefined,
@@ -190,6 +202,21 @@ export default function WaypointMetadataSheet({
         <div className="space-y-1.5">
           <span className="text-xs font-semibold text-[#C7D0C9]">Point Category</span>
           <div className="flex flex-wrap gap-2">
+            {PUSHPIN_SPRITES.map((pin) => (
+              <button
+                key={pin}
+                type="button"
+                onClick={() => setSymbol(pin)}
+                className={`min-h-[48px] min-w-[48px] p-1.5 rounded-xl border flex items-center justify-center transition ${
+                  symbol === pin ? 'bg-[#2E7D32]/35 border-[#4CAF50]' : 'bg-[#121212] border-[#343434]'
+                }`}
+                aria-label={pin}
+              >
+                <img src={`/images/field-kit/pushpins/${pin}`} alt={pin} className="w-7 h-7 object-contain" />
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
             {SYMBOL_TYPES.map((sym) => (
               <button
                 key={sym.id}

@@ -40,7 +40,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
           VITE_GIT_SHA: ${{ github.sha }}
           VITE_BUILD_NUMBER: ${{ github.run_number }}
-          VITE_APK_VERSION_CODE: "46"
+          VITE_APK_VERSION_CODE: "47"
         run: |
           npm run build
           npx cap sync android
@@ -67,7 +67,7 @@ jobs:
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
           cat > /tmp/release-assets/latest-android.yml <<EOF
           version: ${VERSION}
-          versionCode: 46
+          versionCode: 47
           files:
             - url: seva-gis-v${VERSION}.apk
               sha512: ${SHA512}

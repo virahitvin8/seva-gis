@@ -60,6 +60,11 @@ Every open-source project contributing concepts, formats, or algorithms is recor
 | **Graphify** | `Graphify-Labs/graphify` | Semantic codebase indexing & module architecture verification (Apache-2.0 / MIT) |
 | **FreeLLMAPI** | `tashfeenahmed/freellmapi` | Bandit multi-provider LLM scorer, escalating cooldown ladder, keyless failover pattern, and automated multi-platform CI/release pipeline (MIT) |
 | **NASA WorldWind Java** | `NASAWorldWind/WorldWindJava` | Tactical GIS pushpins, notched compass dial, crosshairs, view navigation icons, layer manager icon & Blue Marble imagery under `/public/images/field-kit` (NASA-1.3 / Public Domain) |
+| **docker-mailserver** | `docker-mailserver/docker-mailserver` | Self-hosted containerised SMTP + OpenDKIM/DMARC/SPF compose template & TLS delivery support (MIT) |
+| **Eigen** | `eigen-is/eigen` | Self-hosted workspace compose bridge and SMTP/HTTP mail interoperability (MIT) |
+| **Stalwart Mail Server** | `stalwartlabs/mail-server` | RFC 8620 JMAP HTTP submission client interoperability & container compose stack (AGPL-3.0 upstream image; client JMAP integration Apache-2.0) |
+| **Mailflare** | `hieunc229/mailflare` | Zero-server Cloudflare Workers edge mail dispatch architecture pattern (AGPL-3.0 reference; clean worker written Apache-2.0) |
+| **Mailcow Dockerized** | `mailcow/mailcow-dockerized` | External groupware SMTP relay compose template (GPL-3.0 upstream stack; zero GPL code in repo) |
 
 ## How to Contribute
 We welcome open-source contributions!

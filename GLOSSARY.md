@@ -24,4 +24,6 @@ Shared vocabulary across SEVA.GIS client spatial engines, field GNSS modules, Ge
 
 - **`version.json` & `updates/latest.json`**: Cache-busted JSON manifests stamped on every Vite build (`dist/version.json`, `dist/updates/latest.json`) so Android Capacitor WebViews and PWAs auto-detect new Git commits.
 - **`latest-android.yml`**: YAML artifact manifest (`version`, `versionCode`, `sha512`, `size`, `releaseDate`) published alongside every GitHub Release APK.
+- **JMAP (RFC 8620)**: JSON Meta Application Protocol over HTTPS supported by `stalwartlabs/mail-server` for firewalled cloud/mobile report submission without raw SMTP sockets.
+- **Mailflare Worker**: Clean Apache-2.0 Cloudflare Workers HTTPS JSON relay under `deploy/mail/cloudflare-mail-worker/` eliminating static-host HTTP 405 errors on `sevagis.dpdns.org`.
 

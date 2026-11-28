@@ -1,0 +1,11 @@
+name = "seva-gis-mail-worker"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+SENDER_EMAIL = "reports@sevagis.dpdns.org"
+
+# Bind secrets via:
+#   npx wrangler secret put RESEND_API_KEY
+#   npx wrangler secret put WORKER_SHARED_SECRET
+

@@ -1,14 +1,14 @@
 {
-  "appVersion": "4.6.0",
-  "version": "4.6.0",
-  "buildVersion": 46,
-  "buildNumber": 46,
+  "appVersion": "4.6.1",
+  "version": "4.6.1",
+  "buildVersion": 47,
+  "buildNumber": 47,
   "commit": "local",
-  "apkVersionCode": 46,
-  "releaseNotes": "v4.6.0: FreeLLMAPI Bandit multi-provider router + cooldown recovery, NASA WorldWind Blue Marble & pushpin imagery across Field Studio, FDRS LoRa/ESP-NOW header export, GHCR multi-arch containers, and automatic website-to-APK live OTA sync.",
+  "apkVersionCode": 47,
+  "releaseNotes": "v4.6.1: Cross-origin CORS mail relay + Stalwart JMAP, Cloudflare Mailflare Worker, docker-mailserver, Mailcow & Eigen dispatch integrations, OpenSMS gateway probe, FreeLLMAPI Bandit router, and NASA WorldWind Field Studio.",
   "downloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "minimumVersion": "4.0.0",
   "forceUpdate": false,
-  "lastChecked": "2026-11-28T00:00:00Z"
+  "lastChecked": "2026-11-28T04:20:00Z"
 }

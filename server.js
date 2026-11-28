@@ -16,6 +16,7 @@ import {
 
 import { handleSecurityRoutes } from './backend/security_telemetry.js';
 import { dispatchReportEmail } from './server/directMailService.js';
+import { applyCorsHeaders } from './server/corsPolicy.js';
 import { createScoutSession, submitScoutData, getScoutSession } from './server/scoutBeaconService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,35 +26,8 @@ const DIST_DIR = path.join(__dirname, 'dist');
 const PORT = parseInt(process.env.PORT || '8081', 10);
 const HOST = '0.0.0.0';
 
-// ---------------------------------------------------------------------------
-// CORS: explicit origin allow-list. Never '*' and never suffix matching.
-// Extend with the ALLOWED_ORIGINS env var (comma separated) on deployment.
-// ---------------------------------------------------------------------------
-const DEFAULT_ALLOWED_ORIGINS = [
-  'https://sevagis.dpdns.org',
-  'https://sevagis.is-a.dev',
-  'https://sevagis.is-a.bot',
-  'https://sevagis.stusite.me',
-  'https://virahitvin8.github.io',
-  'http://localhost:8443',
-  'http://localhost:8081',
-  'http://localhost:5173',
-];
-const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : DEFAULT_ALLOWED_ORIGINS)
-    .map((s) => s.trim())
-    .filter(Boolean)
-);
-
 function applyCors(req, res) {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '600');
-  }
+  applyCorsHeaders(req, res);
 }
 
 // OAuth 2.0 state registry (server-side, single-use, 10-minute TTL)

@@ -6,6 +6,7 @@ import {
   getNativeSmsUri,
   getWhatsAppUri,
   getStoredOpenSmsConfig,
+  probeOpenSmsGateway,
   type MessageTemplateType,
   type AdvisoryLanguage
 } from '../openSmsGateway'
@@ -113,12 +114,13 @@ test('sendViaOpenSmsGateway fails fast with clear fallback URIs instead of hangi
   }
 })
 
-test('api/send-report and api/opensms-proxy serverless handlers respond cleanly without 405 on POST', async () => {
+test('api/send-report and api/opensms-proxy serverless handlers respond cleanly with CORS headers and without 405 on POST', async () => {
   const sendReportMod = await import('../../../api/send-report.js')
   const openSmsMod = await import('../../../api/opensms-proxy.js')
 
   const mockRes = () => {
-    const out: any = { statusCode: 200, body: null }
+    const out: any = { statusCode: 200, body: null, headers: {} as Record<string, string> }
+    out.setHeader = (k: string, v: string) => { out.headers[k] = v }
     out.status = (code: number) => { out.statusCode = code; return out }
     out.json = (data: any) => { out.body = data; return out }
     out.end = () => out
@@ -128,16 +130,35 @@ test('api/send-report and api/opensms-proxy serverless handlers respond cleanly 
   const r1 = mockRes()
   await sendReportMod.default({
     method: 'POST',
+    headers: { origin: 'https://sevagis.dpdns.org' },
     body: { email: 'farmer@example.com', farmName: 'Plot A', format: 'pdf', htmlContent: '<p>ok</p>' }
   }, r1)
   assert.equal(r1.statusCode, 200)
   assert.equal(r1.body.needsClientFallback, true)
+  assert.equal(r1.headers['Access-Control-Allow-Origin'], 'https://sevagis.dpdns.org')
 
   const r2 = mockRes()
   await openSmsMod.default({
     method: 'POST',
+    headers: { origin: 'https://localhost' },
     body: { serverUrl: 'http://192.168.1.25:9292/sms/', number: '+919876543210', text: 'Test' }
   }, r2)
   assert.equal(r2.statusCode, 502)
   assert.equal(r2.body.reason, 'private-lan-ip')
+  assert.equal(r2.headers['Access-Control-Allow-Origin'], 'https://localhost')
+})
+
+test('probeOpenSmsGateway reports offline loopback clearly without throwing', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = (async () => {
+    throw new Error('ECONNREFUSED')
+  }) as typeof fetch
+  try {
+    const probe = await probeOpenSmsGateway({ serverUrl: 'http://127.0.0.1:9292/sms/', apiKey: '', enabled: true }, 50)
+    assert.equal(probe.reachable, false)
+    assert.equal(probe.mode, 'unavailable')
+    assert.ok(probe.hint.includes('Phone SMS App'))
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

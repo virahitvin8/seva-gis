@@ -1,0 +1,47 @@
+# SEVA.GIS + Stalwart Mail Server (stalwartlabs/mail-server)
+# Lightweight single-binary Rust JMAP (RFC 8620) + SMTP + IMAP stack.
+# Quickstart:
+#   docker compose -f deploy/mail/docker-compose.stalwart.yml up -d
+# Then select "Stalwart (JMAP RFC 8620)" in SEVA.GIS -> Direct Dispatch -> Gateway Settings.
+
+services:
+  stalwart:
+    image: stalwartlabs/mail-server:latest
+    container_name: seva-stalwart-mail
+    restart: unless-stopped
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "8080:8080" # JMAP & admin web UI
+    volumes:
+      - stalwart_data:/opt/stalwart-mail
+    networks:
+      - seva_mail_net
+
+  seva-gis:
+    image: ghcr.io/virahitvin8/seva-gis:main
+    container_name: seva-gis-web
+    restart: unless-stopped
+    depends_on:
+      - stalwart
+    ports:
+      - "8443:8080"
+    environment:
+      - JMAP_URL=http://stalwart:8080/.well-known/jmap
+      - JMAP_USER=${JMAP_USER:-reports@sevagis.local}
+      - JMAP_PASS=${JMAP_PASS:-}
+      - SMTP_HOST=stalwart
+      - SMTP_PORT=587
+      - SMTP_USER=${JMAP_USER:-reports@sevagis.local}
+      - SMTP_PASS=${JMAP_PASS:-}
+    networks:
+      - seva_mail_net
+
+volumes:
+  stalwart_data:
+
+networks:
+  seva_mail_net:
+    driver: bridge
+

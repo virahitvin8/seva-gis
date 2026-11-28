@@ -1,7 +1,7 @@
 {
-  "version": "4.6.0",
-  "buildDate": "2026-11-28T00:00:00Z",
-  "buildNumber": 46,
+  "version": "4.6.1",
+  "buildDate": "2026-11-28T04:20:00Z",
+  "buildNumber": 47,
   "commit": "local",
   "channel": "stable",
   "appName": "SEVA.GIS",
@@ -9,12 +9,12 @@
   "updateUrl": "https://sevagis.dpdns.org/version.json",
   "otaManifestUrl": "https://sevagis.dpdns.org/updates/latest.json",
   "releaseTag": "latest",
-  "apkVersionCode": 46,
+  "apkVersionCode": 47,
   "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "changelog": [
-    "Integrated FreeLLMAPI Bandit multi-provider failover router (balanced/smartest/fastest/reliable) with cooldown recovery in Gemini 4 Argon Advisor",
-    "Added NASA WorldWind Java Blue Marble & pushpin field imagery across Tactical Map, Precision Dashboard, Geodesy Tools & Waypoint Sheets",
-    "Added Farm Data Relay System (FDRS) C++ fdrs_node_config.h firmware header export for off-grid LoRa/ESP-NOW sensors",
-    "Automated multi-asset GitHub Releases (APK + latest-android.yml + web bundle + QGIS/ArcGIS plugins), GHCR multi-arch Docker packages, and pnpm-lockfile Vercel sync"
+    "Fixed static-host HTTP 405 & Android APK mail dispatch via CORS-enabled Vercel cloud relay and direct self-hosted mail adapters",
+    "Added open-source mail server integrations: Stalwart JMAP RFC 8620, Cloudflare Worker (Mailflare pattern), docker-mailserver (MIT), Mailcow compose bridge, and Eigen Workspace (MIT)",
+    "Added OpenSMS connection probe + HTTPS tunnel proxy fallback alongside 1-tap Phone SMS App & WhatsApp delivery",
+    "Integrated FreeLLMAPI Bandit multi-provider router, NASA WorldWind Blue Marble imagery, and FDRS firmware export"
   ]
 }

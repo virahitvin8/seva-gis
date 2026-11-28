@@ -47,17 +47,180 @@ function recordToOutbox(record) {
   }
 }
 
+function isPrivateOrLocalHostname(host) {
+  const h = String(host || '').toLowerCase();
+  return (
+    h === 'localhost' ||
+    h === '127.0.0.1' ||
+    h.endsWith('.local') ||
+    h.startsWith('10.') ||
+    h.startsWith('192.168.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(h)
+  );
+}
+
+function wrapBase64Lines(b64) {
+  return String(b64 || '').replace(/(.{1,76})/g, '$1\r\n').trim();
+}
+
 /**
- * Low-level SMTP client using Node net and tls
+ * RFC 8620 JMAP submission transport for stalwartlabs/mail-server (and compatible JMAP servers).
  */
-function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, html, text, filename, fileContentBase64 }) {
+export async function sendViaJmapSubmission({ jmapUrl, username, pass, from, to, subject, html, text }) {
+  const raw = String(jmapUrl || '').trim().replace(/\/+$/, '');
+  if (!raw) throw new Error('JMAP URL is required');
+  const sessionUrl = raw.endsWith('/jmap/session') || raw.endsWith('/.well-known/jmap')
+    ? raw
+    : `${raw}/.well-known/jmap`;
+
+  const authHeader = pass && !username
+    ? `Bearer ${pass}`
+    : `Basic ${Buffer.from(`${username}:${pass}`).toString('base64')}`;
+
+  const sessRes = await fetch(sessionUrl, {
+    method: 'GET',
+    headers: { 'Authorization': authHeader, 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!sessRes.ok) {
+    throw new Error(`JMAP session returned HTTP ${sessRes.status}`);
+  }
+  const session = await sessRes.json();
+  const apiUrl = session.apiUrl || `${new URL(sessionUrl).origin}/jmap`;
+  const accountId =
+    session.primaryAccounts?.['urn:ietf:params:jmap:submission'] ||
+    session.primaryAccounts?.['urn:ietf:params:jmap:mail'] ||
+    Object.keys(session.accounts || {})[0];
+  if (!accountId) throw new Error('No JMAP mail/submission account found in session.');
+
+  const prepRes = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', 'urn:ietf:params:jmap:submission'],
+      methodCalls: [
+        ['Mailbox/get', { accountId }, 'm0'],
+        ['Identity/get', { accountId }, 'i0'],
+      ],
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!prepRes.ok) throw new Error(`JMAP preparation returned HTTP ${prepRes.status}`);
+  const prepJson = await prepRes.json();
+  const mailboxes = prepJson.methodResponses?.find((r) => r[0] === 'Mailbox/get')?.[1]?.list || [];
+  const identities = prepJson.methodResponses?.find((r) => r[0] === 'Identity/get')?.[1]?.list || [];
+  const draftBox = mailboxes.find((m) => m.role === 'drafts') || mailboxes.find((m) => m.role === 'sent') || mailboxes[0];
+  const identity = identities.find((id) => id.email === username) || identities[0];
+  if (!draftBox?.id || !identity?.id) {
+    throw new Error('JMAP account is missing a mailbox or sender identity.');
+  }
+
+  const fromEmail = from.replace(/.*<([^>]+)>.*/, '$1') || identity.email || username;
+  const subRes = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', 'urn:ietf:params:jmap:submission'],
+      methodCalls: [
+        [
+          'Email/set',
+          {
+            accountId,
+            create: {
+              draft: {
+                mailboxIds: { [draftBox.id]: true },
+                from: [{ email: fromEmail }],
+                to: [{ email: to }],
+                subject,
+                bodyValues: { body: { value: html || text || '', charset: 'utf-8' } },
+                htmlBody: [{ partId: 'body', type: 'text/html' }],
+              },
+            },
+          },
+          'e0',
+        ],
+        [
+          'EmailSubmission/set',
+          {
+            accountId,
+            create: {
+              sub0: { identityId: identity.id, emailId: '#draft' },
+            },
+          },
+          's0',
+        ],
+      ],
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!subRes.ok) throw new Error(`JMAP submission returned HTTP ${subRes.status}`);
+  const subJson = await subRes.json();
+  const createdSub = subJson.methodResponses?.find((r) => r[0] === 'EmailSubmission/set')?.[1]?.created?.sub0;
+  if (!createdSub?.id) {
+    const errInfo = subJson.methodResponses?.find((r) => r[0] === 'error' || r[1]?.notCreated)?.[1];
+    throw new Error(`JMAP EmailSubmission rejected: ${JSON.stringify(errInfo || {})}`);
+  }
+
+  return {
+    success: true,
+    delivered: true,
+    transport: 'stalwart-jmap',
+    id: createdSub.id,
+    message: `Email successfully delivered to ${to} via Stalwart JMAP (${new URL(sessionUrl).host})!`,
+  };
+}
+
+/**
+ * HTTP JSON submission transport for Cloudflare Mail Worker (mailflare pattern) or Eigen REST bridges.
+ */
+export async function sendViaMailWorker({ workerUrl, apiKey, from, to, subject, html, text, filename, fileContentBase64, backendLabel = 'mailflare-worker' }) {
+  const url = String(workerUrl || '').trim();
+  if (!url) throw new Error('Mail Worker URL is required');
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey && String(apiKey).trim()) {
+    headers['Authorization'] = `Bearer ${String(apiKey).trim()}`;
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      email: to,
+      to,
+      from,
+      subject,
+      html,
+      htmlContent: html,
+      text,
+      attachment: filename && fileContentBase64 ? { filename, contentBase64: fileContentBase64 } : undefined,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.delivered === false) {
+    throw new Error(data.error || data.message || `Mail Worker returned HTTP ${res.status}`);
+  }
+  return {
+    success: true,
+    delivered: true,
+    transport: data.transport || backendLabel,
+    id: data.id,
+    message: data.message || `Email delivered to ${to} via ${backendLabel}!`,
+  };
+}
+
+/**
+ * Low-level SMTP client using Node net and tls (compatible with docker-mailserver, Mailcow, Stalwart SMTP, Eigen, Gmail)
+ */
+function sendViaNativeSmtp({ host, port, user, pass, secure, allowSelfSigned, from, to, subject, html, text, filename, fileContentBase64 }) {
   return new Promise((resolve, reject) => {
     const isDirectTls = secure || port === 465;
+    const verifyTls = allowSelfSigned === true || isPrivateOrLocalHostname(host) ? false : true;
     const boundary = `----=_Part_SEVA_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
     let socket;
     let buffer = '';
     let step = 0;
+    let useAuthPlain = false;
     const timeoutTimer = setTimeout(() => {
       cleanup();
       reject(new Error(`SMTP connection timed out after 15s contacting ${host}:${port}`));
@@ -83,13 +246,16 @@ function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, 
 
     function handleData(chunk) {
       buffer += chunk.toString();
-      const lines = buffer.split('\r\n');
+      const lines = buffer.split(/\r?\n/);
       buffer = lines.pop(); // keep partial
 
       for (const line of lines) {
         if (!line) continue;
         const code = parseInt(line.slice(0, 3), 10);
         const isLast = line.charAt(3) !== '-';
+        if (line.toUpperCase().includes('AUTH') && line.toUpperCase().includes('PLAIN') && !line.toUpperCase().includes('LOGIN')) {
+          useAuthPlain = true;
+        }
 
         if (!isLast) continue; // Multi-line response continuation
 
@@ -109,6 +275,9 @@ function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, 
             if (!isDirectTls && (port === 587 || port === 25)) {
               step = 2;
               sendLine(`STARTTLS`);
+            } else if (useAuthPlain) {
+              step = 6;
+              sendLine(`AUTH PLAIN ${Buffer.from(`\0${user}\0${pass}`).toString('base64')}`);
             } else {
               step = 4;
               sendLine(`AUTH LOGIN`);
@@ -119,9 +288,9 @@ function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, 
             step = 3;
             // Upgrade connection to TLS
             socket.removeAllListeners('data');
-            socket = tls.connect({ socket, host, rejectUnauthorized: false }, () => {
+            socket = tls.connect({ socket, host, servername: host, rejectUnauthorized: verifyTls }, () => {
               socket.on('data', handleData);
-              step = 4;
+              step = 3;
               sendLine(`EHLO localhost`);
             });
             socket.on('error', (err) => {
@@ -131,8 +300,13 @@ function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, 
             break;
 
           case 3: // Received 250 after STARTTLS EHLO
-            step = 4;
-            sendLine(`AUTH LOGIN`);
+            if (useAuthPlain) {
+              step = 6;
+              sendLine(`AUTH PLAIN ${Buffer.from(`\0${user}\0${pass}`).toString('base64')}`);
+            } else {
+              step = 4;
+              sendLine(`AUTH LOGIN`);
+            }
             break;
 
           case 4: // Received 334 for username
@@ -183,7 +357,7 @@ function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, 
                 `Content-Disposition: attachment; filename="${filename}"`,
                 `Content-Transfer-Encoding: base64`,
                 ``,
-                fileContentBase64,
+                wrapBase64Lines(fileContentBase64),
                 ``,
               ].join('\r\n') : '',
               `--${boundary}--`,
@@ -213,7 +387,7 @@ function sendViaNativeSmtp({ host, port, user, pass, secure, from, to, subject, 
     }
 
     if (isDirectTls) {
-      socket = tls.connect({ host, port, rejectUnauthorized: false }, onConnect);
+      socket = tls.connect({ host, port, servername: host, rejectUnauthorized: verifyTls }, onConnect);
     } else {
       socket = net.connect({ host, port }, onConnect);
     }
@@ -296,19 +470,66 @@ export async function dispatchReportEmail(payload) {
   // Prepare base64 attachment
   const fileContentBase64 = payload.attachmentBase64 || Buffer.from(htmlBody, 'utf8').toString('base64');
 
-  // 1. Check for SMTP credentials
+  // 1. Check JMAP (Stalwart Mail Server RFC 8620), Worker (Mailflare / Eigen), then SMTP (Docker-Mailserver, Mailcow, Eigen, Gmail)
   const smtpConfig = payload.smtpConfig || {};
+  const mailServer = payload.mailServerConfig || {};
+  const jmapUrl = mailServer.jmapUrl || process.env.JMAP_URL || '';
+  const jmapUser = mailServer.jmapUser || smtpConfig.user || process.env.JMAP_USER || '';
+  const jmapPass = mailServer.jmapPass || smtpConfig.pass || process.env.JMAP_PASS || '';
+  const workerUrl = mailServer.workerUrl || process.env.MAIL_WORKER_URL || '';
+  const workerToken = mailServer.workerToken || process.env.MAIL_WORKER_TOKEN || '';
+
   const smtpHost = smtpConfig.host || process.env.SMTP_HOST || '';
   const smtpPort = Number(smtpConfig.port || process.env.SMTP_PORT || (smtpConfig.secure ? 465 : 587));
   const smtpUser = smtpConfig.user || process.env.SMTP_USER || '';
   const smtpPass = smtpConfig.pass || process.env.SMTP_PASS || '';
-  const smtpFrom = smtpConfig.user || process.env.SMTP_FROM || `SEVA·GIS Sahayak <notifications@sevagis.dpdns.org>`;
+  const smtpFrom = smtpConfig.user || jmapUser || process.env.SMTP_FROM || `SEVA·GIS Sahayak <notifications@sevagis.dpdns.org>`;
   const smtpSecure = Boolean(smtpConfig.secure || process.env.SMTP_SECURE === 'true' || smtpPort === 465);
+  const allowSelfSigned = Boolean(smtpConfig.allowSelfSigned || process.env.SMTP_ALLOW_SELF_SIGNED === 'true');
 
   let dispatchResult = null;
+  let lastTransportError = '';
+
+  if (jmapUrl && jmapPass) {
+    try {
+      dispatchResult = await sendViaJmapSubmission({
+        jmapUrl,
+        username: jmapUser,
+        pass: jmapPass,
+        from: smtpFrom,
+        to: email,
+        subject,
+        html: htmlBody,
+        text: `SEVA.GIS Report: ${farmName}. Mean NDVI: ${ndvi}, NDMI: ${ndmi}.`,
+      });
+    } catch (jmapErr) {
+      lastTransportError = jmapErr.message;
+      console.warn('[DirectMail] Stalwart JMAP warning:', jmapErr.message);
+    }
+  }
+
+  if (!dispatchResult && workerUrl) {
+    try {
+      dispatchResult = await sendViaMailWorker({
+        workerUrl,
+        apiKey: workerToken,
+        from: smtpFrom,
+        to: email,
+        subject,
+        html: htmlBody,
+        text: `SEVA.GIS Report: ${farmName}. Mean NDVI: ${ndvi}, NDMI: ${ndmi}. Attached: ${filename}`,
+        filename,
+        fileContentBase64,
+        backendLabel: mailServer.backend || 'mailflare-worker',
+      });
+    } catch (workerErr) {
+      lastTransportError = workerErr.message;
+      console.warn('[DirectMail] Mail Worker warning:', workerErr.message);
+    }
+  }
 
   // If SMTP is provided, send through live SMTP connection
-  if (smtpHost && smtpUser && smtpPass) {
+  if (!dispatchResult && smtpHost && smtpUser && smtpPass) {
     try {
       console.log(`[DirectMail] Transmitting report (${format.toUpperCase()}) to ${email} via SMTP (${smtpHost}:${smtpPort})...`);
       dispatchResult = await sendViaNativeSmtp({
@@ -317,6 +538,7 @@ export async function dispatchReportEmail(payload) {
         user: smtpUser,
         pass: smtpPass,
         secure: smtpSecure,
+        allowSelfSigned,
         from: smtpFrom,
         to: email,
         subject,
@@ -326,6 +548,7 @@ export async function dispatchReportEmail(payload) {
         fileContentBase64,
       });
     } catch (smtpErr) {
+      lastTransportError = smtpErr.message;
       console.warn(`[DirectMail] SMTP dispatch warning:`, smtpErr.message);
       // Fallback continues
     }
@@ -387,14 +610,16 @@ export async function dispatchReportEmail(payload) {
     }
   }
 
-  // 4. Honest fallback status when neither SMTP nor Resend delivered the message
+  // 4. Honest fallback status when neither SMTP, JMAP, Mailflare Worker, nor Resend delivered the message
   if (!dispatchResult) {
     dispatchResult = {
       success: false,
       delivered: false,
       needsClientFallback: true,
       transport: 'unconfigured',
-      message: `No server SMTP or Resend credentials are configured. Falling back to client .eml / mail compose package for ${email}.`,
+      message: lastTransportError
+        ? `Mail relay failed (${lastTransportError}). Prepared Gmail Web, Phone Mail App & .eml bundle for ${email}.`
+        : `No SMTP, Stalwart JMAP, Mailflare Worker, or Resend credentials are configured yet. Prepared Gmail Web, Phone Mail App & .eml bundle for ${email}.`,
     };
   }
 

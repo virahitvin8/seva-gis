@@ -1,3 +1,5 @@
+import { applyCorsHeaders } from '../server/corsPolicy.js';
+
 function isPrivateOrLoopbackHost(urlString) {
   try {
     const { hostname } = new URL(urlString);
@@ -15,6 +17,8 @@ function isPrivateOrLoopbackHost(urlString) {
 }
 
 export default async function handler(req, res) {
+  applyCorsHeaders(req, res);
+
   if (req.method === 'OPTIONS') {
     res.status(204).end();
     return;
@@ -37,7 +41,7 @@ export default async function handler(req, res) {
       res.status(502).json({
         stat: false,
         reason: 'private-lan-ip',
-        error: `Cloud server cannot reach private phone IP (${target}). Use Phone SMS App / WhatsApp directly, run OpenSMS via HTTPS tunnel (Tailscale/Cloudflare/ngrok), or dispatch from the Android app on the same Wi-Fi.`,
+        error: `Cloud server cannot reach private phone IP (${target}). Tap Phone SMS App / WhatsApp directly, run OpenSMS via HTTPS tunnel (Cloudflare/Tailscale), or send from the Android APK on the same phone/Wi-Fi.`,
       });
       return;
     }
@@ -63,4 +67,3 @@ export default async function handler(req, res) {
     });
   }
 }
-

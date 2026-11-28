@@ -1,0 +1,22 @@
+# SEVA.GIS Bridge for an existing mailcow/mailcow-dockerized host
+# (Upstream upstream stack run separately; zero GPL code copied into SEVA.GIS).
+# Usage:
+#   MAILCOW_HOST=mail.yourdomain.com SMTP_USER=reports@yourdomain.com SMTP_PASS=... \
+#     docker compose -f deploy/mail/docker-compose.mailcow.yml up -d
+
+services:
+  seva-gis:
+    image: ghcr.io/virahitvin8/seva-gis:main
+    container_name: seva-gis-mailcow-bridge
+    restart: unless-stopped
+    ports:
+      - "8443:8080"
+    environment:
+      - SMTP_HOST=${MAILCOW_HOST:-mail.sevagis.dpdns.org}
+      - SMTP_PORT=${MAILCOW_SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_FROM=${SMTP_FROM:-SEVA.GIS <notifications@sevagis.dpdns.org>}
+      - ALLOWED_ORIGINS=https://sevagis.dpdns.org,https://sevagis.is-a.bot,https://seva-gis.vercel.app,https://localhost,capacitor://localhost
+

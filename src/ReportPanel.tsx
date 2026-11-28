@@ -59,11 +59,21 @@ import {
 } from './lib/reportHistory'
 import { syncAndSendViaEmailOctopus, EMAIL_OCTOPUS_CONFIG } from './lib/emailOctopus'
 import { executeEmailPackageDelivery, type EmailGenerationResult } from './lib/emailGenerator'
-import { sendReportDirectToEmail, getStoredSmtpConfig, saveStoredSmtpConfig } from './lib/directEmailService'
+import {
+  sendReportDirectToEmail,
+  getStoredSmtpConfig,
+  saveStoredSmtpConfig,
+  getStoredMailServerConfig,
+  saveStoredMailServerConfig,
+  MAIL_SERVER_PRESETS,
+  type MailBackendPreset,
+  type MailServerConfig,
+} from './lib/directEmailService'
 import {
   cleanPhoneNumber,
   generateAdvisoryMessage,
   sendViaOpenSmsGateway,
+  probeOpenSmsGateway,
   getStoredOpenSmsConfig,
   saveStoredOpenSmsConfig,
   getNativeSmsUri,
@@ -141,7 +151,9 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
   const [showManualOptions, setShowManualOptions] = useState(false)
   const [showGatewayConfig, setShowGatewayConfig] = useState(false)
   const [smtpConfig, setSmtpConfig] = useState(getStoredSmtpConfig)
+  const [mailServerConfig, setMailServerConfig] = useState<MailServerConfig>(getStoredMailServerConfig)
   const [openSmsConfig, setOpenSmsConfig] = useState<OpenSmsConfig>(getStoredOpenSmsConfig)
+  const [openSmsProbe, setOpenSmsProbe] = useState<string>('')
   const [smsPhoneInput, setSmsPhoneInput] = useState<string>(() => {
     try {
       return localStorage.getItem('seva_user_phone') || '+91 '
@@ -417,6 +429,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
         htmlContent: current.html,
         senderName: who.name || 'SEVA·GIS Earth Intelligence',
         smtpConfig,
+        mailServerConfig,
       })
 
       setEmailDeliveredDirectly(Boolean(directResult.delivered))
@@ -1270,18 +1283,116 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                 </div>
               )}
 
-              {/* Gateway & SMTP Settings Drawer */}
+              {/* Gateway & Self-Hosted Open-Source Mail Stack Settings Drawer */}
               {showGatewayConfig && (
                 <div style={{ marginTop: '14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '14px' }}>
-                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
-                    ⚙️ Gateway &amp; SMTP Dispatch Settings:
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#0f172a' }}>
+                      ⚙️ Self-Hosted &amp; Open-Source Mail + OpenSMS Gateway Settings
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#047857', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+                      {MAIL_SERVER_PRESETS[mailServerConfig.backend]?.protocol || 'Auto Relay'}
+                    </span>
                   </div>
+
+                  <div style={{ marginBottom: '10px', fontSize: '12px' }}>
+                    <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Mail Stack Backend (fixes static-host HTTP 405)</label>
+                    <select
+                      value={mailServerConfig.backend}
+                      onChange={e => {
+                        const preset = e.target.value as MailBackendPreset
+                        const meta = MAIL_SERVER_PRESETS[preset]
+                        const updated = saveStoredMailServerConfig({ backend: preset })
+                        setMailServerConfig(updated)
+                        if (preset === 'gmail-smtp' && !smtpConfig.host) {
+                          const s = { ...smtpConfig, host: 'smtp.gmail.com', port: 587, secure: false }
+                          setSmtpConfig(s)
+                          saveStoredSmtpConfig(s)
+                        } else if ((preset === 'docker-mailserver' || preset === 'mailcow' || preset === 'eigen') && !smtpConfig.port) {
+                          const s = { ...smtpConfig, port: meta.defaultPort }
+                          setSmtpConfig(s)
+                          saveStoredSmtpConfig(s)
+                        }
+                      }}
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: 600 }}
+                    >
+                      {(Object.keys(MAIL_SERVER_PRESETS) as MailBackendPreset[]).map(key => (
+                        <option key={key} value={key}>
+                          {MAIL_SERVER_PRESETS[key].label} — {MAIL_SERVER_PRESETS[key].repo}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                      {MAIL_SERVER_PRESETS[mailServerConfig.backend]?.description}
+                    </div>
+                  </div>
+
+                  {mailServerConfig.backend === 'stalwart-jmap' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px', marginBottom: '10px', background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Stalwart JMAP Session URL</label>
+                        <input
+                          type="url"
+                          placeholder="https://mail.yourdomain.com/.well-known/jmap"
+                          value={mailServerConfig.jmapUrl}
+                          onChange={e => setMailServerConfig(saveStoredMailServerConfig({ jmapUrl: e.target.value }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>JMAP User Email</label>
+                        <input
+                          type="text"
+                          placeholder="reports@yourdomain.com"
+                          value={mailServerConfig.jmapUser}
+                          onChange={e => setMailServerConfig(saveStoredMailServerConfig({ jmapUser: e.target.value }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>JMAP Bearer Token / Password</label>
+                        <input
+                          type="password"
+                          placeholder="App token or password"
+                          value={mailServerConfig.jmapPass}
+                          onChange={e => setMailServerConfig(saveStoredMailServerConfig({ jmapPass: e.target.value }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {mailServerConfig.backend === 'mailflare-worker' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px', marginBottom: '10px', background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                      <div>
+                        <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Cloudflare Worker URL (Mailflare pattern)</label>
+                        <input
+                          type="url"
+                          placeholder="https://seva-gis-mail-worker.workers.dev"
+                          value={mailServerConfig.workerUrl}
+                          onChange={e => setMailServerConfig(saveStoredMailServerConfig({ workerUrl: e.target.value }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Worker Bearer Token (Optional)</label>
+                        <input
+                          type="password"
+                          placeholder="WORKER_SHARED_SECRET"
+                          value={mailServerConfig.workerToken}
+                          onChange={e => setMailServerConfig(saveStoredMailServerConfig({ workerToken: e.target.value }))}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP Host (Optional Custom)</label>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP Host (Docker-Mailserver / Mailcow / Eigen / Gmail)</label>
                       <input
                         type="text"
-                        placeholder="smtp.gmail.com"
+                        placeholder={MAIL_SERVER_PRESETS[mailServerConfig.backend]?.defaultHostHint || 'smtp.gmail.com'}
                         value={smtpConfig.host}
                         onChange={e => {
                           const updated = { ...smtpConfig, host: e.target.value }
@@ -1292,7 +1403,7 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP User (e.g. Gmail)</label>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP User / Sender Email</label>
                       <input
                         type="text"
                         placeholder="your_email@gmail.com"
@@ -1306,10 +1417,10 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP App Password</label>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>SMTP Password / App Password</label>
                       <input
                         type="password"
-                        placeholder="16-digit Google App Password"
+                        placeholder="App Password or SMTP secret"
                         value={smtpConfig.pass}
                         onChange={e => {
                           const updated = { ...smtpConfig, pass: e.target.value }
@@ -1320,18 +1431,45 @@ function ReportPanelInner({ farm }: { farm: ReportFarm }) {
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>OpenSMS Device URL</label>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>Custom Relay URL (Optional Self-Hosted Docker)</label>
                       <input
-                        type="text"
-                        placeholder="http://127.0.0.1:9292/sms/"
-                        value={openSmsConfig.serverUrl}
-                        onChange={e => {
-                          const updated = { ...openSmsConfig, serverUrl: e.target.value }
-                          setOpenSmsConfig(updated)
-                          saveStoredOpenSmsConfig(updated)
-                        }}
+                        type="url"
+                        placeholder="https://seva-gis.vercel.app/api/send-report"
+                        value={mailServerConfig.relayUrl}
+                        onChange={e => setMailServerConfig(saveStoredMailServerConfig({ relayUrl: e.target.value }))}
                         style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                       />
+                    </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>OpenSMS Device / HTTPS Tunnel URL</label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          placeholder="http://127.0.0.1:9292/sms/ or https://sms-tunnel.yourdomain.com/sms/"
+                          value={openSmsConfig.serverUrl}
+                          onChange={e => {
+                            const updated = { ...openSmsConfig, serverUrl: e.target.value }
+                            setOpenSmsConfig(updated)
+                            saveStoredOpenSmsConfig(updated)
+                            setOpenSmsProbe('')
+                          }}
+                          style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setOpenSmsProbe('Checking OpenSMS...')
+                            const res = await probeOpenSmsGateway(openSmsConfig)
+                            setOpenSmsProbe(res.hint)
+                          }}
+                          style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #0284c7', background: '#f0f9ff', color: '#0369a1', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Test OpenSMS
+                        </button>
+                      </div>
+                      {openSmsProbe && (
+                        <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>{openSmsProbe}</div>
+                      )}
                     </div>
                   </div>
                 </div>

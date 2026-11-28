@@ -1,6 +1,6 @@
 # SEVA.GIS — Where Satellites Meet Soil
 
-[![Version](https://img.shields.io/badge/version-4.6.0-2E7D32?style=flat-square)](https://github.com/virahitvin8/seva-gis/releases/latest)
+[![Version](https://img.shields.io/badge/version-4.6.1-2E7D32?style=flat-square)](https://github.com/virahitvin8/seva-gis/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![CI](https://github.com/virahitvin8/seva-gis/actions/workflows/ci.yml/badge.svg)](https://github.com/virahitvin8/seva-gis/actions/workflows/ci.yml)
 [![Container](https://img.shields.io/badge/ghcr.io-seva--gis-0db7ed?style=flat-square&logo=docker)](https://github.com/virahitvin8/seva-gis/pkgs/container/seva-gis)
@@ -28,8 +28,11 @@
 
 ---
 
-## What's New in v4.6.0
+## What's New in v4.6.1
 
+- **Self-Hosted Open-Source Mail & Cross-Origin Relay (`deploy/mail/`, `server/directMailService.js`, `api/`)**:
+  - Eliminates `HTTP 405` errors on static hosts (`sevagis.dpdns.org`) and Capacitor Android APKs by enabling explicit-origin CORS on `/api/send-report` & `/api/opensms-proxy`, automatic cross-origin relay fallback (`seva-gis.vercel.app`), and direct HTTPS Worker dispatch.
+  - Built-in adapters & deployment templates for **Stalwart Mail Server** (`stalwartlabs/mail-server` — RFC 8620 JMAP submission), **Cloudflare Edge Mail Worker** (`hieunc229/mailflare` zero-server pattern written Apache-2.0), **`docker-mailserver`** (MIT SMTP + DKIM/DMARC/SPF), **Mailcow Dockerized** (external groupware relay), and **Eigen** (`eigen-is/eigen` MIT workspace), plus OpenSMS reachability probing (`probeOpenSmsGateway`) alongside 1-tap Phone SMS & WhatsApp links.
 - **FreeLLMAPI Multi-Provider Bandit Router (`src/services/freeLlmRouter.ts`)**:
   - Derived cleanly from [`tashfeenahmed/freellmapi`](https://github.com/tashfeenahmed/freellmapi) (MIT License).
   - Thompson/Beta-posterior candidate scoring across four presets (`balanced`, `smartest`, `fastest`, `reliable`) with bounded headroom guardrails, escalating cooldown ladder (`2m -> 10m -> 1h -> 24h`), authoritative `Retry-After` handling, and half-time recovery probes.
@@ -87,6 +90,7 @@ flowchart LR
 | **Web Browser / PWA** | Open [https://sevagis.dpdns.org](https://sevagis.dpdns.org) (or [https://seva-gis.vercel.app](https://seva-gis.vercel.app)) |
 | **Android APK** | Download [`seva-gis-latest.apk`](https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk) or install [`releases/seva-gis-latest.apk`](releases/seva-gis-latest.apk) |
 | **Docker (GHCR Multi-Arch)** | `docker run -p 8080:8080 ghcr.io/virahitvin8/seva-gis:main` |
+| **Self-Hosted Mail & Cloudflare Worker** | Compose templates & Worker under [`deploy/mail/`](deploy/mail/README.md) (`stalwartlabs/mail-server`, `mailflare` pattern Worker, `docker-mailserver`, `mailcow`, `eigen`) |
 | **QGIS / ArcGIS Plugins** | Install [`public/plugins/seva_gee_flow_qgis.zip`](public/plugins/seva_gee_flow_qgis.zip), [`seva_gis_qgis_plugin.zip`](public/plugins/seva_gis_qgis_plugin.zip), or [`seva_gee_flow_arcgis.zip`](public/plugins/seva_gee_flow_arcgis.zip) |
 | **Local Development** | `git clone https://github.com/virahitvin8/seva-gis && pnpm install --frozen-lockfile && npm run dev` |
 

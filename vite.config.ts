@@ -15,6 +15,7 @@ import {
   getSecurityLoginsData,
 } from './server/securityAuditCore.js'
 import { dispatchReportEmail } from './server/directMailService.js'
+import { applyCorsHeaders } from './server/corsPolicy.js'
 import { createScoutSession, submitScoutData, getScoutSession } from './server/scoutBeaconService.js'
 
 import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
@@ -22,7 +23,7 @@ import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 // Vite config — https://vitejs.dev/config/
 function resolveBuildStamp() {
-  let pkgVersion = '4.6.0'
+  let pkgVersion = '4.6.1'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf-8'))
     if (pkg?.version) pkgVersion = pkg.version
@@ -39,9 +40,9 @@ function resolveBuildStamp() {
   }
   if (!gitCount) {
     try {
-      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 46
+      gitCount = Number(execSync('git rev-list --count HEAD', { cwd: import.meta.dirname, encoding: 'utf-8' }).trim()) || 47
     } catch {
-      gitCount = 46
+      gitCount = 47
     }
   }
   return {
@@ -49,7 +50,7 @@ function resolveBuildStamp() {
     commit: gitCommit || 'local',
     buildNumber: gitCount,
     buildDate: new Date().toISOString(),
-    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 46),
+    apkVersionCode: Number(process.env.VITE_APK_VERSION_CODE || 47),
   }
 }
 
@@ -328,6 +329,14 @@ function sevaEmailServerPlugin(): Plugin {
     name: 'seva-email-server',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/send-report') {
+          applyCorsHeaders(req, res)
+          if (req.method === 'OPTIONS') {
+            res.statusCode = 204
+            res.end()
+            return
+          }
+        }
         if (req.url === '/api/send-report' && req.method === 'POST') {
           let body = ''
           req.on('data', (chunk: Buffer) => {

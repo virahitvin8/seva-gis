@@ -1,6 +1,9 @@
 import { dispatchReportEmail } from '../server/directMailService.js';
+import { applyCorsHeaders } from '../server/corsPolicy.js';
 
 export default async function handler(req, res) {
+  applyCorsHeaders(req, res);
+
   if (req.method === 'OPTIONS') {
     res.status(204).end();
     return;
@@ -30,4 +33,3 @@ export default async function handler(req, res) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to dispatch report email.' });
   }
 }
-

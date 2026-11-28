@@ -19,6 +19,16 @@ export interface DirectMailPayload {
     user?: string
     pass?: string
     secure?: boolean
+    allowSelfSigned?: boolean
+  }
+  mailServerConfig?: {
+    backend?: string
+    relayUrl?: string
+    workerUrl?: string
+    workerToken?: string
+    jmapUrl?: string
+    jmapUser?: string
+    jmapPass?: string
   }
 }
 
@@ -31,5 +41,29 @@ export interface DirectMailResult {
   id?: string
   message: string
 }
+
+export function sendViaJmapSubmission(opts: {
+  jmapUrl: string
+  username?: string
+  pass: string
+  from: string
+  to: string
+  subject: string
+  html?: string
+  text?: string
+}): Promise<DirectMailResult>
+
+export function sendViaMailWorker(opts: {
+  workerUrl: string
+  apiKey?: string
+  from: string
+  to: string
+  subject: string
+  html?: string
+  text?: string
+  filename?: string
+  fileContentBase64?: string
+  backendLabel?: string
+}): Promise<DirectMailResult>
 
 export function dispatchReportEmail(payload: DirectMailPayload): Promise<DirectMailResult>

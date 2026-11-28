@@ -18,6 +18,7 @@ import {
   cleanPhoneNumber,
   generateAdvisoryMessage,
   sendViaOpenSmsGateway,
+  probeOpenSmsGateway,
   getNativeSmsUri,
   getWhatsAppUri
 } from '../lib/openSmsGateway'
@@ -304,6 +305,18 @@ export default function FarmerSmsWhatsAppDispatch({ farm }: Props) {
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 6, background: '#0284c7', color: '#fff', border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
             >
               <Check size={14} /> Save Gateway Settings
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                setStatusMessage({ type: 'info', text: `Testing OpenSMS at ${config.serverUrl}...` })
+                const probe = await probeOpenSmsGateway(config)
+                setStatusMessage({ type: probe.reachable ? 'success' : 'error', text: probe.hint })
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 6, background: '#f0f9ff', color: '#0369a1', border: '1px solid #0284c7', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+            >
+              Test OpenSMS
             </button>
 
             <span style={{ fontSize: 11, color: '#64748b' }}>

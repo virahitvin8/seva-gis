@@ -1,0 +1,59 @@
+# SEVA.GIS + docker-mailserver (MIT License — https://github.com/docker-mailserver/docker-mailserver)
+# Minimalist containerised SMTP + IMAP + DKIM/DMARC/SPF server wired into SEVA.GIS.
+# Quickstart:
+#   docker compose -f deploy/mail/docker-compose.dms.yml up -d
+#   docker exec -ti seva-docker-mailserver setup email add reports@sevagis.local 'StrongPass123!'
+
+services:
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: seva-docker-mailserver
+    hostname: mail.sevagis.local
+    restart: unless-stopped
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+    environment:
+      - ENABLE_CLAMAV=0
+      - ENABLE_RSPAMD=1
+      - ENABLE_OPENDKIM=1
+      - ENABLE_OPENDMARC=1
+      - ENABLE_POLICYD_SPF=1
+      - ONE_DIR=1
+    volumes:
+      - dms_data:/var/mail/
+      - dms_state:/var/mail-state/
+      - dms_logs:/var/log/mail/
+      - dms_config:/tmp/docker-mailserver/
+    networks:
+      - seva_dms_net
+
+  seva-gis:
+    image: ghcr.io/virahitvin8/seva-gis:main
+    container_name: seva-gis-web
+    restart: unless-stopped
+    depends_on:
+      - mailserver
+    ports:
+      - "8443:8080"
+    environment:
+      - SMTP_HOST=mailserver
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER:-reports@sevagis.local}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=SEVA.GIS Sahayak <${SMTP_USER:-reports@sevagis.local}>
+    networks:
+      - seva_dms_net
+
+volumes:
+  dms_data:
+  dms_state:
+  dms_logs:
+  dms_config:
+
+networks:
+  seva_dms_net:
+    driver: bridge
+

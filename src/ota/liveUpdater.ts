@@ -92,7 +92,7 @@ export async function checkAndApplySevaOtaUpdate(
 export function simulateOtaUpdateAvailable(onPromptUser: OtaPromptCallback) {
   onPromptUser(
     {
-      version: 'v4.6.0-OTA',
+      version: 'v4.6.1-OTA',
       sizeFormatted: '1.8 MB',
       channel: 'Production',
       changelog: [

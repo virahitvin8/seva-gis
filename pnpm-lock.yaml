@@ -20,9 +20,6 @@ importers:
       '@fortawesome/fontawesome-free':
         specifier: ^7.3.1
         version: 7.3.1
-      '@rolldown/binding-linux-x64-gnu':
-        specifier: ^1.0.0-beta.3
-        version: 1.0.0-rc.12
       '@turf/buffer':
         specifier: ^7.4.0
         version: 7.4.0
@@ -306,6 +303,7 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-musl@1.0.0-rc.12':
     resolution: {integrity: sha512-Jpw/0iwoKWx3LJ2rc1yjFrj+T7iHZn2JDg1Yny1ma0luviFS4mhAIcd1LFNxK3EYu3DHWCps0ydXQ5i/rrJ2ig==}
@@ -1398,7 +1396,8 @@ snapshots:
   '@rolldown/binding-linux-s390x-gnu@1.0.0-rc.12':
     optional: true
 
-  '@rolldown/binding-linux-x64-gnu@1.0.0-rc.12': {}
+  '@rolldown/binding-linux-x64-gnu@1.0.0-rc.12':
+    optional: true
 
   '@rolldown/binding-linux-x64-musl@1.0.0-rc.12':
     optional: true

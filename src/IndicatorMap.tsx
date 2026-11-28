@@ -1,4 +1,3 @@
-import compassIcon from './assets/images/handy-gps/notched-compass.png'
 import LogoLoader from './LogoLoader'
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
@@ -2820,7 +2819,7 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
         {/* Authentic Topographic North Arrow Compass Rose */}
         <div className="ix-carto-north-compass" title={t('map.north')}>
-          <img src={compassIcon} alt="North Arrow Compass" width="38" height="38" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' }} />
+          <img src="/images/field-kit/notched-compass.png" alt="North Arrow Compass" width="38" height="38" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' }} />
         </div>
 
         {/* Alternating Metric Publication Scale Bar */}

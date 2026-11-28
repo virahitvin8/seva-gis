@@ -8,8 +8,11 @@ export default function Reveal({ children, delay = 0, defer = false }: { childre
   const [entered, setEntered] = useState(!defer)
 
   useEffect(() => {
-    if (!defer || entered || !ref.current) return
-    if (typeof IntersectionObserver === 'undefined') { setEntered(true); return }
+    if (!defer || entered) return
+    const onTourReveal = () => setEntered(true)
+    window.addEventListener('seva-tour-reveal', onTourReveal)
+    if (!ref.current) return () => window.removeEventListener('seva-tour-reveal', onTourReveal)
+    if (typeof IntersectionObserver === 'undefined') { setEntered(true); return () => window.removeEventListener('seva-tour-reveal', onTourReveal) }
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) {
         setEntered(true)
@@ -17,7 +20,10 @@ export default function Reveal({ children, delay = 0, defer = false }: { childre
       }
     }, { rootMargin: '500px 0px' })
     observer.observe(ref.current)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('seva-tour-reveal', onTourReveal)
+    }
   }, [defer, entered])
 
   return (

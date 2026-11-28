@@ -55,7 +55,7 @@ export function useClockwiseEngine(
   stepCount: number,
   options?: { intervalMs?: number; externalHold?: boolean; onCycleComplete?: () => void }
 ): ClockwiseEngine {
-  const intervalMs = options?.intervalMs ?? 1000
+  const intervalMs = options?.intervalMs ?? 10000
   const onCycleComplete = options?.onCycleComplete
 
   const [step, setStep] = useState(0)

@@ -57,6 +57,15 @@ const safeStorage = {
   },
 };
 
+const SCOUT_API_FALLBACK_ORIGINS = (() => {
+  if (typeof window === 'undefined') return [''];
+  const host = window.location.hostname || '';
+  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app')) {
+    return [''];
+  }
+  return ['', 'https://seva-gis.vercel.app'];
+})();
+
 /**
  * Creates a new remote scout session and returns the shareable URL.
  */
@@ -78,31 +87,31 @@ export async function createRemoteScoutSession(
     data: null,
   };
 
-  // 1. Try server endpoint
-  try {
-    const res = await fetch('/api/scout-beacon/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label, requesterNote }),
-      signal: AbortSignal.timeout(3000),
-    });
-    if (res.ok) {
-      const serverData = await res.json();
-      if (serverData && serverData.sessionId) {
-        safeStorage.setItem(`seva_scout_${serverData.sessionId}`, JSON.stringify(serverData.session || initialRecord));
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://sevagis.dpdns.org';
-        return {
-          sessionId: serverData.sessionId,
-          shareUrl: `${origin}/?scoutSession=${serverData.sessionId}`,
-          session: serverData.session || initialRecord,
-        };
+  for (const base of SCOUT_API_FALLBACK_ORIGINS) {
+    try {
+      const res = await fetch(`${base}/api/scout-beacon/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, requesterNote }),
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const serverData = await res.json();
+        if (serverData && serverData.sessionId) {
+          safeStorage.setItem(`seva_scout_${serverData.sessionId}`, JSON.stringify(serverData.session || initialRecord));
+          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://sevagis.dpdns.org';
+          return {
+            sessionId: serverData.sessionId,
+            shareUrl: `${origin}/?scoutSession=${serverData.sessionId}`,
+            session: serverData.session || initialRecord,
+          };
+        }
       }
+    } catch {
+      // Try next origin or fall back
     }
-  } catch {
-    // Fall back to client-side session
   }
 
-  // Fallback: store locally
   safeStorage.setItem(`seva_scout_${sessionId}`, JSON.stringify(initialRecord));
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://sevagis.dpdns.org';
   return {
@@ -116,21 +125,22 @@ export async function createRemoteScoutSession(
  * Checks the status of a scout session (polling or single-shot).
  */
 export async function checkScoutBeaconStatus(sessionId: string): Promise<ScoutSessionRecord | null> {
-  // 1. Try server endpoint
-  try {
-    const res = await fetch(`/api/scout-beacon/status?sessionId=${encodeURIComponent(sessionId)}`, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(3000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.session) {
-        safeStorage.setItem(`seva_scout_${sessionId}`, JSON.stringify(data.session));
-        return data.session;
+  for (const base of SCOUT_API_FALLBACK_ORIGINS) {
+    try {
+      const res = await fetch(`${base}/api/scout-beacon/status?sessionId=${encodeURIComponent(sessionId)}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.session) {
+          safeStorage.setItem(`seva_scout_${sessionId}`, JSON.stringify(data.session));
+          return data.session;
+        }
       }
+    } catch {
+      // Try next origin or local fallback
     }
-  } catch {
-    // Check local fallback
   }
 
   const raw = safeStorage.getItem(`seva_scout_${sessionId}`);

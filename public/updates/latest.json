@@ -1,14 +1,14 @@
 {
-  "appVersion": "4.6.1",
-  "version": "4.6.1",
-  "buildVersion": 47,
-  "buildNumber": 47,
+  "appVersion": "4.7.0",
+  "version": "4.7.0",
+  "buildVersion": 48,
+  "buildNumber": 48,
   "commit": "local",
-  "apkVersionCode": 47,
-  "releaseNotes": "v4.6.1: Cross-origin CORS mail relay + Stalwart JMAP, Cloudflare Mailflare Worker, docker-mailserver, Mailcow & Eigen dispatch integrations, OpenSMS gateway probe, FreeLLMAPI Bandit router, and NASA WorldWind Field Studio.",
+  "apkVersionCode": 48,
+  "releaseNotes": "v4.7.0: Simplified Mode (Lite) on Android APK & Web toggle, verified Google/Guest auth + 10s atomic Clockwise dial, inline Handy GPS pushpins/boundaries, Weather-reactive Area of Interest Health Score (/100), (i) Reference sources, Simplified Report Sharing, and crisp white NAVI/Field Scout UX.",
   "downloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "minimumVersion": "4.0.0",
   "forceUpdate": false,
-  "lastChecked": "2026-11-28T04:20:00Z"
+  "lastChecked": "2026-11-28T06:26:04Z"
 }

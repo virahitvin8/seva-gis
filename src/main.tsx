@@ -9,6 +9,7 @@ import './seva-premium.css'
 import PopTheTeamModal from './PopTheTeamModal'
 import AppUpdatePopup from './components/AppUpdatePopup'
 import { I18nProvider } from './lib/i18n'
+import { UIModeProvider } from './lib/uiMode'
 import { Brand } from './components/Brand'
 
 // Handle Vite dynamic import chunk reload error automatically (e.g. after new deployment on sevagis.dpdns.org)
@@ -171,8 +172,10 @@ root.render(
   <React.StrictMode>
     <GlobalErrorBoundary>
       <I18nProvider>
-        <AuthGate><App /></AuthGate>
-        <AppUpdatePopup />
+        <UIModeProvider>
+          <AuthGate><App /></AuthGate>
+          <AppUpdatePopup />
+        </UIModeProvider>
       </I18nProvider>
     </GlobalErrorBoundary>
   </React.StrictMode>,

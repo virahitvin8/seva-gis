@@ -1,6 +1,6 @@
 # SEVA.GIS — Where Satellites Meet Soil
 
-[![Version](https://img.shields.io/badge/version-4.6.1-2E7D32?style=flat-square)](https://github.com/virahitvin8/seva-gis/releases/latest)
+[![Version](https://img.shields.io/badge/version-4.7.0-2E7D32?style=flat-square)](https://github.com/virahitvin8/seva-gis/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![CI](https://github.com/virahitvin8/seva-gis/actions/workflows/ci.yml/badge.svg)](https://github.com/virahitvin8/seva-gis/actions/workflows/ci.yml)
 [![Container](https://img.shields.io/badge/ghcr.io-seva--gis-0db7ed?style=flat-square&logo=docker)](https://github.com/virahitvin8/seva-gis/pkgs/container/seva-gis)
@@ -28,7 +28,17 @@
 
 ---
 
-## What's New in v4.6.1
+## What's New in v4.7.0
+
+- **Simplified (Lite) & Advanced (Pro) Dual Experience (`src/lib/uiMode.tsx`, `src/components/LiteShell.tsx`)**:
+  - **Mobile App (Android APK / Standalone PWA)** runs **Simplified Mode** exclusively with a Three-Lines (`≡`) drawer, mobile bottom bar, weather-reactive sky header, Area of Interest Condition (`/100` score), tick-box map layers clipped strictly to the selected polygon, clickable `(i)` satellite/formula references, time-lapse comparisons, and one-tap Simplified Report sharing via Email, WhatsApp, or SMS.
+  - **Website (`sevagis.dpdns.org`)** provides a top-bar switcher between **Simplified** and **Advanced** workbench views.
+- **Verified Auth & 10-Second Atomic Clockwise Dial (`src/Auth.tsx`)**:
+  - `Continue with Google` opens an explicit account selector (never auto-picks a placeholder account), `Continue as Guest` prompts for the user's profile name, Sign-up/Sign-in verify real credentials cleanly, and the Clockwise visualizer steps every 10 seconds with atomic dispersion/reformation across all discipline blocks.
+- **Inline Handy GPS & Cleaner Workspace (`src/components/InlineHandyGpsBar.tsx`)**:
+  - Drop NASA WorldWind pushpins, record walked GPS boundaries, inspect 6 coordinate formats (DD, DMS, DDM, UTM, MGRS, DIGIPIN), project waypoints, and export GPX/KML/CSV directly inside the workspace without modal clutter.
+
+### Previous v4.6.1 Highlights
 
 - **Self-Hosted Open-Source Mail & Cross-Origin Relay (`deploy/mail/`, `server/directMailService.js`, `api/`)**:
   - Eliminates `HTTP 405` errors on static hosts (`sevagis.dpdns.org`) and Capacitor Android APKs by enabling explicit-origin CORS on `/api/send-report` & `/api/opensms-proxy`, automatic cross-origin relay fallback (`seva-gis.vercel.app`), and direct HTTPS Worker dispatch.

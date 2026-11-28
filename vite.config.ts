@@ -23,7 +23,7 @@ import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
 // Vite config — https://vitejs.dev/config/
 function resolveBuildStamp() {
-  let pkgVersion = '4.6.1'
+  let pkgVersion = '4.7.0'
   try {
     const pkg = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf-8'))
     if (pkg?.version) pkgVersion = pkg.version

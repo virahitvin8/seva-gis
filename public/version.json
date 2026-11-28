@@ -1,7 +1,7 @@
 {
-  "version": "4.6.1",
-  "buildDate": "2026-11-28T04:20:00Z",
-  "buildNumber": 47,
+  "version": "4.7.0",
+  "buildDate": "2026-11-28T06:26:04Z",
+  "buildNumber": 48,
   "commit": "local",
   "channel": "stable",
   "appName": "SEVA.GIS",
@@ -9,12 +9,12 @@
   "updateUrl": "https://sevagis.dpdns.org/version.json",
   "otaManifestUrl": "https://sevagis.dpdns.org/updates/latest.json",
   "releaseTag": "latest",
-  "apkVersionCode": 47,
+  "apkVersionCode": 48,
   "apkDownloadUrl": "https://github.com/virahitvin8/seva-gis/releases/latest/download/seva-gis-latest.apk",
   "changelog": [
-    "Fixed static-host HTTP 405 & Android APK mail dispatch via CORS-enabled Vercel cloud relay and direct self-hosted mail adapters",
-    "Added open-source mail server integrations: Stalwart JMAP RFC 8620, Cloudflare Worker (Mailflare pattern), docker-mailserver (MIT), Mailcow compose bridge, and Eigen Workspace (MIT)",
-    "Added OpenSMS connection probe + HTTPS tunnel proxy fallback alongside 1-tap Phone SMS App & WhatsApp delivery",
-    "Integrated FreeLLMAPI Bandit multi-provider router, NASA WorldWind Blue Marble imagery, and FDRS firmware export"
+    "Introduced Simplified (Lite) and Advanced (Pro) dual architecture on Website, with Simplified Mode exclusively enforced on Capacitor Android APK",
+    "Verified Google account chooser (no auto-pick), Guest profile name prompt, strict local credential verification, and atomic 10s Clockwise dial animation",
+    "Added Weather-reactive Sky Header with Area of Interest Health Score (/100), tick-box map layers, inline Handy GPS pushpins/walk boundaries, (i) Reference sources, and Simplified Report Generator",
+    "Fixed NAVI guided tour reveal and scroll timing, switched Ask Friend on Field modal to white light theme, and removed cluttered studio toolbars"
   ]
 }

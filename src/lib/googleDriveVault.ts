@@ -318,7 +318,7 @@ export async function authenticateWithGoogle(customEmail?: string): Promise<{ su
           },
         })
 
-        client.requestAccessToken({ prompt: 'consent' })
+        client.requestAccessToken({ prompt: 'select_account consent' })
       } catch (initErr: any) {
         console.warn('[Google Vault] GIS Client Init error:', initErr)
         resolve({ success: false, error: 'Google sign-in could not start. Continue as guest or try again later.' })

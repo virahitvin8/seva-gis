@@ -381,7 +381,7 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
               <Smartphone size={18} className="text-[#66BB6A]" />
               <span className="hidden lg:inline">SEVA·GIS FIELD</span>
             </div>
-            <div className="text-[11px] font-mono text-[#81C784] hidden lg:block mt-0.5">v4.6.1</div>
+            <div className="text-[11px] font-mono text-[#81C784] hidden lg:block mt-0.5">v4.7.0</div>
           </div>
 
           <nav className="flex flex-col gap-1.5" aria-label="Field studio side rail">
@@ -425,7 +425,7 @@ export default function MobileFieldSuite({ farm, onClose, onApplyBoundary }: Pro
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm sm:text-base text-white truncate">{farm.name}</span>
               <span className="px-2 py-0.5 rounded bg-[#2E7D32]/25 border border-[#4CAF50]/40 text-[11px] font-mono text-[#A5D6A7] shrink-0">
-                v4.6.1
+                v4.7.0
               </span>
             </div>
             <div className="text-xs font-mono text-[#A3B1A6] truncate tabular-nums">

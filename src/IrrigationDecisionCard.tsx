@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Droplet, Droplets, AlertTriangle, CheckCircle2, CloudRain, Clock, Sparkles } from 'lucide-react'
-import { GROWTH_STAGES, EXTENDED_CROPS, type GrowthStage } from './lib/cropstages'
+import { Droplets, CheckCircle2, Clock } from 'lucide-react'
+import { EXTENDED_CROPS } from './lib/cropstages'
 import { METHODS } from './lib/hydro'
 
 type Props = {
@@ -30,79 +30,36 @@ export default function IrrigationDecisionCard({
   })
   const isBare = selectedCrop === 'uncultivated'
 
-  // Automatic crop stage detection from Sentinel-2 NDVI & NDMI satellite signals
-  const autoStage = useMemo<string>(() => {
-    if (isBare) return 'fallow'
-    const vi = ndvi ?? 0.52
-    const mi = ndmi ?? 0.24
-    if (vi < 0.25) return 'sowing'
-    if (vi < 0.58) return 'vegetative'
-    if (vi >= 0.58 && mi >= 0.22) return 'flowering'
-    if (vi >= 0.45 && mi < 0.18) return 'grain_fill'
-    return 'maturity'
-  }, [isBare, ndvi, ndmi])
-
-  const [userSelectedStage, setUserSelectedStage] = useState<string>('')
-  const selectedStage = userSelectedStage || autoStage
-  const isAutoStage = !userSelectedStage
-
   useEffect(() => {
     const norm = (cropName || '').toLowerCase()
     setSelectedCrop(EXTENDED_CROPS.find(c => norm.includes(c.id))?.id || (norm.includes('bare') || norm.includes('uncultivated') || norm.includes('fallow') ? 'uncultivated' : 'paddy'))
-    setUserSelectedStage('')
   }, [cropName])
   const [irrMethod, setIrrMethod] = useState('furrow')
-
-  const stageDef = GROWTH_STAGES.find(s => s.id === selectedStage) || (isBare ? GROWTH_STAGES[0] : GROWTH_STAGES[1])
   const methodDef = METHODS.find(m => m.id === irrMethod) || METHODS[1]
 
   const calculation = useMemo(() => {
     // Effective rain (75% infiltration efficiency)
     const effRainWeekly = +(0.75 * Math.max(0, rainNext7)).toFixed(1)
 
-    // CASE 1: UNCULTIVATED / BARE LAND
     if (isBare) {
-      if (selectedStage === 'paleva') {
-        // Pre-sowing root zone wetting (Paleva / Rauni): 45 mm net water to soften dry soil
-        const netWaterDeficit = Math.max(10, 45 - effRainWeekly)
-        const grossWaterNeededMm = +(netWaterDeficit / methodDef.eff).toFixed(1)
-        const litersPerAcre = Math.round(grossWaterNeededMm * 4047)
-        const totalVolumeM3 = Math.round(grossWaterNeededMm * (farmAreaHa || 1) * 10)
-        return {
-          shouldIrrigateToday: true,
-          urgency: 'immediate' as const,
-          decisionHeadline: 'A pre-sowing soak may be useful — check the field',
-          grossWaterNeededMm,
-          litersPerAcre,
-          totalVolumeM3,
-          why: `For pre-sowing preparation, this model estimates ${grossWaterNeededMm} mm through ${methodDef.name}. Check the actual soil and local advice first; the app cannot confirm a hardpan or how much water your field needs.`,
-          dailyEtc: 0,
-          effRainWeekly,
-          stageTitle: 'Pre-sowing Land Prep',
-          canopyNote: 'Bare soil ready for tillage',
-        }
-      } else {
-        // Fallow / Idle Soil: Zero crop transpiration, no irrigation needed
-        return {
-          shouldIrrigateToday: false,
-          urgency: 'none' as const,
-          decisionHeadline: 'No standing crop demand is included for fallow land',
-          grossWaterNeededMm: 0,
-          litersPerAcre: 0,
-          totalVolumeM3: 0,
-          why: 'If the field is truly fallow, this crop-water model has no standing crop demand. Check what is planted and the soil before deciding whether any water is needed.',
-          dailyEtc: 0,
-          effRainWeekly,
-          stageTitle: 'Fallow / Bare Soil',
-          canopyNote: 'No crop foliage',
-        }
+      return {
+        shouldIrrigateToday: false,
+        urgency: 'none' as const,
+        decisionHeadline: 'No standing crop demand is included for fallow land',
+        grossWaterNeededMm: 0,
+        litersPerAcre: 0,
+        totalVolumeM3: 0,
+        why: 'If the field is fallow or uncultivated, this crop-water model has no standing crop demand. Check local soil conditions before deciding whether water is needed.',
+        dailyEtc: 0,
+        effRainWeekly,
+        stageTitle: 'Uncultivated / Bare Soil',
+        canopyNote: 'Low vegetative cover',
       }
     }
 
-    // CASE 2: CROPPED LAND (Vegetative, Flowering, etc.)
-    // Stage-adjusted crop evapotranspiration (ETc)
     const dailyEt0 = Math.max(1.5, et0Next7 / 7)
-    const effectiveKc = 1.05 * stageDef.kcMultiplier
+    const canopyFactor = (ndvi ?? 0.5) >= 0.6 ? 1.08 : (ndvi ?? 0.5) >= 0.35 ? 0.92 : 0.72
+    const effectiveKc = 1.0 * canopyFactor
     const dailyEtc = dailyEt0 * effectiveKc
     const weeklyEtc = dailyEtc * 7
 
@@ -131,11 +88,6 @@ export default function IrrigationDecisionCard({
       urgency = 'none'
       decisionHeadline = 'Rain is forecast — check before watering'
       why = `${rainNext7.toFixed(0)} mm is forecast this week. Confirm the local forecast and the soil near the roots before changing your usual plan.`
-    } else if (selectedStage === 'maturity') {
-      shouldIrrigateToday = false
-      urgency = 'none'
-      decisionHeadline = 'Ripening stage selected — check the crop'
-      why = 'Greenness and water demand can change as crops ripen. Follow the crop and local harvest guidance; this app cannot decide when to stop watering.'
     } else if (ndmiStress >= 0.8 || soilDryness >= 0.8) {
       shouldIrrigateToday = true
       urgency = 'immediate'
@@ -168,10 +120,10 @@ export default function IrrigationDecisionCard({
       why,
       dailyEtc: +dailyEtc.toFixed(1),
       effRainWeekly,
-      stageTitle: `${stageDef.name} stage`,
+      stageTitle: 'Observed canopy water rate',
       canopyNote: ndmi < 0.15 ? 'Lower moisture signal; check the soil' : 'Higher moisture signal; still check the soil',
     }
-  }, [isBare, selectedStage, irrMethod, ndmi, et0Next7, rainNext7, soilMoisturePct, farmAreaHa, stageDef, methodDef])
+  }, [isBare, irrMethod, ndvi, ndmi, et0Next7, rainNext7, soilMoisturePct, farmAreaHa, methodDef])
 
   const toneClass = calculation.urgency === 'immediate' || calculation.urgency === 'soon' ? 'warn' : 'good'
 
@@ -185,11 +137,6 @@ export default function IrrigationDecisionCard({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: 'var(--muted)' }}>
               <span>WATER PLAN · MODEL ESTIMATE</span>
-              {isAutoStage && (
-                <span style={{ background: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: 6, fontSize: 10, textTransform: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                  <Sparkles size={11} /> Auto-detected ({stageDef.name})
-                </span>
-              )}
             </div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: calculation.urgency === 'immediate' ? '#b91c1c' : calculation.urgency === 'soon' ? '#b45309' : '#15803d' }}>
               {calculation.decisionHeadline}
@@ -197,43 +144,17 @@ export default function IrrigationDecisionCard({
           </div>
         </div>
 
-        {/* Crop & Stage Selector */}
+        {/* Cover / Method Selector */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <select
             value={selectedCrop}
-            onChange={e => {
-              const nextCrop = e.target.value
-              setSelectedCrop(nextCrop)
-              setUserSelectedStage(nextCrop === 'uncultivated' ? 'fallow' : '')
-            }}
+            onChange={e => setSelectedCrop(e.target.value)}
             style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600 }}
           >
             {EXTENDED_CROPS.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-
-          {isBare ? (
-            <select
-              value={selectedStage === 'paleva' ? 'paleva' : 'fallow'}
-              onChange={e => setUserSelectedStage(e.target.value)}
-              style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600, color: '#0f172a' }}
-            >
-              <option value="fallow">Fallow / Bare Soil (No Crop · Resting)</option>
-              <option value="paleva">Pre-sowing Land Prep (Paleva / Rauni Soak)</option>
-            </select>
-          ) : (
-            <select
-              value={userSelectedStage}
-              onChange={e => setUserSelectedStage(e.target.value)}
-              style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', background: '#fff', fontWeight: 600 }}
-            >
-              <option value="">⚡ Auto-detected: {stageDef.name}</option>
-              {GROWTH_STAGES.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          )}
 
           <select
             value={irrMethod}
@@ -253,7 +174,7 @@ export default function IrrigationDecisionCard({
       </p>
 
       {/* Quantity Specs */}
-      {selectedStage && <div className="ag-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 10 }}>
+      <div className="ag-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 10 }}>
         <div className={`ag-item ${calculation.shouldIrrigateToday ? 'bad' : 'good'}`}>
           <span>Amount if field check confirms need</span>
           <b>{calculation.shouldIrrigateToday ? `${calculation.grossWaterNeededMm} mm` : '0 mm'}</b>
@@ -283,8 +204,8 @@ export default function IrrigationDecisionCard({
           <b>{f(rainNext7, 1)} mm</b>
           <small>Model estimates {calculation.effRainWeekly} mm may reach the soil</small>
         </div>
-      </div>}
-      <p className="ag-note">This model uses the selected crop and stage, forecast rain, a broad soil-water estimate, and the chosen irrigation method. It is a planning aid, not an instruction to irrigate.</p>
+      </div>
+      <p className="ag-note">This model uses satellite canopy cover, forecast rain, a broad soil-water estimate, and the chosen irrigation method. It is a planning aid, not an instruction to irrigate.</p>
     </div>
   )
 }

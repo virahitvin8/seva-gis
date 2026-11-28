@@ -24,17 +24,25 @@ async function derive(password: string, salt: Uint8Array) {
 }
 
 export async function register(name: string, email: string, password: string) {
+  const cleanName = name.trim()
+  if (cleanName.length < 2) throw new Error('Enter your full name (at least 2 characters).')
   email = email.trim().toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('Enter a valid email address.')
+  if (!password || password.length < 8) throw new Error('Use a password with at least 8 characters.')
   if (await db.users.where('email').equals(email).count()) throw new Error('An account with this email already exists on this device. Try signing in.')
   const salt = crypto.getRandomValues(new Uint8Array(16))
-  const user: User = { id: crypto.randomUUID(), name: name.trim(), email, salt: hex(salt), hash: await derive(password, salt), created: Date.now() }
+  const user: User = { id: crypto.randomUUID(), name: cleanName, email, salt: hex(salt), hash: await derive(password, salt), created: Date.now() }
   await db.users.add(user)
   return user
 }
 
 export async function login(email: string, password: string) {
-  const user = await db.users.where('email').equals(email.trim().toLowerCase()).first()
-  if (!user || (await derive(password, unhex(user.salt))) !== user.hash) throw new Error('Email or password is not correct.')
+  const cleanEmail = email.trim().toLowerCase()
+  if (!cleanEmail || !password) throw new Error('Enter both your email and password.')
+  const user = await db.users.where('email').equals(cleanEmail).first()
+  if (!user || user.hash === 'google_oauth_authenticated' || (await derive(password, unhex(user.salt))) !== user.hash) {
+    throw new Error('Email or password is not correct.')
+  }
   return user
 }
 
@@ -48,7 +56,9 @@ const SYSTEM_KEYS = new Set([
   'seva-guest-name',
   'seva-remembered',
   'seva-bye',
-  'seva-mitra-asked'
+  'seva-mitra-asked',
+  'seva-ui-mode',
+  'seva-remember-me'
 ])
 const isData = (k: string) => k.startsWith('seva-') && !SYSTEM_KEYS.has(k)
 const dataKeys = () => Object.keys(localStorage).filter(isData)

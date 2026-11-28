@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, LocateFixed, MapPinned, Pencil, Plus, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Eraser, Flag, Footprints, FileUp, LocateFixed, MapPinned, Pencil, Plus, Radio, Search, ShieldCheck, Sprout, Undo2 } from 'lucide-react'
 import { areaHa, centroid, createCircleRing, createRectangleRing, orderRing, parseBoundary, parseCoordinate, validateAoiGeometry, type Ring } from './lib/geo'
 import CropSelector, { type CropSelection } from './CropSelector'
 import { matchCropSpec } from './lib/cropstages'
@@ -13,7 +13,7 @@ const walkerIcon = L.divIcon({
 })
 const emptyCorners = () => Array.from({ length: 4 }, () => ({ lat: '', lon: '' }))
 
-export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => void; onError: (message: string) => void }) {
+export default function AddFarm({ onAdd, onError, onOpenRemoteScout }: { onAdd: (farm: NewFarm) => void; onError: (message: string) => void; onOpenRemoteScout?: () => void }) {
   const [tab, setTab] = useState<Tab>('draw')
   const [drawShape, setDrawShape] = useState<'polygon' | 'circle' | 'square'>('polygon')
   const [shapeRadius, setShapeRadius] = useState<number>(200)
@@ -278,7 +278,7 @@ export default function AddFarm({ onAdd, onError }: { onAdd: (farm: NewFarm) => 
   return <form onSubmit={submit} className="add-farm">
     <label>Field name<input maxLength={80} value={name} onChange={event => setName(event.target.value)} placeholder="e.g. North paddy field (or leave blank to auto-name)"/></label>
     <p className="add-remote-note">Add a boundary for an area of interest or field you want to review remotely. SEVA·GIS uses public satellite imagery and terrain models to reveal visible geospatial patterns.</p>
-    <div className="add-tabs" role="tablist">{tabs.map(([key, text, Icon]) => <button type="button" role="tab" aria-selected={tab === key} key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}><Icon size={14}/>{text}</button>)}</div>
+    <div className="add-tabs" role="tablist">{tabs.map(([key, text, Icon]) => <button type="button" role="tab" aria-selected={tab === key} key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}><Icon size={14}/>{text}</button>)}{onOpenRemoteScout && <button type="button" onClick={onOpenRemoteScout} style={{ borderColor: '#f59e0b', color: '#92400e', background: '#fffbeb' }}><Radio size={14}/>Ask Friend on Field</button>}</div>
     <div className="add-search"><Search size={14}/><input value={place} onChange={event => setPlace(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); findPlace() } }} placeholder="Find village, town or state (e.g. Uttar Pradesh, UP)"/><button type="button" onClick={() => findPlace()}>Go</button></div>
     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8, fontSize: 11, alignItems: 'center' }}>
       <span style={{ color: '#64748b', fontSize: 11, fontWeight: 600 }}>Quick region:</span>

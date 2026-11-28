@@ -242,9 +242,13 @@ export default function IndicatorMap({ farm, loading, panelTarget, sceneOpts }: 
 
   useEffect(() => {
     const handleApplyLayer = (e: Event) => {
-      const custom = e as CustomEvent<{ layerId?: string }>
+      const custom = e as CustomEvent<{ layerId?: string; enabled?: boolean }>
       const layerId = custom.detail?.layerId
       if (!layerId) return
+      if (custom.detail?.enabled === false) {
+        setHidden(prev => (prev.includes(layerId) ? prev : [...prev, layerId]))
+        return
+      }
       setActive(prev => (prev.includes(layerId) ? prev : [layerId, ...prev]))
       setHidden(prev => prev.filter(id => id !== layerId))
     }

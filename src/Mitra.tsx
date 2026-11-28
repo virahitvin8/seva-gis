@@ -7,96 +7,150 @@ type Step = {
   title: string
   body: string
   action?: () => void
+  mode?: 'lite' | 'pro'
 }
 
-const STEPS: Step[] = [
+function scrollAndReveal(id: string | null, sel?: string) {
+  window.dispatchEvent(new CustomEvent('seva-tour-reveal', { detail: id || sel || '*' }))
+  const el = (id ? document.getElementById(id) : null) || (sel ? document.querySelector(sel) : null)
+  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+const ALL_STEPS: Step[] = [
+  // Lite / Mobile App Steps
   {
+    mode: 'lite',
+    sel: '[data-tour="lite-menu"]',
+    title: 'Field Menu (Three Lines)',
+    body: 'Open the three-line menu anytime to pick your farm, mark field boundaries with GPS, plan water or borewells, and create reports.',
+    action: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+  },
+  {
+    mode: 'lite',
+    sel: '[data-tour="lite-aoi-banner"]',
+    title: 'Selected Field & Health Score',
+    body: "See today's weather, overall plant vigor out of 100, and NAVI's plain-language tip for this exact area of interest.",
+    action: () => scrollAndReveal(null, '[data-tour="lite-aoi-banner"]'),
+  },
+  {
+    mode: 'lite',
+    sel: '[data-tour="lite-map"]',
+    title: 'Map & Layer Checkboxes',
+    body: 'Switch tick boxes on or off for Plant Health, Water & Moisture, Land Cover, Soil, and Slope. Record walking GPS corners or pins live.',
+    action: () => scrollAndReveal(null, '[data-tour="lite-map"]'),
+  },
+  {
+    mode: 'lite',
+    sel: '[data-tour="lite-metrics"]',
+    title: 'Tap (i) to Check Data Sources',
+    body: 'Every number shows its exact satellite capture date, formula, and open data source when you tap the (i) info button.',
+    action: () => scrollAndReveal(null, '[data-tour="lite-metrics"]'),
+  },
+  {
+    mode: 'lite',
+    sel: '[data-tour="lite-report-btn"]',
+    title: 'Simplified Field Report',
+    body: 'Generate a clean visual summary with your area map, waypoints, time-lapse comparison, and share via Email, WhatsApp, or SMS.',
+    action: () => scrollAndReveal(null, '[data-tour="lite-report-btn"]'),
+  },
+  {
+    mode: 'lite',
+    sel: '[data-tour="lite-signout"], .profile .logout, .profile',
+    title: 'Language & Safe Sign Out',
+    body: 'Switch between English, Hindi, or Telugu anytime, or sign out securely. Your fields remain stored privately on this device.',
+    action: () => scrollAndReveal(null, '[data-tour="lite-signout"], .profile'),
+  },
+
+  // Pro / Full Website Steps
+  {
+    mode: 'pro',
     sel: '.sidebar nav, .topbar .breadcrumb',
     title: 'Your menu & workspace',
     body: 'Overview takes you to the top, My farms to your field boundaries, Crop journal to your seasonal logs, Alerts to stressed parcels, and Reports to printable dossiers.',
-    action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) },
   },
   {
+    mode: 'pro',
     sel: '.page-heading .primary, .page-heading button',
     title: 'Add a field boundary',
     body: 'Draw an area of interest on the satellite basemap, walk its boundary with mobile GPS, enter coordinates, or upload GeoJSON, KML, GPX, WKT, or ESRI Shapefiles.',
-    action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+    action: () => { window.scrollTo({ top: 0, behavior: 'smooth' }) },
   },
   {
+    mode: 'pro',
     sel: '.map-card',
-    title: 'The live map & metered tape ruler',
-    body: 'Explore high-resolution satellite imagery with dynamic parameters (NDVI, NDMI, DEM). Use the movable Metered Tape Ruler to measure precision distances and elevation slopes anywhere on the field.',
-    action: () => {
-      document.querySelector('.map-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    title: 'The live map & field GPS',
+    body: 'Explore 10 m Sentinel-2 imagery with Handy GPS pins, boundary walking tools, layer ticks, and precision distance measurement.',
+    action: () => scrollAndReveal(null, '.map-card'),
   },
   {
+    mode: 'pro',
     sel: '.intelligence-grid',
     title: 'Field intelligence & spectral metrics',
-    body: 'Live Sentinel-2 BOA metrics: NDVI vegetation vigor, surface soil moisture model, rainfall outlook, and Copernicus DEM surface slope.',
-    action: () => {
-      document.querySelector('.intelligence-grid')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    body: 'Live Sentinel-2 BOA metrics: plant vigor score, moisture status, rainfall outlook, and Copernicus DEM surface slope.',
+    action: () => scrollAndReveal(null, '.intelligence-grid'),
   },
   {
+    mode: 'pro',
     sel: '#section-agro-water',
-    title: 'Agro & hydrology panels',
-    body: 'Soil texture (SoilGrids), plant-available water capacity, hydraulic head loss, pump requirements, and dynamic water budgeting.',
-    action: () => {
-      const el = document.getElementById('section-agro-water')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    title: 'Agro & water planning panels',
+    body: 'Water volume needed, daily crop demand, soil texture, drainage flow, borewells, and pipeline layout for the selected field.',
+    action: () => scrollAndReveal('section-agro-water'),
   },
   {
+    mode: 'pro',
     sel: '#section-intelligence-lab',
     title: 'Analysis lab',
     body: 'Inspect true-colour imagery, land cover, spectral indices, seasonal change, and map-based explanations for the selected area.',
     action: () => {
       window.dispatchEvent(new CustomEvent('seva-set-lab-tab', { detail: 'map' }))
-      const el = document.getElementById('section-intelligence-lab')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+      scrollAndReveal('section-intelligence-lab')
+    },
   },
   {
-    sel: '.ge-wrap',
+    mode: 'pro',
+    sel: '.ge-wrap, #section-intelligence-lab',
     title: 'GeoAI studio',
     body: 'Explore land-cover grouping, management zones, spectral patterns, and GeoAI-assisted interpretation for the selected area.',
     action: () => {
       window.dispatchEvent(new CustomEvent('seva-set-lab-tab', { detail: 'ai' }))
-      document.querySelector('.ge-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+      scrollAndReveal('section-intelligence-lab', '.ge-wrap')
+    },
   },
   {
+    mode: 'pro',
     sel: '#section-measurement-tools',
     title: 'Precision tools',
-    body: 'Use measurement, buffers, layer tools, and spatial exports for the selected area. Each tool explains its units and limitations.',
-    action: () => {
-      const el = document.getElementById('section-measurement-tools')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    body: 'Use measurement, buffers, layer tools, and field SMS/WhatsApp/Email dispatch for the selected area.',
+    action: () => scrollAndReveal('section-measurement-tools'),
   },
   {
+    mode: 'pro',
     sel: '#create-report-button',
-    title: 'Publication-grade field dossiers',
-    body: 'Generate official field dossiers in English, Hindi (हिन्दी), or Telugu (తెలుగు) with North arrow, scale bar, Sentinel-2 metadata, and VRA recommendations.',
-    action: () => {
-      document.querySelector('.intelligence-heading button')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
+    title: 'Field reports & sharing',
+    body: 'Generate reports in English, Hindi, or Telugu with waypoints, parameter maps, time-lapse comparisons, and direct mail or WhatsApp sharing.',
+    action: () => scrollAndReveal('create-report-button', '.intelligence-heading button'),
   },
   {
+    mode: 'pro',
     sel: '.profile .logout, .profile',
     title: 'Privacy & signing out',
     body: 'Sign out securely whenever you are done. Your farm boundaries and local settings stay safely saved on this device.',
-    action: () => {
-      const el = document.querySelector('.profile .logout') || document.querySelector('.profile')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
+    action: () => scrollAndReveal(null, '.profile .logout, .profile'),
+  },
 ]
+
+function resolveActiveSteps(): Step[] {
+  if (typeof document !== 'undefined' && document.getElementById('lite-shell-root')) {
+    return ALL_STEPS.filter(s => s.mode === 'lite')
+  }
+  return ALL_STEPS.filter(s => s.mode === 'pro')
+}
 
 type Rect = { x: number; y: number; w: number; h: number }
 
-function useTarget(sel: string | null, stepIdx: number) {
+function useTarget(step: Step | undefined, stepIdx: number) {
+  const sel = step?.sel ?? null
   const [rect, setRect] = useState<Rect | null>(null)
 
   const measure = useCallback(() => {
@@ -117,26 +171,22 @@ function useTarget(sel: string | null, stepIdx: number) {
   }, [sel])
 
   useLayoutEffect(() => {
-    if (!sel) return
-    const step = STEPS[stepIdx]
-    if (step?.action) step.action()
+    if (!sel || !step) return
+    if (step.action) step.action()
 
-    // Immediate fast measure - reduced delays for smoother transitions
     measure()
-    const timer1 = setTimeout(measure, 50)  // Reduced from 120ms
-    const timer2 = setTimeout(measure, 150) // Reduced from 400ms
+    const timers = [60, 180, 380, 680].map(ms => setTimeout(measure, ms))
 
     const onScrollOrResize = () => measure()
     window.addEventListener('resize', onScrollOrResize, { passive: true })
     window.addEventListener('scroll', onScrollOrResize, { passive: true, capture: true })
 
     return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
+      timers.forEach(clearTimeout)
       window.removeEventListener('resize', onScrollOrResize)
       window.removeEventListener('scroll', onScrollOrResize, true)
     }
-  }, [sel, stepIdx, measure])
+  }, [sel, step, stepIdx, measure])
 
   return rect
 }
@@ -146,21 +196,37 @@ export function MitraAvatar({ size = 38 }: { size?: number }) {
 }
 
 function Tour({ onClose }: { onClose: () => void }) {
+  const [steps] = useState<Step[]>(resolveActiveSteps)
   const [i, setI] = useState(0)
-  const step = STEPS[i]
-  const rect = useTarget(step.sel, i)
+  const step = steps[i] || steps[0]
+  const rect = useTarget(step, i)
+
+  const finishAndPersist = useCallback(() => {
+    try {
+      localStorage.setItem('seva-mitra-choice', 'done')
+      sessionStorage.setItem('seva-mitra-choice', 'done')
+    } catch {}
+    onClose()
+  }, [onClose])
+
+  const next = useCallback(() => {
+    if (i >= steps.length - 1) {
+      finishAndPersist()
+    } else {
+      setI(v => v + 1)
+    }
+  }, [i, steps.length, finishAndPersist])
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') finishAndPersist()
       if (e.key === 'ArrowRight') next()
       if (e.key === 'ArrowLeft') setI(v => Math.max(0, v - 1))
     }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
-  })
+  }, [finishAndPersist, next])
 
-  const next = () => (i >= STEPS.length - 1 ? onClose() : setI(i + 1))
   const pop = useRef<HTMLDivElement>(null)
   const [ph, setPh] = useState(220)
 
@@ -197,11 +263,7 @@ function Tour({ onClose }: { onClose: () => void }) {
       e.preventDefault()
       e.stopPropagation()
     }
-    try {
-      localStorage.setItem('seva-mitra-choice', 'done')
-      sessionStorage.setItem('seva-mitra-choice', 'done')
-    } catch {}
-    onClose()
+    finishAndPersist()
   }
 
   const handleSkipStep = (e?: React.MouseEvent) => {
@@ -215,9 +277,9 @@ function Tour({ onClose }: { onClose: () => void }) {
   return <div className="mi-tour" role="dialog" aria-label="SEVA.GIS quick tour">
     {rect ? <div className="mi-spot" style={{ left: rect.x - pad, top: rect.y - pad, width: rect.w + pad * 2, height: rect.h + pad * 2 }} /> : <div className="mi-dim" />}
     <div className="mi-pop" ref={pop} style={{ left, top, width: W }}>
-      <header><MitraAvatar size={30} /><b>NAVI</b><span>{i + 1} of {STEPS.length}</span><button aria-label="Close tour" onClick={handleSkipAll}><X size={15} /></button></header>
+      <header><MitraAvatar size={30} /><b>NAVI</b><span>{i + 1} of {steps.length}</span><button type="button" aria-label="Close tour" onClick={handleSkipAll}><X size={15} /></button></header>
       <h4>{step.title}</h4><p>{step.body}</p>
-      <div className="mi-dots">{STEPS.map((_, k) => <button key={k} aria-label={`Step ${k + 1}`} className={k === i ? 'on' : ''} onClick={() => setI(k)} />)}</div>
+      <div className="mi-dots">{steps.map((_, k) => <button type="button" key={k} aria-label={`Step ${k + 1}`} className={k === i ? 'on' : ''} onClick={() => setI(k)} />)}</div>
       <footer style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 10 }}>
         <button
           type="button"
@@ -252,7 +314,7 @@ function Tour({ onClose }: { onClose: () => void }) {
             onClick={next}
             style={{ background: '#10b981', borderColor: '#10b981', color: '#fff', fontWeight: 700, padding: '7px 14px', borderRadius: 8 }}
           >
-            {i === STEPS.length - 1 ? 'Finish' : 'Next'}
+            {i === steps.length - 1 ? 'Finish' : 'Next'}
             <ChevronRight size={15} />
           </button>
         </div>
@@ -262,7 +324,6 @@ function Tour({ onClose }: { onClose: () => void }) {
 }
 
 export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
-  // Use localStorage and sessionStorage so choice persists across sessions
   const [state, setState] = useState<'ask' | 'tour' | 'off'>(() => {
     try {
       const choice = localStorage.getItem('seva-mitra-choice') || sessionStorage.getItem('seva-mitra-choice')
@@ -330,7 +391,7 @@ export function MitraGuide({ name, guest }: { name: string; guest: boolean }) {
                 Skip all · Explore on my own
               </button>
             </div>
-            <small className="mi-ask-footnote">Your choice is remembered. You can reopen NAVI anytime from the top bar.</small>
+            <small className="mi-ask-footnote">Your choice is remembered. You can reopen NAVI anytime from the bottom menu beside Sign out.</small>
           </div>
         </aside>
       </div>
